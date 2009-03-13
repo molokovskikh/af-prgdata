@@ -1,0 +1,1 @@
+﻿<%@ ServiceHost Language="VB" Debug="true" Service="PrgData.StatisticService" CodeBehind="StatisticService.svc.vb" %>
