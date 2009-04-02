@@ -12,6 +12,8 @@ Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Counter", "Counter\Counter.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PrgData.Common", "PrgData.Common\PrgData.Common.csproj", "{A781C338-F75D-45A8-A7DC-C49E66051FC5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.MySql", "Common.Model.MYSql\Common.MySql\Common.MySql.csproj", "{8A680813-C83B-497A-85E6-E8F07B7D7650}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,12 @@ Global
 		{A781C338-F75D-45A8-A7DC-C49E66051FC5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A781C338-F75D-45A8-A7DC-C49E66051FC5}.Release|x64.ActiveCfg = Release|x64
 		{A781C338-F75D-45A8-A7DC-C49E66051FC5}.Release|x64.Build.0 = Release|x64
+		{8A680813-C83B-497A-85E6-E8F07B7D7650}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A680813-C83B-497A-85E6-E8F07B7D7650}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A680813-C83B-497A-85E6-E8F07B7D7650}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8A680813-C83B-497A-85E6-E8F07B7D7650}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A680813-C83B-497A-85E6-E8F07B7D7650}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A680813-C83B-497A-85E6-E8F07B7D7650}.Release|x64.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
