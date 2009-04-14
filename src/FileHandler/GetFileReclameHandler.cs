@@ -8,7 +8,7 @@ namespace FileHandler
 {
 	public class GetFileReclameHandler : IHttpHandler
 	{
-		private string CCode;
+		private string SUserId;
 
 		static void CopyStreams(Stream input, Stream output)
 		{
@@ -21,7 +21,7 @@ namespace FileHandler
 
 		void MailErr(string ErrSource, string ErrDesc)
 		{
-			var sBody = "Код клиента : " + CCode + Environment.NewLine + "Процесс : " + ErrSource + Environment.NewLine +
+			var sBody = "Код пользователя : " + SUserId + Environment.NewLine + "Процесс : " + ErrSource + Environment.NewLine +
 			            "Описание : " + ErrDesc;
 			Utils.Mail(sBody, "Сервис: ошибка в GetReclameHadler");
 		}
@@ -30,12 +30,12 @@ namespace FileHandler
 		{
 			try
 			{
-				CCode = GetFileHandler.GetClientCode(context);
-				UInt32 ClientCode;
-				if (!string.IsNullOrEmpty(CCode) && (UInt32.TryParse(CCode, out ClientCode)))
+				SUserId = GetFileHandler.GetUserId(context);
+				UInt32 UserId;
+				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
-					Counter.Counter.TryLock(ClientCode, "ReclameFileHandler");
-					var fn = context.Server.MapPath(@"/Results") + @"\r" + ClientCode + ".zip";
+					Counter.Counter.TryLock(UserId, "ReclameFileHandler");
+					var fn = context.Server.MapPath(@"/Results") + @"\r" + UserId + ".zip";
 					if (File.Exists(fn))
 					{
 						context.Response.ContentType = "application/octet-stream";
@@ -63,20 +63,20 @@ namespace FileHandler
 			catch (HttpException wex)
 			{
 				if (wex.ErrorCode != -2147014842) 
-					MailErr("Запрос на получение файла с рекламой, клиент: " + CCode, "ErrCode: " + wex.ErrorCode + " Message: " + wex.Message);
+					MailErr("Запрос на получение файла с рекламой, пользователь: " + SUserId, "ErrCode: " + wex.ErrorCode + " Message: " + wex.Message);
 			}
 			catch (Exception ex)
 			{
 				if  (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					MailErr("Запрос на получение файла с рекламой, клиент: " + CCode, ex.ToString());
+					MailErr("Запрос на получение файла с рекламой, пользователь: " + SUserId, ex.ToString());
 					context.Response.StatusCode = 500;
 				}
 			}
 			finally
 			{
-				Counter.Counter.ReleaseLock(Convert.ToUInt32(CCode), "ReclameFileHandler");
+				Counter.Counter.ReleaseLock(Convert.ToUInt32(SUserId), "ReclameFileHandler");
 			}
 		}
 

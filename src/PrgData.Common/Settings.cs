@@ -4,26 +4,18 @@ namespace PrgData.Common
 {
 	public class Settings
 	{
-		public static string ReadOnlyConnectionString()
+		public static string ConnectionString()
 		{ 
 #if DEBUG 	
 			//return "Database=usersettings;Data Source=testsql.analit.net;User Id=system;Password=newpass;pooling=true";
-			return ConfigurationManager.ConnectionStrings["ReadOnly"].ConnectionString;
+			return ConfigurationManager.ConnectionStrings["Main"].ConnectionString;
 #else		
-			return ConfigurationManager.ConnectionStrings["DB"].ReadOnlyConnectionString;
+			return ConfigurationManager.ConnectionStrings["Main"].ConnectionString;
 #endif
 		}
 
 
-		public static string ReadWriteConnectionString()
-		{
-#if DEBUG
-			//return "Database=usersettings;Data Source=testsql.analit.net;User Id=system;Password=newpass;pooling=true";
-			return ConfigurationManager.ConnectionStrings["ReadWrite"].ConnectionString;
-#else		
-			return ConfigurationManager.ConnectionStrings["DB"].ReadWriteConnectionString;
-#endif
-		}
+		
 
 	}
 }

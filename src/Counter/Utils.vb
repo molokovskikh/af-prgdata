@@ -11,7 +11,7 @@ Public Class Utils
 	End Sub
 
 	Public Shared Sub Execute(ByVal CommandText As String, ByRef ParametersAsAnonymousObject As Object)
-        Using connection = New MySqlConnection(Settings.ReadWriteConnectionString)
+        Using connection = New MySqlConnection(Settings.ConnectionString)
             connection.Open()
             Dim command = New MySqlCommand(CommandText, connection)
             BindParameters(command, ParametersAsAnonymousObject)
@@ -20,7 +20,7 @@ Public Class Utils
 	End Sub
 
 	Public Shared Function Request(ByVal CommandText As String, ByRef ParametersAsAnonymousObject As Object) As IList(Of ClientStatus)
-        Using connection = New MySqlConnection(Settings.ReadOnlyConnectionString)
+        Using connection = New Global.Common.MySql.ConnectionManager().GetConnection()
             connection.Open()
             Dim command = New MySqlCommand(CommandText, connection)
             BindParameters(command, ParametersAsAnonymousObject)
@@ -35,7 +35,7 @@ Public Class Utils
 	End Function
 
 	Public Shared Function RequestScalar(Of T)(ByVal CommandText As String) As T
-        Using connection = New MySqlConnection(Settings.ReadOnlyConnectionString)
+        Using connection = New Global.Common.MySql.ConnectionManager().GetConnection()
             connection.Open()
             Dim command = New MySqlCommand(CommandText, connection)
             Return CType(command.ExecuteScalar(), T)
@@ -59,15 +59,15 @@ Public Class Utils
 		Try
 			Dim MailAddress As New MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8)
 			Dim message As New MailMessage("service@analit.net", "service@analit.net")
-			Dim SC As New SmtpClient("mail.adc.analit.net")
+            Dim SC As New SmtpClient("box.analit.net")
 			message.From = MailAddress
 			message.Subject = Subject
 			message.SubjectEncoding = Encoding.UTF8
 			message.BodyEncoding = Encoding.UTF8
 			message.Body = MessageText
 			SC.Send(message)
-		Catch
-		End Try
+        Catch err As Exception
+        End Try
 	End Sub
 
 End Class

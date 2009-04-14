@@ -13,7 +13,7 @@ namespace FileHandler
 	{
 		private static readonly ILog _log = LogManager.GetLogger(typeof (GetFileHandler));
 
-		private string CCode;
+		private string SUserId;
 		private long _byteSent;
 		private long _totalBytes;
 		private long _updateId;
@@ -39,7 +39,7 @@ namespace FileHandler
 		{
 			try
 			{
-				using (var connection = new MySqlConnection(Settings.ReadWriteConnectionString()))
+				using (var connection = new MySqlConnection(Settings.ConnectionString()))
 				{
 					connection.Open();
 					var command = connection.CreateCommand();
@@ -67,16 +67,16 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			LogSend(null);
 		}
 
-		public static string GetClientCode(HttpContext context)
+		public static string GetUserId(HttpContext context)
 		{
 			var UserName = context.User.Identity.Name;
 			if (UserName.StartsWith(@"ANALIT\", StringComparison.OrdinalIgnoreCase))
 				UserName = UserName.Substring(7);
 			try
 			{
-				using (var connection = new MySqlConnection(Settings.ReadOnlyConnectionString()))
+				using (var connection = new Common.MySql.ConnectionManager().GetConnection())
 				{
-					var command = new MySqlCommand(@"SELECT ouar.clientcode
+					var command = new MySqlCommand(@"SELECT ouar.RowId
 FROM clientsdata cd
 	JOIN osuseraccessright ouar on ouar.clientcode = cd.firmcode
 		JOIN AssignedPermissions ap on ap.UserId = ouar.RowId
@@ -89,7 +89,7 @@ where cd.firmstatus = 1
 					using (var sqlr = command.ExecuteReader())
 					{
 						if (sqlr.Read())
-							return sqlr["clientcode"].ToString();
+							return sqlr["RowId"].ToString();
 					}
 				}
 			}
@@ -104,15 +104,15 @@ where cd.firmstatus = 1
 		{
 			try
 			{
-				CCode = GetClientCode(context);
-				UInt32 ClientCode;
+				SUserId = GetUserId(context);
+				UInt32 UserId;
 
 				_userHost = context.Request.UserHostAddress;
 
-				if (String.IsNullOrEmpty(CCode) || !UInt32.TryParse(CCode, out ClientCode))
+				if (String.IsNullOrEmpty(SUserId) || !UInt32.TryParse(SUserId, out UserId))
 					throw new Exception("Не удалось идентифицировать клиента. (2)");
 
-				var fn = context.Server.MapPath(@"/Results") + @"\" + ClientCode + ".zip";
+				var fn = context.Server.MapPath(@"/Results") + @"\" + UserId + ".zip";
 				if (!File.Exists(fn))
 					throw new Exception("Не удалось идентифицировать клиента. (1)");
 
@@ -123,7 +123,7 @@ where cd.firmstatus = 1
 					Int64.TryParse(context.Request.QueryString["RangeStart"], out _fromByte);
 
 
-				Counter.Counter.TryLock(ClientCode, "FileHandler");
+				Counter.Counter.TryLock(UserId, "FileHandler");
 
 				context.Response.ContentType = "application/octet-stream";
 				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -146,14 +146,14 @@ where cd.firmstatus = 1
 					&& comex.ErrorCode != -2147024832)
 				{
 					LogSend(comex);
-					_log.Error(String.Format("Ошибка при запросе получения файла с данными, клиент: {0}", CCode), comex);
+					_log.Error(String.Format("Ошибка при запросе получения файла с данными, пользователь: {0}", SUserId), comex);
 				}
 			}
 			catch (HttpException wex)
 			{
 				LogSend(wex);
 				if (wex.ErrorCode != -2147014842)
-					_log.Error(String.Format("Ошибка при запросе получения файла с данными, клиент: {0}", CCode), wex);
+					_log.Error(String.Format("Ошибка при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
 			}
 			catch (Exception ex)
 			{
@@ -162,13 +162,13 @@ where cd.firmstatus = 1
 				if (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					_log.Error(String.Format("Ошибка при запросе получения файла с данными, клиент: {0}", CCode), ex);
+					_log.Error(String.Format("Ошибка при запросе получения файла с данными, пользователь: {0}", SUserId), ex);
 					context.Response.StatusCode = 500;
 				}
 			}
 			finally
 			{
-				Counter.Counter.ReleaseLock(Convert.ToUInt32(CCode), "FileHandler");
+				Counter.Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler");
 			}
 		}
 
