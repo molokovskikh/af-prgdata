@@ -146,15 +146,25 @@ where cd.firmstatus = 1
 					&& comex.ErrorCode != -2147024832)
 				{
 					LogSend(comex);
-					_log.Error(String.Format("Ошибка при запросе получения файла с данными, пользователь: {0}", SUserId), comex);
+					_log.Error(String.Format("COMException при запросе получения файла с данными, пользователь: {0}", SUserId), comex);
 				}
 			}
 			catch (HttpException wex)
 			{
+
+				// 0x800703E3 -2147023901 Удаленный хост разорвал соединение.
+
 				LogSend(wex);
-				if (wex.ErrorCode != -2147014842)
-					_log.Error(String.Format("Ошибка при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
+				if (	wex.ErrorCode != -2147014842
+					//
+					&& wex.ErrorCode != -2147023901
+					&& wex.ErrorCode != -2147467259
+					&& wex.ErrorCode != -2147024832
+					&& wex.ErrorCode != -2147024775)
+					//
+					_log.Error(String.Format("HttpException " + wex.ErrorCode + "  при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
 			}
+
 			catch (Exception ex)
 			{
 				LogSend(ex);
@@ -162,7 +172,7 @@ where cd.firmstatus = 1
 				if (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					_log.Error(String.Format("Ошибка при запросе получения файла с данными, пользователь: {0}", SUserId), ex);
+					_log.Error(String.Format("Exception при запросе получения файла с данными, пользователь: {0}", SUserId), ex);
 					context.Response.StatusCode = 500;
 				}
 			}

@@ -9,7 +9,7 @@ Public Class Global_asax
 
     Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
 		XmlConfigurator.Configure()
-        Logger.Debug("Приложение запущено")
+        'Logger.Debug("Приложение запущено")
 	End Sub
 
 	Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
@@ -37,7 +37,7 @@ Public Class Global_asax
     End Sub
 
     Sub Application_End(ByVal sender As Object, ByVal e As EventArgs)
-        Logger.Debug("Приложение остановлено")
+        'Logger.Debug("Приложение остановлено")
     End Sub
 
 End Class
