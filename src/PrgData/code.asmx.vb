@@ -234,6 +234,7 @@ Imports PrgData.Common
         'Context.Request.SaveAs(ResultFileName & "res.txt", True)
         Dim LockCount As Int32
         Dim ResStr As String = String.Empty
+        Dim NeedFreeLock As Boolean = False
         'StringDataSet
         Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
 
@@ -432,12 +433,18 @@ RestartInsertTrans:
 
 
                 If Not Counter.Counter.TryLock(UserId, "GetUserData") Then
+
                     MessageH = "Обновление данных в настоящее время невозможно."
                     MessageD = "Пожалуйста, повторите попытку через несколько минут.[6]"
                     Addition &= "Перегрузка; "
                     UpdateType = 5
                     ErrorFlag = True
                     GoTo endproc
+
+                Else
+
+                    NeedFreeLock = True
+
                 End If
 
                 If Documents Then
@@ -529,7 +536,9 @@ endproc:
             UpdateType = 6
             GetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
-            ReleaseLock(UserId, "GetUserData")
+
+            If NeedFreeLock Then ReleaseLock(UserId, "GetUserData")
+
         End Try
         DBDisconnect()
         GC.Collect()
@@ -2294,26 +2303,26 @@ Restart:
 
     Private Function CheckUpdatePeriod() As UInt32
         Dim Min1, Min2, MinRes As UInt32
-        Min1 = CType(Math.Round(Now().Subtract(OldUpTime).TotalMinutes), UInt32)
-        Min2 = CType(Math.Round(Now().Subtract(UncDT).TotalMinutes), UInt32)
+        'Min1 = CType(Math.Round(Now().Subtract(OldUpTime).TotalMinutes), UInt32)
+        'Min2 = CType(Math.Round(Now().Subtract(UncDT).TotalMinutes), UInt32)
 
 
-        Cm.Transaction = Nothing
+        'Cm.Transaction = Nothing
 
-        Cm.CommandText = "select not exists(SELECT * FROM UserUpdateInfo rui, logs.AnalitFUpdates p " & _
-        "where p.requesttime >= rui.UncommitedUpdateDate " & _
-        "and rui.UserId=p.UserId " & _
-        "and rui.UserId=" & UserId & ")"
+        'Cm.CommandText = "select not exists(SELECT * FROM UserUpdateInfo rui, logs.AnalitFUpdates p " & _
+        '"where p.requesttime >= rui.UncommitedUpdateDate " & _
+        '"and rui.UserId=p.UserId " & _
+        '"and rui.UserId=" & UserId & ")"
 
-        If CType(Cm.ExecuteScalar, UInt16) = 1 Then
+        'If CType(Cm.ExecuteScalar, UInt16) = 1 Then
 
-            MinRes = Min1
-            If Min2 < MinRes Then MinRes = Min2
+        '    MinRes = Min1
+        '    If Min2 < MinRes Then MinRes = Min2
 
-        Else
-            MinRes = 10
+        'Else
+        MinRes = 10
 
-        End If
+        'End If
 
 
         Return MinRes
