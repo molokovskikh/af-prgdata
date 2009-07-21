@@ -27,7 +27,7 @@ Public Class Utils
             Dim statuses = New List(Of ClientStatus)
             Using Reader = command.ExecuteReader
                 While Reader.Read
-                    statuses.Add(New ClientStatus(Reader.GetInt32("Id"), Reader.GetUInt32("ClientCode"), Reader.GetString("MethodName"), Reader.GetDateTime("StartTime")))
+                    statuses.Add(New ClientStatus(Reader.GetInt32("Id"), Reader.GetUInt32("UserId"), Reader.GetString("MethodName"), Reader.GetDateTime("StartTime")))
                 End While
             End Using
             Return statuses

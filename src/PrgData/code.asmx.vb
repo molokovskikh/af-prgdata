@@ -1208,7 +1208,7 @@ StartZipping:
          "        rui.UpdateDate                             , " & _
          "        rui.UncommitedUpdateDate                   , " & _
          "        AlowRegister                               , " & _
-         "        IF(ShowMessageCount<1, '', MESSAGE) MESSAGE, " & _
+         "        IF(rui.MessageShowCount<1, '', rui.MESSAGE) MESSAGE, " & _
          "        CheckCopyID " & _
          "FROM    clientsdata           , " & _
          "        retclientsset         , " & _
@@ -1258,15 +1258,21 @@ StartZipping:
             End With
 
             If CCode > 0 Then
-                myTrans = ReadOnlyCn.BeginTransaction
+                'myTrans = ReadOnlyCn.BeginTransaction
                 Cm.Connection = ReadWriteCn
                 Cm.Transaction = Nothing
                 Cm.CommandText = "" & _
                     "UPDATE Logs.AuthorizationDates A " & _
                     "SET     AFTime    =now() " & _
                     "WHERE   UserId=" & UserId
-                Cm.ExecuteNonQuery()
-                myTrans.Commit()
+                Dim AuthorizationDatesCounter As Integer = Cm.ExecuteNonQuery()
+
+                If AuthorizationDatesCounter <> 1 Then
+
+                    Err.Raise(1, "Получение информации о клиенте", "Отсутствует запись в Logs.AuthorizationDates")
+
+                End If
+                'myTrans.Commit()
             End If
 
 
@@ -1559,7 +1565,7 @@ StartZipping:
 
                 'начинаем проверять минимальный заказ
                 Try
-                    Cm.CommandText = "SELECT i.ControlMinReq, if(i.MinReq>0, i.MinReq, prd.MinReq) FROM usersettings.intersection i " & _
+                    Cm.CommandText = "SELECT i.ControlMinReq, if(ifnull(i.MinReq, 0)>0, i.MinReq, prd.MinReq) FROM usersettings.intersection i " & _
                      " inner join usersettings.pricesregionaldata prd on prd.pricecode = i.priceCode and prd.RegionCode = i.regionCode " & _
                      " where i.ClientCode = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCode = ?RegionCode"
                     Cm.Parameters.Clear()
@@ -1573,8 +1579,10 @@ StartZipping:
 
                     SQLdr = Cm.ExecuteReader
                     SQLdr.Read()
+
                     ControlMinReq = SQLdr.GetBoolean(0)
                     MinReq = SQLdr.GetUInt32(1)
+
                     SQLdr.Close()
 
                     If ControlMinReq And MinReq > 0 Then
@@ -2364,6 +2372,11 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
 
+
+                'Cm.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+                'Cm.ExecuteNonQuery()
+
+
                 Cm.Connection = ReadWriteCn
                 Cm.CommandText = "" & _
 "INSERT " & _
@@ -2794,17 +2807,17 @@ RestartTrans2:
 
                     SQLText &= "AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode "
 
-                Else
-
-                    SQLText &= " " & _
-                "UNION " & _
-                " " & _
-                "SELECT synonymfirmcrcode, " & _
-                "       LEFT(SYNONYM, 250) " & _
-                "FROM   farm.synonymfirmcr " & _
-                "WHERE  synonymfirmcrcode=0"
-
                 End If
+
+                'Else
+
+                SQLText &= " " & _
+            "UNION " & _
+            " " & _
+            "SELECT 1, " & _
+            "       '-' "
+
+                'End If
 
                 GetMySQLFile("SynonymFirmCr", SelProc, SQLText)
 
@@ -2865,9 +2878,9 @@ RestartTrans2:
                      "SELECT CT.PriceCode                      , " & _
                      "       CT.regioncode                     , " & _
                      "       CT.ProductId                      , " & _
-                     "       ifnull(Core.codefirmcr, 0)        , " & _
+                     "       ifnull(Core.codefirmcr, '')       , " & _
                      "       Core.synonymcode                  , " & _
-                     "       ifnull(Core.SynonymFirmCrCode, ''), " & _
+                     "       if(ifnull(Core.SynonymFirmCrCode, 0)<1, 1, Core.SynonymFirmCrCode), " & _
                      "       Core.Code                         , " & _
                      "       Core.CodeCr                       , " & _
                      "       Core.unit                         , " & _
@@ -3068,9 +3081,9 @@ RestartTrans2:
 "SELECT 2647                              , " & _
 "       ?OffersRegionCode                 , " & _
 "       A.ProductId                       , " & _
-"       1                                 , " & _
+"       ''                                , " & _
 "       S.SynonymCode                     , " & _
-"       0                                 , " & _
+"       1                                 , " & _
 "       ''                                , " & _
 "       ''                                , " & _
 "       ''                                , " & _
@@ -3112,7 +3125,9 @@ RestartTrans2:
 
                 Cm.Parameters.AddWithValue("?OffersClientCode", OffersClientCode)
 
-                Cm.CommandText = "" & _
+                Cm.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+
+                Cm.CommandText &= "" & _
                   "CALL AFGetActivePricesByUserId(" & UserId & "); " & _
                "CREATE TEMPORARY TABLE MaxCodesSyn engine=MEMORY " & _
                "SELECT   Prices.FirmCode, " & _
@@ -3165,14 +3180,10 @@ RestartTrans2:
                 myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
                 Cm.Transaction = myTrans
 
-                Cm.ExecuteNonQuery()
-
-                Cm.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+                Cm.CommandText &= "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 Cm.ExecuteNonQuery()
 
                 myTrans.Commit()
-
-
 
                 TS = Now().Subtract(StartTime)
 
@@ -3237,6 +3248,7 @@ RestartTrans2:
 
         Dim LeaderMinPriceCodeP As UInt32 = 0
         Dim MinPriceCodeP As UInt32 = 0
+        Dim SynonymFirmCrCodeP As UInt32
         Dim MinCostP As Decimal = 0
         Dim LaederMinCostP As Decimal = 0
         Dim ProblemStr As String = String.Empty
@@ -3250,70 +3262,82 @@ RestartTrans2:
             newrow.Item("ProductID") = ProductID(i)
             newrow.Item("SynonymCode") = SynonymCode(i)
 
-            If SynonymFirmCrCode(i).Length < 1 Then
+            If UInt32.TryParse(SynonymFirmCrCode(i), SynonymFirmCrCodeP) Then
+
+                If SynonymFirmCrCodeP > 2 Then
+
+                    newrow.Item("SynonymFirmCrCode") = SynonymFirmCrCodeP
+
+                Else
+
+                    newrow.Item("SynonymFirmCrCode") = DBNull.Value
+
+                End If
+
+            Else
+
                 newrow.Item("SynonymFirmCrCode") = DBNull.Value
-            Else
-                newrow.Item("SynonymFirmCrCode") = SynonymFirmCrCode(i)
-            End If
-
-
-            If CodeFirmCr(i).Length < 1 Then
-                newrow.Item("CodeFirmCr") = DBNull.Value
-            Else
-                newrow.Item("CodeFirmCr") = CodeFirmCr(i)
-            End If
-
-
-
-            If Left(Code(i), 1) = "?" Then
-                Dim ResStr As String = String.Empty
-                Try
-                    For PosID = 2 To Len(Code(i)) Step 3
-                        ResStr &= Chr(Convert.ToInt32(Left(Mid(Code(i), PosID), 3)))
-                    Next
-                Catch err As Exception
-                    MailErr("Формирование Code", err.Message)
-                End Try
-                newrow.Item("Code") = ResStr
-
-            Else
-                newrow.Item("Code") = Code(i)
-            End If
-
-
-
-            If Left(CodeCr(i), 1) = "?" Then
-                Dim ResStr As String = String.Empty
-                Try
-                    For PosID = 2 To Len(CodeCr(i)) Step 3
-                        ResStr &= Chr(Convert.ToInt32(Left(Mid(CodeCr(i), PosID), 3)))
-                    Next
-                Catch err As Exception
-                    MailErr("Формирование CodeCr", err.Message)
-                End Try
-                newrow.Item("CodeCr") = ResStr
-            Else
-                newrow.Item("CodeCr") = CodeCr(i)
-            End If
-
-
-            newrow.Item("Quantity") = Quantity(i)
-            newrow.Item("Junk") = Junk(i)
-            newrow.Item("Await") = Await(i)
-            newrow.Item("Cost") = Cost(i)
-
-            If CalculateLeader Then
-
-                If UInt32.TryParse(MinPriceCode(i), MinPriceCodeP) Then newrow.Item("CostCode") = MinPriceCodeP
-                If UInt32.TryParse(LeaderMinPriceCode(i), LeaderMinPriceCodeP) Then newrow.Item("LeaderCostCode") = LeaderMinPriceCodeP
-
-                If Decimal.TryParse(LeaderMinCost(i), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, LaederMinCostP) Then newrow.Item("LeaderMinCost") = LaederMinCostP
-                If Decimal.TryParse(MinCost(i), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, MinCostP) Then newrow.Item("MinCost") = MinCostP
 
             End If
 
 
-            DS.Tables("OrdersL").Rows.Add(newrow)
+                If CodeFirmCr(i).Length < 1 Then
+                    newrow.Item("CodeFirmCr") = DBNull.Value
+                Else
+                    newrow.Item("CodeFirmCr") = CodeFirmCr(i)
+                End If
+
+
+
+                If Left(Code(i), 1) = "?" Then
+                    Dim ResStr As String = String.Empty
+                    Try
+                        For PosID = 2 To Len(Code(i)) Step 3
+                            ResStr &= Chr(Convert.ToInt32(Left(Mid(Code(i), PosID), 3)))
+                        Next
+                    Catch err As Exception
+                        MailErr("Формирование Code", err.Message)
+                    End Try
+                    newrow.Item("Code") = ResStr
+
+                Else
+                    newrow.Item("Code") = Code(i)
+                End If
+
+
+
+                If Left(CodeCr(i), 1) = "?" Then
+                    Dim ResStr As String = String.Empty
+                    Try
+                        For PosID = 2 To Len(CodeCr(i)) Step 3
+                            ResStr &= Chr(Convert.ToInt32(Left(Mid(CodeCr(i), PosID), 3)))
+                        Next
+                    Catch err As Exception
+                        MailErr("Формирование CodeCr", err.Message)
+                    End Try
+                    newrow.Item("CodeCr") = ResStr
+                Else
+                    newrow.Item("CodeCr") = CodeCr(i)
+                End If
+
+
+                newrow.Item("Quantity") = Quantity(i)
+                newrow.Item("Junk") = Junk(i)
+                newrow.Item("Await") = Await(i)
+                newrow.Item("Cost") = Cost(i)
+
+                If CalculateLeader Then
+
+                    If UInt32.TryParse(MinPriceCode(i), MinPriceCodeP) Then newrow.Item("CostCode") = MinPriceCodeP
+                    If UInt32.TryParse(LeaderMinPriceCode(i), LeaderMinPriceCodeP) Then newrow.Item("LeaderCostCode") = LeaderMinPriceCodeP
+
+                    If Decimal.TryParse(LeaderMinCost(i), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, LaederMinCostP) Then newrow.Item("LeaderMinCost") = LaederMinCostP
+                    If Decimal.TryParse(MinCost(i), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, MinCostP) Then newrow.Item("MinCost") = MinCostP
+
+                End If
+
+
+                DS.Tables("OrdersL").Rows.Add(newrow)
         Next
 
 
@@ -3807,7 +3831,8 @@ RestartTrans2:
 
             SelProc.CommandText &= "; " & _
             "UPDATE UserUpdateInfo " & _
-            "SET    UpdateDate=UncommitedUpdateDate " & _
+            "SET    UpdateDate=UncommitedUpdateDate," & _
+            "       MessageShowCount=if(MessageShowCount > 0, MessageShowCount - 1, 0)" & _
             "WHERE  UserId    =" & UserId
 
 

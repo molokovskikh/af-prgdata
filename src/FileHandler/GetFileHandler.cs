@@ -160,7 +160,8 @@ where cd.firmstatus = 1
 					&& wex.ErrorCode != -2147023901
 					&& wex.ErrorCode != -2147467259
 					&& wex.ErrorCode != -2147024832
-					&& wex.ErrorCode != -2147024775)
+					&& wex.ErrorCode != -2147024775
+	)
 					//
 					_log.Error(String.Format("HttpException " + wex.ErrorCode + "  при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
 			}
