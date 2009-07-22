@@ -1269,7 +1269,7 @@ StartZipping:
 
                 If AuthorizationDatesCounter <> 1 Then
 
-                    Err.Raise(1, "Получение информации о клиенте", "Отсутствует запись в Logs.AuthorizationDates")
+                    Addition &= "Нет записи в AuthorizationDates (" & UserId & "); "
 
                 End If
                 'myTrans.Commit()
@@ -2710,20 +2710,28 @@ RestartTrans2:
 
                 'If Not GED Then
 
-                GetMySQLFile("Rejects", SelProc, _
-                 "SELECT FirmCr        , " & _
-                 "       CountryCr     , " & _
-                 "       FullName      , " & _
-                 "       Series        , " & _
-                 "       LetterNo      , " & _
-                 "       LetterDate    , " & _
-                 "       LaboratoryName, " & _
-                 "       CauseRejects " & _
-                 "FROM   addition.rejects, " & _
-                 "       retclientsset rcs " & _
-                 "WHERE  accessTime     > ?UpdateTime " & _
-                 "   AND alowrejection  = 1 " & _
-                 "   AND rcs.clientcode = ?ClientCode")
+                SQLText = "SELECT FirmCr        , " & _
+               "       CountryCr     , " & _
+               "       FullName      , " & _
+               "       Series        , " & _
+               "       LetterNo      , " & _
+               "       LetterDate    , " & _
+               "       LaboratoryName, " & _
+               "       CauseRejects " & _
+               "FROM   addition.rejects, " & _
+               "       retclientsset rcs " & _
+               "WHERE rcs.clientcode = ?ClientCode" & _
+               "   AND alowrejection  = 1 "
+
+                If Not GED Then
+
+                    SQLText &= "   AND accessTime     > ?UpdateTime"
+
+                End If
+
+
+                'End If
+                GetMySQLFile("Rejects", SelProc, SQLText)
 
                 'End If
 
@@ -3828,6 +3836,19 @@ RestartTrans2:
             "WHERE  UserId           =" & UserId & _
             " AND ForceReplication=2"
 
+            'AbsentPriceCodes = Convert.ToString(5)
+            If Len(AbsentPriceCodes) > 0 Then
+
+                SelProc.CommandText &= "; " & _
+              "UPDATE AnalitFReplicationInfo ARI, PricesData Pd " & _
+              "SET    MaxSynonymFirmCrCode=default, " & _
+              "MaxSynonymFirmCrCode=default " & _
+              "WHERE  UserId           =" & UserId & _
+              " AND Pd.FirmCode=ARI.FirmCode" & _
+              " AND Pd.PriceCode in (" & AbsentPriceCodes & ")"
+
+            End If
+
 
             SelProc.CommandText &= "; " & _
             "UPDATE UserUpdateInfo " & _
@@ -3844,7 +3865,7 @@ RestartMaxCodesSet:
 
             myTrans.Commit()
 
-            If Len(AbsentPriceCodes) > 2 Then Addition &= "!!!Произведено восстановление целостности"
+            If Len(AbsentPriceCodes) > 0 Then Addition &= "!!! " & AbsentPriceCodes
 
         Catch MySQLErr As MySqlException
             Try
