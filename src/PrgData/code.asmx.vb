@@ -292,7 +292,20 @@ Imports PrgData.Common
                 End If
 
 
-                '#If Not Debug Then
+                If Not Counter.Counter.TryLock(UserId, "GetUserData") Then
+
+                    MessageH = "Обновление данных в настоящее время невозможно."
+                    MessageD = "Пожалуйста, повторите попытку через несколько минут.[6]"
+                    Addition &= "Перегрузка; "
+                    UpdateType = 5
+                    ErrorFlag = True
+                    GoTo endproc
+
+                Else
+
+                    NeedFreeLock = True
+
+                End If
 
                 Cm.Transaction = Nothing
                 Cm.CommandText = "" & _
@@ -310,21 +323,37 @@ Imports PrgData.Common
                     'NeedCloseCn = True
                     GoTo endproc
                 End If
-                '#End If
-                'Если с момента последнего обновления менее установленного времени
-                If Not Documents Then
 
-                    '#If Not Debug Then
-                    MinCount = CheckUpdatePeriod()
-                    If (MinCount <= 5 And UpdateType < 3) Then
-                        MessageH = "Нет доступа. Обновление возможно не чаще 1 раза в 5 минут."
-                        MessageD = "Доступ будет открыт через " & CInt(5 - MinCount) + 1 & " мин.[4]"
-                        Addition &= "5-минутное ограничение, осталось " & CInt(5 - MinCount) + 1 & " мин."
+
+                If CheckID Then
+                    UID = UniqueID
+                    If Not FnCheckID() Then
+                        MessageH = "Обновление программы на данном компьютере запрещено."
+                        MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
+                        Addition &= "Несоответствие UIN; "
                         UpdateType = 5
                         ErrorFlag = True
                         'NeedCloseCn = True
                         GoTo endproc
                     End If
+                End If
+
+
+                '#End If
+                'Если с момента последнего обновления менее установленного времени
+                If Not Documents Then
+
+                    '#If Not Debug Then
+                    'MinCount = CheckUpdatePeriod()
+                    'If (MinCount <= 5 And UpdateType < 3) Then
+                    '    MessageH = "Нет доступа. Обновление возможно не чаще 1 раза в 5 минут."
+                    '    MessageD = "Доступ будет открыт через " & CInt(5 - MinCount) + 1 & " мин.[4]"
+                    '    Addition &= "5-минутное ограничение, осталось " & CInt(5 - MinCount) + 1 & " мин."
+                    '    UpdateType = 5
+                    '    ErrorFlag = True
+                    '    'NeedCloseCn = True
+                    '    GoTo endproc
+                    'End If
 
 
                     If AllowBuildNo < BuildNo Then
@@ -360,7 +389,7 @@ RestartInsertTrans:
                     End If
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
-                    If BuildNo > 705 Then
+                    If BuildNo > 708 Then
                         FileCount = 14
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
@@ -385,167 +414,179 @@ RestartInsertTrans:
 
 
 
-                If CheckID Then
-                    UID = UniqueID
-                    If Not FnCheckID() Then
-                        MessageH = "Обновление программы на данном компьютере запрещено."
-                        MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
-                        Addition &= "Несоответствие UIN; "
-                        UpdateType = 5
-                        ErrorFlag = True
-                        'NeedCloseCn = True
-                        GoTo endproc
-                    End If
-                End If
 
 
-                If Documents Then
 
-                    CurUpdTime = Now()
+                        If Documents Then
 
-                    UpdateType = 8
-                    Try
-                        MySQLFileDelete(ResultFileName & UserId & ".zip")
-                    Catch ex As Exception
-                        Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
-                        UpdateType = 5
-                        ErrorFlag = True
-                        'NeedCloseCn = True
-                        GoTo endproc
-                    End Try
+                            CurUpdTime = Now()
 
-                Else
+                            UpdateType = 8
+                            Try
+                                MySQLFileDelete(ResultFileName & UserId & ".zip")
+                            Catch ex As Exception
+                                Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
+                                UpdateType = 5
+                                ErrorFlag = True
+                                'NeedCloseCn = True
+                                GoTo endproc
+                            End Try
 
-                    PackFinished = False
+                        Else
 
-                    If CkeckZipTimeAndExist(GetEtalonData) Then
+                            PackFinished = False
+
+                            If CkeckZipTimeAndExist(GetEtalonData) Then
 
 
-                        If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
-                            'NeedCloseCn = True
-                            UpdateType = 3
-                            NewZip = False
-                            PackFinished = True
+                                If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+                                    'NeedCloseCn = True
+                                    UpdateType = 3
+                                    NewZip = False
+                                    PackFinished = True
+                                    GoTo endproc
+                                End If
+
+                            Else
+
+                                Try
+
+                                    MySQLFileDelete(ResultFileName & UserId & ".zip")
+
+                                Catch ex As Exception
+                                    Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
+                                    UpdateType = 5
+                                    ErrorFlag = True
+                                    ' NeedCloseCn = True
+                                    GoTo endproc
+                                End Try
+
+
+                                Try
+                                    With Cm
+                                        .Connection = ReadWriteCn
+                                        .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId
+                                        .CommandText &= "; select UncommitedUpdateDate from UserUpdateInfo where UserId=" & UserId
+                                        .Transaction = myTrans
+
+                                    End With
+
+Restart:
+                                    myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
+                                    Cm.Transaction = myTrans
+                                    SQLdr = Cm.ExecuteReader()
+                                    SQLdr.Read()
+                                    CurUpdTime = SQLdr.GetDateTime(0)
+                                    SQLdr.Close()
+                                    myTrans.Commit()
+
+                                Catch MySQLErr As MySqlException
+                                    If Not (ReadWriteCn.State = ConnectionState.Closed Or ReadWriteCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+                                    If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
+                                        System.Threading.Thread.Sleep(500)
+                                        GoTo Restart
+                                    End If
+                                    MailErr("Присвоение неподтвержденного времени, клиент: " & CCode, MySQLErr.Message)
+                                    ErrorFlag = True
+                                Catch ex As Exception
+                                    MailErr("Присвоение неподтвержденного времени, клиент: " & CCode, ex.Message)
+                                    ErrorFlag = True
+                                End Try
+
+
+
+                            End If
+
+
+                        End If
+
+
+
+
+
+                        If Documents Then
+
+                            'Начинаем архивирование
+                            ThreadZipStream.Start()
+
+                        Else
+
+                            'Начинаем готовить данные
+                            BaseThread.Start()
+                            System.Threading.Thread.Sleep(500)
+
+                        End If
+
+                        LockCount = 0
+endproc:
+
+                        If Not PackFinished And (((BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive) Or ThreadZipStream.IsAlive) And Not ErrorFlag Then
+
+                            'Если есть ошибка, прекращаем подготовку данных
+                            If ErrorFlag Then
+
+                                If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Abort()
+                                If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+
+                                PackFinished = True
+
+                            End If
+                            Thread.Sleep(1000)
+                            LockCount += 1
+
+
                             GoTo endproc
+
+                        ElseIf Not PackFinished And Not ErrorFlag And UpdateType <> 5 And Not WayBillsOnly Then
+
+                            Addition &= "; Нет работающих потоков, данные не готовы."
+                            UpdateType = 5
+
+                            ErrorFlag = True
+                            ' NeedCloseCn = True
+
+                        End If
+                    End If
+
+
+                    If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
+
+                    If NewZip And Not ErrorFlag Then
+                        ArhiveTS = Now().Subtract(ArhiveStartTime)
+
+                        If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
+
+                            Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+
+                        End If
+
+                    End If
+
+                    ProtocolUpdatesThread.Start()
+
+                    If ErrorFlag Then
+
+                        If Len(MessageH) = 0 Then
+                            ResStr = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+                        Else
+                            ResStr = "Error=" & MessageH & ";Desc=" & MessageD
                         End If
 
                     Else
 
-                        Try
-                            MySQLFileDelete(ResultFileName & UserId & ".zip")
-                        Catch ex As Exception
-                            Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
-                            UpdateType = 5
-                            ErrorFlag = True
-                            ' NeedCloseCn = True
-                            GoTo endproc
-                        End Try
+
+                        While GUpdateId = 0
+                            Thread.Sleep(500)
+                        End While
+
+                        'ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & "/FileHandlerService/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
+                        ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
+
+                        If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
                     End If
-
-
-                End If
-
-
-
-                If Not Counter.Counter.TryLock(UserId, "GetUserData") Then
-
-                    MessageH = "Обновление данных в настоящее время невозможно."
-                    MessageD = "Пожалуйста, повторите попытку через несколько минут.[6]"
-                    Addition &= "Перегрузка; "
-                    UpdateType = 5
-                    ErrorFlag = True
-                    GoTo endproc
-
-                Else
-
-                    NeedFreeLock = True
-
-                End If
-
-                If Documents Then
-
-                    'Начинаем архивирование
-                    ThreadZipStream.Start()
-
-                Else
-
-                    'Начинаем готовить данные
-                    BaseThread.Start()
-                    System.Threading.Thread.Sleep(500)
-
-                End If
-
-                LockCount = 0
-endproc:
-
-                If Not PackFinished And (((BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive) Or ThreadZipStream.IsAlive) And Not ErrorFlag Then
-
-                    'Если есть ошибка, прекращаем подготовку данных
-                    If ErrorFlag Then
-
-                        If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Abort()
-                        If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
-
-                        PackFinished = True
-
-                    End If
-                    Thread.Sleep(1000)
-                    LockCount += 1
-
-
-                    GoTo endproc
-
-                ElseIf Not PackFinished And Not ErrorFlag And UpdateType <> 5 And Not WayBillsOnly Then
-
-                    Addition &= "; Нет работающих потоков, данные не готовы."
-                    UpdateType = 5
-
-                    ErrorFlag = True
-                    ' NeedCloseCn = True
-
-                End If
-            End If
-
-
-            If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
-
-            If NewZip And Not ErrorFlag Then
-                ArhiveTS = Now().Subtract(ArhiveStartTime)
-
-                If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
-
-                    Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
-
-                End If
-
-            End If
-
-            ProtocolUpdatesThread.Start()
-
-            If ErrorFlag Then
-
-                If Len(MessageH) = 0 Then
-                    ResStr = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
-                Else
-                    ResStr = "Error=" & MessageH & ";Desc=" & MessageD
-                End If
-
-            Else
-
-
-                While GUpdateId = 0
-                    Thread.Sleep(500)
-                End While
-
-                'ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & "/FileHandlerService/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
-                ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
-
-                If Message.Length > 0 Then ResStr &= ";Addition=" & Message
-
-            End If
-            'Err.Raise(1)
-            GetUserData = ResStr
+                    'Err.Raise(1)
+                    GetUserData = ResStr
 
         Catch ErrorTXT As Exception
             Utils.Mail(ErrorTXT.Message & ": " & ErrorTXT.StackTrace, "Колличество попыток: " & LockCount & "; Базовый поток: ")
@@ -2233,7 +2274,7 @@ PostLog:
         If FileInfo.Exists Then
 
             CkeckZipTimeAndExist = (((Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
-        Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 6))) Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
+        Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8))) Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
 
         Else
 
@@ -2247,39 +2288,7 @@ PostLog:
         Dim LCheckUpdateTime As Boolean
         LCheckUpdateTime = (OldUpTime = AccessTime Or _
                                         GetEtalonData)
-        'If Not LCheckUpdateTime Then Return False
-
-        Try
-            With Cm
-                .Connection = ReadWriteCn
-                .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId
-                .CommandText &= "; select UncommitedUpdateDate from UserUpdateInfo where UserId=" & UserId
-                .Transaction = myTrans
-
-            End With
-
-Restart:
-            myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
-            Cm.Transaction = myTrans
-            SQLdr = Cm.ExecuteReader()
-            SQLdr.Read()
-            CurUpdTime = SQLdr.GetDateTime(0)
-            SQLdr.Close()
-            myTrans.Commit()
-
-        Catch MySQLErr As MySqlException
-            If Not (ReadWriteCn.State = ConnectionState.Closed Or ReadWriteCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-            If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
-                System.Threading.Thread.Sleep(500)
-                GoTo Restart
-            End If
-            MailErr("Присвоение неподтвержденного времени, клиент: " & CCode, MySQLErr.Message)
-            ErrorFlag = True
-        Catch ex As Exception
-            MailErr("Присвоение неподтвержденного времени, клиент: " & CCode, ex.Message)
-            ErrorFlag = True
-        End Try
-
+        
         Return LCheckUpdateTime
 
 
@@ -2315,7 +2324,7 @@ Restart:
 
 
     Private Sub FirebirdProc()
-        Dim SQLText, DebugSQL As String
+        Dim SQLText As String
         Dim StartTime As DateTime = Now()
         Dim TS As TimeSpan
 
@@ -2405,20 +2414,7 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "MinPrices" & UserId & ".txt")
                 GetMySQLFile("PriceAvg", SelProc, "select ''")
 
-                DebugSQL = "insert into logs.AFDebugCatalogs(UserId, CatalogNo, CatalogId, MoreThan) "
-                DebugSQL &= "SELECT " & UserId & ", 1, P.Id, ?UpdateTime " & _
-               " FROM   Catalogs.Products P" & _
-               " WHERE hidden                = 0"
 
-                If Not GED Then
-
-                    DebugSQL &= " AND P.UpdateTime >= ?UpdateTime"
-                    Cm.CommandText = DebugSQL
-                    Cm.ExecuteNonQuery()
-
-                End If
-
-               
 
 
                 SQLText = "SELECT P.Id       ," & _
@@ -2440,23 +2436,6 @@ RestartTrans2:
                 ThreadZipStream.Start()
 
 
-
-                DebugSQL = "insert into logs.AFDebugCatalogs(UserId, CatalogNo, CatalogId, MoreThan) "
-                DebugSQL &= "SELECT " & UserId & ", 2, C.Id, ?UpdateTime " & _
-             "FROM   Catalogs.Catalog C       , " & _
-             "       Catalogs.CatalogForms CF , " & _
-             "       Catalogs.CatalogNames CN " & _
-             "WHERE  C.NameId                        =CN.Id " & _
-             "   AND C.FormId                        =CF.Id " & _
-             "   AND hidden    =0"
-
-                If Not GED Then
-
-                    DebugSQL &= "   AND C.UpdateTime >= ?UpdateTime "
-                    Cm.CommandText = DebugSQL
-                    Cm.ExecuteNonQuery()
-
-                End If
 
                
 
@@ -4725,49 +4704,49 @@ RestartTrans2:
             SelProc.Connection = ReadWriteCn
             SelProc.Transaction = myTrans
 
+
             SelProc.CommandText = "" & _
-            "UPDATE AnalitFReplicationInfo " & _
-            "SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode " & _
-            "WHERE  UncMaxSynonymFirmCrCode!=0 " & _
-            "   AND UserId                  =" & UserId
-
-
-            SelProc.CommandText &= "; " & _
-          "UPDATE AnalitFReplicationInfo " & _
-          "SET    MaxSynonymCode    =UncMaxSynonymCode " & _
-          "WHERE  UncMaxSynonymCode!=0 " & _
-          "   AND UserId                  =" & UserId
-
-
-            SelProc.CommandText &= "; " & _
             "UPDATE AnalitFReplicationInfo " & _
             "SET    ForceReplication    =0 " & _
             "WHERE  UserId           =" & UserId & _
-            " AND ForceReplication=2"
+            " AND ForceReplication=2; "
 
-            'AbsentPriceCodes = Convert.ToString(5)
+            SelProc.CommandText &= "" & _
+           "UPDATE UserUpdateInfo " & _
+           "SET    UpdateDate=UncommitedUpdateDate," & _
+           "       MessageShowCount=if(MessageShowCount > 0, MessageShowCount - 1, 0)" & _
+           "WHERE  UserId    =" & UserId
+
             If Len(AbsentPriceCodes) > 0 Then
-                Dim Query As String
 
-                Query = "; " & _
+                SelProc.CommandText &= "; " & _
               "UPDATE AnalitFReplicationInfo ARI, PricesData Pd " & _
               "SET    MaxSynonymFirmCrCode=0, " & _
-              "MaxSynonymCode=0 " & _
+              "MaxSynonymCode=0, " & _
+              "UncMaxSynonymCode=0, " & _
+              "UncMaxSynonymFirmCrCode=0 " & _
               "WHERE  UserId           =" & UserId & _
               " AND Pd.FirmCode=ARI.FirmCode" & _
               " AND Pd.PriceCode in (" & AbsentPriceCodes & ")"
 
-                SelProc.CommandText &= Query
-                'MailErr("Не ошибка", Query)
+                Addition &= "!!! " & AbsentPriceCodes
+
+            Else
+
+                SelProc.CommandText &= "; " & _
+          "UPDATE AnalitFReplicationInfo " & _
+          "SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode " & _
+          "WHERE  UncMaxSynonymFirmCrCode!=0 " & _
+          "   AND UserId                  =" & UserId
+
+
+                SelProc.CommandText &= "; " & _
+              "UPDATE AnalitFReplicationInfo " & _
+              "SET    MaxSynonymCode    =UncMaxSynonymCode " & _
+              "WHERE  UncMaxSynonymCode!=0 " & _
+              "   AND UserId                  =" & UserId
 
             End If
-
-
-            SelProc.CommandText &= "; " & _
-            "UPDATE UserUpdateInfo " & _
-            "SET    UpdateDate=UncommitedUpdateDate," & _
-            "       MessageShowCount=if(MessageShowCount > 0, MessageShowCount - 1, 0)" & _
-            "WHERE  UserId    =" & UserId
 
 
 RestartMaxCodesSet:
@@ -4778,7 +4757,6 @@ RestartMaxCodesSet:
 
             myTrans.Commit()
 
-            If Len(AbsentPriceCodes) > 0 Then Addition &= "!!! " & AbsentPriceCodes
 
         Catch MySQLErr As MySqlException
             Try
