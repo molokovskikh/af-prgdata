@@ -3522,34 +3522,64 @@ RestartTrans2:
                 End If
 
 
+                'Подготовка временной таблицы с контактами
+                SelProc.CommandText = "" & _
+                "drop TEMPORARY TABLE IF EXISTS ProviderContacts; " & _
+                "CREATE TEMPORARY TABLE ProviderContacts " & _
+                "AS " & _
+                "        SELECT DISTINCT c.contactText, " & _
+                "                        cd.FirmCode " & _
+                "        FROM            usersettings.clientsdata cd " & _
+                "                        JOIN contacts.contact_groups cg " & _
+                "                        ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId " & _
+                "                        JOIN contacts.contacts c " & _
+                "                        ON              cg.Id = c.ContactOwnerId " & _
+                "        WHERE           firmcode IN " & _
+                "                                    (SELECT DISTINCT FirmCode " & _
+                "                                    FROM             Prices " & _
+                "                                    ) " & _
+                "                    AND cg.Type = 1 " & _
+                "                    AND c.Type  = 0;" & _
+                "INSERT " & _
+                "INTO   ProviderContacts " & _
+                "SELECT DISTINCT c.contactText, " & _
+                "                cd.FirmCode " & _
+                "FROM            usersettings.clientsdata cd " & _
+                "                JOIN contacts.contact_groups cg " & _
+                "                ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId " & _
+                "                JOIN contacts.persons p " & _
+                "                ON              cg.id = p.ContactGroupId " & _
+                "                JOIN contacts.contacts c " & _
+                "                ON              p.Id = c.ContactOwnerId " & _
+                "WHERE           firmcode IN " & _
+                "                            (SELECT DISTINCT FirmCode " & _
+                "                            FROM             Prices " & _
+                "                            ) " & _
+                "            AND cg.Type = 1 " & _
+                "            AND c.Type  = 0;"
+                SelProc.ExecuteNonQuery()
 
-                GetMySQLFileWithDefault("Providers", SelProc, _
-                "SELECT firm.FirmCode, " & _
-                "       firm.FullName, " & _
-                "       firm.Fax     , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-' " & _
-                "FROM   clientsdata AS firm " & _
-                "WHERE  firmcode IN " & _
-                "                   (SELECT DISTINCT FirmCode " & _
-                "                   FROM             Prices " & _
-                "                   )")
+                GetMySQLFileWithDefault("Providers", SelProc, "" & _
+                "SELECT   firm.FirmCode, " & _
+                "         firm.FullName, " & _
+                "         firm.Fax     , " & _
+                "         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255) " & _
+                "FROM     clientsdata AS firm " & _
+                "         LEFT JOIN ProviderContacts " & _
+                "         ON       ProviderContacts.FirmCode = firm.FirmCode " & _
+                "WHERE    firm.firmcode IN " & _
+                "                          (SELECT DISTINCT FirmCode " & _
+                "                          FROM             Prices " & _
+                "                          ) " & _
+                "GROUP BY firm.firmcode")
+
+                SelProc.CommandText = "drop TEMPORARY TABLE IF EXISTS ProviderContacts"
+                SelProc.ExecuteNonQuery()
 
                 GetMySQLFileWithDefault("RegionalData", SelProc, _
                 "SELECT DISTINCT regionaldata.FirmCode  , " & _
                 "                regionaldata.RegionCode, " & _
                 "                supportphone           , " & _
-                "                LEFT(adminmail, 50)    , " & _
                 "                ContactInfo            , " & _
                 "                OperativeInfo " & _
                 "FROM            regionaldata, " & _
