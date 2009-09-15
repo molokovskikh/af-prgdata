@@ -3654,7 +3654,7 @@ RestartTrans2:
                 End If
 
                 'End If
-                GetMySQLFile("Rejects", SelProc, SQLText)
+                GetMySQLFileWithDefault("Rejects", SelProc, SQLText)
 
                 'End If
 
