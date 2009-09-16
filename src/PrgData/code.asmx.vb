@@ -150,19 +150,18 @@ Imports PrgData.Common
             If Left(UserName, 7) = "ANALIT\" Then
                 UserName = Mid(UserName, 8)
             End If
-            Dim GetQuery As String = " SELECT osuseraccessright.clientcode, clientsdata.ShortName" & _
+            Dim GetQuery As String = " SELECT osuseraccessright.clientcode, clientsdata.ShortName, osuseraccessright.Rowid" & _
                         " FROM clientsdata, osuseraccessright" & _
                         " where osuseraccessright.clientcode=clientsdata.firmcode" & _
-                        " and allowGetData=1" & _
                         " and OSUserName='" & UserName & "'"
 
             Dim dr As Data.DataRow = MySqlHelper.ExecuteDataRow(ConnectionManager.GetConnectionString(), GetQuery, Nothing)
             If dr IsNot Nothing Then
-                Dim mess As System.Net.Mail.MailMessage = New System.Net.Mail.MailMessage(New System.Net.Mail.MailAddress("farm@analit.net", dr.Item("ShortName").ToString & " (" & dr.Item("ClientCode").ToString & ")"), New System.Net.Mail.MailAddress("tech@analit.net"))
+                Dim mess As System.Net.Mail.MailMessage = New System.Net.Mail.MailMessage(New System.Net.Mail.MailAddress("farm@analit.net", dr.Item("ShortName").ToString & " [" & dr.Item("ClientCode").ToString & "]"), New System.Net.Mail.MailAddress("tech@analit.net"))
                 mess.Body = body
                 mess.IsBodyHtml = False
                 mess.BodyEncoding = Encoding.UTF8
-                mess.Subject = "Письмо от " & dr.Item("ShortName").ToString & ": " & subject
+                mess.Subject = " UserId:" & dr.Item("RowId").ToString & ": " & subject
                 If (Not IsNothing(attachment)) Then
                     mess.Attachments.Add(New System.Net.Mail.Attachment(New System.IO.MemoryStream(attachment), "Attach.7z"))
                 End If
@@ -3525,7 +3524,7 @@ RestartTrans2:
                 'Подготовка временной таблицы с контактами
                 SelProc.CommandText = "" & _
                 "drop TEMPORARY TABLE IF EXISTS ProviderContacts; " & _
-                "CREATE TEMPORARY TABLE ProviderContacts " & _
+                "CREATE TEMPORARY TABLE ProviderContacts engine=MEMORY " & _
                 "AS " & _
                 "        SELECT DISTINCT c.contactText, " & _
                 "                        cd.FirmCode " & _
