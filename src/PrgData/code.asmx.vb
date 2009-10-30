@@ -296,7 +296,7 @@ Imports PrgData.Common
                     MessageH = "Обновление данных в настоящее время невозможно."
                     MessageD = "Пожалуйста, повторите попытку через несколько минут.[6]"
                     Addition &= "Перегрузка; "
-                    UpdateType = 5
+                    UpdateType = 6
                     ErrorFlag = True
                     GoTo endproc
 
@@ -387,6 +387,7 @@ RestartInsertTrans:
                         Addition &= "Время обновления не совпало на клиенте и сервере, готовим КО; "
                     End If
 
+
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                     If BuildNo > 708 Then
                         FileCount = 14
@@ -394,8 +395,8 @@ RestartInsertTrans:
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If (BuildNo = 705) And CheckEnableUpdate Then
-                            FileCount = 14
                             BaseThread = New Thread(AddressOf MySqlProc)
+                            FileCount = 14
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -1504,26 +1505,18 @@ StartZipping:
         Dim LockCount As Integer
         Dim ControlMinReq As Boolean
         Dim MinReq As UInt32
-        Dim SumOrder As UInt32
+        Dim SumOrder, WeeklySumOrder As UInt32
         Dim it As Integer
 
-        'Dim IntMinCost As Decimal()
-        'Dim IntMinPriceCode As UInt32()
-        'Dim IntLeaderMinCost As Decimal()
-        'Dim IntRequestRatio As UInt16()
-        'Dim IntOrderCost As Decimal()
-        'Dim IntMinOrderCount As UInt32()
-        'Dim IntLeaderMinPriceCode As UInt32()
-
+       
 
 
 
         If DBConnect("PostOrder") Then
 
-            'Context.Request.SaveAs(ResultFileName & "res.txt", True)
 
             GetClientCode()
-            'Dim ID As String = Now().ToFileTimeUtc
+
 
             If CCode = Nothing Then
                 CCode = ClientCode
@@ -1579,6 +1572,30 @@ StartZipping:
                 End If
 
                 If ErrorFlag Then GoTo ItsEnd
+
+                'Контроль превышения суммы закупок за неделю
+
+                Cm.CommandText = "" & _
+                                "SELECT ROUND(IF(SUM(cost                  *quantity)>RCS.MaxWeeklyOrdersSum " & _
+                                "   AND CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0) " & _
+                                "FROM   orders.OrdersHead Oh, " & _
+                                "       orders.OrdersList Ol, " & _
+                                "       RetClientsSet RCS " & _
+                                "WHERE  WriteTime               >curdate() - interval dayofweek(curdate())-2 DAY " & _
+                                "   AND Oh.RowId                =ol.OrderId " & _
+                                "   AND RCS.ClientCode          =oh.ClientCode " & _
+                                "   AND RCS.CheCkWeeklyOrdersSum=1 " & _
+                                "   AND RCS.clientcode          =" & CCode
+
+                WeeklySumOrder = Convert.ToUInt32(Cm.ExecuteScalar)
+
+                If WeeklySumOrder > 0 Then
+                    UpdateType = 5
+                    MessageH = "Превышен недельный лимит заказа (уже заказано на " & WeeklySumOrder & " руб.)"
+                    ' MessageD = 
+                    ErrorFlag = True
+
+                End If
 
                 'начинаем проверять минимальный заказ
                 Try
@@ -1898,7 +1915,7 @@ RePost:
 
                     With LogCm
 
-                        .CommandText = "insert into `logs`.`AnalitFUpdates`(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`, `DBVersion`, `ResultSize`, `Addition`) values(?UpdateTime, ?UpdateType, ?UserId, ?exeversion, ?mdbversion, ?Size, ?Addition); "
+                        .CommandText = "insert into `logs`.`AnalitFUpdates`(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`) values(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition); "
                         .CommandText &= "select last_insert_id()"
 
 
@@ -1910,8 +1927,6 @@ RePost:
                         .Parameters.Add(New MySqlParameter("?UpdateType", UpdateType))
 
                         .Parameters.Add(New MySqlParameter("?EXEVersion", BuildNo))
-
-                        .Parameters.Add(New MySqlParameter("?MDBVersion", MDBVer))
 
                         .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
 
@@ -2440,7 +2455,7 @@ RestartTrans2:
 
                 SQLText = "SELECT C.Id             , " & _
              "       CN.Id            , " & _
-             "       LEFT(name, 250)  , " & _
+             "       LEFT(CN.name, 250)  , " & _
              "       LEFT(form, 250)  , " & _
              "       vitallyimportant , " & _
              "       needcold         , " & _
@@ -3305,25 +3320,21 @@ RestartTrans2:
                 If ErrorFlag Then Exit Try
 
                 MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "User" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Catalogs" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogCurrency" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Providers" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MinPrices" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PriceAvg" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Section" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Synonyms" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogFarmGroups" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
+
 
                 Cm.Connection = ReadWriteCn
                 Cm.CommandText = "" & _
@@ -3373,7 +3384,15 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
 
-                GetMySQLFileWithDefault("PriceAvg", SelProc, "select ''")
+
+
+                GetMySQLFileWithDefault("User", SelProc, _
+                "SELECT ClientCode, " & _
+                "       RowId     , " & _
+                "       '' " & _
+                "FROM   OsUserAccessRight O " & _
+                "WHERE  RowId=" & UserId)
+
 
                 GetMySQLFileWithDefault("Products", SelProc, _
                  "SELECT P.Id       ," & _
@@ -3391,7 +3410,7 @@ RestartTrans2:
                 GetMySQLFileWithDefault("Catalogs", SelProc, _
              "SELECT C.Id             , " & _
              "       CN.Id            , " & _
-             "       LEFT(name, 250)  , " & _
+             "       LEFT(CN.name, 250)  , " & _
              "       LEFT(form, 250)  , " & _
              "       vitallyimportant , " & _
              "       needcold         , " & _
@@ -3773,28 +3792,21 @@ RestartTrans2:
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
                         SelProc.CommandText = "" & _
-                        "CALL GetOffers(?ClientCode,0); " & _
-                        "UPDATE ActivePrices Prices, " & _
-                        "       Core " & _
-                        "SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
-                        "WHERE  Prices.PriceCode= Core.PriceCode " & _
-                        "   AND IF(?Cumulative, 1, Fresh) " & _
-                        "   AND Core.PriceCode!=2647 ; " & _
-                        " " & _
-                        "UPDATE Core " & _
-                        "SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
-                        "WHERE  LENGTH(CryptCost)>0 " & _
-                        "   AND Core.PriceCode!=2647;"
+                        "CALL GetOffers(?ClientCode,0); "
+                        '"UPDATE ActivePrices Prices, " & _
+                        '"       Core " & _
+                        '"SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
+                        '"WHERE  Prices.PriceCode= Core.PriceCode " & _
+                        '"   AND IF(?Cumulative, 1, Fresh) " & _
+                        '"   AND Core.PriceCode!=2647 ; " & _
+                        '" " & _
+                        '"UPDATE Core " & _
+                        '"SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
+                        '"WHERE  LENGTH(CryptCost)>0 " & _
+                        '"   AND Core.PriceCode!=2647;"
                         SelProc.ExecuteNonQuery()
 
 
-                        'Удаляем выгрузку MinPrices, т.к. это все рассчитывается на клиенте
-                        '  GetMySQLFileNew("MinPrices", SelProc, _
-                        '"SELECT RIGHT(MinCosts.ID, 9), " & _
-                        '"       MinCosts.ProductId   , " & _
-                        '"       MinCosts.RegionCode  , " & _
-                        '"       IF(PriceCode=2647, '', (99999900 ^ TRUNCATE((MinCost*100), 0))) " & _
-                        '"FROM   MinCosts")
 
                         GetMySQLFileWithDefault("Core", SelProc, _
                      "SELECT CT.PriceCode                      , " & _
@@ -3833,17 +3845,12 @@ RestartTrans2:
                         SelProc.ExecuteNonQuery()
 
 
-                        'Михаилу: А для какого клиента эта выгрузка
-                        ' SelProc.CommandText = "SELECT ''" & _
-                        '" INTO OUTFILE 'C:/AFFiles/MinPrices" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
-                        ' SelProc.ExecuteNonQuery()
-
 
 
                         SyncLock (FilesForArchive)
 
                             FilesForArchive.Enqueue(New FileForArchive("Core", False))
-                            'FilesForArchive.Enqueue(New FileForArchive("MinPrices", False))
+
 
                         End SyncLock
 
@@ -3934,12 +3941,6 @@ RestartTrans2:
 "                                GROUP BY ProductId, " & _
 "                                         CodeFirmCr; " & _
 "                                 " & _
-"                                UPDATE CoreT " & _
-"                                SET    CryptCost = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00'); " & _
-"                                 " & _
-"                                UPDATE CoreT " & _
-"                                SET    CryptCost=concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)); " & _
-"                                 " & _
 "                                INSERT " & _
 "                                INTO   CoreTP " & _
 "                                       ( " & _
@@ -3950,12 +3951,6 @@ RestartTrans2:
 "                                         ROUND(AVG(cost), 2) " & _
 "                                FROM     CoreT " & _
 "                                GROUP BY ProductId; " & _
-"                                 " & _
-"                                UPDATE CoreTP " & _
-"                                SET    CryptCost = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00'); " & _
-"                                 " & _
-"                                UPDATE CoreTP " & _
-"                                SET    CryptCost=concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)); " & _
 "                                 " & _
 "                                INSERT " & _
 "                                INTO   CoreT2 " & _
@@ -4030,13 +4025,7 @@ RestartTrans2:
 "WHERE  S.PriceCode =2647 " & _
 "   AND S.ProductId =A.ProductId")
 
-                    'Михаилу: Здесь тоже удаляем выгрузку MinPrices
-                    '                    GetMySQLFileNew("MinPrices", SelProc, "SELECT 0        , " & _
-                    '"       ProductId, " & _
-                    '"       ?OffersRegionCode         , " & _
-                    '"       ''        " & _
-                    '"FROM   CoreTP")
-
+              
 
 
 
@@ -4274,11 +4263,8 @@ RestartTrans2:
 "    AND writetime    >ifnull( " & _
 "        (SELECT MAX(requesttime) " & _
 "        FROM    logs.AnalitFUpdates px " & _
-"                LEFT JOIN includeregulation ir " & _
-"                ON      ir.includeclientcode=" & ClientCode & _
-"                    AND includetype        IN (0,3) " & _
 "        WHERE   updatetype                  =2 " & _
-"            AND px.clientcode               =ifnull(ir.primaryclientcode, oh.clientcode) " & _
+"            AND px.UserId               =" & UserId & _
 "        ), now() - interval 2 week) " & _
 "    AND clientcode=" & ClientCode & _
 "    AND ol.orderid=oh.rowid"
@@ -4338,9 +4324,8 @@ RestartTrans2:
 
         If DS.Tables("OrdersL").Rows.Count = 0 Then
             ProblemStr = "Заказ №" & ClientOrderID & "(по клиенту) не принят как полностью повторяющийся."
-            'MailErr("Дублирующийся заказ", ProblemStr)
             Return False
-            'Exit Function
+
         End If
 
         With OrderInsertCm
