@@ -2881,19 +2881,27 @@ RestartTrans2:
                     "SELECT IFNULL(SUM(fresh), 0) " & _
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
-                        SelProc.CommandText = "" & _
-                        "CALL GetOffers(?ClientCode,0); " & _
-                        "UPDATE ActivePrices Prices, " & _
-                        "       Core " & _
-                        "SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
-                        "WHERE  Prices.PriceCode= Core.PriceCode " & _
-                        "   AND IF(?Cumulative, 1, Fresh) " & _
-                        "   AND Core.PriceCode!=2647 ; " & _
-                        " " & _
-                        "UPDATE Core " & _
-                        "SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
-                        "WHERE  LENGTH(CryptCost)>0 " & _
-                        "   AND Core.PriceCode!=2647;"
+						SelProc.CommandText = "" & _
+						"CALL GetOffers(?ClientCode,0); "
+						SelProc.ExecuteNonQuery()
+
+						Dim optimizer As CostOptimizer = New CostOptimizer(ReadOnlyCn, CCode)
+						If optimizer.IsCostOptimizationNeeded() Then
+							optimizer.Oprimize()
+						End If
+
+						SelProc.CommandText = "" & _
+						"UPDATE ActivePrices Prices, " & _
+						"       Core " & _
+						"SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
+						"WHERE  Prices.PriceCode= Core.PriceCode " & _
+						"   AND IF(?Cumulative, 1, Fresh) " & _
+						"   AND Core.PriceCode!=2647 ; " & _
+						" " & _
+						"UPDATE Core " & _
+						"SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
+						"WHERE  LENGTH(CryptCost)>0 " & _
+						"   AND Core.PriceCode!=2647;"
                         SelProc.ExecuteNonQuery()
 
 
@@ -3017,7 +3025,12 @@ RestartTrans2:
 
                     SelProc.CommandText &= "" & _
 "CALL GetOffers(?OffersClientCode, 0); "
-                    SelProc.ExecuteNonQuery()
+					SelProc.ExecuteNonQuery()
+
+					Dim optimizer As CostOptimizer = New CostOptimizer(ReadOnlyCn, CCode)
+					If optimizer.IsCostOptimizationNeeded() Then
+						optimizer.Oprimize()
+					End If
 
                     SelProc.CommandText &= "" & _
 "DROP TEMPORARY TABLE " & _
