@@ -74,35 +74,34 @@ create temporary table ConcurentCosts
 	AllCost decimal(11, 2) not null,
 	ProductId int not null,
 	CodeFirmCr int not null,
-	Junk tinyint(1) not null,
-	primary key (ProductId, Junk, CodeFirmCr)
+	primary key (ProductId, CodeFirmCr)
 ) engine memory;
 
 drop temporary table if exists CoreCopy;
 create temporary table CoreCopy
 select * from core;
 
-insert into ConcurentCosts(AllCost, Cost, ProductId, Junk, CodeFirmCr)
-select min(c.cost), min(if(ap.FirmCode in ({0}), c.Cost, null)), c0.ProductId, c0.Junk, c0.CodeFirmCr
+insert into ConcurentCosts(AllCost, Cost, ProductId, CodeFirmCr)
+select min(c.cost), min(if(ap.FirmCode in ({0}), c.Cost, null)), c0.ProductId, c0.CodeFirmCr
 from core c
 	join farm.core0 c0 on c.id = c0.id
 	join ActivePrices ap on ap.PriceCode = c.PriceCode
-where c0.CodeFirmCr is not null and c.RegionCode = ?HomeRegionCode
+where c.RegionCode = ?HomeRegionCode and c0.Junk = 0 and c0.CodeFirmCr is not null
 group by c0.productid, c0.CodeFirmCr, c0.junk;
 
 update core c
 	join farm.Core0 c0 on c0.Id = c.Id
 	join ActivePrices ap on c.PriceCode = ap.PriceCode
-	join ConcurentCosts cc on cc.ProductId = c.ProductId and cc.Junk = c0.Junk and cc.CodeFirmCr = c0.CodeFirmCr
+	join ConcurentCosts cc on cc.ProductId = c.ProductId and cc.CodeFirmCr = c0.CodeFirmCr
 set c.Cost = MakeCost(c.Cost, cc.Cost)
-where ap.FirmCode = ?FirmCode and c.RegionCode = ?HomeRegionCode and c0.CodeFirmCr is not null;
+where ap.FirmCode = ?FirmCode and c.RegionCode = ?HomeRegionCode and c0.Junk = 0 and c0.CodeFirmCr is not null;
 
-insert into logs.CostOptimizationLogs(ProductId, ProducerId, Junk, SelfCost, ConcurentCost, AllCost, ResultCost)
-select c0.ProductId, c0.CodeFirmCr, c0.Junk, copy.Cost, cc.Cost, cc.AllCost, c.Cost
+insert into logs.CostOptimizationLogs(ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost)
+select c0.ProductId, c0.CodeFirmCr, copy.Cost, cc.Cost, cc.AllCost, c.Cost
 from core c
 	join CoreCopy copy on copy.Id = c.id
 	join farm.Core0 c0 on c0.Id = c.Id
-	join ConcurentCosts cc on cc.ProductId = c.ProductId and cc.Junk = c0.Junk and cc.CodeFirmCr = c0.CodeFirmCr
+	join ConcurentCosts cc on cc.ProductId = c.ProductId and cc.CodeFirmCr = c0.CodeFirmCr
 where c.Cost <> copy.Cost and c.RegionCode = ?HomeRegionCode and copy.RegionCode = ?HomeRegionCode;
 
 drop temporary table ConcurentCosts;
