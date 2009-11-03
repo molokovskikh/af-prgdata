@@ -15,6 +15,13 @@ namespace PrgData.Common
 		private readonly uint _firmCode;
 		private readonly ulong _homeRegionCode;
 
+		public static void OptimizeCostIfNeeded(MySqlConnection connection, uint clientCode)
+		{
+			var optimizer = new CostOptimizer(connection, clientCode);
+			if (optimizer.IsCostOptimizationNeeded())
+				optimizer.Oprimize();
+		}
+
 		public CostOptimizer(MySqlConnection connection, uint clientCode)
 		{
 			_connection = connection;

@@ -2885,10 +2885,7 @@ RestartTrans2:
 						"CALL GetOffers(?ClientCode,0); "
 						SelProc.ExecuteNonQuery()
 
-						Dim optimizer As CostOptimizer = New CostOptimizer(ReadOnlyCn, CCode)
-						If optimizer.IsCostOptimizationNeeded() Then
-							optimizer.Oprimize()
-						End If
+						CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, CCode)
 
 						SelProc.CommandText = "" & _
 						"UPDATE ActivePrices Prices, " & _
@@ -3027,10 +3024,7 @@ RestartTrans2:
 "CALL GetOffers(?OffersClientCode, 0); "
 					SelProc.ExecuteNonQuery()
 
-					Dim optimizer As CostOptimizer = New CostOptimizer(ReadOnlyCn, CCode)
-					If optimizer.IsCostOptimizationNeeded() Then
-						optimizer.Oprimize()
-					End If
+					CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, CCode)
 
                     SelProc.CommandText &= "" & _
 "DROP TEMPORARY TABLE " & _
@@ -3817,9 +3811,9 @@ RestartTrans2:
                         '"SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
                         '"WHERE  LENGTH(CryptCost)>0 " & _
                         '"   AND Core.PriceCode!=2647;"
-                        SelProc.ExecuteNonQuery()
+						SelProc.ExecuteNonQuery()
 
-
+						CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, CCode)
 
                         GetMySQLFileWithDefault("Core", SelProc, _
                      "SELECT CT.PriceCode                      , " & _
@@ -3930,7 +3924,9 @@ RestartTrans2:
 
                     SelProc.CommandText &= "" & _
 "CALL GetOffers(?OffersClientCode, 0); "
-                    SelProc.ExecuteNonQuery()
+					SelProc.ExecuteNonQuery()
+
+					CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, CCode)
 
                     SelProc.CommandText &= "" & _
 "DROP TEMPORARY TABLE " & _
