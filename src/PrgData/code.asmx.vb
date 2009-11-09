@@ -4347,11 +4347,11 @@ RestartTrans2:
             End If
 
             .CommandText &= " insert into orders.orderslist (OrderID, ProductId, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost)" & _
-                                        " select  " & OrderID & ", products.ID, if(cfcr.codefirmcr is null, sfcr.codefirmcr, cfcr.codefirmcr) , syn.synonymcode, sfcr.SynonymFirmCrCode, ?Code, ?CodeCr, ?Quantity, ?Junk, ?Await, ?Cost" & _
+                                        " select  " & OrderID & ", products.ID, if(Prod.Id is null, sfcr.codefirmcr, Prod.Id) , syn.synonymcode, sfcr.SynonymFirmCrCode, ?Code, ?CodeCr, ?Quantity, ?Junk, ?Await, ?Cost" & _
                                         " from catalogs.products" & _
                                         " left join farm.synonym  syn on syn.synonymcode=?SynonymCode" & _
                                         " left join farm.synonymfirmcr sfcr on sfcr.SynonymFirmCrCode=?SynonymFirmCrCode" & _
-                                        " left join  farm.catalogfirmcr cfcr on cfcr.codefirmcr=?CodeFirmCr" & _
+                                        " left join  catalogs.Producers Prod on Prod.Id=?CodeFirmCr" & _
                                         " where products.ID=?ProductID; "
 
             If CalculateLeader And (MinPriceCodeP > 0 Or LeaderMinPriceCodeP > 0) And (LaederMinCostP > 0 Or MinCostP > 0) Then
