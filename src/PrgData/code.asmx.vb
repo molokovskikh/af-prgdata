@@ -2372,39 +2372,11 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
 
+				Helper.MaintainReplicationInfo(CCode, ReadWriteCn)
 
-                Cm.Connection = ReadWriteCn
-                Cm.CommandText = "" & _
-"INSERT " & _
-"INTO   Usersettings.AnalitFReplicationInfo " & _
-"       ( " & _
-"              UserId, " & _
-"              FirmCode " & _
-"       ) " & _
-"SELECT   ouar.RowId, " & _
-"         supplier.FirmCode " & _
-"FROM     usersettings.clientsdata AS drugstore " & _
-"         JOIN usersettings.OsUserAccessRight ouar " & _
-"         ON       ouar.ClientCode = drugstore.FirmCode " & _
-"         JOIN clientsdata supplier " & _
-"         ON       supplier.firmsegment = drugstore.firmsegment " & _
-"         LEFT JOIN Usersettings.AnalitFReplicationInfo ari " & _
-"         ON       ari.UserId   = ouar.RowId " & _
-"              AND ari.FirmCode = supplier.FirmCode " & _
-"WHERE    ari.UserId IS NULL " & _
-"     AND supplier.firmtype                          = 0 " & _
-"     AND drugstore.FirmCode                         = " & CCode & _
-"     AND drugstore.firmtype                         = 1 " & _
-"     AND supplier.maskregion & drugstore.maskregion > 0 " & _
-"GROUP BY ouar.RowId, " & _
-"         supplier.FirmCode; "
-
-                Cm.ExecuteNonQuery()
-
-
-                If ThreadZipStream.IsAlive Then
-                    ThreadZipStream.Abort()
-                End If
+				If ThreadZipStream.IsAlive Then
+					ThreadZipStream.Abort()
+				End If
 
                 SelProc = New MySqlCommand
                 SelProc.Connection = ReadOnlyCn
@@ -3342,39 +3314,11 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
 
+				Helper.MaintainReplicationInfo(CCode, ReadWriteCn)
 
-                Cm.Connection = ReadWriteCn
-                Cm.CommandText = "" & _
-"INSERT " & _
-"INTO   Usersettings.AnalitFReplicationInfo " & _
-"       ( " & _
-"              UserId, " & _
-"              FirmCode " & _
-"       ) " & _
-"SELECT   ouar.RowId, " & _
-"         supplier.FirmCode " & _
-"FROM     usersettings.clientsdata AS drugstore " & _
-"         JOIN usersettings.OsUserAccessRight ouar " & _
-"         ON       ouar.ClientCode = drugstore.FirmCode " & _
-"         JOIN clientsdata supplier " & _
-"         ON       supplier.firmsegment = drugstore.firmsegment " & _
-"         LEFT JOIN Usersettings.AnalitFReplicationInfo ari " & _
-"         ON       ari.UserId   = ouar.RowId " & _
-"              AND ari.FirmCode = supplier.FirmCode " & _
-"WHERE    ari.UserId IS NULL " & _
-"     AND supplier.firmtype                          = 0 " & _
-"     AND drugstore.FirmCode                         = " & CCode & _
-"     AND drugstore.firmtype                         = 1 " & _
-"     AND supplier.maskregion & drugstore.maskregion > 0 " & _
-"GROUP BY ouar.RowId, " & _
-"         supplier.FirmCode; "
-
-                Cm.ExecuteNonQuery()
-
-
-                If ThreadZipStream.IsAlive Then
-                    ThreadZipStream.Abort()
-                End If
+				If ThreadZipStream.IsAlive Then
+					ThreadZipStream.Abort()
+				End If
 
                 SelProc = New MySqlCommand
                 SelProc.Connection = ReadOnlyCn
@@ -4808,84 +4752,21 @@ RestartMaxCodesSet:
 
     End Sub
 
-    Private Function TestDocument(ByVal File As String) As Boolean
-        Dim DocumentNo As UInt32
-
-        Try
-            If Path.GetFileName(File).IndexOf("_") > 0 Then
-                If Not UInt32.TryParse(Left(Path.GetFileName(File), Path.GetFileName(File).IndexOf("_")), DocumentNo) Then _
-                Err.Raise(1, "Подготовка документов", "Попытка передать документ, полученный не автоматически:" & Path.GetFileName(File))
-            Else
-                Err.Raise(1, "Подготовка документов", "Попытка передать документ, полученный не автоматически:" & Path.GetFileName(File))
-            End If
+	Private Sub GetMySQLFile(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
+		Dim SQL As String = SQLText
 
 
-            ArchCmd.CommandText = "select exists(SELECT null FROM logs.document_logs where RowId=" & DocumentNo & ")"
-            If Not Convert.ToBoolean(ArchCmd.ExecuteScalar) Then
-                '  Err.Raise(1, "Контроль номера документа", "Попытка отправить документ, не полученный от поставщика: " & Path.GetFileName(File) & " (" & _
-                'DocumentNo & ")")
-                Addition &= "Отправили документ, полученный не автоматически: " & Path.GetFileName(File)
-            End If
+		SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY '" & Chr(161) & "'"
+		MyCommand.CommandText = SQL
+		MyCommand.ExecuteNonQuery()
 
+		SyncLock (FilesForArchive)
 
-            Return True
+			FilesForArchive.Enqueue(New FileForArchive(FileName, False))
 
-        Catch Ex As Exception
-            Addition &= "Файл документа " & File & " не передан клиенту и удален из очереди: " & Ex.Source & ": " & Ex.Message
-            Dim message As New System.Net.Mail.MailMessage
-            Dim SMTPClient As New System.Net.Mail.SmtpClient("mail.adc.analit.net")
-            message.From = New System.Net.Mail.MailAddress("service@analit.net")
-            message.Subject = "Необработанный файл документов"
-            message.BodyEncoding = System.Text.Encoding.UTF8
-            message.IsBodyHtml = True
-            message.Body = "Файл документа " & File & " не передан клиенту и удален из очереди. Файл находится во вложении этого сообщения. Причина: " & Ex.Source & ": " & Ex.Message
-            message.To.Add(New System.Net.Mail.MailAddress("service@analit.net"))
-            message.Attachments.Add(New System.Net.Mail.Attachment(File))
-            SMTPClient.Send(message)
-            message.Dispose()
+		End SyncLock
 
-
-            FileInfo = New FileInfo(File)
-            FileInfo.Delete()
-            'Err.Raise(1, Ex.Source, Ex.Message)
-            Return False
-        End Try
-
-    End Function
-
-    Private Sub LogDocumentSend(ByVal File As String, ByVal FileSize As UInt32)
-
-        Dim DocumentNo As UInt32
-
-        DocumentNo = Convert.ToUInt32(Left(Path.GetFileName(File), Path.GetFileName(File).IndexOf("_")))
-
-        Cm.CommandText = "select * from logs.document_logs where rowid=" & DocumentNo
-
-        DA.Fill(DS.Tables("Documents"))
-
-        DS.Tables("Documents").Select("RowId=" & DocumentNo)(0).Item("DocumentSize") = FileSize
-        'Row.Item("DocumentID") = DocumentNo
-        'Row.Item("DocumentFileSize") = FileSize
-        ' DS.Tables("Documents").Rows.Add(Row)
-
-
-    End Sub
-
-    Private Sub GetMySQLFile(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
-        Dim SQL As String = SQLText
-
-
-        SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY '" & Chr(161) & "'"
-        MyCommand.CommandText = SQL
-        MyCommand.ExecuteNonQuery()
-
-        SyncLock (FilesForArchive)
-
-            FilesForArchive.Enqueue(New FileForArchive(FileName, False))
-
-        End SyncLock
-
-    End Sub
+	End Sub
 
     Private Sub GetMySQLFileWithDefault(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
         Dim SQL As String = SQLText
