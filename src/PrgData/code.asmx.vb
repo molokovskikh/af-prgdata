@@ -439,13 +439,14 @@ RestartInsertTrans:
                             If CkeckZipTimeAndExist(GetEtalonData) Then
 
 
-                                If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
-                                    'NeedCloseCn = True
-                                    UpdateType = 3
-                                    NewZip = False
-                                    PackFinished = True
-                                    GoTo endproc
-                                End If
+                        If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+
+                            UpdateType = 3
+                            NewZip = False
+                            PackFinished = True
+                            GoTo endproc
+
+                        End If
 
                             Else
 
@@ -457,41 +458,50 @@ RestartInsertTrans:
                                     Addition &= "Ќе удалось удалить предыдущие данные: " & ex.Message & "; "
                                     UpdateType = 5
                                     ErrorFlag = True
-                                    ' NeedCloseCn = True
-                                    GoTo endproc
+                            GoTo endproc
                                 End Try
 
 
-                                Try
-                                    With Cm
-                                        .Connection = ReadWriteCn
-                                        .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId
-                                        .CommandText &= "; select UncommitedUpdateDate from UserUpdateInfo where UserId=" & UserId
-                                        .Transaction = myTrans
+                        Try
 
-                                    End With
+                            With Cm
+
+                                .Connection = ReadWriteCn
+                                .CommandText = String.Empty
+
+                                If UpdateType <> 3 Then
+
+                                    .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId & "; "
+
+                                End If
+
+                                .CommandText &= "select UncommitedUpdateDate from UserUpdateInfo where UserId=" & UserId
+
+                                .Transaction = myTrans
+
+                            End With
 
 Restart:
-                                    myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
-                                    Cm.Transaction = myTrans
-                                    SQLdr = Cm.ExecuteReader()
-                                    SQLdr.Read()
-                                    CurUpdTime = SQLdr.GetDateTime(0)
-                                    SQLdr.Close()
-                                    myTrans.Commit()
+                            myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
+                            Cm.Transaction = myTrans
+                            SQLdr = Cm.ExecuteReader()
+                            SQLdr.Read()
+                            CurUpdTime = SQLdr.GetDateTime(0)
+                            SQLdr.Close()
+                            myTrans.Commit()
 
-                                Catch MySQLErr As MySqlException
-                                    If Not (ReadWriteCn.State = ConnectionState.Closed Or ReadWriteCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-                                    If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
-                                        System.Threading.Thread.Sleep(500)
-                                        GoTo Restart
-                                    End If
-                                    MailErr("ѕрисвоение неподтвержденного времени, клиент: " & CCode, MySQLErr.Message)
-                                    ErrorFlag = True
-                                Catch ex As Exception
-                                    MailErr("ѕрисвоение неподтвержденного времени, клиент: " & CCode, ex.Message)
-                                    ErrorFlag = True
-                                End Try
+                        Catch MySQLErr As MySqlException
+                            If Not (ReadWriteCn.State = ConnectionState.Closed Or ReadWriteCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+                            If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
+                                System.Threading.Thread.Sleep(500)
+                                GoTo Restart
+                            End If
+                            MailErr("ѕрисвоение неподтвержденного времени, клиент: " & CCode, MySQLErr.Message)
+                            ErrorFlag = True
+                        Catch ex As Exception
+                            MailErr("ѕрисвоение неподтвержденного времени, клиент: " & CCode, ex.Message)
+                            ErrorFlag = True
+                        End Try
 
 
 
@@ -1136,8 +1146,6 @@ StartZipping:
        ByVal PriceCode As UInt32(), _
        ByVal UpdateId As UInt32, _
        ByVal WayBillsOnly As Boolean) As Date
-        'Dim ef() As String
-        'Dim FileName As String
         Dim UpdateTime As Date
         Cm.Transaction = Nothing
         ClientLog = Log
@@ -4776,7 +4784,6 @@ RestartMaxCodesSet:
             myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
 
             SelProc.ExecuteNonQuery()
-
 
             myTrans.Commit()
 
