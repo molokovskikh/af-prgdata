@@ -50,23 +50,8 @@ Public Class PrgDataEx
     End Sub
 
     Private Const MySqlFileStr1 As String = "results/"
-
-#If DEBUG Then
-
-    '   Const MySqlFileStr2 As String = "\\offdc.adc.analit.net\SQLRes\"
-    'Const ПутьКДокументам As String = "\\acdcserv\FTP\OptBox\"
-
     ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
     ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
-
-
-#Else
-
-    ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
-    ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
-
-
-#End If
 
     ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
