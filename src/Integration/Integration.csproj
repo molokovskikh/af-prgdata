@@ -54,6 +54,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CostCorrectionFixture.cs" />
+    <Compile Include="GetUpdateDataFixture.cs" />
+    <Compile Include="ProcedureFixture.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PrgData.Common\PrgData.Common.csproj">
