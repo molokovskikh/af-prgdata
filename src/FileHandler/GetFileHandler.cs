@@ -72,6 +72,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			var UserName = context.User.Identity.Name;
 			if (UserName.StartsWith(@"ANALIT\", StringComparison.OrdinalIgnoreCase))
 				UserName = UserName.Substring(7);
+			string userId = null;
 			try
 			{
 				using (var connection = new Common.MySql.ConnectionManager().GetConnection())
@@ -89,7 +90,25 @@ where cd.firmstatus = 1
 					using (var sqlr = command.ExecuteReader())
 					{
 						if (sqlr.Read())
-							return sqlr["RowId"].ToString();
+							userId = sqlr["RowId"].ToString();
+					}
+
+					if (!String.IsNullOrEmpty(userId))
+						return userId;
+
+					command.CommandText = @"
+SELECT u.Id
+FROM Future.Clients c
+	JOIN Future.Users u on u.ClientId = c.Id
+		JOIN AssignedPermissions ap on ap.UserId = u.Id
+			JOIN UserPermissions up on up.Id = ap.PermissionId
+where c.Status = 1
+	  and up.Shortcut = 'AF'
+	  and u.Login = ?Username";
+					using (var sqlr = command.ExecuteReader())
+					{
+						if (sqlr.Read())
+							return sqlr["Id"].ToString();
 					}
 				}
 			}
