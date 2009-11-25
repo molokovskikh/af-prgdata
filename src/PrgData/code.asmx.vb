@@ -3801,7 +3801,7 @@ RestartTrans2:
         End If
     End Function
 
-    <WebMethod()> Public Function PostPriceDataSettings(ByVal UniqueID As String, ByVal PriceCodes As Int32(), ByVal RegionCodes As Int32(), ByVal INJobs As Boolean()) As String
+    <WebMethod()> Public Function PostPriceDataSettings(ByVal UniqueID As String, ByVal PriceCodes As Int32(), ByVal RegionCodes As Int64(), ByVal INJobs As Boolean()) As String
         Dim ErrorFlag As Boolean = False
         Dim tran As MySqlTransaction = Nothing
 
@@ -3822,6 +3822,12 @@ RestartTrans2:
                         'ProtocolThread.Start()
                         Return "Error=" & MessageH & ";Desc=" & MessageD
                     End If
+                End If
+
+                If UpdateData.IsFutureClient Then
+                    Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                    helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
+                    Return ""
                 End If
 
                 'Проверяем длины массивов

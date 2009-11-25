@@ -575,8 +575,8 @@ WHERE  clientsdata.firmcode    = ?ClientCode
 
 UNION 
 
-SELECT clientsdata.firmcode                                                    , 
-     ShortName                                                               , 
+SELECT clientsdata.firmcode,
+     ShortName,
      ifnull(?OffersRegionCode, RegionCode)                                    , 
      retclientsset.OverCostPercent                                           , 
      retclientsset.DifferenceCalculation                                     , 
@@ -594,6 +594,37 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
  AND firmstatus              = 1 
  AND IncludeType            IN (0,3) 
  AND Primaryclientcode       = ?ClientCode", isFirebird ? "'', " : "");
+			}
+		}
+
+		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
+		{
+			var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = UserId", _readWriteConnection);
+			deleteCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			deleteCommand.Parameters.Add("?PriceId", MySqlDbType.Int32);
+			var insertCommand = new MySqlCommand(@"
+insert into Future.UserPrices
+select ?UserId, ?PriceId
+from (select 1) as c
+where not exists (
+	select *
+	from Future.UserPrices up
+	where up.UserId = ?UserId and up.PriceId = ?PriceId
+);");
+			insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			insertCommand.Parameters.Add("?PriceId", MySqlDbType.Int32);
+			for(var i = 0; i < injobs.Length; i++)
+			{
+				if (injobs[i])
+				{
+					insertCommand.Parameters["?PriceId"].Value = priceIds[i];
+					insertCommand.ExecuteNonQuery();
+				}
+				else
+				{
+					deleteCommand.Parameters["?PriceId"].Value = priceIds[i];
+					deleteCommand.ExecuteNonQuery();
+				}
 			}
 		}
 	}
