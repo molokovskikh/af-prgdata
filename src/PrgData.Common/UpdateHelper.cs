@@ -610,7 +610,7 @@ where not exists (
 	select *
 	from Future.UserPrices up
 	where up.UserId = ?UserId and up.PriceId = ?PriceId
-);");
+);", _readWriteConnection);
 			insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			insertCommand.Parameters.Add("?PriceId", MySqlDbType.Int32);
 			for(var i = 0; i < injobs.Length; i++)
