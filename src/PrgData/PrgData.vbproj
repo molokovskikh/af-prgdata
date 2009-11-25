@@ -10,13 +10,14 @@
     <OutputType>Library</OutputType>
     <RootNamespace>PrgData</RootNamespace>
     <AssemblyName>PrgData</AssemblyName>
-    <OptionStrict>On</OptionStrict>
+    <OptionStrict>Off</OptionStrict>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>2.0</OldToolsVersion>
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <OptionInfer>On</OptionInfer>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -26,9 +27,9 @@
     <OutputPath>bin\</OutputPath>
     <DocumentationFile>
     </DocumentationFile>
-    <NoWarn>
-    </NoWarn>
-    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -39,29 +40,29 @@
     <OutputPath>bin\</OutputPath>
     <DocumentationFile>
     </DocumentationFile>
-    <NoWarn>
-    </NoWarn>
-    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <DebugSymbols>true</DebugSymbols>
     <DefineDebug>true</DefineDebug>
     <OutputPath>bin\</OutputPath>
-    <NoWarn>
-    </NoWarn>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
     <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>bin\x64\Release\</OutputPath>
     <Optimize>true</Optimize>
-    <NoWarn>
-    </NoWarn>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
     <DebugType>None</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
     <DebugSymbols>false</DebugSymbols>
     <DefineTrace>false</DefineTrace>
   </PropertyGroup>
@@ -71,7 +72,9 @@
     <OutputPath>bin\</OutputPath>
     <DebugType>full</DebugType>
     <PlatformTarget>x86</PlatformTarget>
-    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug-test|x64' ">
     <DebugSymbols>true</DebugSymbols>
@@ -79,7 +82,9 @@
     <OutputPath>bin\x64\Debug-test\</OutputPath>
     <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <WarningsAsErrors>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</WarningsAsErrors>
+    <WarningsAsErrors>
+    </WarningsAsErrors>
+    <NoWarn>41999,42016,42017,42018,42019,42020,42021,42022,42032,42036</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="log4net, Version=1.2.10.0, Culture=neutral, PublicKeyToken=1b44e1d426115821, processorArchitecture=MSIL">

@@ -12,7 +12,7 @@ namespace Integration
 		{
 			using(var connection = new MySqlConnection("Database=usersettings;Data Source=testsql.analit.net;Port=3306;User Id=system;Password=newpass;pooling=true;default command timeout=0;Allow user variables=true"))
 			{
-				var updateData = Helper.GetUpdateData(connection, "kvasov");
+				var updateData = UpdateHelper.GetUpdateData(connection, "kvasov");
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(758u));
 			}
@@ -23,7 +23,7 @@ namespace Integration
 		{
 			using(var connection = new MySqlConnection("Database=usersettings;Data Source=testsql.analit.net;Port=3306;User Id=system;Password=newpass;pooling=true;default command timeout=0;Allow user variables=true"))
 			{
-				var updateData = Helper.GetUpdateData(connection, "semein");
+				var updateData = UpdateHelper.GetUpdateData(connection, "semein");
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(1281u));
 			}

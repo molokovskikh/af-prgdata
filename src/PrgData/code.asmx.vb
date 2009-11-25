@@ -49,7 +49,6 @@ Public Class PrgDataEx
         MyBase.Dispose(disposing)
     End Sub
 
-    Private Const MySqlFileStr1 As String = "results/"
     ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
     ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
 
@@ -111,6 +110,9 @@ Public Class PrgDataEx
     Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
 
 
+    Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
+
+
 
     'UpdateType: 1 - обычное, 2 - накопительное, 3 - докачка, 4 - заказы, 5 - запрет, 6 - ошибка, 7 - Подтверждение получения, 8 - только документы
 
@@ -122,7 +124,7 @@ Public Class PrgDataEx
             Dim updateData As UpdateData
             Using connection As MySqlConnection = ConnectionManager.GetConnection()
                 connection.Open()
-                updateData = Helper.GetUpdateData(ConnectionManager.GetConnection(), HttpContext.Current.User.Identity.Name)
+                updateData = UpdateHelper.GetUpdateData(ConnectionManager.GetConnection(), HttpContext.Current.User.Identity.Name)
             End Using
 
             If updateData Is Nothing Then
@@ -1189,7 +1191,7 @@ StartZipping:
             UserName = Mid(UserName, 8)
         End If
         Try
-            UpdateData = Helper.GetUpdateData(ReadOnlyCn, UserName)
+            UpdateData = UpdateHelper.GetUpdateData(ReadOnlyCn, UserName)
 
             If Not UpdateData Is Nothing Then
                 CCode = UpdateData.ClientId
@@ -1428,299 +1430,242 @@ StartZipping:
         Dim ResStr As String
         Dim OID As UInt64
         Dim LockCount As Integer
-        Dim ControlMinReq As Boolean
-        Dim MinReq As UInt32
         Dim SumOrder, WeeklySumOrder As UInt32
         Dim it As Integer
 
+        Try
 
+            If DBConnect("PostOrder") Then
 
+                GetClientCode()
 
-
-        If DBConnect("PostOrder") Then
-
-
-            GetClientCode()
-
-
-            If CCode = Nothing Then
-                CCode = ClientCode
-                UpdateType = 5
-                MessageH = "Доступ закрыт."
-                MessageD = "Пожалуйста, обратитесь в АК ""Инфорум""."
-                ErrorFlag = True
-
-                GoTo ItsEnd
-            End If
-
-
-
-            If Not Counter.Counter.TryLock(UserId, "PostOrder") Then
-                MessageH = "Отправка заказов в настоящее время невозможна."
-                MessageD = "Пожалуйста, повторите попытку через несколько минут.[7]"
-                Addition &= "Перегрузка; "
-                UpdateType = 5
-                ErrorFlag = True
-                GoTo ItsEnd
-            End If
-
-            If ServerOrderId = 0 Then
-
-                'Проверяем совпадение уникального идентификатора
-                If CheckID Then
-                    UID = UniqueID
-                    If Not FnCheckID() Then
-                        MessageH = "Отправка заказов на данном компьютере запрещена."
-                        MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
-                        Addition = "Несоответствие UIN."
-                        UpdateType = 5
-                        ErrorFlag = True
-
-                        GoTo ItsEnd
-                    End If
-                End If
-
-                With Cm
-                    .Connection = ReadOnlyCn
-                    .CommandText = "select ifnull(Max(IncludeClientCode=?ClientCode or ClientCode=?ClientCode), 0) as A from osuseraccessright" & _
-                    " left join  includeregulation on PrimaryClientCode=ClientCode and IncludeType in (0,3)" & _
-                    " where osusername=?UserName"
-                    .Transaction = Nothing
-                End With
-
-                If Not Convert.ToBoolean(Cm.ExecuteScalar) Then
+                If CCode = Nothing Then
+                    CCode = ClientCode
                     UpdateType = 5
-                    MessageH = "Отправка заказов запрещена."
-                    MessageD = "Пожалуйста обратитесь в АК ""Инфорум""."
-                    ErrorFlag = True
-                    'MailErr("Недопустимый код клиента при отправке заказов.", "Код клиента: " & CCode)
-                End If
-
-                If ErrorFlag Then GoTo ItsEnd
-
-                'Контроль превышения суммы закупок за неделю
-
-                Cm.CommandText = "" & _
-                    "SELECT ROUND(IF(SUM(cost                  *quantity)>RCS.MaxWeeklyOrdersSum " & _
-                    "   AND CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0) " & _
-                    "FROM   orders.OrdersHead Oh, " & _
-                    "       orders.OrdersList Ol, " & _
-                    "       RetClientsSet RCS " & _
-                    "WHERE  WriteTime               >curdate() - interval dayofweek(curdate())-2 DAY " & _
-                    "   AND Oh.RowId                =ol.OrderId " & _
-                    "   AND RCS.ClientCode          =oh.ClientCode " & _
-                    "   AND RCS.CheCkWeeklyOrdersSum=1 " & _
-                    "   AND RCS.clientcode          =" & CCode
-
-                WeeklySumOrder = Convert.ToUInt32(Cm.ExecuteScalar)
-
-                If WeeklySumOrder > 0 Then
-                    UpdateType = 5
-                    MessageH = "Превышен недельный лимит заказа (уже заказано на " & WeeklySumOrder & " руб.)"
-                    ' MessageD = 
+                    MessageH = "Доступ закрыт."
+                    MessageD = "Пожалуйста, обратитесь в АК ""Инфорум""."
                     ErrorFlag = True
 
+                    GoTo ItsEnd
                 End If
 
-                'начинаем проверять минимальный заказ
-                Try
-                    Cm.CommandText = "SELECT i.ControlMinReq, if(ifnull(i.MinReq, 0)>0, i.MinReq, prd.MinReq) FROM usersettings.intersection i " & _
-                     " inner join usersettings.pricesregionaldata prd on prd.pricecode = i.priceCode and prd.RegionCode = i.regionCode " & _
-                     " where i.ClientCode = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCode = ?RegionCode"
-                    Cm.Parameters.Clear()
 
-                    Cm.Parameters.Add(New MySqlParameter("?ClientCode", MySqlDbType.UInt32))
-                    Cm.Parameters("?ClientCode").Value = ClientCode
-                    Cm.Parameters.Add(New MySqlParameter("?PriceCode", MySqlDbType.UInt32))
-                    Cm.Parameters("?PriceCode").Value = PriceCode
-                    Cm.Parameters.Add(New MySqlParameter("?RegionCode", MySqlDbType.UInt64))
-                    Cm.Parameters("?RegionCode").Value = RegionCode
 
-                    Using SQLdr As MySqlDataReader = Cm.ExecuteReader
-                        SQLdr.Read()
+                If Not Counter.Counter.TryLock(UserId, "PostOrder") Then
+                    MessageH = "Отправка заказов в настоящее время невозможна."
+                    MessageD = "Пожалуйста, повторите попытку через несколько минут.[7]"
+                    Addition &= "Перегрузка; "
+                    UpdateType = 5
+                    ErrorFlag = True
+                    GoTo ItsEnd
+                End If
 
-                        ControlMinReq = SQLdr.GetBoolean(0)
-                        MinReq = SQLdr.GetUInt32(1)
-                    End Using
+                Dim helper = New OrderHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
 
-                    If ControlMinReq And MinReq > 0 Then
-                        SumOrder = 0
-                        For it = 0 To Cost.Length - 1
-                            SumOrder += Convert.ToUInt32(Math.Round(Quantity(it) * Cost(it), 0))
-                        Next
-                        If SumOrder < MinReq Then
-                            MessageD = "Поставщик отказал в приеме заказа."
-                            MessageH = "Сумма заказа меньше минимально допустимой."
+                If ServerOrderId = 0 Then
+
+                    'Проверяем совпадение уникального идентификатора
+                    If CheckID Then
+                        UID = UniqueID
+                        If Not FnCheckID() Then
+                            MessageH = "Отправка заказов на данном компьютере запрещена."
+                            MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
+                            Addition = "Несоответствие UIN."
                             UpdateType = 5
                             ErrorFlag = True
+
                             GoTo ItsEnd
                         End If
                     End If
 
-                Catch err As Exception
-                    UpdateType = 6
-                    ErrorFlag = True
-                    MailErr("Учет минимальной цены. Клиент: " & CCode, "Ошибка: " & err.Source & ": " & err.StackTrace)
-                End Try
+                    With Cm
+                        .Connection = ReadOnlyCn
+                        .Transaction = Nothing
+                    End With
 
+                    If Not helper.CanPostOrder(ClientCode) Then
+                        UpdateType = 5
+                        MessageH = "Отправка заказов запрещена."
+                        MessageD = "Пожалуйста обратитесь в АК ""Инфорум""."
+                        ErrorFlag = True
+                        'MailErr("Недопустимый код клиента при отправке заказов.", "Код клиента: " & CCode)
+                    End If
 
+                    If ErrorFlag Then GoTo ItsEnd
 
-                If ErrorFlag Then GoTo ItsEnd
+                    'Контроль превышения суммы закупок за неделю
 
+                    Cm.CommandText = "" & _
+                        "SELECT ROUND(IF(SUM(cost                  *quantity)>RCS.MaxWeeklyOrdersSum " & _
+                        "   AND CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0) " & _
+                        "FROM   orders.OrdersHead Oh, " & _
+                        "       orders.OrdersList Ol, " & _
+                        "       RetClientsSet RCS " & _
+                        "WHERE  WriteTime               >curdate() - interval dayofweek(curdate())-2 DAY " & _
+                        "   AND Oh.RowId                =ol.OrderId " & _
+                        "   AND RCS.ClientCode          =oh.ClientCode " & _
+                        "   AND RCS.CheCkWeeklyOrdersSum=1 " & _
+                        "   AND RCS.clientcode          =" & CCode
 
-                With Cm
+                    WeeklySumOrder = Convert.ToUInt32(Cm.ExecuteScalar)
 
-                    .Connection = ReadWriteCn
-                    .Transaction = myTrans
+                    If WeeklySumOrder > 0 Then
+                        UpdateType = 5
+                        MessageH = "Превышен недельный лимит заказа (уже заказано на " & WeeklySumOrder & " руб.)"
+                        ' MessageD = 
+                        ErrorFlag = True
 
-                    .Parameters.Add(New MySqlParameter("?ClientOrderID", MySqlDbType.UInt32))
-                    .Parameters("?ClientOrderID").Value = ClientOrderID
+                    End If
 
-                    .Parameters.Add(New MySqlParameter("?PriceDate", MySqlDbType.DateTime))
-                    .Parameters("?PriceDate").Value = PriceDate.ToLocalTime
-
-                    ResStr = String.Empty
+                    'начинаем проверять минимальный заказ
                     Try
-                        For i = 1 To Len(ClientAddition) Step 3
-                            ResStr &= Chr(Convert.ToInt16(Left(Mid(ClientAddition, i), 3)))
-                        Next
+                        Dim minReq = helper.GetMinReq(ClientCode, RegionCode, PriceCode)
+
+                        If minReq.ControlMinReq And minReq.MinReq > 0 Then
+                            SumOrder = 0
+                            For it = 0 To Cost.Length - 1
+                                SumOrder += Convert.ToUInt32(Math.Round(Quantity(it) * Cost(it), 0))
+                            Next
+                            If SumOrder < minReq.MinReq Then
+                                MessageD = "Поставщик отказал в приеме заказа."
+                                MessageH = "Сумма заказа меньше минимально допустимой."
+                                UpdateType = 5
+                                ErrorFlag = True
+                                GoTo ItsEnd
+                            End If
+                        End If
+
                     Catch err As Exception
-                        'MailErr("Формирование сообщения поставщику ", ResStr & "; Cимвол: " & Left(Mid(ClientAddition, i), 3) & "; Исходная строка:" & ClientAddition & "; Ошибка:" & err.Message)
+                        UpdateType = 6
+                        ErrorFlag = True
+                        MailErr("Учет минимальной цены. Клиент: " & CCode, "Ошибка: " & err.Source & ": " & err.StackTrace)
                     End Try
 
-                    .Parameters.Add(New MySqlParameter("?ClientAddition", MySqlDbType.Blob))
-                    .Parameters("?ClientAddition").Value = ResStr
+                    If ErrorFlag Then GoTo ItsEnd
 
-                    .Parameters.Add(New MySqlParameter("?RowCount", MySqlDbType.UInt16))
-                    .Parameters("?RowCount").Value = RowCount
+                    With Cm
 
-                End With
-            End If
+                        .Connection = ReadWriteCn
+                        .Transaction = myTrans
+
+                        ResStr = String.Empty
+                        Try
+                            For i = 1 To Len(ClientAddition) Step 3
+                                ResStr &= Chr(Convert.ToInt16(Left(Mid(ClientAddition, i), 3)))
+                            Next
+                        Catch err As Exception
+                            'MailErr("Формирование сообщения поставщику ", ResStr & "; Cимвол: " & Left(Mid(ClientAddition, i), 3) & "; Исходная строка:" & ClientAddition & "; Ошибка:" & err.Message)
+                        End Try
+
+                    End With
+                End If
 RestartInsertTrans:
 
-            Try
+                Try
 
-                myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
+                    myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
 
-                If ServerOrderId = 0 Then
-                    Cm.CommandText = "" & _
-                     "INSERT " & _
-                     "INTO    orders.ordershead " & _
-                     "        ( " & _
-                     "                ClientCode    , " & _
-                     "                PriceCode     , " & _
-                     "                RegionCOde    , " & _
-                     "                PriceDate     , " & _
-                     "                ClientAddition, " & _
-                     "                RowCount      , " & _
-                     "                ClientOrderID , " & _
-                     "                Submited, " & _
-                     "                SubmitDate " & _
-                     "        ) " & _
-                     "SELECT  ?ClientCode    , " & _
-                     "        ?PriceCode     , " & _
-                     "        ?RegionCode    , " & _
-                     "        ?PriceDate     , " & _
-                     "        ?ClientAddition, " & _
-                     "        ?RowCount      , " & _
-                     "        ?ClientOrderID , " & _
-                     "        NOT (SubmitOrders and AllowSubmitOrders), " & _
-                     "        IF(NOT(SubmitOrders and AllowSubmitOrders), NOW(), NULL) " & _
-                     "FROM    RetClientsSet RCS " & _
-                     "WHERE   RCS.ClientCode=?ClientCode;"
-                    Cm.CommandText &= "select LAST_INSERT_ID()"
-                    OID = Convert.ToUInt64(Cm.ExecuteScalar)
-                    Cm.CommandText = "select CalculateLeader from retclientsset where clientcode=?ClientCode"
-                    CalculateLeader = Convert.ToBoolean(Cm.ExecuteScalar)
+                    If ServerOrderId = 0 Then
+                        OID = helper.SaveOrder(ClientCode, PriceCode, RegionCode, PriceDate, RowCount, ClientOrderID, ClientAddition)
+                        Cm.CommandText = "select CalculateLeader from retclientsset where clientcode=?ClientCode"
+                        CalculateLeader = Convert.ToBoolean(Cm.ExecuteScalar)
+                    Else
 
-                Else
+                        'Cm.CommandText = "SELECT RowId FROM orders.ordershead where ClientOrderid=" & ServerOrderId
+                        'OID = Convert.ToUInt64(Cm.ExecuteScalar)
+                        'MailErr("Приняли архивный заказ", "Заказ №" & ServerOrderId)
 
-                    'Cm.CommandText = "SELECT RowId FROM orders.ordershead where ClientOrderid=" & ServerOrderId
-                    'OID = Convert.ToUInt64(Cm.ExecuteScalar)
-                    'MailErr("Приняли архивный заказ", "Заказ №" & ServerOrderId)
-
-                End If
-                OrderInsertCm.Connection = ReadWriteCn
-                OrderInsertCm.CommandText = "SELECT " & _
-                 "        `MinCost`          , " & _
-                 "        `LeaderMinCost`    , " & _
-                 "        `CostCode`         , " & _
-                 "        `LeaderCostCode`   , " & _
-                 "        `ProductID`         , " & _
-                 "        `CodeFirmCr`       , " & _
-                 "        `SynonymCode`      , " & _
-                 "        `SynonymFirmCrCode`, " & _
-                 "        `Code`             , " & _
-                 "        `CodeCr`           , " & _
-                 "        `Quantity`         , " & _
-                 "        `Junk`             , " & _
-                 "        `Await`            , " & _
-                 "        `Cost` " & _
-                 "FROM    orders.orderslist, " & _
-                 "        orders.leaders"
+                    End If
+                    OrderInsertCm.Connection = ReadWriteCn
+                    OrderInsertCm.CommandText = "SELECT " & _
+                     "        `MinCost`          , " & _
+                     "        `LeaderMinCost`    , " & _
+                     "        `CostCode`         , " & _
+                     "        `LeaderCostCode`   , " & _
+                     "        `ProductID`         , " & _
+                     "        `CodeFirmCr`       , " & _
+                     "        `SynonymCode`      , " & _
+                     "        `SynonymFirmCrCode`, " & _
+                     "        `Code`             , " & _
+                     "        `CodeCr`           , " & _
+                     "        `Quantity`         , " & _
+                     "        `Junk`             , " & _
+                     "        `Await`            , " & _
+                     "        `Cost` " & _
+                     "FROM    orders.orderslist, " & _
+                     "        orders.leaders"
 
 
-                OrderInsertDA.FillSchema(DS, SchemaType.Source, "OrdersL")
+                    OrderInsertDA.FillSchema(DS, SchemaType.Source, "OrdersL")
 
-                If PostOrderDB(ClientCode, ClientOrderID, ProductID, OID, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost, PriceCode, MinCost, MinPriceCode, LeaderMinCost, LeaderMinPriceCode) Then
-                    myTrans.Commit()
-                    ResultLenght = Convert.ToUInt32(OID)
+                    If PostOrderDB(ClientCode, ClientOrderID, ProductID, OID, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost, PriceCode, MinCost, MinPriceCode, LeaderMinCost, LeaderMinPriceCode) Then
+                        myTrans.Commit()
+                        ResultLenght = Convert.ToUInt32(OID)
 
 
-                    UpdateType = 4
-                Else
+                        UpdateType = 4
+                    Else
+                        Try
+                            myTrans.Rollback()
+                        Catch
+                        End Try
+                        OID = 0
+                    End If
+
+
+
+                Catch MySQLErr As MySqlException
                     Try
                         myTrans.Rollback()
                     Catch
                     End Try
-                    OID = 0
-                End If
+
+                    If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 _
+                     Or MySQLErr.Number = 1422 Or MySQLErr.Number = 1062 Then
+                        System.Threading.Thread.Sleep(500)
+                        LockCount += 1
+                        GoTo RestartInsertTrans
+                    End If
+
+                    MailErr("Постинг заказа. Клиент: " & CCode, "Ошибка MySQL(" & MySQLErr.Number & "): " & MySQLErr.Message & " в " & MySQLErr.Source & ": " & MySQLErr.StackTrace)
+
+                    UpdateType = 6
+                    ErrorFlag = True
+
+                Catch err As Exception
+
+                    MailErr("Постинг заказа. Клиент: " & CCode, "Ошибка: " & err.Message & ": " & err.Source & ": " & err.StackTrace)
+
+                    Try
+                        myTrans.Rollback()
+                    Catch
+                    End Try
+
+                    UpdateType = 6
+                    ErrorFlag = True
 
 
-
-            Catch MySQLErr As MySqlException
-                Try
-                    myTrans.Rollback()
-                Catch
                 End Try
-
-                If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 _
-                 Or MySQLErr.Number = 1422 Or MySQLErr.Number = 1062 Then
-                    System.Threading.Thread.Sleep(500)
-                    LockCount += 1
-                    GoTo RestartInsertTrans
-                End If
-
-                MailErr("Постинг заказа. Клиент: " & CCode, "Ошибка MySQL(" & MySQLErr.Number & "): " & MySQLErr.Message & " в " & MySQLErr.Source & ": " & MySQLErr.StackTrace)
-
-                UpdateType = 6
-                ErrorFlag = True
-
-            Catch err As Exception
-
-                MailErr("Постинг заказа. Клиент: " & CCode, "Ошибка: " & err.Message & ": " & err.Source & ": " & err.StackTrace)
-
-                Try
-                    myTrans.Rollback()
-                Catch
-                End Try
-
-                UpdateType = 6
-                ErrorFlag = True
-
-
-            End Try
 
 ItsEnd:
 
-            DBDisconnect()
+                DBDisconnect()
 
 
-        Else
+            Else
+                MessageH = "Отправка заказов завершилась неудачно."
+                MessageD = "Пожалуйста повторите попытку через несколько минут."
+                ErrorFlag = True
+            End If
+
+        Catch ex As Exception
+            Log.Error("Ошибка при отправке заказа", ex)
             MessageH = "Отправка заказов завершилась неудачно."
             MessageD = "Пожалуйста повторите попытку через несколько минут."
             ErrorFlag = True
-        End If
+        Finally
+            ReleaseLock(UserId, "PostOrder")
+        End Try
 
         If ErrorFlag Or UpdateType > 4 Then
             If Len(MessageH) = 0 Then
@@ -1732,8 +1677,6 @@ ItsEnd:
         Else
             PostOrder = "OrderID=" & OID
         End If
-
-        ReleaseLock(UserId, "PostOrder")
 
     End Function
 
@@ -2272,7 +2215,7 @@ PostLog:
             Try
 
 
-                Dim helper As Helper = New Helper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                Dim helper As UpdateHelper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
 
 
 RestartTrans2:
@@ -2963,7 +2906,7 @@ RestartTrans2:
             Try
 
 
-                Dim helper As Helper = New Helper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                Dim helper As UpdateHelper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
 
 RestartTrans2:
                 If ErrorFlag Then Exit Try

@@ -23,8 +23,9 @@ namespace PrgData.Common
 
 		public bool IsFutureClient;
 
-		public UpdateData(DataRow row)
+		public UpdateData(DataSet data)
 		{
+			var row = data.Tables[0].Rows[0];
 			ClientId = Convert.ToUInt32(row["ClientId"]);
 			UserId = Convert.ToUInt32(row["UserId"]);
 			Message = Convert.ToString(row["Message"]);
@@ -33,16 +34,18 @@ namespace PrgData.Common
 				OldUpdateTime = Convert.ToDateTime(row["UpdateDate"]);
 			if (!(row["UncommitedUpdateDate"] is DBNull))
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
+			if (data.Tables[0].Columns.Contains("Future"))
+				IsFutureClient = true;
 		}
 	}
 
-	public class Helper
+	public class UpdateHelper
 	{
 		private UpdateData _updateData;
 		private MySqlConnection _readWriteConnection;
 		private MySqlConnection _readOnlyConnection;
 
-		public Helper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
+		public UpdateHelper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
 		{
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
@@ -158,16 +161,18 @@ WHERE  primaryclientcode = ?ClientCode
 
 		public static UpdateData GetUpdateData(MySqlConnection connection, string userName)
 		{
+			UpdateData updateData = null;
 			if (userName.ToLower().StartsWith(@"analit\"))
 				userName = userName.Replace(@"analit\", "");
 
 			var dataAdapter = new MySqlDataAdapter(@"
 SELECT  c.Id ClientId,
-        u.Id UserId,
-        rui.UpdateDate,
-        rui.UncommitedUpdateDate,
-        IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
-        CheckCopyID
+	u.Id UserId,
+	rui.UpdateDate,
+	rui.UncommitedUpdateDate,
+	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
+	CheckCopyId,
+	'' Future
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -186,15 +191,18 @@ WHERE u.Id = ap.UserId
 			var data = new DataSet();
 			dataAdapter.Fill(data);
 
-			if (data.Tables[0].Rows.Count == 0)
+			if (data.Tables[0].Rows.Count > 0)
+				updateData = new UpdateData(data);
+
+			if (updateData == null)
 			{
 				dataAdapter.SelectCommand.CommandText = @"
-SELECT  ouar.clientcode as ClientId, 
+SELECT  ouar.clientcode as ClientId,
         ouar.RowId UserId,
-        rui.UpdateDate, 
+        rui.UpdateDate,
         rui.UncommitedUpdateDate,
-        IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message, 
-        CheckCopyID 
+        IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
+        CheckCopyID
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,
@@ -211,13 +219,13 @@ WHERE   ouar.clientcode          =clientsdata.firmcode
     AND rui.UserId               =ouar.RowId 
     AND firmstatus               =1 
     AND OSUserName = ?user";
+				data = new DataSet();
 				dataAdapter.Fill(data);
+				updateData = new UpdateData(data);
 			}
 
-			if (data.Tables[0].Rows.Count == 0)
+			if (updateData == null)
 				return null;
-
-			var updateData = new UpdateData(data.Tables[0].Rows[0]);
 
 			dataAdapter = new MySqlDataAdapter(@"
 SELECT s.OffersClientCode,
@@ -284,8 +292,8 @@ WHERE r.clientcode = ?ClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand("CALL future.GetPrices(?ClientCode)", _readOnlyConnection);
-				command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
+				var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readOnlyConnection);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
 			else
@@ -399,24 +407,78 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 			});
 		}
 
+		public DataSet GetClientForDocuments()
+		{
+			var dataAdapter = new MySqlDataAdapter("", _readOnlyConnection);
+			if (_updateData.IsFutureClient)
+			{
+				dataAdapter.SelectCommand.CommandText = @"
+select a.Id as ClientCode,
+	
+from future.Users u
+	join future.UserAddresses ua on u.Id = ua.UserId
+		join future.Addresses a on a.Id = ua.AddressId
+where u.Id = ?UserId
+";
+			}
+			else
+			{
+				dataAdapter.SelectCommand.CommandText = @"
+SELECT  RCS.ClientCode,
+        RowId,
+        DocumentType
+FROM    logs.document_logs d,
+        retclientsset RCS
+WHERE   RCS.ClientCode = ?ClientCode
+    AND RCS.ClientCode=d.ClientCode
+    AND UpdateId IS NULL
+    AND FirmCode IS NOT NULL
+    AND AllowDocuments=1
+    AND d.Addition IS NULL
+
+UNION
+
+SELECT  ir.IncludeClientCode,
+		RowId,
+        DocumentType
+FROM    logs.document_logs d,
+        retclientsset RCS,
+        includeregulation ir
+WHERE   ir.PrimaryClientCode = ?ClientCode
+    AND RCS.ClientCode      =ir.IncludeClientCode 
+    AND RCS.ClientCode      =d.ClientCode 
+    AND UpdateId           IS NULL 
+    AND FirmCode           IS NOT NULL 
+    AND AllowDocuments      =1 
+    AND d.Addition IS NULL 
+    AND IncludeType        IN (0,3)
+Order by 3";
+			}
+			var data = new DataSet();
+			dataAdapter.Fill(data);
+			return data;
+		}
+
 		public string GetClientsCommand(bool isFirebird)
 		{
 			if (_updateData.IsFutureClient)
 			{
 				return String.Format(@"
-SELECT a.LegacyId as FirmCode,
-     c.Name as ShortName,
+SELECT a.Id as FirmCode,
+     a.Address as ShortName,
      ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
-     rsc.OverCostPercent,
-     rsc.DifferenceCalculation,
-     rsc.MultiUserLevel,
-     rsc.OrderRegionMask,
+     rcs.OverCostPercent,
+     rcs.DifferenceCalculation,
+     rcs.MultiUserLevel,
+     rcs.OrderRegionMask,
      {0}
-     rsc.CalculateLeader
-FROM future.Clients c
-  join usersettings.RetClientsSet rcs on c.Id = rsc.ClientCode
-  join future.Address a on c.id = a.ClientId
-WHERE c.Id = ?ClientCode", isFirebird ? "'', " : "");
+     rcs.CalculateLeader
+FROM Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+WHERE u.Id = ?UserId", isFirebird ? "'', " : "");
 			}
 			else
 			{
