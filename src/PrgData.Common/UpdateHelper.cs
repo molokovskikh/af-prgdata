@@ -39,6 +39,12 @@ namespace PrgData.Common
 		}
 	}
 
+	public class Reclame
+	{
+		public string Region { get; set; }
+		public DateTime? ReclameDate { get; set;}
+	}
+
 	public class UpdateHelper
 	{
 		private UpdateData _updateData;
@@ -320,6 +326,53 @@ WHERE r.clientcode = ?ClientCode
 			}
 		}
 
+		public Reclame GetReclame()
+		{
+			if (_updateData.IsFutureClient)
+			{
+				var command = new MySqlCommand(@"
+SELECT r.Region,
+       uui.ReclameDate
+FROM Future.Clients c
+	join Future.Users u on c.Id = u.Clientid
+	join farm.regions r on r.RegionCode = c.RegionCode
+	join UserUpdateInfo uui on u.Id = uui.UserId
+WHERE u.RowId = ?UserId", _readOnlyConnection);
+				using (var reader = command.ExecuteReader())
+				{
+					reader.Read();
+					var reclame = new Reclame();
+					reclame.Region = reader.GetString("region");
+					if (reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
+						reclame.ReclameDate = reader.GetDateTime("ReclameDate");
+					return reclame;
+				}
+			}
+			else
+			{
+				var commands = new MySqlCommand(@"
+SELECT Region,
+       ReclameDate
+FROM   clientsdata cd,
+       farm.regions r,
+       UserUpdateInfo UUI,
+       OsUserAccessRight OUAR
+WHERE  r.regioncode = cd.regioncode
+   AND OUAR.RowId = ?UserId
+   AND OUAR.Rowid =UUI.UserId
+   AND OUAR.ClientCode = cd.firmcode", _readOnlyConnection);
+				using (var reader = commands.ExecuteReader())
+				{
+					reader.Read();
+					var reclame = new Reclame();
+					reclame.Region = reader.GetString("Region");
+					if (reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
+						reclame.ReclameDate = reader.GetDateTime("ReclameDate");
+					return reclame;
+				}
+			}
+		}
+
 		public void Cleanup()
 		{
 			var command = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes;", _readWriteConnection);
@@ -457,6 +510,29 @@ Order by 3";
 			var data = new DataSet();
 			dataAdapter.Fill(data);
 			return data;
+		}
+
+		public string GetUserCommand()
+		{
+			if (_updateData.IsFutureClient)
+			{
+				return @"
+SELECT u.ClientId as ClientCode,
+	u.Id as RowId,
+	''
+FROM Future.Users u
+WHERE u.Id =" + _updateData.UserId;
+			}
+			else
+			{
+				return @"
+SELECT ClientCode,
+	RowId,
+	''
+FROM OsUserAccessRight O
+WHERE RowId =" + _updateData.UserId;
+
+			}
 		}
 
 		public string GetClientsCommand(bool isFirebird)

@@ -1765,9 +1765,7 @@ RePost:
             If ThreadZipStream.IsAlive Then ThreadZipStream.Join()
 
             If UserId < 1 Then
-                LogCm.CommandText = "SELECT RowId FROM osuseraccessright o " & _
-                     "where osusername='" & UserName & "'"
-                UserId = Convert.ToUInt32(LogCm.ExecuteScalar)
+                GetClientCode()
                 NoNeedProcessDocuments = True
             End If
 
@@ -2950,13 +2948,7 @@ RestartTrans2:
 
 
 
-                GetMySQLFileWithDefault("User", SelProc, _
-                "SELECT ClientCode, " & _
-                "       RowId     , " & _
-                "       '' " & _
-                "FROM   OsUserAccessRight O " & _
-                "WHERE  RowId=" & UserId)
-
+                GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())
 
                 GetMySQLFileWithDefault("Products", SelProc, _
                  "SELECT P.Id       ," & _
@@ -3940,8 +3932,7 @@ RestartTrans2:
 
     <WebMethod()> Public Function GetReclame() As String
         'Return ""
-        Dim RegionName As String
-        Dim ReclameDate, MaxReclameFileDate As Date
+        Dim MaxReclameFileDate As Date
         Dim NewZip As Boolean = True
 
         'Dim FileSize As Integer
@@ -3949,28 +3940,12 @@ RestartTrans2:
             Try
                 GetClientCode()
 
+                Dim updateHelpe = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
 
-                Запрос = "" & _
-                "SELECT Region, " & _
-                "       ReclameDate " & _
-                "FROM   clientsdata cd    , " & _
-                "       farm.regions r    , " & _
-                "       UserUpdateInfo UUI, " & _
-                "       OsUserAccessRight OUAR " & _
-                "WHERE  r.regioncode   = cd.regioncode " & _
-                "   AND OUAR.RowId     =" & UserId & _
-                "   AND OUAR.Rowid     =UUI.UserId " & _
-                "   AND OUAR.ClientCode= cd.firmcode"
-                Cm.Connection = ReadOnlyCn
-                Cm.Transaction = Nothing
-                Cm.CommandText = Запрос
-                Using SQLdr As MySqlDataReader = Cm.ExecuteReader
-                    SQLdr.Read()
-                    RegionName = SQLdr.GetString(0)
-                    If Not TypeOf (SQLdr(1)) Is DBNull Then ReclameDate = SQLdr.GetDateTime(1)
-                End Using
+                Dim reclameData = updateHelpe.GetReclame()
+
                 Reclame = True
-                ReclamePath = ResultFileName & "Reclame\" & RegionName & "\"
+                ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
 
                 MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
 
@@ -3986,7 +3961,7 @@ RestartTrans2:
 
                     FileInfo = New FileInfo(FileName)
 
-                    If FileInfo.LastWriteTime.Subtract(ReclameDate).TotalSeconds > 1 Then
+                    If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
                         FileCount += 1
 
