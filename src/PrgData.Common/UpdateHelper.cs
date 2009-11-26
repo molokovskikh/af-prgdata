@@ -460,23 +460,29 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 			});
 		}
 
-		public DataSet GetClientForDocuments()
+		public string GetDocumentsCommand()
 		{
-			var dataAdapter = new MySqlDataAdapter("", _readOnlyConnection);
 			if (_updateData.IsFutureClient)
 			{
-				dataAdapter.SelectCommand.CommandText = @"
-select a.Id as ClientCode,
-	
+				return @"
+select d.AddressId as ClientCode,
+	d.RowId,
+	d.DocumentType
 from future.Users u
 	join future.UserAddresses ua on u.Id = ua.UserId
-		join future.Addresses a on a.Id = ua.AddressId
+		join logs.document_logs d on ua.AddresssId = d.AddresssId
 where u.Id = ?UserId
+	and d.UpdateId is null
+	and d.FirmCode is not null
+	and d.Addition IS NULL
+	and (d.DocumentType = if(u.SendRejects, 2, 0) or
+		d.DocumentType = if(u.SendWaybills, 1, 0) or
+		d.DocumentType = 3)
 ";
 			}
 			else
 			{
-				dataAdapter.SelectCommand.CommandText = @"
+				return @"
 SELECT  RCS.ClientCode,
         RowId,
         DocumentType
@@ -486,7 +492,7 @@ WHERE   RCS.ClientCode = ?ClientCode
     AND RCS.ClientCode=d.ClientCode
     AND UpdateId IS NULL
     AND FirmCode IS NOT NULL
-    AND AllowDocuments=1
+    AND AllowDocuments = 1
     AND d.Addition IS NULL
 
 UNION
@@ -507,9 +513,6 @@ WHERE   ir.PrimaryClientCode = ?ClientCode
     AND IncludeType        IN (0,3)
 Order by 3";
 			}
-			var data = new DataSet();
-			dataAdapter.Fill(data);
-			return data;
 		}
 
 		public string GetUserCommand()
