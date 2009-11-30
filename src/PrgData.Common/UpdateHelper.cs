@@ -517,7 +517,8 @@ Order by 3";
 				return @"
 SELECT u.ClientId as ClientCode,
 	u.Id as RowId,
-	''
+	'',
+    (u.InheritPricesFrom is not null) as InheritPrices
 FROM Future.Users u
 WHERE u.Id =" + _updateData.UserId;
 			}
@@ -526,7 +527,8 @@ WHERE u.Id =" + _updateData.UserId;
 				return @"
 SELECT ClientCode,
 	RowId,
-	''
+	'',
+    0 as InheritPrices
 FROM OsUserAccessRight O
 WHERE RowId =" + _updateData.UserId;
 
