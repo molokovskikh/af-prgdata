@@ -37,7 +37,7 @@ SELECT i.ControlMinReq, if(ifnull(i.MinReq, 0) > 0, i.MinReq, prd.MinReq)
 FROM Future.Intersection i
 join usersettings.pricesregionaldata prd on prd.pricecode = i.PriceId and prd.RegionCode = i.RegionId
 where i.ClientId = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCode = ?RegionCode", _connection);
-				command.Parameters.AddWithValue("?ClientCode", clientCode);
+				command.Parameters.AddWithValue("?ClientCode", _data.ClientId);
 				command.Parameters.AddWithValue("?RegionCode", regionCode);
 				command.Parameters.AddWithValue("?PriceCode", priceCode);
 
@@ -120,10 +120,10 @@ SELECT ?ClientCode,
 	?ClientAddition,
 	?RowCount,
 	?ClientOrderID,
-	NOT (SubmitOrders and AllowSubmitOrders),
-	IF(NOT(SubmitOrders and AllowSubmitOrders), NOW(), NULL)
-FROM RetClientsSet RCS
-WHERE RCS.ClientCode=?ClientCode;
+	NOT (u.SubmitOrders),
+	IF(NOT(u.SubmitOrders), NOW(), NULL)
+FROM Future.Users u
+WHERE u.Id = ?UserId;
 
 select LAST_INSERT_ID();", _readWriteConnection);
 				command.Parameters.AddWithValue("?ClientCode", _data.ClientId);
