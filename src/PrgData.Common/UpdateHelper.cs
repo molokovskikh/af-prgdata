@@ -42,7 +42,7 @@ namespace PrgData.Common
 	public class Reclame
 	{
 		public string Region { get; set; }
-		public DateTime? ReclameDate { get; set;}
+		public DateTime ReclameDate { get; set;}
 	}
 
 	public class UpdateHelper
@@ -329,29 +329,21 @@ WHERE r.clientcode = ?ClientCode
 
 		public Reclame GetReclame()
 		{
+			MySqlCommand command;
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand(@"
+				command = new MySqlCommand(@"
 SELECT r.Region,
        uui.ReclameDate
 FROM Future.Clients c
 	join Future.Users u on c.Id = u.Clientid
 	join farm.regions r on r.RegionCode = c.RegionCode
 	join UserUpdateInfo uui on u.Id = uui.UserId
-WHERE u.RowId = ?UserId", _readOnlyConnection);
-				using (var reader = command.ExecuteReader())
-				{
-					reader.Read();
-					var reclame = new Reclame();
-					reclame.Region = reader.GetString("region");
-					if (reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
-						reclame.ReclameDate = reader.GetDateTime("ReclameDate");
-					return reclame;
-				}
+WHERE u.Id = ?UserId", _readOnlyConnection);
 			}
 			else
 			{
-				var commands = new MySqlCommand(@"
+				command = new MySqlCommand(@"
 SELECT Region,
        ReclameDate
 FROM   clientsdata cd,
@@ -362,15 +354,17 @@ WHERE  r.regioncode = cd.regioncode
    AND OUAR.RowId = ?UserId
    AND OUAR.Rowid =UUI.UserId
    AND OUAR.ClientCode = cd.firmcode", _readOnlyConnection);
-				using (var reader = commands.ExecuteReader())
-				{
-					reader.Read();
-					var reclame = new Reclame();
-					reclame.Region = reader.GetString("Region");
-					if (reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
-						reclame.ReclameDate = reader.GetDateTime("ReclameDate");
-					return reclame;
-				}
+			}
+			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			using (var reader = command.ExecuteReader())
+			{
+				reader.Read();
+				var reclame = new Reclame {
+					Region = reader.GetString("region")
+				};
+				if (!reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
+					reclame.ReclameDate = reader.GetDateTime("ReclameDate");
+				return reclame;
 			}
 		}
 

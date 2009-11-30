@@ -3915,11 +3915,9 @@ RestartTrans2:
 
 
     <WebMethod()> Public Function GetReclame() As String
-        'Return ""
         Dim MaxReclameFileDate As Date
         Dim NewZip As Boolean = True
 
-        'Dim FileSize As Integer
         If DBConnect("GetReclame") Then
             Try
                 GetClientCode()
@@ -3972,25 +3970,18 @@ RestartTrans2:
 
                 End If
 
-                'Err.Raise("EMK")
-
-
-            Catch Err As Exception
+            Catch ex As Exception
+                Log.Error("Ошибка при загрузке рекламы", ex)
                 ErrorFlag = True
-                ' Cm.CommandText = "delete from ready_client_files  where clientcode=?ClientCode and Reclame;"
-                ' Cm.ExecuteNonQuery()
             Finally
                 DBDisconnect()
             End Try
-        Else
-
         End If
 
         If ErrorFlag Then
             GetReclame = ""
         Else
             If FileCount > 0 Then
-                'GetReclame = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileReclameHandler.ashx?Id=" & Now.ToFileTimeUtc & ";New=" & True
                 GetReclame = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileReclameHandler.ashx;New=" & True
             Else
                 GetReclame = ""
