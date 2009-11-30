@@ -169,7 +169,7 @@ WHERE  primaryclientcode = ?ClientCode
 		{
 			UpdateData updateData = null;
 			if (userName.ToLower().StartsWith(@"analit\"))
-				userName = userName.Replace(@"analit\", "");
+				userName = userName.ToLower().Replace(@"analit\", "");
 
 			var dataAdapter = new MySqlDataAdapter(@"
 SELECT  c.Id ClientId,
@@ -227,7 +227,8 @@ WHERE   ouar.clientcode          =clientsdata.firmcode
     AND OSUserName = ?user";
 				data = new DataSet();
 				dataAdapter.Fill(data);
-				updateData = new UpdateData(data);
+				if (data.Tables[0].Rows.Count > 0)
+					updateData = new UpdateData(data);
 			}
 
 			if (updateData == null)
@@ -470,7 +471,7 @@ select d.AddressId as ClientCode,
 	d.DocumentType
 from future.Users u
 	join future.UserAddresses ua on u.Id = ua.UserId
-		join logs.document_logs d on ua.AddresssId = d.AddresssId
+		join logs.document_logs d on ua.AddressId = d.AddressId
 where u.Id = ?UserId
 	and d.UpdateId is null
 	and d.FirmCode is not null
