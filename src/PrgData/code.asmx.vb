@@ -144,7 +144,8 @@ Public Class PrgDataEx
 
             Return "Res=OK"
         Catch ex As Exception
-            Return "Error=" & ex.Message
+            Log.Error("Ошибка при отправке письма", ex)
+            Return "Error=" & "Не удалось отправить письмо. Попробуйте позднее."
         End Try
     End Function
 
@@ -624,39 +625,14 @@ endproc:
 
 
             'Если не реклама
+            Dim helper = New UpdateHelper(UpdateData, Nothing, Nothing)
             If Not Reclame Then
 
                 Try
                     ArchCmd.Connection = ArchCn
-                    ArchCmd.CommandText = "SELECT  RCS.ClientCode, " & _
-                    "        RowId, " & _
-                    "        DocumentType " & _
-                    "FROM    logs.document_logs d, " & _
-                    "        retclientsset RCS " & _
-                    "WHERE   RCS.ClientCode=" & CCode & _
-                    "    AND RCS.ClientCode=d.ClientCode " & _
-                    "    AND UpdateId     IS NULL " & _
-                    "    AND FirmCode           IS NOT NULL " & _
-                    "    AND AllowDocuments=1 " & _
-                    "    AND d.Addition IS NULL " & _
-                    " " & _
-                    "UNION " & _
-                    " " & _
-                    "SELECT  ir.IncludeClientCode, RowId, " & _
-                    "        DocumentType " & _
-                    "FROM    logs.document_logs d, " & _
-                    "        retclientsset RCS   , " & _
-                    "        includeregulation ir " & _
-                    "WHERE   ir.PrimaryClientCode=" & CCode & _
-                    "    AND RCS.ClientCode      =ir.IncludeClientCode " & _
-                    "    AND RCS.ClientCode      =d.ClientCode " & _
-                    "    AND UpdateId           IS NULL " & _
-                    "    AND FirmCode           IS NOT NULL " & _
-                    "    AND AllowDocuments      =1 " & _
-                    "    AND d.Addition IS NULL " & _
-                    "    AND IncludeType        IN (0,3)" & _
-                    "    Order by 3"
-
+                    ArchCmd.CommandText = helper.GetDocumentsCommand()
+                    ArchCmd.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+                    ArchCmd.Parameters.AddWithValue("?ClientCode", UpdateData.ClientId)
 
                     ArchDA.SelectCommand = ArchCmd
                     ArchDA.Fill(DS, "DocumentsToClient")
@@ -769,6 +745,7 @@ endproc:
 
 
                 Catch ex As Exception
+                    Log.Error("Ошибка при архивировании документов", ex)
                     MailErr("Архивирование документов", ex.Source & ": " & ex.Message)
                     Addition &= "Архивирование документов" & ": " & ex.Message & "; "
 
@@ -1521,7 +1498,7 @@ StartZipping:
                     Try
                         Dim minReq = helper.GetMinReq(ClientCode, RegionCode, PriceCode)
 
-                        If minReq.ControlMinReq And minReq.MinReq > 0 Then
+                        If Not minReq Is Nothing And minReq.ControlMinReq And minReq.MinReq > 0 Then
                             SumOrder = 0
                             For it = 0 To Cost.Length - 1
                                 SumOrder += Convert.ToUInt32(Math.Round(Quantity(it) * Cost(it), 0))
@@ -1536,6 +1513,7 @@ StartZipping:
                         End If
 
                     Catch err As Exception
+                        Log.Error("Учет минимальной цены", err)
                         UpdateType = 6
                         ErrorFlag = True
                         MailErr("Учет минимальной цены. Клиент: " & CCode, "Ошибка: " & err.Source & ": " & err.StackTrace)
@@ -1566,7 +1544,7 @@ RestartInsertTrans:
                     myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
 
                     If ServerOrderId = 0 Then
-                        OID = helper.SaveOrder(ClientCode, PriceCode, RegionCode, PriceDate, RowCount, ClientOrderID, ClientAddition)
+                        OID = helper.SaveOrder(ClientCode, PriceCode, RegionCode, PriceDate, RowCount, ClientOrderID, ResStr)
                         Cm.CommandText = "select CalculateLeader from retclientsset where clientcode=?ClientCode"
                         CalculateLeader = Convert.ToBoolean(Cm.ExecuteScalar)
                     Else
