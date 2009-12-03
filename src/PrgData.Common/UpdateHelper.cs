@@ -549,25 +549,29 @@ SELECT a.Id as FirmCode,
      rcs.OrderRegionMask,
      {0}
      rcs.CalculateLeader
+     {1}
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
   join Future.UserAddresses ua on ua.UserId = u.Id
   join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-WHERE u.Id = ?UserId", isFirebird ? "'', " : "");
+WHERE u.Id = ?UserId", 
+					 isFirebird ? "'', " : "",
+					 isFirebird ? "" : ", rcs.AllowDelayOfPayment");
 			}
 			else
 			{
 				return String.Format(@"
 SELECT clientsdata.firmcode,
-     ShortName                           , 
-     ifnull(?OffersRegionCode, RegionCode), 
-     OverCostPercent                     , 
-     DifferenceCalculation               , 
-     MultiUserLevel                      , 
-     OrderRegionMask                     , 
+     ShortName                                         , 
+     ifnull(?OffersRegionCode, RegionCode)             , 
+     retclientsset.OverCostPercent                     , 
+     retclientsset.DifferenceCalculation               , 
+     retclientsset.MultiUserLevel                      , 
+     retclientsset.OrderRegionMask                     , 
      {0}
-     CalculateLeader 
+     retclientsset.CalculateLeader 
+     {1}
 FROM   retclientsset, 
      clientsdata 
 WHERE  clientsdata.firmcode    = ?ClientCode 
@@ -584,6 +588,7 @@ SELECT clientsdata.firmcode,
      IF(IncludeType=3, parent.OrderRegionMask, retclientsset.OrderRegionMask), 
      {0}
      retclientsset.CalculateLeader 
+     {1}
 FROM   retclientsset       , 
      clientsdata         , 
      retclientsset parent, 
@@ -593,7 +598,71 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
  AND parent.clientcode       = Primaryclientcode 
  AND firmstatus              = 1 
  AND IncludeType            IN (0,3) 
- AND Primaryclientcode       = ?ClientCode", isFirebird ? "'', " : "");
+ AND Primaryclientcode       = ?ClientCode"
+					,
+					isFirebird ? "'', " : "",
+					isFirebird ? "" : ", retclientsset.AllowDelayOfPayment");
+			}
+		}
+
+		public string GetDelayOfPaymentsCommand()
+		{
+			if (_updateData.IsFutureClient)
+			{
+				return @"
+select
+       a.Id as ClientId,
+       si.SupplierId   ,
+       si.DelayOfPayment
+from
+       Future.Users u
+       join
+              future.Clients c
+       on
+              u.ClientId = c.Id
+       join
+              Future.UserAddresses ua
+       on
+              ua.UserId = u.Id
+       join
+              future.Addresses a
+       on
+              c.Id         = a.ClientId
+       and    ua.AddressId = a.Id
+       join
+              Usersettings.SupplierIntersection si
+       on
+              si.ClientId = c.Id
+where
+       u.Id = ?UserId";
+			}
+			else
+			{
+				return @"
+select
+       si.ClientId  ,
+       si.SupplierId,
+       si.DelayOfPayment
+from
+       Usersettings.SupplierIntersection si
+where
+       si.ClientId = ?ClientCode
+
+union
+
+select
+       si.ClientId  ,
+       si.SupplierId,
+       si.DelayOfPayment
+from
+       SupplierIntersection si
+       join
+              IncludeRegulation ir
+       on
+              ir.IncludeClientCode = si.ClientId
+where
+       ir.IncludeType in(0, 3)
+and    ir.PrimaryClientCode = ?ClientCode";
 			}
 		}
 
