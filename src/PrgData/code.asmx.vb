@@ -412,33 +412,43 @@ RestartInsertTrans:
 
 
                         If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
-                            'NeedCloseCn = True
+
                             UpdateType = 3
                             NewZip = False
                             PackFinished = True
                             GoTo endproc
+
                         End If
 
-                    Else
+                            Else
 
                         Try
 
                             MySQLFileDelete(ResultFileName & UserId & ".zip")
 
-                        Catch ex As Exception
-                            Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
-                            UpdateType = 5
-                            ErrorFlag = True
-                            ' NeedCloseCn = True
+                                Catch ex As Exception
+                                    Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
+                                    UpdateType = 5
+                                    ErrorFlag = True
                             GoTo endproc
-                        End Try
+                                End Try
 
 
                         Try
+
                             With Cm
+
                                 .Connection = ReadWriteCn
-                                .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId
-                                .CommandText &= "; select UncommitedUpdateDate from UserUpdateInfo where UserId=" & UserId
+                                .CommandText = String.Empty
+
+                                If UpdateType <> 3 Then
+
+                                    .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId & "; "
+
+                                End If
+
+                                .CommandText &= "select UncommitedUpdateDate from UserUpdateInfo where UserId=" & UserId
+
                                 .Transaction = myTrans
 
                             End With
@@ -446,7 +456,7 @@ RestartInsertTrans:
 Restart:
                             myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
                             Cm.Transaction = myTrans
-                            Using SQLdr As MySqlDataReader = Cm.ExecuteReader()
+                            Using SQLdr = Cm.ExecuteReader()
                                 SQLdr.Read()
                                 CurUpdTime = SQLdr.GetDateTime(0)
                             End Using
@@ -1086,8 +1096,6 @@ StartZipping:
        ByVal PriceCode As UInt32(), _
        ByVal UpdateId As UInt32, _
        ByVal WayBillsOnly As Boolean) As Date
-        'Dim ef() As String
-        'Dim FileName As String
         Dim UpdateTime As Date
         Cm.Transaction = Nothing
         ClientLog = Log
@@ -4078,7 +4086,6 @@ RestartMaxCodesSet:
             myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
 
             SelProc.ExecuteNonQuery()
-
 
             myTrans.Commit()
 
