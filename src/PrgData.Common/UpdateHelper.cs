@@ -267,7 +267,7 @@ WHERE r.clientcode = ?ClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand("call future.GetActivePrices(?UserId);", _readOnlyConnection);
+				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readOnlyConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
@@ -283,7 +283,7 @@ WHERE r.clientcode = ?ClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand("call future.GetActivePrices(?UserId);", _readWriteConnection);
+				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
