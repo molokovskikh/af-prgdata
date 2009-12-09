@@ -378,8 +378,15 @@ RestartInsertTrans:
 
                     'Готовим кумулятивное
                     If GED Then
+
                         UpdateType = 2
-                        'FileCount -= 1
+                        Cm.Connection = ReadWriteCn
+                        Cm.CommandText = "update UserUpdateInfo set ReclameDate = NULL where UserId=" & UserId & "; "
+                        myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
+                        Cm.Transaction = myTrans
+                        Cm.ExecuteNonQuery()
+                        myTrans.Commit()
+
                     End If
 
                 End If
@@ -802,6 +809,8 @@ endproc:
                         ArchCmd.CommandText = "select EnableUpdate from retclientsset where clientcode=" & CCode
                         EnableUpdate = Convert.ToBoolean(ArchCmd.ExecuteScalar)
                         ArchTrans.Commit()
+
+                        EnableUpdate = False
 
                         If EnableUpdate And Directory.Exists(ResultFileName & "Updates\" & BuildNo & "\EXE") Then
 
@@ -1562,25 +1571,24 @@ RestartInsertTrans:
                         'MailErr("Приняли архивный заказ", "Заказ №" & ServerOrderId)
 
                     End If
-                    OrderInsertCm.Connection = ReadWriteCn
-                    OrderInsertCm.CommandText = "SELECT " & _
-                     "        `MinCost`          , " & _
-                     "        `LeaderMinCost`    , " & _
-                     "        `CostCode`         , " & _
-                     "        `LeaderCostCode`   , " & _
-                     "        `ProductID`         , " & _
-                     "        `CodeFirmCr`       , " & _
-                     "        `SynonymCode`      , " & _
-                     "        `SynonymFirmCrCode`, " & _
-                     "        `Code`             , " & _
-                     "        `CodeCr`           , " & _
-                     "        `Quantity`         , " & _
-                     "        `Junk`             , " & _
-                     "        `Await`            , " & _
-                     "        `Cost` " & _
-                     "FROM    orders.orderslist, " & _
-                     "        orders.leaders"
-
+                OrderInsertCm.Connection = ReadWriteCn
+                OrderInsertCm.CommandText = "SELECT " & _
+                 "        `MinCost`          , " & _
+                 "        `LeaderMinCost`    , " & _
+                 "        `PriceCode`         , " & _
+                 "        `LeaderPriceCode`   , " & _
+                 "        `ProductID`         , " & _
+                 "        `CodeFirmCr`       , " & _
+                 "        `SynonymCode`      , " & _
+                 "        `SynonymFirmCrCode`, " & _
+                 "        `Code`             , " & _
+                 "        `CodeCr`           , " & _
+                 "        `Quantity`         , " & _
+                 "        `Junk`             , " & _
+                 "        `Await`            , " & _
+                 "        `Cost` " & _
+                 "FROM    orders.orderslist, " & _
+                 "        orders.leaders"
 
                     OrderInsertDA.FillSchema(DS, SchemaType.Source, "OrdersL")
 
@@ -3581,8 +3589,8 @@ RestartTrans2:
 
             If CalculateLeader Then
 
-                If UInt32.TryParse(MinPriceCode(i), MinPriceCodeP) Then newrow.Item("CostCode") = MinPriceCodeP
-                If UInt32.TryParse(LeaderMinPriceCode(i), LeaderMinPriceCodeP) Then newrow.Item("LeaderCostCode") = LeaderMinPriceCodeP
+                If UInt32.TryParse(MinPriceCode(i), MinPriceCodeP) Then newrow.Item("PriceCode") = MinPriceCodeP
+                If UInt32.TryParse(LeaderMinPriceCode(i), LeaderMinPriceCodeP) Then newrow.Item("LeaderPriceCode") = LeaderMinPriceCodeP
 
                 If Decimal.TryParse(LeaderMinCost(i), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, LaederMinCostP) Then newrow.Item("LeaderMinCost") = LaederMinCostP
                 If Decimal.TryParse(MinCost(i), System.Globalization.NumberStyles.Currency, System.Globalization.CultureInfo.InvariantCulture.NumberFormat, MinCostP) Then newrow.Item("MinCost") = MinCostP
@@ -3687,9 +3695,10 @@ RestartTrans2:
             If CalculateLeader And (MinPriceCodeP > 0 Or LeaderMinPriceCodeP > 0) And (LaederMinCostP > 0 Or MinCostP > 0) Then
 
                 .CommandText &= " insert into orders.leaders " & _
-                    "values(last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?CostCode, 0), nullif(?LeaderCostCode, 0))"
-                .Parameters.Add(New MySql.Data.MySqlClient.MySqlParameter("?CostCode", MySqlDbType.UInt32, 0, "CostCode"))
-                .Parameters.Add(New MySql.Data.MySqlClient.MySqlParameter("?LeaderCostCode", MySqlDbType.UInt32, 0, "LeaderCostCode"))
+                                "values(last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?PriceCode, 0), nullif(?LeaderPriceCode, 0))"
+
+                .Parameters.Add(New MySql.Data.MySqlClient.MySqlParameter("?PriceCode", MySqlDbType.UInt32, 0, "PriceCode"))
+                .Parameters.Add(New MySql.Data.MySqlClient.MySqlParameter("?LeaderPriceCode", MySqlDbType.UInt32, 0, "LeaderPriceCode"))
                 .Parameters.Add(New MySql.Data.MySqlClient.MySqlParameter("?MinCost", MySqlDbType.Decimal, 0, "MinCost"))
                 .Parameters.Add(New MySql.Data.MySqlClient.MySqlParameter("?LeaderMinCost", MySqlDbType.Decimal, 0, "LeaderMinCost"))
 
@@ -3931,8 +3940,8 @@ RestartTrans2:
                 GetClientCode()
 
                 Dim updateHelpe = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
-
                 Dim reclameData = updateHelpe.GetReclame()
+                MaxReclameFileDate = reclameData.ReclameDate
 
                 Reclame = True
                 ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
@@ -3990,7 +3999,9 @@ RestartTrans2:
             GetReclame = ""
         Else
             If FileCount > 0 Then
+
                 GetReclame = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileReclameHandler.ashx;New=" & True
+
             Else
                 GetReclame = ""
             End If
