@@ -43,6 +43,11 @@ namespace PrgData.Common
 	{
 		public string Region { get; set; }
 		public DateTime ReclameDate { get; set;}
+
+		public Reclame()
+		{
+			ReclameDate = new DateTime(2003, 1, 1);
+		}
 	}
 
 	public class UpdateHelper

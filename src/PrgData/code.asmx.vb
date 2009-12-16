@@ -810,16 +810,14 @@ endproc:
                         EnableUpdate = Convert.ToBoolean(ArchCmd.ExecuteScalar)
                         ArchTrans.Commit()
 
-                        EnableUpdate = False
+                        If EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\EXE") Then
 
-                        If EnableUpdate And Directory.Exists(ResultFileName & "Updates\" & BuildNo & "\EXE") Then
-
-                            ef = Directory.GetFiles(ResultFileName & "Updates\" & BuildNo & "\EXE")
+                            ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\EXE")
 
                             If ef.Length > 0 Then
                                 'Pr.StartInfo.UserName = Пользователь
                                 'Pr.StartInfo.Password = БезопасныйПароль
-                                Pr = System.Diagnostics.Process.Start(SevenZipExe, "a " & SevenZipTmpArchive & " " & ResultFileName & "Updates\" & BuildNo & "\EXE" & SevenZipParam)
+                                Pr = System.Diagnostics.Process.Start(SevenZipExe, "a " & SevenZipTmpArchive & " " & ResultFileName & "Updates\Future_" & BuildNo & "\EXE" & SevenZipParam)
 
 #If Not Debug Then
                                 try
@@ -874,8 +872,8 @@ endproc:
 
                     'Архивирование FRF
                     Try
-                        If EnableUpdate And Directory.Exists(ResultFileName & "Updates\" & BuildNo & "\FRF") Then
-                            ef = Directory.GetFiles(ResultFileName & "Updates\" & BuildNo & "\FRF")
+                        If EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\FRF") Then
+                            ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\FRF")
                             If ef.Length > 0 Then
                                 For Each Name In ef
                                     FileInfo = New FileInfo(Name)

@@ -13,9 +13,5 @@ namespace PrgData.Common
 			return ConfigurationManager.ConnectionStrings["Main"].ConnectionString;
 #endif
 		}
-
-
-		
-
 	}
 }
