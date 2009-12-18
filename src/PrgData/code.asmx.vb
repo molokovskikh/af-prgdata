@@ -11,6 +11,7 @@ Imports Counter.Counter
 Imports PrgData.Common
 Imports System.Net.Mail
 Imports log4net.Core
+Imports PrgData.Common.Orders
 
 
 <WebService(Namespace:="IOS.Service")> _
@@ -1671,6 +1672,139 @@ ItsEnd:
         End If
 
     End Function
+
+    'Отправляем несколько заказов скопом и по ним все формируем ответ
+    <WebMethod()> _
+    Public Function PostSomeOrders( _
+        ByVal UniqueID As String, _
+        ByVal ForceSend As Boolean, _
+        ByVal ClientCode As UInt32, _
+        ByVal OrderCount As UInt16, _
+        ByVal ClientOrderID As UInt64(), _
+        ByVal PriceCode As UInt64(), _
+        ByVal RegionCode As UInt64(), _
+        ByVal PriceDate As Date(), _
+        ByVal ClientAddition As String(), _
+        ByVal RowCount As UInt16(), _
+        ByVal ClientPositionID As UInt64(), _
+        ByVal ClientServerCoreID As UInt64(), _
+        ByVal ProductID As UInt64(), _
+        ByVal CodeFirmCr As String(), _
+        ByVal SynonymCode As UInt64(), _
+        ByVal SynonymFirmCrCode As String(), _
+        ByVal Code As String(), _
+        ByVal CodeCr As String(), _
+        ByVal Junk As Boolean(), _
+        ByVal Await As Boolean(), _
+        ByVal RequestRatio As String(), _
+        ByVal OrderCost As String(), _
+        ByVal MinOrderCount As String(), _
+        ByVal Quantity As UInt16(), _
+        ByVal Cost As Decimal(), _
+        ByVal MinCost As String(), _
+        ByVal MinPriceCode As String(), _
+        ByVal LeaderMinCost As String(), _
+        ByVal LeaderMinPriceCode As String()) As String
+
+        Dim ResStr As String = String.Empty
+
+        Try
+
+            If DBConnect("PostOrder") Then
+
+                GetClientCode()
+
+                If CCode = Nothing Then
+                    CCode = ClientCode
+                    Throw New OrderUpdateException(True, 5, "Доступ закрыт.", "Пожалуйста, обратитесь в АК ""Инфорум"".")
+                End If
+
+                If Not Counter.Counter.TryLock(UserId, "PostOrder") Then
+                    Addition &= "Перегрузка; "
+                    Throw New OrderUpdateException(True, 5, _
+                        "Отправка заказов в настоящее время невозможна.", _
+                        "Пожалуйста, повторите попытку через несколько минут.[7]")
+                End If
+
+                'Проверяем совпадение уникального идентификатора
+                If CheckID Then
+                    UID = UniqueID
+                    If Not FnCheckID() Then
+                        Addition = "Несоответствие UIN."
+                        Throw New OrderUpdateException(True, 5, _
+                            "Отправка заказов на данном компьютере запрещена.", _
+                            "Пожалуйста, обратитесь в АК «Инфорум».[2]")
+                    End If
+                End If
+
+                Dim helper = New ReorderHelper(UpdateData, ReadOnlyCn, ReadWriteCn, ForceSend, ClientCode)
+
+                helper.ParseOrders( _
+                    OrderCount, _
+                    ClientOrderID, _
+                    PriceCode, _
+                    RegionCode, _
+                    PriceDate, _
+                    ClientAddition, _
+                    RowCount, _
+                    ClientPositionID, _
+                    ClientServerCoreID, _
+                    ProductID, _
+                    CodeFirmCr, _
+                    SynonymCode, _
+                    SynonymFirmCrCode, _
+                    Code, _
+                    CodeCr, _
+                    Junk, _
+                    Await, _
+                    RequestRatio, _
+                    OrderCost, _
+                    MinOrderCount, _
+                    Quantity, _
+                    Cost, _
+                    MinCost, _
+                    MinPriceCode, _
+                    LeaderMinCost, _
+                    LeaderMinPriceCode _
+                )
+
+
+                ResStr = helper.PostSameOrders()
+
+                DBDisconnect()
+            Else
+                MessageH = "Отправка заказов завершилась неудачно."
+                MessageD = "Пожалуйста повторите попытку через несколько минут."
+                ErrorFlag = True
+            End If
+
+        Catch updateException As OrderUpdateException
+            UpdateType = updateException.UpdateType
+            MessageH = updateException.MessageHeader
+            MessageD = updateException.MessageDescription
+            ErrorFlag = updateException.ErrorFlag
+        Catch ex As Exception
+            Log.Error("Ошибка при отправке заказа", ex)
+            MessageH = "Отправка заказов завершилась неудачно."
+            MessageD = "Пожалуйста повторите попытку через несколько минут."
+            ErrorFlag = True
+        Finally
+            ReleaseLock(UserId, "PostOrder")
+        End Try
+
+        If ErrorFlag Or UpdateType > 4 Then
+            If Len(MessageH) = 0 Then
+                Return "Error=Отправка заказов завершилась неудачно.;Desc=Некоторые заявки не были обработанны."
+            Else
+                Addition = MessageH & " " & MessageD
+                Return "Error=" & MessageH & ";Desc=" & MessageD
+            End If
+        Else
+            Return ResStr
+        End If
+
+    End Function
+
 
     Public Sub MailErr(ByVal ErrSource As String, ByVal ErrDesc As String)
         Utils.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "AF сервиc: " & ErrSource)

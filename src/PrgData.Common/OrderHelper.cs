@@ -17,9 +17,9 @@ namespace PrgData.Common
 
 	public class OrderHelper
 	{
-		private UpdateData _data;
-		private MySqlConnection _connection;
-		private MySqlConnection _readWriteConnection;
+		protected UpdateData _data;
+		protected MySqlConnection _connection;
+		protected MySqlConnection _readWriteConnection;
 
 		public OrderHelper(UpdateData data, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
 		{
