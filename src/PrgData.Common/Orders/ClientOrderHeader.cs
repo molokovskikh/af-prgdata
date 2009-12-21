@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PrgData.Common.Orders
 {
@@ -70,6 +71,11 @@ namespace PrgData.Common.Orders
 			decimal result = 0;
 			Positions.ForEach((item) => { result += item.Quantity * item.Cost; });
 			return result;
+		}
+
+		public uint GetSavedRowCount()
+		{
+			return Convert.ToUInt32( Positions.Count((item) => { return !item.Duplicated; }));
 		}
 	}
 }

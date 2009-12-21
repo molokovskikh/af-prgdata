@@ -61,7 +61,7 @@ namespace PrgData.Common.Orders
 			Duplicated = false;
 		}
 
-		public string GetFilter()
+		public string GetFilterForDuplicatedOrder()
 		{
 			return String.Format(@"
 (ProductId = {0})
@@ -70,17 +70,24 @@ and (SynonymFirmCrCode {2})
 and (Code = '{3}')
 and (CodeCr = '{4}')
 and (Junk = {5})
-and (Await = {6})
-and (RequestRatio {7})
-and (OrderCost {8})
-and (MinOrderCount {9})",
+and (Await = {6})",
 				  ProductID,
 				  SynonymCode,
 				  SynonymFirmCrCode.HasValue ? " = " + SynonymFirmCrCode.ToString() : "is Null",
 				  Code,
 				  CodeCr,
 				  Junk ? "True" : "False",
-				  Await ? "True" : "False",
+				  Await ? "True" : "False"
+				  );
+		}
+
+		public string GetFilter()
+		{
+			return GetFilterForDuplicatedOrder() +
+				String.Format(@"
+and (RequestRatio {0})
+and (OrderCost {1})
+and (MinOrderCount {2})",
 				  RequestRatio.HasValue ? " = " + RequestRatio.ToString() : "is Null",
 				  OrderCost.HasValue ? " = " + OrderCost.ToString() : "is Null",
 				  MinOrderCount.HasValue ? " = " + MinOrderCount.ToString() : "is Null"

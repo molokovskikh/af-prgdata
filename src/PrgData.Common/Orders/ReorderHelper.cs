@@ -5,6 +5,7 @@ using System.Text;
 using MySql.Data.MySqlClient;
 using Common.MySql;
 using System.Data;
+using log4net;
 
 
 namespace PrgData.Common.Orders
@@ -43,49 +44,55 @@ namespace PrgData.Common.Orders
 
 		private void InternalSendOrders()
 		{
-			With.DeadlockWraper(() => 
+			//Сбрасываем перед заказом
+			_orders.ForEach((item) => { item.ClearBeforPost(); });
+
+			//Получить значение флага "Расчитывать лидеров"
+			_calculateLeaders = GetCalculateLeaders();
+
+			//делаем проверки минимального заказа
+			CheckOrdersByMinRequest();
+
+			//делаем проверку на дублирующиеся заказы
+			CheckDuplicatedOrders();
+
+			if (AllOrdersIsSuccess() && !_forceSend)
 			{
-				var transaction = _readWriteConnection.BeginTransaction();
-				try
+				//вызываем заполнение таблицы предложений в памяти MySql-сервера
+				GetOffers();
+
+				//делаем сравнение с существующим прайсом
+				CheckWithExistsPrices();
+			}
+
+			if (AllOrdersIsSuccess())
+				With.DeadlockWraper(() =>
 				{
-					var executeCommand = new MySqlCommand();
-					executeCommand.Connection = _readWriteConnection;
-					executeCommand.Transaction = transaction;
-
-					//Сбрасываем перед заказом
-					_orders.ForEach((item) => { item.ClearBeforPost(); });
-
-					//Получить значение флага "Расчитывать лидеров"
-					_calculateLeaders = GetCalculateLeaders(executeCommand);
-
-					//делаем проверки
-					CheckOrders(executeCommand);
-
-					if (AllOrdersIsSuccess() && !_forceSend)
+					var transaction = _readWriteConnection.BeginTransaction();
+					try
 					{
-						//вызываем заполнение таблицы предложений в памяти MySql-сервера
-						GetOffers(executeCommand);
+						//Сбрасываем ServerOrderId перед заказом только у заказов, 
+						//которые не являются полностью дублированными
+						_orders.ForEach((item) =>
+						{
+							if (!item.FullDuplicated) 
+								item.ServerOrderId = 0; 
+						});
 
-						//делаем сравнение с существующим прайсом
-						CheckWithExistsPrices(executeCommand);
-
-					}
-
-					if (AllOrdersIsSuccess())
 						//сохраняем сами заявки в базу
-						SaveOrders(executeCommand);
+						SaveOrders();
 
-					transaction.Commit();
-				}
-				catch
-				{
-					transaction.Rollback();
-					throw;
-				}
-			});
+						transaction.Commit();
+					}
+					catch
+					{
+						transaction.Rollback();
+						throw;
+					}
+				});
 		}
 
-		private void CheckWithExistsPrices(MySqlCommand executeCommand)
+		private void CheckWithExistsPrices()
 		{
 			foreach (var order in _orders)
 			{
@@ -184,7 +191,7 @@ and (Core.RegionCode = ?RegionCode)
 			return null;
 		}
 
-		private void SaveOrders(MySqlCommand executeCommand)
+		private void SaveOrders()
 		{
 			foreach (var order in _orders)
 			{
@@ -195,18 +202,19 @@ and (Core.RegionCode = ?RegionCode)
 						Convert.ToUInt32(order.PriceCode),
 						order.RegionCode,
 						order.PriceDate,
-						order.RowCount,
+						order.GetSavedRowCount(),
 						Convert.ToUInt32(order.ClientOrderId),
 						order.ClientAddition);
 					foreach (var position in order.Positions)
-						SaveOrderDetail(order, position, executeCommand);
+						if (!position.Duplicated)
+							SaveOrderDetail(order, position);
 				}
 			}
 		}
 
-		private void SaveOrderDetail(ClientOrderHeader order, ClientOrderPosition position, MySqlCommand executeCommand)
+		private void SaveOrderDetail(ClientOrderHeader order, ClientOrderPosition position)
 		{
-			executeCommand.CommandText = @"
+			var command = new MySqlCommand(@"
  INSERT
  INTO   orders.orderslist
         (
@@ -246,44 +254,46 @@ and (Core.RegionCode = ?RegionCode)
         ON     sfcr.SynonymFirmCrCode=?SynonymFirmCrCode
         LEFT JOIN catalogs.Producers Prod
         ON     Prod.Id=?CodeFirmCr
- WHERE  products.ID   =?ProductID;";
+ WHERE  products.ID   =?ProductID;"
+				, 
+				_readWriteConnection);
 
-			executeCommand.Parameters.Clear();
+			command.Parameters.Clear();
 
 			if (_calculateLeaders
 				&& (position.MinCost.HasValue || position.LeaderMinCost.HasValue)
 				&& (position.MinPriceCode.HasValue || position.LeaderMinPriceCode.HasValue))
 			{
-				executeCommand.CommandText += @"
+				command.CommandText += @"
 insert into orders.leaders 
 values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?MinPriceCode, 0), nullif(?LeaderMinPriceCode, 0));";
-				executeCommand.Parameters.AddWithValue("?MinCost", position.MinCost);
-				executeCommand.Parameters.AddWithValue("?LeaderMinCost", position.LeaderMinCost);
-				executeCommand.Parameters.AddWithValue("?MinPriceCode", position.MinPriceCode);
-				executeCommand.Parameters.AddWithValue("?LeaderMinPriceCode", position.LeaderMinPriceCode);
+				command.Parameters.AddWithValue("?MinCost", position.MinCost);
+				command.Parameters.AddWithValue("?LeaderMinCost", position.LeaderMinCost);
+				command.Parameters.AddWithValue("?MinPriceCode", position.MinPriceCode);
+				command.Parameters.AddWithValue("?LeaderMinPriceCode", position.LeaderMinPriceCode);
 			}
 
-			executeCommand.Parameters.AddWithValue("?OrderId", order.ServerOrderId);
+			command.Parameters.AddWithValue("?OrderId", order.ServerOrderId);
 
-			executeCommand.Parameters.AddWithValue("?ProductId", position.ProductID);
-			executeCommand.Parameters.AddWithValue("?CodeFirmCr", position.CodeFirmCr);
-			executeCommand.Parameters.AddWithValue("?SynonymCode", position.SynonymCode);
-			executeCommand.Parameters.AddWithValue("?SynonymFirmCrCode", position.SynonymFirmCrCode);
-			executeCommand.Parameters.AddWithValue("?Code", position.Code);
-			executeCommand.Parameters.AddWithValue("?CodeCr", position.CodeCr);
-			executeCommand.Parameters.AddWithValue("?Quantity", position.Quantity);
-			executeCommand.Parameters.AddWithValue("?Junk", position.Junk);
-			executeCommand.Parameters.AddWithValue("?Await", position.Await);
-			executeCommand.Parameters.AddWithValue("?Cost", position.Cost);
+			command.Parameters.AddWithValue("?ProductId", position.ProductID);
+			command.Parameters.AddWithValue("?CodeFirmCr", position.CodeFirmCr);
+			command.Parameters.AddWithValue("?SynonymCode", position.SynonymCode);
+			command.Parameters.AddWithValue("?SynonymFirmCrCode", position.SynonymFirmCrCode);
+			command.Parameters.AddWithValue("?Code", position.Code);
+			command.Parameters.AddWithValue("?CodeCr", position.CodeCr);
+			command.Parameters.AddWithValue("?Quantity", position.Quantity);
+			command.Parameters.AddWithValue("?Junk", position.Junk);
+			command.Parameters.AddWithValue("?Await", position.Await);
+			command.Parameters.AddWithValue("?Cost", position.Cost);
 
-			executeCommand.Parameters.AddWithValue("?RequestRatio", position.RequestRatio);
-			executeCommand.Parameters.AddWithValue("?MinOrderCount", position.MinOrderCount);
-			executeCommand.Parameters.AddWithValue("?OrderCost", position.OrderCost);
+			command.Parameters.AddWithValue("?RequestRatio", position.RequestRatio);
+			command.Parameters.AddWithValue("?MinOrderCount", position.MinOrderCount);
+			command.Parameters.AddWithValue("?OrderCost", position.OrderCost);
 
-			executeCommand.ExecuteNonQuery();
+			command.ExecuteNonQuery();
 		}
 
-		private void GetOffers(MySqlCommand executeCommand)
+		private void GetOffers()
 		{
 			if (_data.IsFutureClient)
 			{
@@ -299,7 +309,7 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 			}
 		}
 
-		private void CheckOrders(MySqlCommand executeCommand)
+		private void CheckOrdersByMinRequest()
 		{
 			foreach (var order in _orders)
 			{
@@ -314,12 +324,11 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 			}
 		}
 
-		private bool GetCalculateLeaders(MySqlCommand executeCommand)
+		private bool GetCalculateLeaders()
 		{
-			executeCommand.CommandText = "select CalculateLeader from retclientsset where clientcode=?ClientId";
-			executeCommand.Parameters.Clear();
-			executeCommand.Parameters.AddWithValue("?ClientId", _data.ClientId);
-			return Convert.ToBoolean(executeCommand.ExecuteScalar());
+			var command = new MySqlCommand("select CalculateLeader from retclientsset where clientcode=?ClientId", _connection);
+			command.Parameters.AddWithValue("?ClientId", _data.ClientId);
+			return Convert.ToBoolean(command.ExecuteScalar());
 		}
 
 		private bool AllOrdersIsSuccess()
@@ -538,6 +547,97 @@ AND    RCS.clientcode          = ?ClientCode"
 			}
 
 			return result;
+		}
+
+		private void CheckDuplicatedOrders()
+		{
+			ILog _logger = LogManager.GetLogger(this.GetType());
+
+			foreach (var order in _orders)
+			{
+				//проверку производим только на заказах, которые помечены как успешные
+				if (order.SendResult != OrderSendResult.Success)
+					continue;
+
+				var existsOrders = new DataTable();
+				var dataAdapter = new MySqlDataAdapter(@"
+SELECT ol.*
+FROM   orders.ordershead oh,
+       orders.orderslist ol
+WHERE  clientorderid = ?ClientOrderID
+AND    writetime    >ifnull(
+       (SELECT MAX(requesttime)
+       FROM    logs.AnalitFUpdates px
+       WHERE   updatetype =2
+       AND     px.UserId  = ?UserId
+       )
+       , now() - interval 2 week)
+AND    clientcode= ?ClientCode
+AND    ol.orderid=oh.rowid
+order by oh.RowId desc
+", _connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);				
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
+
+				dataAdapter.Fill(existsOrders);
+
+				if (existsOrders.Rows.Count == 0)
+					continue;
+
+				foreach (var position in order.Positions)
+				{
+					var existsOrderList = existsOrders.Select(position.GetFilterForDuplicatedOrder());
+					if (existsOrderList.Length == 1)
+					{
+						var serverQuantity = Convert.ToUInt16(existsOrderList[0]["Quantity"]);
+						//Если меньше или равняется, то считаем, что заказ был уже отправлен
+						if (position.Quantity <= serverQuantity)
+						{
+							position.Duplicated = true;
+							_logger.InfoFormat(
+								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
+								+ "удалена дублирующаяся строка с заказом №{3}, строка №{4}",
+								order.ClientOrderId,
+								_orderedClientCode,
+								_data.UserId,
+								existsOrderList[0]["OrderId"],
+								existsOrderList[0]["RowId"]);
+						}
+						else
+						{
+							position.Quantity = (ushort)(position.Quantity - serverQuantity);
+							_logger.InfoFormat(
+								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
+								+ "изменено количество товара в связи с дублированием с заказом №{3}, строка №{4}",
+								order.ClientOrderId,
+								_orderedClientCode,
+								_data.UserId,
+								existsOrderList[0]["OrderId"],
+								existsOrderList[0]["RowId"]);
+						}
+						//удаляем позицию, чтобы больше не находить ее
+						existsOrderList[0].Delete();
+					}
+					else
+						if (existsOrderList.Length > 1)
+						{
+							var stringBuilder = new StringBuilder();
+							stringBuilder.AppendFormat(
+								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2}"
+								+ "поиск вернул несколько позиций: {3}\r\n",
+								order.ClientOrderId,
+								_orderedClientCode,
+								_data.UserId,
+								existsOrderList.Length);
+							existsOrderList.ToList().ForEach((row) => { stringBuilder.AppendLine(row.ItemArray.ToString()); });
+							//Это надо залогировать
+						}
+				}
+
+				//Если все заказы были помечены как дублирующиеся, то весь заказ помечаем как полностью дублирующийся
+				order.FullDuplicated = (order.GetSavedRowCount() == 0);
+			}
 		}
 	}
 }
