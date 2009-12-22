@@ -363,13 +363,13 @@ RestartInsertTrans:
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                     If BuildNo > 708 Then
-                        FileCount = 15
+                        FileCount = 16
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If (BuildNo = 705) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
-                            FileCount = 15
+                            FileCount = 16
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -3037,6 +3037,7 @@ RestartTrans2:
 
                 MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "User" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "Client" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Catalogs" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
@@ -3075,6 +3076,7 @@ RestartTrans2:
 
 
                 GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())
+                GetMySQLFileWithDefault("Client", SelProc, helper.GetClientCommand())
 
                 GetMySQLFileWithDefault("Products", SelProc, _
                  "SELECT P.Id       ," & _

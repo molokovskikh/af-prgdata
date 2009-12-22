@@ -520,12 +520,18 @@ Order by 3";
 			if (_updateData.IsFutureClient)
 			{
 				return @"
-SELECT u.ClientId as ClientCode,
+SELECT a.Id as ClientCode,
 	u.Id as RowId,
 	'',
-    (u.InheritPricesFrom is not null) as InheritPrices
+    (u.InheritPricesFrom is not null) as InheritPrices,
+    1 as IsFutureClient
 FROM Future.Users u
-WHERE u.Id =" + _updateData.UserId;
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+WHERE u.Id = " + _updateData.UserId +
+@"
+limit 1";
 			}
 			else
 			{
@@ -533,7 +539,8 @@ WHERE u.Id =" + _updateData.UserId;
 SELECT ClientCode,
 	RowId,
 	'',
-    0 as InheritPrices
+    0 as InheritPrices,
+    0 as IsFutureClient
 FROM OsUserAccessRight O
 WHERE RowId =" + _updateData.UserId;
 
@@ -607,6 +614,30 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 					,
 					isFirebird ? "'', " : "",
 					isFirebird ? "" : ", retclientsset.AllowDelayOfPayment");
+			}
+		}
+
+		public string GetClientCommand()
+		{
+			if (_updateData.IsFutureClient)
+			{
+				return @"
+SELECT 
+     c.Id as ClientId,
+     c.Name
+FROM Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+WHERE u.Id = ?UserId";
+			}
+			else
+			{
+				return @"
+SELECT 
+     clientsdata.firmcode   as ClientId,
+     clientsdata.ShortName  as Name 
+FROM   
+     clientsdata 
+WHERE  clientsdata.firmcode    = ?ClientCode";
 			}
 		}
 
