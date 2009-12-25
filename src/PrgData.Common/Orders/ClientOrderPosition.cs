@@ -10,7 +10,8 @@ namespace PrgData.Common.Orders
 		Success = -1,
 		NotExists = 0,
 		DifferentCost = 1,
-		DifferentQuantity = 2
+		DifferentQuantity = 2,
+		DifferentCostAndQuantity = 3,
 	}
 
 	public class ClientOrderPosition

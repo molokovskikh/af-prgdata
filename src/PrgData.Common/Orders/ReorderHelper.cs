@@ -164,13 +164,19 @@ and (Core.RegionCode = ?RegionCode)
 				if (serverQuantity.HasValue)
 					position.ServerQuantity = serverQuantity.Value;
 			}
-			else
-				if (serverQuantity.HasValue && (serverQuantity.Value < position.Quantity))
+
+			if (serverQuantity.HasValue && (serverQuantity.Value < position.Quantity))
+			{
+				//Если имеется различие по цене, то говорим, что есть различие по цене и кол-ву
+				if (position.SendResult == PositionSendResult.DifferentCost)
+					position.SendResult = PositionSendResult.DifferentCostAndQuantity;
+				else
 				{
 					position.SendResult = PositionSendResult.DifferentQuantity;
 					position.ServerCost = Convert.ToDecimal(dataRow["Cost"]);
 					position.ServerQuantity = serverQuantity.Value;
-				}
+				}			
+			}
 		}
 
 		private DataRow GetDataRowByPosition(DataTable existCore, ClientOrderPosition position)
@@ -311,13 +317,6 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 
 		private void CheckOrdersByMinRequest()
 		{
-			//if (_orders.Count > 1)
-			//{
-			//    _orders[0].SendResult = OrderSendResult.LessThanMinReq;
-			//    _orders[0].MinReq = 10000;
-			//    _orders[0].ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
-			//}
-
 			foreach (var order in _orders)
 			{
 				var minReq = GetMinReq(_orderedClientCode, order.RegionCode, Convert.ToUInt32(order.PriceCode));
