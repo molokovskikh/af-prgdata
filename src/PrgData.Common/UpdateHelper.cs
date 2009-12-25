@@ -704,17 +704,17 @@ and    ir.PrimaryClientCode = ?ClientCode";
 
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
-			var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
+			var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = UserId", _readWriteConnection);
 			deleteCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			deleteCommand.Parameters.Add("?PriceId", MySqlDbType.Int32);
 			var insertCommand = new MySqlCommand(@"
-insert into Future.UserPrices(UserId, PriceId, RegionId)
+insert into Future.UserPrices
 select ?UserId, ?PriceId
 from (select 1) as c
 where not exists (
 	select *
 	from Future.UserPrices up
-	where up.UserId = ?UserId and up.PriceId = ?PriceId and up.RegionId = ?RegionId
+	where up.UserId = ?UserId and up.PriceId = ?PriceId
 );", _readWriteConnection);
 			insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			insertCommand.Parameters.Add("?PriceId", MySqlDbType.Int32);
@@ -727,9 +727,8 @@ where not exists (
 				}
 				else
 				{
-				command.Parameters["?PriceId"].Value = priceIds[i];
-				command.Parameters["?RegionId"].Value = regionIds[i];
-				command.ExecuteNonQuery();
+					deleteCommand.Parameters["?PriceId"].Value = priceIds[i];
+					deleteCommand.ExecuteNonQuery();
 				}
 			}
 		}
