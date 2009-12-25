@@ -311,6 +311,13 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 
 		private void CheckOrdersByMinRequest()
 		{
+			//if (_orders.Count > 1)
+			//{
+			//    _orders[0].SendResult = OrderSendResult.LessThanMinReq;
+			//    _orders[0].MinReq = 10000;
+			//    _orders[0].ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
+			//}
+
 			foreach (var order in _orders)
 			{
 				var minReq = GetMinReq(_orderedClientCode, order.RegionCode, Convert.ToUInt32(order.PriceCode));
@@ -318,7 +325,8 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 				if ((minReq != null) && minReq.ControlMinReq && (minReq.MinReq > 0))
 					if (order.GetSumOrder() < minReq.MinReq)
 					{
-						order.SendResult = OrderSendResult.Warning;
+						order.SendResult = OrderSendResult.LessThanMinReq;
+						order.MinReq = minReq.MinReq;
 						order.ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
 					}
 			}

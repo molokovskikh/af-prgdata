@@ -8,7 +8,7 @@ namespace PrgData.Common.Orders
 	{		
 		Unknown = -1,
 		Success = 0,
-		Warning = 1,
+		LessThanMinReq = 1,
 		NeedCorrect = 2
 	}
 
@@ -31,6 +31,8 @@ namespace PrgData.Common.Orders
 
 		public string ErrorReason { get; set; }
 
+		public uint? MinReq { get; set; }
+
 		public ClientOrderHeader()
 		{
 			this.Positions = new List<ClientOrderPosition>();
@@ -39,11 +41,12 @@ namespace PrgData.Common.Orders
 		public string GetResultToClient()
 		{
 			var result = String.Format(
-				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3}",
+				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}",
 				ClientOrderId, 
 				Convert.ToInt32(SendResult),
 				ServerOrderId,
-				ErrorReason);
+				ErrorReason,
+				MinReq);
 
 			if (SendResult == OrderSendResult.NeedCorrect)
 			{
@@ -59,7 +62,7 @@ namespace PrgData.Common.Orders
 
 		public void ClearBeforPost()
 		{
-			SendResult = OrderSendResult.Unknown;
+			SendResult = OrderSendResult.Success;
 			ServerOrderId = 0;
 			ErrorReason = null;
 			FullDuplicated = false;
