@@ -3041,6 +3041,7 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "Catalogs" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "DelayOfPayments" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Providers" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
