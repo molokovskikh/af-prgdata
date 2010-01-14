@@ -1678,6 +1678,7 @@ ItsEnd:
     Public Function PostSomeOrders( _
         ByVal UniqueID As String, _
         ByVal ForceSend As Boolean, _
+        ByVal UseCorrectOrders As Boolean, _
         ByVal ClientCode As UInt32, _
         ByVal OrderCount As UInt16, _
         ByVal ClientOrderID As UInt64(), _
@@ -1737,7 +1738,7 @@ ItsEnd:
                     End If
                 End If
 
-                Dim helper = New ReorderHelper(UpdateData, ReadOnlyCn, ReadWriteCn, ForceSend, ClientCode)
+                Dim helper = New ReorderHelper(UpdateData, ReadOnlyCn, ReadWriteCn, ForceSend, ClientCode, UseCorrectOrders)
 
                 helper.ParseOrders( _
                     OrderCount, _

@@ -13,6 +13,7 @@ namespace PrgData.Common.Orders
 	public class ReorderHelper : OrderHelper
 	{
 		private bool _forceSend;
+		private bool _useCorrectOrders;
 		//Это в старой системе код клиента, а в новой системе код адреса доставки
 		private uint _orderedClientCode;
 		private List<ClientOrderHeader> _orders = new List<ClientOrderHeader>();
@@ -24,11 +25,13 @@ namespace PrgData.Common.Orders
 			MySqlConnection readOnlyConnection, 
 			MySqlConnection readWriteConnection, 
 			bool forceSend,
-			uint orderedClientCode) :
+			uint orderedClientCode,
+			bool useCorrectOrders) :
 			base(data, readOnlyConnection, readWriteConnection)
 		{
 			_forceSend = forceSend;
 			_orderedClientCode = orderedClientCode;
+			_useCorrectOrders = useCorrectOrders;
 		}
 
 		public string PostSameOrders()
@@ -56,7 +59,7 @@ namespace PrgData.Common.Orders
 			//делаем проверку на дублирующиеся заказы
 			CheckDuplicatedOrders();
 
-			if (AllOrdersIsSuccess() && !_forceSend)
+			if (_useCorrectOrders && !_forceSend && AllOrdersIsSuccess())
 			{
 				//вызываем заполнение таблицы предложений в памяти MySql-сервера
 				GetOffers();
@@ -65,7 +68,7 @@ namespace PrgData.Common.Orders
 				CheckWithExistsPrices();
 			}
 
-			if (AllOrdersIsSuccess())
+			if (!_useCorrectOrders || AllOrdersIsSuccess())
 				With.DeadlockWraper(() =>
 				{
 					var transaction = _readWriteConnection.BeginTransaction();
@@ -75,7 +78,7 @@ namespace PrgData.Common.Orders
 						//которые не являются полностью дублированными
 						_orders.ForEach((item) =>
 						{
-							if (!item.FullDuplicated) 
+							if ((item.SendResult == OrderSendResult.Success) && !item.FullDuplicated) 
 								item.ServerOrderId = 0; 
 						});
 
@@ -201,7 +204,7 @@ and (Core.RegionCode = ?RegionCode)
 		{
 			foreach (var order in _orders)
 			{
-				if (!order.FullDuplicated)
+				if ((order.SendResult == OrderSendResult.Success) && !order.FullDuplicated)
 				{
 					order.ServerOrderId = SaveOrder(
 						_orderedClientCode,
@@ -568,9 +571,11 @@ AND    RCS.clientcode          = ?ClientCode"
 
 				var existsOrders = new DataTable();
 				var dataAdapter = new MySqlDataAdapter(@"
-SELECT ol.*
-FROM   orders.ordershead oh,
-       orders.orderslist ol
+select ol.*
+from
+  (
+SELECT oh.RowId as OrderId
+FROM   orders.ordershead oh
 WHERE  clientorderid = ?ClientOrderID
 AND    writetime    >ifnull(
        (SELECT MAX(requesttime)
@@ -579,9 +584,13 @@ AND    writetime    >ifnull(
        AND     px.UserId  = ?UserId
        )
        , now() - interval 2 week)
-AND    clientcode= ?ClientCode
-AND    ol.orderid=oh.rowid
+AND    clientcode = ?ClientCode
 order by oh.RowId desc
+limit 1
+  ) DuplicateOrderId,
+  orders.orderslist ol
+where
+  ol.OrderId = DuplicateOrderId.OrderId
 ", _connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);				
@@ -591,6 +600,8 @@ order by oh.RowId desc
 
 				if (existsOrders.Rows.Count == 0)
 					continue;
+
+				order.ServerOrderId = Convert.ToUInt64(existsOrders.Rows[0]["OrderId"]);
 
 				foreach (var position in order.Positions)
 				{
