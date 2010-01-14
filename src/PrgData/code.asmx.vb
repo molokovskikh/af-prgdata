@@ -1808,7 +1808,7 @@ ItsEnd:
 
 
     Public Sub MailErr(ByVal ErrSource As String, ByVal ErrDesc As String)
-        Utils.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "AF сервиc: " & ErrSource)
+        Utils.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "Ошибка в сервисе подготовки данных")
     End Sub
 
     ' Private Sub MailUpdate(ByVal OldMDBVersion As Int32, ByVal NewMDBVersion As Int32, ByVal OldEXEVersion As Int32, ByVal NewEXEVersion As Int32)
@@ -2676,7 +2676,7 @@ RestartTrans2:
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
                         helper.SelectOffers()
-                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, CCode)
+                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
 
                         SelProc.CommandText = "" & _
                         "UPDATE ActivePrices Prices, " & _
@@ -3357,7 +3357,7 @@ RestartTrans2:
                         '"WHERE  LENGTH(CryptCost)>0 " & _
                         '"   AND Core.PriceCode!=2647;"
 
-                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, CCode)
+                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
 
                         GetMySQLFileWithDefault("Core", SelProc, _
                         "SELECT CT.PriceCode                      , " & _

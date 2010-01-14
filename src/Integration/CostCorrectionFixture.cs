@@ -45,7 +45,7 @@ insert into ConcurentGroup(SettingsId, FirmCode) values (220, 14);
 				var command = new MySqlCommand("CALL GetOffers(2575,0); ", connection);
 				command.ExecuteNonQuery();
 
-				var corrector = new CostOptimizer(connection, 2575);
+				var corrector = new CostOptimizer(connection, connection, 2575);
 				Assert.That(corrector.IsCostOptimizationNeeded(), Is.True);
 				corrector.Oprimize();
 			}
