@@ -36,6 +36,7 @@ namespace PrgData.Common
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
 			if (data.Tables[0].Columns.Contains("Future"))
 				IsFutureClient = true;
+			ShortName = Convert.ToString(row["ShortName"]);
 		}
 	}
 
@@ -183,7 +184,8 @@ SELECT  c.Id ClientId,
 	rui.UncommitedUpdateDate,
 	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
 	CheckCopyId,
-	'' Future
+	'' Future,
+    c.Name as ShortName
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -213,7 +215,8 @@ SELECT  ouar.clientcode as ClientId,
         rui.UpdateDate,
         rui.UncommitedUpdateDate,
         IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
-        CheckCopyID
+        CheckCopyID,
+        clientsdata.ShortName
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,
