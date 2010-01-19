@@ -650,7 +650,6 @@ WHERE  clientsdata.firmcode    = ?ClientCode";
 			{
 				return @"
 select
-       a.Id as ClientId,
        si.SupplierId   ,
        si.DelayOfPayment
 from
@@ -659,15 +658,6 @@ from
               future.Clients c
        on
               u.ClientId = c.Id
-       join
-              Future.UserAddresses ua
-       on
-              ua.UserId = u.Id
-       join
-              future.Addresses a
-       on
-              c.Id         = a.ClientId
-       and    ua.AddressId = a.Id
        join
               Usersettings.SupplierIntersection si
        on
@@ -679,29 +669,12 @@ where
 			{
 				return @"
 select
-       si.ClientId  ,
        si.SupplierId,
        si.DelayOfPayment
 from
        Usersettings.SupplierIntersection si
 where
-       si.ClientId = ?ClientCode
-
-union
-
-select
-       si.ClientId  ,
-       si.SupplierId,
-       si.DelayOfPayment
-from
-       SupplierIntersection si
-       join
-              IncludeRegulation ir
-       on
-              ir.IncludeClientCode = si.ClientId
-where
-       ir.IncludeType in(0, 3)
-and    ir.PrimaryClientCode = ?ClientCode";
+       si.ClientId = ?ClientCode";
 			}
 		}
 
