@@ -538,25 +538,31 @@ AND    RCS.clientcode          = ?ClientCode"
 
 		public string DecodedDelphiString(string value)
 		{
-			var result = String.Empty;
+			if (String.IsNullOrEmpty(value))
+				return null;
+
 			var i = 0;
+			var bytes = new List<byte>();
 
 			while (i < value.Length - 2)
 			{
-				result += Convert.ToChar(
-						Convert.ToByte(
-								String.Format(
-										"{0}{1}{2}",
-										value[i],
-										value[i + 1],
-										value[i + 2]
-								)
+				bytes.Add(
+					Convert.ToByte(
+						String.Format(
+								"{0}{1}{2}",
+								value[i],
+								value[i + 1],
+								value[i + 2]
 						)
+					)
 				);
 				i += 3;
 			}
 
-			return result;
+			if (bytes.Count > 0)
+				return Encoding.GetEncoding(1251).GetString(bytes.ToArray());
+			else
+				return null;
 		}
 
 		private void CheckDuplicatedOrders()
