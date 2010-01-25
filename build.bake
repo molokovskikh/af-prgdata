@@ -1,0 +1,14 @@
+﻿import file from WebServiceSupport.bake
+import file from Deploy.bake
+import file from Migration.bake
+
+Global(
+	project : "PrgData",
+	humanReadableName : "Служба подготовки данных",
+	deployTo : "\\\\acdcserv\\ios\\PrgData\\",
+	platform : "x64"
+)
+
+Task @default, [@buildWebService]
+
+Task @deploy, [@buildWebService, @Migrate, @DeployWebService, @SendDeployNotification]

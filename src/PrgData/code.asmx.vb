@@ -3904,29 +3904,37 @@ RestartTrans2:
                     BasecostPassword = SQLdr.GetString(0)
                 End Using
 
-                'Получаем маску разрешенных для сохранения гридов
-                Cm.CommandText = "SELECT ifnull(sum(SaveGridID), 0) FROM ret_save_grids r where ClientCode = " & CCode
-                Dim SaveGridMask As UInt64 = Convert.ToUInt64(Cm.ExecuteScalar())
+				'Получаем маску разрешенных для сохранения гридов
+				If Not UpdateData.IsFutureClient Then
+					Cm.CommandText = "SELECT ifnull(sum(SaveGridID), 0) FROM ret_save_grids r where ClientCode = " & CCode
+				Else
+					Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
+	  "from usersettings.AssignedPermissions ap " & _
+	  "join usersettings.UserPermissions up on up.Id = ap.PermissionId " & _
+	  "where ap.UserId=" & UpdateData.UserId
+				End If
 
-                If (BasecostPassword <> Nothing) Then
-                    Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
-                    Return S
-                Else
-                    MailErr("Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
-                    Addition = "Не заданы пароли для шифрации данных"
-                    ErrorFlag = True
-                    UpdateType = 5
-                    'ProtocolThread.Start()
-                End If
-            Catch Exp As Exception
-                MailErr("Ошибка при получении паролей", Exp.Message & ": " & Exp.StackTrace)
-                Addition = Exp.Message
-                ErrorFlag = True
-                UpdateType = 5
-                'ProtocolThread.Start()
-            Finally
-                DBDisconnect()
-            End Try
+				Dim SaveGridMask As UInt64 = Convert.ToUInt64(Cm.ExecuteScalar())
+
+				If (BasecostPassword <> Nothing) Then
+					Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
+					Return S
+				Else
+					MailErr("Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
+					Addition = "Не заданы пароли для шифрации данных"
+					ErrorFlag = True
+					UpdateType = 5
+					'ProtocolThread.Start()
+				End If
+			Catch Exp As Exception
+				MailErr("Ошибка при получении паролей", Exp.Message & ": " & Exp.StackTrace)
+				Addition = Exp.Message
+				ErrorFlag = True
+				UpdateType = 5
+				'ProtocolThread.Start()
+			Finally
+				DBDisconnect()
+			End Try
         End If
 
         If ErrorFlag Then
