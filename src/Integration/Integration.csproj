@@ -54,6 +54,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CostCorrectionFixture.cs" />
+    <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
     <Compile Include="ProcedureFixture.cs" />
   </ItemGroup>

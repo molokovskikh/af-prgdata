@@ -163,7 +163,7 @@ drop temporary table CoreCopy;
 				}
 			}
 
-			var header = "insert into logs.CostOptimizationLogs(ClientId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost) values";
+			var header = "insert into logs.CostOptimizationLogs(ClientId, SupplierId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost) values";
 			var logCommand = new MySqlCommand(header, _readWriteConnection);
 
 			var begin = 0;
@@ -182,7 +182,7 @@ drop temporary table CoreCopy;
 							break;
 
 						var log = logs[begin + i];
-						commandText.Append(String.Format(" ({6}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId));
+						commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, _supplierId));
 						if (i < 99 && begin + i < logs.Count - 1)
 							commandText.AppendLine(", ");
 					}

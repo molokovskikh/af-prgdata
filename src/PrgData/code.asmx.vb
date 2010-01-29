@@ -362,12 +362,12 @@ RestartInsertTrans:
 
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
-                    If BuildNo > 708 Then
+                    If BuildNo > 716 Then
                         FileCount = 16
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
-                        If (BuildNo = 705) And CheckEnableUpdate Then
+                        If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
                             FileCount = 16
                             GED = True
