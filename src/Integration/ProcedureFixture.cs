@@ -25,13 +25,13 @@ namespace Integration
 		[Test]
 		public void Get_prices()
 		{
-			Execute("call future.GetPrices(2575);");
+			Execute("call future.GetPrices(10005);");
 		}
 
 		[Test]
 		public void Get_offers()
 		{
-			Execute("call future.GetOffers(2575);");
+			Execute("call future.GetOffers(10005);");
 		}
 	}
 }

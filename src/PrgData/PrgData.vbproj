@@ -221,9 +221,9 @@
           <AutoAssignPort>True</AutoAssignPort>
           <DevelopmentServerPort>2998</DevelopmentServerPort>
           <DevelopmentServerVPath>/</DevelopmentServerVPath>
-          <IISUrl>http://localhost/PrgDataTest</IISUrl>
+          <IISUrl>http://localhost/PrgData</IISUrl>
           <OverrideIISAppRootUrl>True</OverrideIISAppRootUrl>
-          <IISAppRootUrl>http://localhost/PrgDataTest</IISAppRootUrl>
+          <IISAppRootUrl>http://localhost/PrgData</IISAppRootUrl>
           <NTLMAuthentication>False</NTLMAuthentication>
           <UseCustomServer>False</UseCustomServer>
           <CustomServerUrl>
