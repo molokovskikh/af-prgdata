@@ -94,6 +94,7 @@ where osuseraccessright.RowId = ?UserId", _connection);
 
 		public ulong SaveOrder(uint clientId, uint priceId, ulong regionId, DateTime priceDate, uint rowCount, uint clientOrderId, string clientAddition)
 		{
+			priceDate = priceDate.ToLocalTime();
 			if (_data.IsFutureClient)
 			{
 				var command = new MySqlCommand(@"
