@@ -363,13 +363,13 @@ RestartInsertTrans:
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                     If BuildNo > 716 Then
-                        FileCount = 16
+                        FileCount = 17
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
-                            FileCount = 16
+                            FileCount = 17
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -3053,6 +3053,7 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3100,7 +3101,8 @@ RestartTrans2:
                 "       LEFT(form, 250)  , " & _
                 "       vitallyimportant , " & _
                 "       needcold         , " & _
-                "       fragile " & _
+                "       fragile, " & _
+                "       CN.MnnId " & _
                 "FROM   Catalogs.Catalog C       , " & _
                 "       Catalogs.CatalogForms CF , " & _
                 "       Catalogs.CatalogNames CN " & _
@@ -3118,6 +3120,8 @@ RestartTrans2:
                 "   AND hidden        = 1 " & _
                 "   AND NOT ?Cumulative")
 
+
+                GetMySQLFileWithDefault("MNN", SelProc, helper.GetMNNCommand())
 
                 SelProc.CommandText = "" & _
                  "SELECT s.OffersClientCode, " & _
