@@ -692,6 +692,20 @@ where
   if(not ?Cumulative, Mnn.UpdateTime > ?UpdateTime, 1)";
 		}
 
+		public string GetDescriptionCommand()
+		{
+			return @"
+select
+  Descriptions.Id,
+  Descriptions.Name,
+  Descriptions.EnglishName,
+  Descriptions.Description
+from
+  catalogs.Descriptions
+where
+  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)";
+		}
+
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
 			var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);

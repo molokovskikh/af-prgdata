@@ -363,13 +363,13 @@ RestartInsertTrans:
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                     If BuildNo > 716 Then
-                        FileCount = 17
+                        FileCount = 18
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
-                            FileCount = 17
+                            FileCount = 18
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -3054,6 +3054,7 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "Descriptions" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3102,13 +3103,14 @@ RestartTrans2:
                 "       vitallyimportant , " & _
                 "       needcold         , " & _
                 "       fragile, " & _
-                "       CN.MnnId " & _
+                "       CN.MnnId, " & _
+                "       CN.DescriptionId " & _
                 "FROM   Catalogs.Catalog C       , " & _
                 "       Catalogs.CatalogForms CF , " & _
                 "       Catalogs.CatalogNames CN " & _
                 "WHERE  C.NameId                        =CN.Id " & _
                 "   AND C.FormId                        =CF.Id " & _
-                "   AND IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) " & _
+                "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
                 "   AND hidden                          =0")
 
 
@@ -3122,6 +3124,8 @@ RestartTrans2:
 
 
                 GetMySQLFileWithDefault("MNN", SelProc, helper.GetMNNCommand())
+
+                GetMySQLFileWithDefault("Descriptions", SelProc, helper.GetDescriptionCommand())
 
                 SelProc.CommandText = "" & _
                  "SELECT s.OffersClientCode, " & _
