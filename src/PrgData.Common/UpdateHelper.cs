@@ -699,7 +699,17 @@ select
   Descriptions.Id,
   Descriptions.Name,
   Descriptions.EnglishName,
-  Descriptions.Description
+  Descriptions.Description,
+  Descriptions.Interaction, 
+  Descriptions.SideEffect, 
+  Descriptions.IndicationsForUse, 
+  Descriptions.Dosing, 
+  Descriptions.Warnings, 
+  Descriptions.ProductForm, 
+  Descriptions.PharmacologicalAction, 
+  Descriptions.Storage, 
+  Descriptions.Expiration, 
+  Descriptions.Composition
 from
   catalogs.Descriptions
 where
