@@ -87,7 +87,7 @@ from osuseraccessright
 left join includeregulation on PrimaryClientCode=ClientCode and IncludeType in (0,3)
 where osuseraccessright.RowId = ?UserId", _connection);
 				command.Parameters.AddWithValue("?UserId", _data.UserId);
-				command.Parameters.AddWithValue("?clientcode", _data.ClientId);
+				command.Parameters.AddWithValue("?clientcode", clientCode);
 				return Convert.ToBoolean(command.ExecuteScalar());
 			}
 		}
@@ -166,7 +166,7 @@ FROM RetClientsSet RCS
 WHERE RCS.ClientCode=?ClientCode;
 
 select LAST_INSERT_ID();", _readWriteConnection);
-				command.Parameters.AddWithValue("?ClientCode", _data.ClientId);
+				command.Parameters.AddWithValue("?ClientCode", clientId);
 				command.Parameters.AddWithValue("?PriceCode", priceId);
 				command.Parameters.AddWithValue("?RegionCode", regionId);
 				command.Parameters.AddWithValue("?PriceDate", priceDate);
