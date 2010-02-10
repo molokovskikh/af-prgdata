@@ -3918,6 +3918,24 @@ RestartTrans2:
 
 
     <WebMethod()> _
+    Public Sub SendUDataFull( _
+        ByVal Login As String, _
+        ByVal Data As String, _
+        ByVal OriginalData As String, _
+        ByVal SerialData As String, _
+        ByVal MaxWriteTime As Date, _
+        ByVal MaxWriteFileName As String, _
+        ByVal OrderWriteTime As Date, _
+        ByVal ClientTimeZoneBias As Integer, _
+        ByVal RSTUIN As String)
+
+        SendUDataFullEx(Login, Data, OriginalData, SerialData, MaxWriteTime, MaxWriteFileName, OrderWriteTime, ClientTimeZoneBias, _
+                        -1, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, _
+                        RSTUIN)
+    End Sub
+
+
+    <WebMethod()> _
     Public Sub SendUDataFullEx( _
         ByVal Login As String, _
         ByVal Data As String, _
