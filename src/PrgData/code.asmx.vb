@@ -1229,6 +1229,9 @@ StartZipping:
                 Message = UpdateData.Message
                 OldUpTime = UpdateData.OldUpdateTime
                 UncDT = UpdateData.UncommitedUpdateTime
+                SpyHostsFile = UpdateData.Spy
+                SpyAccount = UpdateData.SpyAccount
+
             End If
 
             With Cm

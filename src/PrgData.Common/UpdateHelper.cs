@@ -23,6 +23,9 @@ namespace PrgData.Common
 
 		public bool IsFutureClient;
 
+		public bool Spy;
+		public bool SpyAccount;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -37,6 +40,8 @@ namespace PrgData.Common
 			if (data.Tables[0].Columns.Contains("Future"))
 				IsFutureClient = true;
 			ShortName = Convert.ToString(row["ShortName"]);
+			Spy = Convert.ToBoolean(row["Spy"]);
+			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
 		}
 	}
 
@@ -185,7 +190,9 @@ SELECT  c.Id ClientId,
 	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
 	CheckCopyId,
 	'' Future,
-    c.Name as ShortName
+    c.Name as ShortName,
+    retclientsset.Spy, 
+    retclientsset.SpyAccount
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -216,7 +223,9 @@ SELECT  ouar.clientcode as ClientId,
         rui.UncommitedUpdateDate,
         IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
         CheckCopyID,
-        clientsdata.ShortName
+        clientsdata.ShortName,
+        retclientsset.Spy, 
+        retclientsset.SpyAccount
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,
