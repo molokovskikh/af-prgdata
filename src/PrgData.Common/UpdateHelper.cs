@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Data.Common;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
@@ -461,6 +462,37 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 
 				Cleanup();
 			});
+		}
+
+		public DataTable GetProcessedDocuments(uint updateId)
+		{
+			string command;
+			if (_updateData.IsFutureClient)
+			{
+				command = @"
+SELECT  DocumentId,
+        DocumentType,
+        dl.AddressId as ClientCode
+FROM AnalitFDocumentsProcessing AFDP
+	join logs.document_logs DL on DL.RowId=AFDP.DocumentId
+WHERE AFDP.UpdateId = ?updateId";
+			}
+			else
+			{
+				command = @"
+SELECT  DocumentId,
+        DocumentType,
+        ClientCode 
+FROM    AnalitFDocumentsProcessing AFDP,
+        `logs`.document_logs DL
+WHERE   DL.RowId = AFDP.DocumentId
+AND     AFDP.UpdateId = ?updateId";
+			}
+			var dataAdapter = new MySqlDataAdapter(command, _readOnlyConnection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?updateId", updateId);
+			var documents = new DataTable();
+			dataAdapter.Fill(documents);
+			return documents;
 		}
 
 		public string GetDocumentsCommand()
