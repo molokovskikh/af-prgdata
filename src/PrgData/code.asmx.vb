@@ -2039,20 +2039,10 @@ PostLog:
 
                         LogCm.ExecuteNonQuery()
 
+                        Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                        Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
 
-                        LogCm.CommandText = "" & _
-                             "SELECT  DocumentId, " & _
-                             "        DocumentType, " & _
-                             "        ClientCode " & _
-                             "FROM    AnalitFDocumentsProcessing AFDP, " & _
-                             "        `logs`.document_logs DL " & _
-                             "WHERE   DL.RowId=AFDP.DocumentId " & _
-                             "AND     AFDP.UpdateId=" & GUpdateId
-
-                        LogDA.SelectCommand = LogCm
-                        LogDA.Fill(DS, "ProcessingDocuments")
-
-                        If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+                        If processedDocuments.Rows.Count > 0 Then
                             Dim DocumentsIdRow As DataRow
 
                             For Each DocumentsIdRow In DS.Tables("ProcessingDocuments").Rows
@@ -2084,19 +2074,6 @@ PostLog:
 
                         End If
 
-                        'If DS.Tables("Documents").Rows.Count > 0 Then
-
-                        '    LogCm.CommandText = "SELECT * FROM logs.document_logs"
-                        '    DA.SelectCommand = LogCm
-                        '    LogCb.ConflictOption = ConflictOption.CompareRowVersion
-                        '    DA.UpdateCommand = LogCb.GetUpdateCommand
-                        '    For i = 0 To DS.Tables("Documents").Rows.Count - 1
-                        '        DS.Tables("Documents").Rows(i).Item("UpdateId") = GUpdateId
-                        '    Next
-                        '    Dim rc As Integer = DA.Update(DS, "Documents")
-
-                        'End If
-
                         LogTrans.Commit()
                     End If
 
@@ -2104,35 +2081,28 @@ PostLog:
 
             Catch MySQLErr As MySqlException
                 GUpdateId = Nothing
+                LogTrans.Rollback()
                 If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
-                    LogTrans.Rollback()
                     MailErr("Log " & CCode, "Deadlock")
                     System.Threading.Thread.Sleep(500)
                     GoTo PostLog
                 End If
-                MailErr("Запись лога", MySQLErr.Message & ": " & MySQLErr.StackTrace)
-                LogTrans.Rollback()
-
+                Log.Error("Запись лога", MySQLErr)
             Catch err As Exception
-                GUpdateId = Nothing
-                MailErr("Запись лога", err.Message & ": " & err.StackTrace)
                 LogTrans.Rollback()
-
+                Throw
             Finally
-
                 Try
-
                     LogCn.Close()
                     LogCm.Dispose()
                     LogCn.Dispose()
-
                 Catch err As Exception
-                    MailErr("Закрытие соединения Log ", err.Message)
+                    Log.Error("Закрытие соединения Log ", err)
                 End Try
             End Try
         Catch err As Exception
             GUpdateId = Nothing
-            MailErr("general Log ", err.Message)
+            Log.Error("Запись лога", err)
         End Try
     End Sub
 
