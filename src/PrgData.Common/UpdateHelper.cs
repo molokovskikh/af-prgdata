@@ -26,6 +26,8 @@ namespace PrgData.Common
 		public bool Spy;
 		public bool SpyAccount;
 
+		public bool EnableUpdate;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -42,6 +44,7 @@ namespace PrgData.Common
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
+			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
 		}
 	}
 
@@ -192,7 +195,8 @@ SELECT  c.Id ClientId,
 	'' Future,
     c.Name as ShortName,
     retclientsset.Spy, 
-    retclientsset.SpyAccount
+    retclientsset.SpyAccount,
+    retclientsset.EnableUpdate 
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -225,7 +229,8 @@ SELECT  ouar.clientcode as ClientId,
         CheckCopyID,
         clientsdata.ShortName,
         retclientsset.Spy, 
-        retclientsset.SpyAccount
+        retclientsset.SpyAccount,
+        retclientsset.EnableUpdate
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,

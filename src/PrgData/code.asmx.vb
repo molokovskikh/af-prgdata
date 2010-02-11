@@ -3134,7 +3134,7 @@ RestartTrans2:
                 ThreadZipStream.Start()
 
 
-                GetMySQLFileWithDefault("Catalogs", SelProc, _
+                GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
                 "SELECT C.Id             , " & _
                 "       CN.Id            , " & _
                 "       LEFT(CN.name, 250)  , " & _
@@ -3150,7 +3150,8 @@ RestartTrans2:
                 "WHERE  C.NameId                        =CN.Id " & _
                 "   AND C.FormId                        =CF.Id " & _
                 "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
-                "   AND hidden                          =0")
+                "   AND hidden                          =0", _
+                (BuildNo = 945) And UpdateData.EnableUpdate)
 
 
 
@@ -3162,9 +3163,9 @@ RestartTrans2:
                 "   AND NOT ?Cumulative")
 
 
-                GetMySQLFileWithDefault("MNN", SelProc, helper.GetMNNCommand())
+                GetMySQLFileWithDefaultEx("MNN", SelProc, helper.GetMNNCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
 
-                GetMySQLFileWithDefault("Descriptions", SelProc, helper.GetDescriptionCommand())
+                GetMySQLFileWithDefaultEx("Descriptions", SelProc, helper.GetDescriptionCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
 
                 SelProc.CommandText = "" & _
                  "SELECT s.OffersClientCode, " & _
@@ -4456,12 +4457,30 @@ RestartMaxCodesSet:
     End Sub
 
     Private Sub GetMySQLFileWithDefault(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
+
+        GetMySQLFileWithDefaultEx(FileName, MyCommand, SQLText, False)
+
+    End Sub
+
+    Private Sub GetMySQLFileWithDefaultEx(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean)
         Dim SQL As String = SQLText
+        Dim oldCumulative As Boolean
 
+        Try
+            If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
+                oldCumulative = MyCommand.Parameters("?Cumulative").Value
+                MyCommand.Parameters("?Cumulative").Value = True
+            End If
 
-        SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' "
-        MyCommand.CommandText = SQL
-        MyCommand.ExecuteNonQuery()
+            SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' "
+            MyCommand.CommandText = SQL
+            MyCommand.ExecuteNonQuery()
+
+        Finally
+            If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
+                MyCommand.Parameters("?Cumulative").Value = oldCumulative
+            End If
+        End Try
 
         SyncLock (FilesForArchive)
 
