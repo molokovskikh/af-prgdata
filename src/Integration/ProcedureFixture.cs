@@ -19,19 +19,28 @@ namespace Integration
 		[Test]
 		public void Get_active_prices()
 		{
-			Execute("call future.GetActivePrices(758);");
+			Execute(@"
+drop temporary table if exists Usersettings.Prices;
+drop temporary table if exists Usersettings.ActivePrices;
+call future.GetActivePrices(758);");
 		}
 
 		[Test]
 		public void Get_prices()
 		{
-			Execute("call future.GetPrices(10005);");
+			Execute(@"
+drop temporary table if exists Usersettings.Prices;
+drop temporary table if exists Usersettings.ActivePrices;
+call future.GetPrices(10005);");
 		}
 
 		[Test]
 		public void Get_offers()
 		{
-			Execute("call future.GetOffers(10005);");
+			Execute(@"
+drop temporary table if exists Usersettings.Prices;
+drop temporary table if exists Usersettings.ActivePrices;
+call future.GetOffers(10005);");
 		}
 	}
 }

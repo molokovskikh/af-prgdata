@@ -5,6 +5,7 @@ using System.Text;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
+using System.Data;
 
 namespace Integration
 {
@@ -12,21 +13,42 @@ namespace Integration
 	public class OrderHelperFixture
 	{
 
+		private DataSet GetActivePrices(MySqlConnection connection, UpdateData updateData)
+		{
+			MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.Prices");
+			MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.ActivePrices");
+			if (updateData.IsFutureClient)
+				MySqlHelper.ExecuteNonQuery(connection, "call future.GetActivePrices(" + updateData.ClientId + ")");
+			else
+				MySqlHelper.ExecuteNonQuery(connection, "call usersettings.GetActivePrices(" + updateData.ClientId + ")");
+			return MySqlHelper.ExecuteDataset(connection, "select * from usersettings.ActivePrices limit 1");
+		}
+
+		private void CheckOrder(ulong orderId, MySqlConnection connection, Action action)
+		{
+			Assert.That(orderId > 0, "не получилось сохранить заказ");
+			try
+			{
+				action();
+			}
+			finally
+			{
+				MySqlHelper.ExecuteNonQuery(connection, "delete from orders.OrdersHead where RowId = " + orderId);
+			}
+		}
+
 		[Test(Description = "отправляем заказы под старым клиентом и проверяем время прайс-листа")]
-		public void send_order_by_old_client()
+		public void check_PriceDate_in_order_by_old_client()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
 				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
 				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
-				var helper = new OrderHelper(updateData, connection, connection);
-				MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.Prices");
-				MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.ActivePrices");
-				MySqlHelper.ExecuteNonQuery(connection, "call usersettings.GetActivePrices(" + updateData.ClientId + ")");
-				var dsPrice = MySqlHelper.ExecuteDataset(connection, "select * from usersettings.ActivePrices limit 1");
+				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
-				var orderid = helper.SaveOrder(
+				var orderid = orderHelper.SaveOrder(
 					updateData.ClientId, 
 					Convert.ToUInt32(sendPrice["PriceCode"]), 
 					Convert.ToUInt64(sendPrice["RegionCode"]), 
@@ -34,35 +56,28 @@ namespace Integration
 					1, 
 					1, 
 					null);
-				Assert.That(orderid > 0, "не получилось сохранить заказ");
-				try
+
+				CheckOrder(orderid, connection, () =>
 				{
 					var dsOrder = MySqlHelper.ExecuteDataset(connection, "select * from orders.OrdersHead where RowId = " + orderid);
 					var drOrder = dsOrder.Tables[0].Rows[0];
 					Assert.That(drOrder["PriceDate"], Is.EqualTo(Convert.ToDateTime(sendPrice["PriceDate"])), "не совпадает дата прайс-листа в заказе с датой прайс-листа");
-				}
-				finally
-				{
-					MySqlHelper.ExecuteNonQuery(connection, "delete from orders.OrdersHead where RowId = " + orderid);
-				}
+				});
 			}
 		}
 
 		[Test(Description = "отправляем заказы под клиентом из 'новой реальности' и проверяем время прайс-листа")]
-		public void send_order_by_future_client()
+		public void check_PriceDate_in_order_by_future_client()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
 				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
 				var updateData = UpdateHelper.GetUpdateData(connection, "10081");
-				var helper = new OrderHelper(updateData, connection, connection);
-				MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.Prices");
-				MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.ActivePrices");
-				MySqlHelper.ExecuteNonQuery(connection, "call future.GetActivePrices(" + updateData.ClientId + ")");
-				var dsPrice = MySqlHelper.ExecuteDataset(connection, "select * from usersettings.ActivePrices limit 1");
+				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
-				var orderid = helper.SaveOrder(
+				var orderid = orderHelper.SaveOrder(
 					updateData.ClientId,
 					Convert.ToUInt32(sendPrice["PriceCode"]),
 					Convert.ToUInt64(sendPrice["RegionCode"]),
@@ -70,17 +85,146 @@ namespace Integration
 					1,
 					1,
 					null);
-				Assert.That(orderid > 0, "не получилось сохранить заказ");
-				try
+
+				CheckOrder(orderid, connection, () =>
 				{
 					var dsOrder = MySqlHelper.ExecuteDataset(connection, "select * from orders.OrdersHead where RowId = " + orderid);
 					var drOrder = dsOrder.Tables[0].Rows[0];
 					Assert.That(drOrder["PriceDate"], Is.EqualTo(Convert.ToDateTime(sendPrice["PriceDate"])), "не совпадает дата прайс-листа в заказе с датой прайс-листа");
-				}
-				finally
+				});
+			}
+		}
+
+		[Test(Description = "отправляем заказы под клиентом из 'новой реальности' и проверяем корректность установки полей ClientCode, AddressId и UserId")]
+		public void check_ClientCode_and_AddressId_in_order_by_future_client()
+		{
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
+				var updateData = UpdateHelper.GetUpdateData(connection, "10081");
+				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var updateHelper = new UpdateHelper(updateData, connection, connection);
+
+				var clients = MySqlHelper.ExecuteDataset(
+					connection, 
+					updateHelper.GetClientsCommand(false),
+					new MySqlParameter("?OffersRegionCode", updateData.OffersRegionCode),
+					new MySqlParameter("?UserId", updateData.UserId));
+				Assert.That(clients.Tables.Count, Is.GreaterThan(0), "У пользователя {0} нет привязанных адресов доставки", updateData.UserId);
+				Assert.That(clients.Tables[0].Rows.Count, Is.GreaterThan(0), "У пользователя {0} нет привязанных адресов доставки", updateData.UserId);
+
+				//берем последний адрес доставки
+				var address = clients.Tables[0].Rows[clients.Tables[0].Rows.Count - 1];
+
+				var dsPrice = GetActivePrices(connection, updateData);
+				var sendPrice = dsPrice.Tables[0].Rows[0];
+				var orderid = orderHelper.SaveOrder(
+					Convert.ToUInt32(address["FirmCode"]),
+					Convert.ToUInt32(sendPrice["PriceCode"]),
+					Convert.ToUInt64(sendPrice["RegionCode"]),
+					Convert.ToDateTime(sendPrice["PriceDate"]).ToUniversalTime(),
+					1,
+					1,
+					null);
+
+				CheckOrder(orderid, connection, () =>
 				{
-					MySqlHelper.ExecuteNonQuery(connection, "delete from orders.OrdersHead where RowId = " + orderid);
-				}
+					var dsOrder = MySqlHelper.ExecuteDataset(connection, "select * from orders.OrdersHead where RowId = " + orderid);
+					var drOrder = dsOrder.Tables[0].Rows[0];
+					Assert.That(drOrder["ClientCode"], Is.EqualTo(updateData.ClientId), "не совпадает код клиента в заказе");
+					Assert.That(drOrder["UserId"], Is.EqualTo(updateData.UserId), "не совпадает код пользователя в заказе");
+					Assert.That(drOrder["AddressId"], Is.EqualTo(address["FirmCode"]), "не совпадает код адреса доставки в заказе");
+				});
+			}
+		}
+
+		[Test(Description = "отправляем заказы под старым клиентом без подчинений и проверяем корректность установки полей ClientCode, AddressId и UserId")]
+		public void check_ClientCode_and_AddressId_in_order_by_old_client_without_subordination()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
+				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
+				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var updateHelper = new UpdateHelper(updateData, connection, connection);
+
+				var clients = MySqlHelper.ExecuteDataset(
+					connection,
+					updateHelper.GetClientsCommand(false),
+					new MySqlParameter("?OffersRegionCode", updateData.OffersRegionCode),
+					new MySqlParameter("?ClientCode", updateData.ClientId));
+				Assert.That(clients.Tables.Count, Is.GreaterThan(0), "У пользователя {0} нет клиентов", updateData.UserId);
+				Assert.That(clients.Tables[0].Rows.Count, Is.EqualTo(1), "У пользователя {0} кол-ов клиентов должно быть равно 1", updateData.UserId);
+
+				//берем единственного доступного клиента
+				var client = clients.Tables[0].Rows[0];
+
+				var dsPrice = GetActivePrices(connection, updateData);
+				var sendPrice = dsPrice.Tables[0].Rows[0];
+				var orderid = orderHelper.SaveOrder(
+					Convert.ToUInt32(client["FirmCode"]),
+					Convert.ToUInt32(sendPrice["PriceCode"]),
+					Convert.ToUInt64(sendPrice["RegionCode"]),
+					Convert.ToDateTime(sendPrice["PriceDate"]).ToUniversalTime(),
+					1,
+					1,
+					null);
+
+				CheckOrder(orderid, connection, () =>
+				{
+					var dsOrder = MySqlHelper.ExecuteDataset(connection, "select * from orders.OrdersHead where RowId = " + orderid);
+					var drOrder = dsOrder.Tables[0].Rows[0];
+					Assert.That(drOrder["ClientCode"], Is.EqualTo(client["FirmCode"]), "не совпадает код клиента в заказе");
+					Assert.That(drOrder["UserId"], Is.EqualTo(DBNull.Value), "поле код пользователя должно быть null");
+					Assert.That(drOrder["AddressId"], Is.EqualTo(DBNull.Value), "поле код адреса доставки должно быть null");
+				});
+			}
+		}
+
+		[Test(Description = "отправляем заказы под старым клиентом c базовым подчинением и проверяем корректность установки полей ClientCode, AddressId и UserId")]
+		public void check_ClientCode_and_AddressId_in_order_by_old_client_with_subordination()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				//Пользователь "melehina" - это клиент с кодом 1725, он должен быть старым и у него должны быть клиенты в базовом подчинении
+				var updateData = UpdateHelper.GetUpdateData(connection, "melehina");
+				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var updateHelper = new UpdateHelper(updateData, connection, connection);
+
+				var clients = MySqlHelper.ExecuteDataset(
+					connection,
+					updateHelper.GetClientsCommand(false),
+					new MySqlParameter("?OffersRegionCode", updateData.OffersRegionCode),
+					new MySqlParameter("?ClientCode", updateData.ClientId));
+				Assert.That(clients.Tables.Count, Is.GreaterThan(0), "У пользователя {0} нет клиентов", updateData.UserId);
+				Assert.That(clients.Tables[0].Rows.Count, Is.GreaterThan(1), "У пользователя {0} кол-ов клиентов должно быть больше 1", updateData.UserId);
+
+				//берем последнего клиента
+				var client = clients.Tables[0].Rows[clients.Tables[0].Rows.Count-1];
+
+				var dsPrice = GetActivePrices(connection, updateData);
+				var sendPrice = dsPrice.Tables[0].Rows[0];
+				var orderid = orderHelper.SaveOrder(
+					Convert.ToUInt32(client["FirmCode"]),
+					Convert.ToUInt32(sendPrice["PriceCode"]),
+					Convert.ToUInt64(sendPrice["RegionCode"]),
+					Convert.ToDateTime(sendPrice["PriceDate"]).ToUniversalTime(),
+					1,
+					1,
+					null);
+
+				CheckOrder(orderid, connection, () =>
+				{
+					var dsOrder = MySqlHelper.ExecuteDataset(connection, "select * from orders.OrdersHead where RowId = " + orderid);
+					var drOrder = dsOrder.Tables[0].Rows[0];
+					Assert.That(drOrder["ClientCode"], Is.EqualTo(client["FirmCode"]), "не совпадает код клиента в заказе");
+					Assert.That(drOrder["UserId"], Is.EqualTo(DBNull.Value), "поле код пользователя должно быть null");
+					Assert.That(drOrder["AddressId"], Is.EqualTo(DBNull.Value), "поле код адреса доставки должно быть null");
+				});
 			}
 		}
 	}
