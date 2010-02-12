@@ -729,9 +729,7 @@ where
 			return @"
 select
   Mnn.Id,
-  Mnn.Mnn,
-  Mnn.VitallyImportant,
-  Mnn.MandatoryList
+  Mnn.Mnn
 from
   catalogs.Mnn
 where

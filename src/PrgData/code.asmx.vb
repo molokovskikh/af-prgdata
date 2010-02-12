@@ -386,7 +386,12 @@ RestartInsertTrans:
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                     If BuildNo > 716 Then
-                        FileCount = 18
+                        'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
+                        If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
+                            FileCount = 18
+                        Else
+                            FileCount = 16
+                        End If
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
@@ -451,18 +456,18 @@ RestartInsertTrans:
 
                         End If
 
-                            Else
+                    Else
 
                         Try
 
                             MySQLFileDelete(ResultFileName & UserId & ".zip")
 
-                                Catch ex As Exception
-                                    Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
-                                    UpdateType = 5
-                                    ErrorFlag = True
+                        Catch ex As Exception
+                            Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
+                            UpdateType = 5
+                            ErrorFlag = True
                             GoTo endproc
-                                End Try
+                        End Try
 
 
                         Try
@@ -3103,26 +3108,47 @@ RestartTrans2:
                 ThreadZipStream = New Thread(AddressOf ZipStream)
                 ThreadZipStream.Start()
 
+                If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
+                    GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
+                    "SELECT C.Id             , " & _
+                    "       CN.Id            , " & _
+                    "       LEFT(CN.name, 250)  , " & _
+                    "       LEFT(CF.form, 250)  , " & _
+                    "       C.vitallyimportant , " & _
+                    "       C.needcold         , " & _
+                    "       C.fragile, " & _
+                    "       C.MandatoryList , " & _
+                    "       CN.MnnId, " & _
+                    "       CN.DescriptionId " & _
+                    "FROM   Catalogs.Catalog C       , " & _
+                    "       Catalogs.CatalogForms CF , " & _
+                    "       Catalogs.CatalogNames CN " & _
+                    "WHERE  C.NameId                        =CN.Id " & _
+                    "   AND C.FormId                        =CF.Id " & _
+                    "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
+                    "   AND C.hidden                          =0", _
+                    (BuildNo = 945) And UpdateData.EnableUpdate)
 
-                GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
-                "SELECT C.Id             , " & _
-                "       CN.Id            , " & _
-                "       LEFT(CN.name, 250)  , " & _
-                "       LEFT(form, 250)  , " & _
-                "       vitallyimportant , " & _
-                "       needcold         , " & _
-                "       fragile, " & _
-                "       CN.MnnId, " & _
-                "       CN.DescriptionId " & _
-                "FROM   Catalogs.Catalog C       , " & _
-                "       Catalogs.CatalogForms CF , " & _
-                "       Catalogs.CatalogNames CN " & _
-                "WHERE  C.NameId                        =CN.Id " & _
-                "   AND C.FormId                        =CF.Id " & _
-                "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
-                "   AND hidden                          =0", _
-                (BuildNo = 945) And UpdateData.EnableUpdate)
+                    GetMySQLFileWithDefaultEx("MNN", SelProc, helper.GetMNNCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
 
+                    GetMySQLFileWithDefaultEx("Descriptions", SelProc, helper.GetDescriptionCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
+                Else
+                    GetMySQLFileWithDefault("Catalogs", SelProc, _
+                    "SELECT C.Id             , " & _
+                    "       CN.Id            , " & _
+                    "       LEFT(CN.name, 250)  , " & _
+                    "       LEFT(CF.form, 250)  , " & _
+                    "       C.vitallyimportant , " & _
+                    "       C.needcold         , " & _
+                    "       C.fragile " & _
+                    "FROM   Catalogs.Catalog C       , " & _
+                    "       Catalogs.CatalogForms CF , " & _
+                    "       Catalogs.CatalogNames CN " & _
+                    "WHERE  C.NameId                        =CN.Id " & _
+                    "   AND C.FormId                        =CF.Id " & _
+                    "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
+                    "   AND C.hidden                          =0")
+                End If
 
 
                 GetMySQLFileWithDefault("CatDel", SelProc, _
@@ -3133,9 +3159,6 @@ RestartTrans2:
                 "   AND NOT ?Cumulative")
 
 
-                GetMySQLFileWithDefaultEx("MNN", SelProc, helper.GetMNNCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
-
-                GetMySQLFileWithDefaultEx("Descriptions", SelProc, helper.GetDescriptionCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
 
                 SelProc.CommandText = "" & _
                  "SELECT s.OffersClientCode, " & _
