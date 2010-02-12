@@ -2501,9 +2501,9 @@ RestartTrans2:
                   "      OR ShowPriceName                                = 1, concat(' (', pricename, ')'), '')), " & _
                   "          0                                                                  , " & _
                   "         ''                                                                                  , " & _
-                  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)                                                                           , " & _
+                  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)  , " & _
                   "         if(?OffersClientCode is null, (ForceReplication = 1" & _
-                  "          OR actual =0 ), 1)  , " & _
+                  "          OR actual =0 or ?Cumulative), 1)  , " & _
                   "         ''          , " & _
                   "         ''          , " & _
                   "         ''          , " & _
@@ -3216,16 +3216,15 @@ RestartTrans2:
 
                 SelProc.ExecuteNonQuery()
 
-
                 GetMySQLFileWithDefault("PricesData", SelProc, _
                   "SELECT   Prices.FirmCode , " & _
                   "         Prices.pricecode, " & _
                   "                  concat(firm.shortname, IF(PriceCount> 1 " & _
                   "      OR ShowPriceName                                = 1, concat(' (', pricename, ')'), '')), " & _
                   "         ''                                                                                  , " & _
-                  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)                                                                           , " & _
+                  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) , " & _
                   "         if(?OffersClientCode is null, (ForceReplication = 1" & _
-                  "          OR actual =0 ), 1)   " & _
+                  "          OR actual =0 or ?Cumulative), 1)   " & _
                   "FROM     clientsdata AS firm, " & _
                   "         tmpprd             , " & _
                   "         Prices, " & _
