@@ -3108,7 +3108,8 @@ RestartTrans2:
                 ThreadZipStream = New Thread(AddressOf ZipStream)
                 ThreadZipStream.Start()
 
-                If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
+                If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)))) _
+                Then
                     GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
                     "SELECT C.Id             , " & _
                     "       CN.Id            , " & _
