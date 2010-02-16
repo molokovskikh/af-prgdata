@@ -352,7 +352,7 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 
 			foreach(var order in _orders)
 			{
-				if (!order.FullDuplicated && (order.SendResult != OrderSendResult.Unknown))
+				if (order.SendResult != OrderSendResult.Unknown)
 					if (String.IsNullOrEmpty(result))
 						result += order.GetResultToClient();
 					else

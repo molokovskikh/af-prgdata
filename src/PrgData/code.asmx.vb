@@ -3159,18 +3159,6 @@ RestartTrans2:
                 "   AND hidden        = 1 " & _
                 "   AND NOT ?Cumulative")
 
-
-
-                SelProc.CommandText = "" & _
-                 "SELECT s.OffersClientCode, " & _
-                 "       s.ShowAvgCosts    , " & _
-                 "       s.ShowJunkOffers " & _
-                 "FROM   retclientsset r, " & _
-                 "       OrderSendRules.smart_order_rules s " & _
-                 "WHERE  r.clientcode        =?ClientCode " & _
-                 "   AND s.id                =r.smartorderruleid " & _
-                 "   AND s.offersclientcode !=r.clientcode;"
-
                 SelProc.Parameters.AddWithValue("?OffersClientCode", UpdateData.OffersClientCode)
                 SelProc.Parameters.AddWithValue("?OffersRegionCode", UpdateData.OffersRegionCode)
                 SelProc.Parameters.AddWithValue("?ShowAvgCosts", UpdateData.ShowAvgCosts)
@@ -3505,51 +3493,50 @@ RestartTrans2:
                      "   AND i.clientcode                                 = ?OffersClientCode;"
 
 
-                    helper.SelectOffers()
+                    SelProc.CommandText &= "" & _
+                    "CALL GetOffers(?OffersClientCode, 0); "
 
                     SelProc.CommandText &= "" & _
                   "DROP TEMPORARY TABLE " & _
                   "IF EXISTS CoreT, CoreTP , CoreT2; " & _
-                  "        CREATE TEMPORARY TABLE CoreT(ProductId                  INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
-                  "                CREATE TEMPORARY TABLE CoreT2(ProductId         INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
-                  "                        CREATE TEMPORARY TABLE CoreTP(ProductId INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32), UNIQUE MultiK(ProductId))engine                                    =MEMORY; " & _
-                  "                                INSERT " & _
-                  "                                INTO   CoreT " & _
-                  "                                       ( " & _
-                  "                                              ProductId , " & _
-                  "                                              CodeFirmCr, " & _
-                  "                                              Cost " & _
-                  "                                       ) " & _
-                  "                                SELECT   core0.ProductId , " & _
-                  "                                         core0.codefirmcr, " & _
-                  "                                         ROUND(AVG(cost), 2) " & _
-                  "                                FROM     farm.core0, " & _
-                  "                                         Core " & _
-                  "                                WHERE    core0.id=Core.id " & _
-                  "                                GROUP BY ProductId, " & _
-                  "                                         CodeFirmCr; " & _
-                  "                                 " & _
-                  "                                INSERT " & _
-                  "                                INTO   CoreTP " & _
-                  "                                       ( " & _
-                  "                                              ProductId, " & _
-                  "                                              Cost " & _
-                  "                                       ) " & _
-                  "                                SELECT   ProductId, " & _
-                  "                                         ROUND(AVG(cost), 2) " & _
-                  "                                FROM     CoreT " & _
-                  "                                GROUP BY ProductId; " & _
-                  "                                 " & _
-                  "                                INSERT " & _
-                  "                                INTO   CoreT2 " & _
-                  "                                SELECT * " & _
-                  "                                FROM   CoreT; " & _
+                  "CREATE TEMPORARY TABLE CoreT  (ProductId INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
+                  "CREATE TEMPORARY TABLE CoreT2 (ProductId INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
+                  "CREATE TEMPORARY TABLE CoreTP (ProductId INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32), UNIQUE MultiK(ProductId))engine                                    =MEMORY; " & _
+                  "INSERT " & _
+                  "  INTO   CoreT " & _
+                  "    ( " & _
+                  "      ProductId , " & _
+                  "      CodeFirmCr, " & _
+                  "      Cost " & _
+                  "    ) " & _
+                  "  SELECT   core0.ProductId , " & _
+                  "    core0.codefirmcr, " & _
+                  "    ROUND(AVG(cost), 2) " & _
+                  "  FROM     farm.core0, " & _
+                  "                 Core " & _
+                  "  WHERE    core0.id=Core.id " & _
+                  "  GROUP BY ProductId, " & _
+                  "          CodeFirmCr; " & _
+                  "  " & _
+                  "  INSERT " & _
+                  "    INTO   CoreTP " & _
+                  "      ( " & _
+                  "        ProductId, " & _
+                  "        Cost " & _
+                  "      ) " & _
+                  "  SELECT   ProductId, " & _
+                  "     ROUND(AVG(cost), 2) " & _
+                  "  FROM     CoreT " & _
+                  "  GROUP BY ProductId; " & _
+                  "  " & _
+                  "  INSERT " & _
+                  "    INTO   CoreT2 " & _
+                  "    SELECT * " & _
+                  "    FROM   CoreT; " & _
                   "SET @RowId :=1;"
                     SelProc.ExecuteNonQuery()
 
-                    'Err.Raise(1, "Технический запрет обновления")
-
-                    'Михаилу: Для кого готовятся эти данные?
+                    'Выгрузка данных для ГУП
                     GetMySQLFileWithDefault("Core", SelProc, "" & _
                      "SELECT 2647                             , " & _
                      "       ?OffersRegionCode                , " & _
@@ -3570,7 +3557,7 @@ RestartTrans2:
                      "       ''                               , " & _
                      "       0                                , " & _
                      "       ''                               , " & _
-                     "       IF(?ShowAvgCosts, CryptCost, '') , " & _
+                     "       IF(?ShowAvgCosts, a.Cost, '')    , " & _
                      "       @RowId := @RowId + 1             , " & _
                      "       ''                               , " & _
                      "       ''                                 " & _
@@ -3604,7 +3591,7 @@ RestartTrans2:
                      "       ''                                , " & _
                      "       0                                 , " & _
                      "       ''                                , " & _
-                     "       IF(?ShowAvgCosts, A.CryptCost, ''), " & _
+                     "       IF(?ShowAvgCosts, A.Cost, '')     , " & _
                      "       @RowId := @RowId + 1              , " & _
                      "       ''                                , " & _
                      "       ''                                  " & _
@@ -3612,9 +3599,6 @@ RestartTrans2:
                      "       CoreTP A " & _
                      "WHERE  S.PriceCode =2647 " & _
                      "   AND S.ProductId =A.ProductId")
-
-
-
 
 
                 End If
