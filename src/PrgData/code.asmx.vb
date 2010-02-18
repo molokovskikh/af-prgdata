@@ -390,7 +390,12 @@ RestartInsertTrans:
                         If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
                             FileCount = 18
                         Else
-                            FileCount = 16
+                            If (BuildNo >= 829) And (BuildNo <= 837) And UpdateData.EnableUpdate Then
+                                FileCount = 18
+                                Addition &= "Производится обновление программы с 800-х версий на MySql; "
+                            Else
+                                FileCount = 16
+                            End If
                         End If
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
@@ -3108,7 +3113,7 @@ RestartTrans2:
                 ThreadZipStream = New Thread(AddressOf ZipStream)
                 ThreadZipStream.Start()
 
-                If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)))) _
+                If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
                 Then
                     GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
                     "SELECT C.Id             , " & _
@@ -3128,11 +3133,19 @@ RestartTrans2:
                     "   AND C.FormId                        =CF.Id " & _
                     "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
                     "   AND C.hidden                          =0", _
-                    (BuildNo = 945) And UpdateData.EnableUpdate)
+                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
 
-                    GetMySQLFileWithDefaultEx("MNN", SelProc, helper.GetMNNCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
+                    GetMySQLFileWithDefaultEx( _
+                        "MNN", _
+                        SelProc, _
+                        helper.GetMNNCommand(), _
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
 
-                    GetMySQLFileWithDefaultEx("Descriptions", SelProc, helper.GetDescriptionCommand(), (BuildNo = 945) And UpdateData.EnableUpdate)
+                    GetMySQLFileWithDefaultEx( _
+                    "Descriptions", _
+                    SelProc, _
+                    helper.GetDescriptionCommand(), _
+                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
                 Else
                     GetMySQLFileWithDefault("Catalogs", SelProc, _
                     "SELECT C.Id             , " & _
