@@ -83,10 +83,12 @@ INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
        (
               UserId,
-              FirmCode
+              FirmCode,
+              ForceReplication
        )
 SELECT ouar.RowId,
-       supplier.FirmCode
+       supplier.FirmCode,
+       1
 FROM usersettings.clientsdata AS drugstore
 	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
 	JOIN clientsdata supplier ON supplier.firmsegment = drugstore.firmsegment
@@ -102,10 +104,12 @@ INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
        (
               UserId,
-              FirmCode
+              FirmCode,
+              ForceReplication
        )
 SELECT u.Id,
-       supplier.FirmCode
+       supplier.FirmCode,
+       1
 FROM Future.Clients drugstore
 	JOIN Future.Users u ON u.ClientId = drugstore.Id
 	JOIN clientsdata supplier ON supplier.maskregion & drugstore.maskregion > 0
