@@ -24,6 +24,11 @@ namespace PrgData.Common
 
 		public bool IsFutureClient;
 
+		public bool Spy;
+		public bool SpyAccount;
+
+		public bool EnableUpdate;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -38,6 +43,9 @@ namespace PrgData.Common
 			if (data.Tables[0].Columns.Contains("Future"))
 				IsFutureClient = true;
 			ShortName = Convert.ToString(row["ShortName"]);
+			Spy = Convert.ToBoolean(row["Spy"]);
+			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
+			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
 		}
 	}
 
@@ -75,10 +83,12 @@ INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
        (
               UserId,
-              FirmCode
+              FirmCode,
+              ForceReplication
        )
 SELECT ouar.RowId,
-       supplier.FirmCode
+       supplier.FirmCode,
+       1
 FROM usersettings.clientsdata AS drugstore
 	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
 	JOIN clientsdata supplier ON supplier.firmsegment = drugstore.firmsegment
@@ -94,10 +104,12 @@ INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
        (
               UserId,
-              FirmCode
+              FirmCode,
+              ForceReplication
        )
 SELECT u.Id,
-       supplier.FirmCode
+       supplier.FirmCode,
+       1
 FROM Future.Clients drugstore
 	JOIN Future.Users u ON u.ClientId = drugstore.Id
 	JOIN clientsdata supplier ON supplier.maskregion & drugstore.maskregion > 0
@@ -186,7 +198,10 @@ SELECT  c.Id ClientId,
 	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
 	CheckCopyId,
 	'' Future,
-    c.Name as ShortName
+    c.Name as ShortName,
+    retclientsset.Spy, 
+    retclientsset.SpyAccount,
+    retclientsset.EnableUpdate 
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -217,7 +232,10 @@ SELECT  ouar.clientcode as ClientId,
         rui.UncommitedUpdateDate,
         IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
         CheckCopyID,
-        clientsdata.ShortName
+        clientsdata.ShortName,
+        retclientsset.Spy, 
+        retclientsset.SpyAccount,
+        retclientsset.EnableUpdate
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,
@@ -708,6 +726,42 @@ from
 where
        si.ClientId = ?ClientCode";
 			}
+		}
+
+		public string GetMNNCommand()
+		{
+			return @"
+select
+  Mnn.Id,
+  Mnn.Mnn
+from
+  catalogs.Mnn
+where
+  if(not ?Cumulative, Mnn.UpdateTime > ?UpdateTime, 1)";
+		}
+
+		public string GetDescriptionCommand()
+		{
+			return @"
+select
+  Descriptions.Id,
+  Descriptions.Name,
+  Descriptions.EnglishName,
+  Descriptions.Description,
+  Descriptions.Interaction, 
+  Descriptions.SideEffect, 
+  Descriptions.IndicationsForUse, 
+  Descriptions.Dosing, 
+  Descriptions.Warnings, 
+  Descriptions.ProductForm, 
+  Descriptions.PharmacologicalAction, 
+  Descriptions.Storage, 
+  Descriptions.Expiration, 
+  Descriptions.Composition
+from
+  catalogs.Descriptions
+where
+  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)";
 		}
 
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)

