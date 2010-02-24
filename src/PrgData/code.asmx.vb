@@ -3478,7 +3478,7 @@ RestartTrans2:
 
                         CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
 
-                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(False, BuildNo >= 930))
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(False, BuildNo >= 993))
                     Else
                         SelProc.CommandText = "SELECT ''" & _
                         " INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
@@ -3597,70 +3597,7 @@ RestartTrans2:
                     SelProc.ExecuteNonQuery()
 
                     'Выгрузка данных для ГУП
-                    GetMySQLFileWithDefault("Core", SelProc, "" & _
-                     "SELECT 2647                             , " & _
-                     "       ?OffersRegionCode                , " & _
-                     "       A.ProductId                      , " & _
-                     "       A.CodeFirmCr                     , " & _
-                     "       S.SynonymCode                    , " & _
-                     "       SF.SynonymFirmCrCode             , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       0                                , " & _
-                     "       0                                , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       0                                , " & _
-                     "       ''                               , " & _
-                     "       IF(?ShowAvgCosts, a.Cost, '')    , " & _
-                     "       @RowId := @RowId + 1             , " & _
-                     "       ''                               , " & _
-                     "       ''                                 " & _
-                     "FROM   farm.Synonym S                   , " & _
-                     "       farm.SynonymFirmCr SF            , " & _
-                     "       CoreT A " & _
-                     "WHERE  S.PriceCode   =2647 " & _
-                     "   AND SF.PriceCode  =2647 " & _
-                     "   AND S.ProductId   =A.ProductId " & _
-                     "   AND SF.CodeFirmCr =A.CodeFirmCr " & _
-                     "   AND A.CodeFirmCr IS NOT NULL " & _
-                     " " & _
-                     "UNION " & _
-                     " " & _
-                     "SELECT 2647                              , " & _
-                     "       ?OffersRegionCode                 , " & _
-                     "       A.ProductId                       , " & _
-                     "       1                                 , " & _
-                     "       S.SynonymCode                     , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       0                                 , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       IF(?ShowAvgCosts, A.Cost, '')     , " & _
-                     "       @RowId := @RowId + 1              , " & _
-                     "       ''                                , " & _
-                     "       ''                                  " & _
-                     "FROM   farm.Synonym S                    , " & _
-                     "       CoreTP A " & _
-                     "WHERE  S.PriceCode =2647 " & _
-                     "   AND S.ProductId =A.ProductId")
-
-
+                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, False))
                 End If
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
