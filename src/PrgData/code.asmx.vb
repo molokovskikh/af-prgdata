@@ -12,6 +12,9 @@ Imports PrgData.Common
 Imports System.Net.Mail
 Imports log4net.Core
 Imports PrgData.Common.Orders
+Imports System.Linq
+Imports System.Collections.Generic
+
 
 
 <WebService(Namespace:="IOS.Service")> _
@@ -51,7 +54,11 @@ Public Class PrgDataEx
     End Sub
 
     ReadOnly ѕуть ƒокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
+#If DEBUG Then
+    ReadOnly MySqlFilePath As String = "\\testsql.adc.analit.net\AFFiles\"
+#Else
     ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
+#End If
 
     ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
@@ -1756,6 +1763,79 @@ ItsEnd:
         ByVal LeaderMinCost As String(), _
         ByVal LeaderMinPriceCode As String()) As String
 
+        'генерируем массив наценок поставщика размером с общее кол-во позиций в заказах, значени€ в массиве - пустые строчки ("")
+        Dim SupplierPriceMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+
+        Return _
+            PostSomeOrdersWithSupplierPriceMarkup( _
+                UniqueID, _
+                ForceSend, _
+                UseCorrectOrders, _
+                ClientCode, _
+                OrderCount, _
+                ClientOrderID, _
+                PriceCode, _
+                RegionCode, _
+                PriceDate, _
+                ClientAddition, _
+                RowCount, _
+                ClientPositionID, _
+                ClientServerCoreID, _
+                ProductID, _
+                CodeFirmCr, _
+                SynonymCode, _
+                SynonymFirmCrCode, _
+                Code, _
+                CodeCr, _
+                Junk, _
+                Await, _
+                RequestRatio, _
+                OrderCost, _
+                MinOrderCount, _
+                Quantity, _
+                Cost, _
+                MinCost, _
+                MinPriceCode, _
+                LeaderMinCost, _
+                LeaderMinPriceCode, _
+                SupplierPriceMarkup.ToArray())
+    End Function
+
+    'ќтправл€ем несколько заказов скопом и по ним все формируем ответ
+    <WebMethod()> _
+    Public Function PostSomeOrdersWithSupplierPriceMarkup( _
+        ByVal UniqueID As String, _
+        ByVal ForceSend As Boolean, _
+        ByVal UseCorrectOrders As Boolean, _
+        ByVal ClientCode As UInt32, _
+        ByVal OrderCount As UInt16, _
+        ByVal ClientOrderID As UInt64(), _
+        ByVal PriceCode As UInt64(), _
+        ByVal RegionCode As UInt64(), _
+        ByVal PriceDate As Date(), _
+        ByVal ClientAddition As String(), _
+        ByVal RowCount As UInt16(), _
+        ByVal ClientPositionID As UInt64(), _
+        ByVal ClientServerCoreID As UInt64(), _
+        ByVal ProductID As UInt64(), _
+        ByVal CodeFirmCr As String(), _
+        ByVal SynonymCode As UInt64(), _
+        ByVal SynonymFirmCrCode As String(), _
+        ByVal Code As String(), _
+        ByVal CodeCr As String(), _
+        ByVal Junk As Boolean(), _
+        ByVal Await As Boolean(), _
+        ByVal RequestRatio As String(), _
+        ByVal OrderCost As String(), _
+        ByVal MinOrderCount As String(), _
+        ByVal Quantity As UInt16(), _
+        ByVal Cost As Decimal(), _
+        ByVal MinCost As String(), _
+        ByVal MinPriceCode As String(), _
+        ByVal LeaderMinCost As String(), _
+        ByVal LeaderMinPriceCode As String(), _
+        ByVal SupplierPriceMarkup As String()) As String
+
         Dim ResStr As String = String.Empty
 
         Try
@@ -1815,11 +1895,12 @@ ItsEnd:
                     MinCost, _
                     MinPriceCode, _
                     LeaderMinCost, _
-                    LeaderMinPriceCode _
+                    LeaderMinPriceCode, _
+                    SupplierPriceMarkup _
                 )
 
 
-                ResStr = helper.PostSameOrders()
+                ResStr = helper.PostSomeOrders()
 
                 DBDisconnect()
             Else
@@ -3401,37 +3482,7 @@ RestartTrans2:
 
                         CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
 
-                        GetMySQLFileWithDefault("Core", SelProc, _
-                        "SELECT CT.PriceCode                      , " & _
-                        "       CT.regioncode                     , " & _
-                        "       CT.ProductId                      , " & _
-                        "       ifnull(Core.codefirmcr, 0)        , " & _
-                        "       Core.synonymcode                  , " & _
-                        "       Core.SynonymFirmCrCode, " & _
-                        "       Core.Code                         , " & _
-                        "       Core.CodeCr                       , " & _
-                        "       Core.unit                         , " & _
-                        "       Core.volume                       , " & _
-                        "       Core.Junk                         , " & _
-                        "       Core.Await                        , " & _
-                        "       Core.quantity                     , " & _
-                        "       Core.note                         , " & _
-                        "       Core.period                       , " & _
-                        "       Core.doc                          , " & _
-                        "       Core.RegistryCost                 , " & _
-                        "       Core.VitallyImportant             , " & _
-                        "       Core.RequestRatio                 , " & _
-                        "       CT.Cost                           , " & _
-                        "       RIGHT(CT.ID, 9)                   , " & _
-                        "       OrderCost                         , " & _
-                        "       MinOrderCount                       " & _
-                        "FROM   Core CT        , " & _
-                        "       ActivePrices AT, " & _
-                        "       farm.core0 Core " & _
-                        "WHERE  ct.pricecode =at.pricecode " & _
-                        "   AND ct.regioncode=at.regioncode " & _
-                        "   AND Core.id      =CT.id " & _
-                        "   AND IF(?Cumulative, 1, fresh)")
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(False, BuildNo >= 930))
                     Else
                         SelProc.CommandText = "SELECT ''" & _
                         " INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"

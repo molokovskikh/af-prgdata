@@ -36,6 +36,8 @@ namespace PrgData.Common.Orders
 		public decimal? LeaderMinCost { get; set; }
 		public ulong? LeaderMinPriceCode { get; set; }
 
+		public decimal? SupplierPriceMarkup { get; set; }
+
 		public PositionSendResult SendResult { get; set; }
 
 		public decimal ServerCost { get; set; }

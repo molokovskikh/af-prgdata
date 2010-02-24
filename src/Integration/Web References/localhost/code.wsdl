@@ -1,0 +1,989 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="IOS.Service" xmlns:s1="IOS.Service/AbstractTypes" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" targetNamespace="IOS.Service" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="IOS.Service">
+      <s:element name="SendLetter">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="subject" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="body" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="attachment" type="s:base64Binary" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="SendLetterResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="SendLetterResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetInfo">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LibraryName" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LibraryVersion" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LibraryHash" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfString">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="string" nillable="true" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="GetInfoResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetInfoResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetUserData">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="AccessTime" type="s:dateTime" />
+            <s:element minOccurs="1" maxOccurs="1" name="GetEtalonData" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="EXEVersion" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="MDBVersion" type="s:short" />
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="WINVersion" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="WINDesc" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="WayBillsOnly" type="s:boolean" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetUserDataResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetUserDataResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="MaxSynonymCode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Log" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="PriceCode" type="tns:ArrayOfUnsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="UpdateId" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="WayBillsOnly" type="s:boolean" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfUnsignedInt">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="unsignedInt" type="s:unsignedInt" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="MaxSynonymCodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="MaxSynonymCodeResult" type="s:dateTime" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetArchivedOrdersList">
+        <s:complexType />
+      </s:element>
+      <s:element name="GetArchivedOrdersListResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetArchivedOrdersListResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostOrder2">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="ServerOrderId" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="ClientCode" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="PriceCode" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="RegionCode" type="s:unsignedLong" />
+            <s:element minOccurs="1" maxOccurs="1" name="PriceDate" type="s:dateTime" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientAddition" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="RowCount" type="s:unsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="ProductID" type="tns:ArrayOfUnsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="ClientOrderID" type="s:unsignedInt" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeFirmCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymCode" type="tns:ArrayOfUnsignedInt" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymFirmCrCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Code" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Quantity" type="tns:ArrayOfUnsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="Junk" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="Await" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="Cost" type="tns:ArrayOfDecimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinPriceCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinPriceCode" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfUnsignedShort">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="unsignedShort" type="s:unsignedShort" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfBoolean">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="boolean" type="s:boolean" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfDecimal">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="decimal" type="s:decimal" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="PostOrder2Response">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PostOrder2Result" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostOrder">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="ServerOrderId" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="ClientCode" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="PriceCode" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="RegionCode" type="s:unsignedLong" />
+            <s:element minOccurs="1" maxOccurs="1" name="PriceDate" type="s:dateTime" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientAddition" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="RowCount" type="s:unsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="ProductID" type="tns:ArrayOfUnsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="ClientOrderID" type="s:unsignedInt" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeFirmCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymCode" type="tns:ArrayOfUnsignedInt" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymFirmCrCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Code" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Quantity" type="tns:ArrayOfUnsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="Junk" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="Await" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="Cost" type="tns:ArrayOfDecimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinPriceCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="RequestRatio" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="OrderCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinOrderCount" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinPriceCode" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostOrderResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PostOrderResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostSomeOrders">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="ForceSend" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="UseCorrectOrders" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="ClientCode" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="OrderCount" type="s:unsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientOrderID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="PriceCode" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="RegionCode" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="PriceDate" type="tns:ArrayOfDateTime" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientAddition" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="RowCount" type="tns:ArrayOfUnsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientPositionID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientServerCoreID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="ProductID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeFirmCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymCode" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymFirmCrCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Code" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Junk" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="Await" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="RequestRatio" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="OrderCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinOrderCount" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Quantity" type="tns:ArrayOfUnsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="Cost" type="tns:ArrayOfDecimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinPriceCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinPriceCode" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfUnsignedLong">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="unsignedLong" type="s:unsignedLong" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfDateTime">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="dateTime" type="s:dateTime" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="PostSomeOrdersResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PostSomeOrdersResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostSomeOrdersWithSupplierPriceMarkup">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="ForceSend" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="UseCorrectOrders" type="s:boolean" />
+            <s:element minOccurs="1" maxOccurs="1" name="ClientCode" type="s:unsignedInt" />
+            <s:element minOccurs="1" maxOccurs="1" name="OrderCount" type="s:unsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientOrderID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="PriceCode" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="RegionCode" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="PriceDate" type="tns:ArrayOfDateTime" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientAddition" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="RowCount" type="tns:ArrayOfUnsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientPositionID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="ClientServerCoreID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="ProductID" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeFirmCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymCode" type="tns:ArrayOfUnsignedLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="SynonymFirmCrCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Code" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="CodeCr" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Junk" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="Await" type="tns:ArrayOfBoolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="RequestRatio" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="OrderCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinOrderCount" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="Quantity" type="tns:ArrayOfUnsignedShort" />
+            <s:element minOccurs="0" maxOccurs="1" name="Cost" type="tns:ArrayOfDecimal" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="MinPriceCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinCost" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="LeaderMinPriceCode" type="tns:ArrayOfString" />
+            <s:element minOccurs="0" maxOccurs="1" name="SupplierPriceMarkup" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostSomeOrdersWithSupplierPriceMarkupResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PostSomeOrdersWithSupplierPriceMarkupResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetPasswords">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetPasswordsResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetPasswordsResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PostPriceDataSettings">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="UniqueID" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="PriceCodes" type="tns:ArrayOfInt" />
+            <s:element minOccurs="0" maxOccurs="1" name="RegionCodes" type="tns:ArrayOfLong" />
+            <s:element minOccurs="0" maxOccurs="1" name="INJobs" type="tns:ArrayOfBoolean" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfInt">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="int" type="s:int" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfLong">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="long" type="s:long" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="PostPriceDataSettingsResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PostPriceDataSettingsResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetReclame">
+        <s:complexType />
+      </s:element>
+      <s:element name="GetReclameResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetReclameResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ReclameComplete">
+        <s:complexType />
+      </s:element>
+      <s:element name="ReclameCompleteResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="ReclameCompleteResult" type="s:boolean" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="string" nillable="true" type="s:string" />
+      <s:element name="dateTime" type="s:dateTime" />
+      <s:element name="boolean" type="s:boolean" />
+    </s:schema>
+    <s:schema targetNamespace="IOS.Service/AbstractTypes">
+      <s:import namespace="http://schemas.xmlsoap.org/soap/encoding/" />
+      <s:complexType name="StringArray">
+        <s:complexContent mixed="false">
+          <s:restriction base="soapenc:Array">
+            <s:sequence>
+              <s:element minOccurs="0" maxOccurs="unbounded" name="String" type="s:string" />
+            </s:sequence>
+          </s:restriction>
+        </s:complexContent>
+      </s:complexType>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="SendLetterSoap12In">
+    <wsdl:part name="parameters" element="tns:SendLetter" />
+  </wsdl:message>
+  <wsdl:message name="SendLetterSoap12Out">
+    <wsdl:part name="parameters" element="tns:SendLetterResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetInfoSoap12In">
+    <wsdl:part name="parameters" element="tns:GetInfo" />
+  </wsdl:message>
+  <wsdl:message name="GetInfoSoap12Out">
+    <wsdl:part name="parameters" element="tns:GetInfoResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetUserDataSoap12In">
+    <wsdl:part name="parameters" element="tns:GetUserData" />
+  </wsdl:message>
+  <wsdl:message name="GetUserDataSoap12Out">
+    <wsdl:part name="parameters" element="tns:GetUserDataResponse" />
+  </wsdl:message>
+  <wsdl:message name="MaxSynonymCodeSoap12In">
+    <wsdl:part name="parameters" element="tns:MaxSynonymCode" />
+  </wsdl:message>
+  <wsdl:message name="MaxSynonymCodeSoap12Out">
+    <wsdl:part name="parameters" element="tns:MaxSynonymCodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetArchivedOrdersListSoap12In">
+    <wsdl:part name="parameters" element="tns:GetArchivedOrdersList" />
+  </wsdl:message>
+  <wsdl:message name="GetArchivedOrdersListSoap12Out">
+    <wsdl:part name="parameters" element="tns:GetArchivedOrdersListResponse" />
+  </wsdl:message>
+  <wsdl:message name="PostOrder2Soap12In">
+    <wsdl:part name="parameters" element="tns:PostOrder2" />
+  </wsdl:message>
+  <wsdl:message name="PostOrder2Soap12Out">
+    <wsdl:part name="parameters" element="tns:PostOrder2Response" />
+  </wsdl:message>
+  <wsdl:message name="PostOrderSoap12In">
+    <wsdl:part name="parameters" element="tns:PostOrder" />
+  </wsdl:message>
+  <wsdl:message name="PostOrderSoap12Out">
+    <wsdl:part name="parameters" element="tns:PostOrderResponse" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersSoap12In">
+    <wsdl:part name="parameters" element="tns:PostSomeOrders" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersSoap12Out">
+    <wsdl:part name="parameters" element="tns:PostSomeOrdersResponse" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersWithSupplierPriceMarkupSoap12In">
+    <wsdl:part name="parameters" element="tns:PostSomeOrdersWithSupplierPriceMarkup" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersWithSupplierPriceMarkupSoap12Out">
+    <wsdl:part name="parameters" element="tns:PostSomeOrdersWithSupplierPriceMarkupResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetPasswordsSoap12In">
+    <wsdl:part name="parameters" element="tns:GetPasswords" />
+  </wsdl:message>
+  <wsdl:message name="GetPasswordsSoap12Out">
+    <wsdl:part name="parameters" element="tns:GetPasswordsResponse" />
+  </wsdl:message>
+  <wsdl:message name="PostPriceDataSettingsSoap12In">
+    <wsdl:part name="parameters" element="tns:PostPriceDataSettings" />
+  </wsdl:message>
+  <wsdl:message name="PostPriceDataSettingsSoap12Out">
+    <wsdl:part name="parameters" element="tns:PostPriceDataSettingsResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetReclameSoap12In">
+    <wsdl:part name="parameters" element="tns:GetReclame" />
+  </wsdl:message>
+  <wsdl:message name="GetReclameSoap12Out">
+    <wsdl:part name="parameters" element="tns:GetReclameResponse" />
+  </wsdl:message>
+  <wsdl:message name="ReclameCompleteSoap12In">
+    <wsdl:part name="parameters" element="tns:ReclameComplete" />
+  </wsdl:message>
+  <wsdl:message name="ReclameCompleteSoap12Out">
+    <wsdl:part name="parameters" element="tns:ReclameCompleteResponse" />
+  </wsdl:message>
+  <wsdl:message name="SendLetterHttpPostIn">
+    <wsdl:part name="subject" type="s:string" />
+    <wsdl:part name="body" type="s:string" />
+    <wsdl:part name="attachment" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="SendLetterHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="GetInfoHttpPostIn">
+    <wsdl:part name="LibraryName" type="s1:StringArray" />
+    <wsdl:part name="LibraryVersion" type="s1:StringArray" />
+    <wsdl:part name="LibraryHash" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="GetInfoHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="GetUserDataHttpPostIn">
+    <wsdl:part name="AccessTime" type="s:string" />
+    <wsdl:part name="GetEtalonData" type="s:string" />
+    <wsdl:part name="EXEVersion" type="s:string" />
+    <wsdl:part name="MDBVersion" type="s:string" />
+    <wsdl:part name="UniqueID" type="s:string" />
+    <wsdl:part name="WINVersion" type="s:string" />
+    <wsdl:part name="WINDesc" type="s:string" />
+    <wsdl:part name="WayBillsOnly" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="GetUserDataHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="MaxSynonymCodeHttpPostIn">
+    <wsdl:part name="Log" type="s:string" />
+    <wsdl:part name="PriceCode" type="s1:StringArray" />
+    <wsdl:part name="UpdateId" type="s:string" />
+    <wsdl:part name="WayBillsOnly" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="MaxSynonymCodeHttpPostOut">
+    <wsdl:part name="Body" element="tns:dateTime" />
+  </wsdl:message>
+  <wsdl:message name="GetArchivedOrdersListHttpPostIn" />
+  <wsdl:message name="GetArchivedOrdersListHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="PostOrder2HttpPostIn">
+    <wsdl:part name="UniqueID" type="s:string" />
+    <wsdl:part name="ServerOrderId" type="s:string" />
+    <wsdl:part name="ClientCode" type="s:string" />
+    <wsdl:part name="PriceCode" type="s:string" />
+    <wsdl:part name="RegionCode" type="s:string" />
+    <wsdl:part name="PriceDate" type="s:string" />
+    <wsdl:part name="ClientAddition" type="s:string" />
+    <wsdl:part name="RowCount" type="s:string" />
+    <wsdl:part name="ProductID" type="s1:StringArray" />
+    <wsdl:part name="ClientOrderID" type="s:string" />
+    <wsdl:part name="CodeFirmCr" type="s1:StringArray" />
+    <wsdl:part name="SynonymCode" type="s1:StringArray" />
+    <wsdl:part name="SynonymFirmCrCode" type="s1:StringArray" />
+    <wsdl:part name="Code" type="s1:StringArray" />
+    <wsdl:part name="CodeCr" type="s1:StringArray" />
+    <wsdl:part name="Quantity" type="s1:StringArray" />
+    <wsdl:part name="Junk" type="s1:StringArray" />
+    <wsdl:part name="Await" type="s1:StringArray" />
+    <wsdl:part name="Cost" type="s1:StringArray" />
+    <wsdl:part name="MinCost" type="s1:StringArray" />
+    <wsdl:part name="MinPriceCode" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinCost" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinPriceCode" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="PostOrder2HttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="PostOrderHttpPostIn">
+    <wsdl:part name="UniqueID" type="s:string" />
+    <wsdl:part name="ServerOrderId" type="s:string" />
+    <wsdl:part name="ClientCode" type="s:string" />
+    <wsdl:part name="PriceCode" type="s:string" />
+    <wsdl:part name="RegionCode" type="s:string" />
+    <wsdl:part name="PriceDate" type="s:string" />
+    <wsdl:part name="ClientAddition" type="s:string" />
+    <wsdl:part name="RowCount" type="s:string" />
+    <wsdl:part name="ProductID" type="s1:StringArray" />
+    <wsdl:part name="ClientOrderID" type="s:string" />
+    <wsdl:part name="CodeFirmCr" type="s1:StringArray" />
+    <wsdl:part name="SynonymCode" type="s1:StringArray" />
+    <wsdl:part name="SynonymFirmCrCode" type="s1:StringArray" />
+    <wsdl:part name="Code" type="s1:StringArray" />
+    <wsdl:part name="CodeCr" type="s1:StringArray" />
+    <wsdl:part name="Quantity" type="s1:StringArray" />
+    <wsdl:part name="Junk" type="s1:StringArray" />
+    <wsdl:part name="Await" type="s1:StringArray" />
+    <wsdl:part name="Cost" type="s1:StringArray" />
+    <wsdl:part name="MinCost" type="s1:StringArray" />
+    <wsdl:part name="MinPriceCode" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinCost" type="s1:StringArray" />
+    <wsdl:part name="RequestRatio" type="s1:StringArray" />
+    <wsdl:part name="OrderCost" type="s1:StringArray" />
+    <wsdl:part name="MinOrderCount" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinPriceCode" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="PostOrderHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersHttpPostIn">
+    <wsdl:part name="UniqueID" type="s:string" />
+    <wsdl:part name="ForceSend" type="s:string" />
+    <wsdl:part name="UseCorrectOrders" type="s:string" />
+    <wsdl:part name="ClientCode" type="s:string" />
+    <wsdl:part name="OrderCount" type="s:string" />
+    <wsdl:part name="ClientOrderID" type="s1:StringArray" />
+    <wsdl:part name="PriceCode" type="s1:StringArray" />
+    <wsdl:part name="RegionCode" type="s1:StringArray" />
+    <wsdl:part name="PriceDate" type="s1:StringArray" />
+    <wsdl:part name="ClientAddition" type="s1:StringArray" />
+    <wsdl:part name="RowCount" type="s1:StringArray" />
+    <wsdl:part name="ClientPositionID" type="s1:StringArray" />
+    <wsdl:part name="ClientServerCoreID" type="s1:StringArray" />
+    <wsdl:part name="ProductID" type="s1:StringArray" />
+    <wsdl:part name="CodeFirmCr" type="s1:StringArray" />
+    <wsdl:part name="SynonymCode" type="s1:StringArray" />
+    <wsdl:part name="SynonymFirmCrCode" type="s1:StringArray" />
+    <wsdl:part name="Code" type="s1:StringArray" />
+    <wsdl:part name="CodeCr" type="s1:StringArray" />
+    <wsdl:part name="Junk" type="s1:StringArray" />
+    <wsdl:part name="Await" type="s1:StringArray" />
+    <wsdl:part name="RequestRatio" type="s1:StringArray" />
+    <wsdl:part name="OrderCost" type="s1:StringArray" />
+    <wsdl:part name="MinOrderCount" type="s1:StringArray" />
+    <wsdl:part name="Quantity" type="s1:StringArray" />
+    <wsdl:part name="Cost" type="s1:StringArray" />
+    <wsdl:part name="MinCost" type="s1:StringArray" />
+    <wsdl:part name="MinPriceCode" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinCost" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinPriceCode" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersWithSupplierPriceMarkupHttpPostIn">
+    <wsdl:part name="UniqueID" type="s:string" />
+    <wsdl:part name="ForceSend" type="s:string" />
+    <wsdl:part name="UseCorrectOrders" type="s:string" />
+    <wsdl:part name="ClientCode" type="s:string" />
+    <wsdl:part name="OrderCount" type="s:string" />
+    <wsdl:part name="ClientOrderID" type="s1:StringArray" />
+    <wsdl:part name="PriceCode" type="s1:StringArray" />
+    <wsdl:part name="RegionCode" type="s1:StringArray" />
+    <wsdl:part name="PriceDate" type="s1:StringArray" />
+    <wsdl:part name="ClientAddition" type="s1:StringArray" />
+    <wsdl:part name="RowCount" type="s1:StringArray" />
+    <wsdl:part name="ClientPositionID" type="s1:StringArray" />
+    <wsdl:part name="ClientServerCoreID" type="s1:StringArray" />
+    <wsdl:part name="ProductID" type="s1:StringArray" />
+    <wsdl:part name="CodeFirmCr" type="s1:StringArray" />
+    <wsdl:part name="SynonymCode" type="s1:StringArray" />
+    <wsdl:part name="SynonymFirmCrCode" type="s1:StringArray" />
+    <wsdl:part name="Code" type="s1:StringArray" />
+    <wsdl:part name="CodeCr" type="s1:StringArray" />
+    <wsdl:part name="Junk" type="s1:StringArray" />
+    <wsdl:part name="Await" type="s1:StringArray" />
+    <wsdl:part name="RequestRatio" type="s1:StringArray" />
+    <wsdl:part name="OrderCost" type="s1:StringArray" />
+    <wsdl:part name="MinOrderCount" type="s1:StringArray" />
+    <wsdl:part name="Quantity" type="s1:StringArray" />
+    <wsdl:part name="Cost" type="s1:StringArray" />
+    <wsdl:part name="MinCost" type="s1:StringArray" />
+    <wsdl:part name="MinPriceCode" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinCost" type="s1:StringArray" />
+    <wsdl:part name="LeaderMinPriceCode" type="s1:StringArray" />
+    <wsdl:part name="SupplierPriceMarkup" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="PostSomeOrdersWithSupplierPriceMarkupHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="GetPasswordsHttpPostIn">
+    <wsdl:part name="UniqueID" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="GetPasswordsHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="PostPriceDataSettingsHttpPostIn">
+    <wsdl:part name="UniqueID" type="s:string" />
+    <wsdl:part name="PriceCodes" type="s1:StringArray" />
+    <wsdl:part name="RegionCodes" type="s1:StringArray" />
+    <wsdl:part name="INJobs" type="s1:StringArray" />
+  </wsdl:message>
+  <wsdl:message name="PostPriceDataSettingsHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="GetReclameHttpPostIn" />
+  <wsdl:message name="GetReclameHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="ReclameCompleteHttpPostIn" />
+  <wsdl:message name="ReclameCompleteHttpPostOut">
+    <wsdl:part name="Body" element="tns:boolean" />
+  </wsdl:message>
+  <wsdl:portType name="PrgDataExSoap12">
+    <wsdl:operation name="SendLetter">
+      <wsdl:input message="tns:SendLetterSoap12In" />
+      <wsdl:output message="tns:SendLetterSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="GetInfo">
+      <wsdl:input message="tns:GetInfoSoap12In" />
+      <wsdl:output message="tns:GetInfoSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="GetUserData">
+      <wsdl:input message="tns:GetUserDataSoap12In" />
+      <wsdl:output message="tns:GetUserDataSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="MaxSynonymCode">
+      <wsdl:input message="tns:MaxSynonymCodeSoap12In" />
+      <wsdl:output message="tns:MaxSynonymCodeSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="GetArchivedOrdersList">
+      <wsdl:input message="tns:GetArchivedOrdersListSoap12In" />
+      <wsdl:output message="tns:GetArchivedOrdersListSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder2">
+      <wsdl:input message="tns:PostOrder2Soap12In" />
+      <wsdl:output message="tns:PostOrder2Soap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder">
+      <wsdl:input message="tns:PostOrderSoap12In" />
+      <wsdl:output message="tns:PostOrderSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrders">
+      <wsdl:input message="tns:PostSomeOrdersSoap12In" />
+      <wsdl:output message="tns:PostSomeOrdersSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrdersWithSupplierPriceMarkup">
+      <wsdl:input message="tns:PostSomeOrdersWithSupplierPriceMarkupSoap12In" />
+      <wsdl:output message="tns:PostSomeOrdersWithSupplierPriceMarkupSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="GetPasswords">
+      <wsdl:input message="tns:GetPasswordsSoap12In" />
+      <wsdl:output message="tns:GetPasswordsSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="PostPriceDataSettings">
+      <wsdl:input message="tns:PostPriceDataSettingsSoap12In" />
+      <wsdl:output message="tns:PostPriceDataSettingsSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="GetReclame">
+      <wsdl:input message="tns:GetReclameSoap12In" />
+      <wsdl:output message="tns:GetReclameSoap12Out" />
+    </wsdl:operation>
+    <wsdl:operation name="ReclameComplete">
+      <wsdl:input message="tns:ReclameCompleteSoap12In" />
+      <wsdl:output message="tns:ReclameCompleteSoap12Out" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="PrgDataExHttpPost">
+    <wsdl:operation name="SendLetter">
+      <wsdl:input message="tns:SendLetterHttpPostIn" />
+      <wsdl:output message="tns:SendLetterHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetInfo">
+      <wsdl:input message="tns:GetInfoHttpPostIn" />
+      <wsdl:output message="tns:GetInfoHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetUserData">
+      <wsdl:input message="tns:GetUserDataHttpPostIn" />
+      <wsdl:output message="tns:GetUserDataHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="MaxSynonymCode">
+      <wsdl:input message="tns:MaxSynonymCodeHttpPostIn" />
+      <wsdl:output message="tns:MaxSynonymCodeHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetArchivedOrdersList">
+      <wsdl:input message="tns:GetArchivedOrdersListHttpPostIn" />
+      <wsdl:output message="tns:GetArchivedOrdersListHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder2">
+      <wsdl:input message="tns:PostOrder2HttpPostIn" />
+      <wsdl:output message="tns:PostOrder2HttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder">
+      <wsdl:input message="tns:PostOrderHttpPostIn" />
+      <wsdl:output message="tns:PostOrderHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrders">
+      <wsdl:input message="tns:PostSomeOrdersHttpPostIn" />
+      <wsdl:output message="tns:PostSomeOrdersHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrdersWithSupplierPriceMarkup">
+      <wsdl:input message="tns:PostSomeOrdersWithSupplierPriceMarkupHttpPostIn" />
+      <wsdl:output message="tns:PostSomeOrdersWithSupplierPriceMarkupHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetPasswords">
+      <wsdl:input message="tns:GetPasswordsHttpPostIn" />
+      <wsdl:output message="tns:GetPasswordsHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PostPriceDataSettings">
+      <wsdl:input message="tns:PostPriceDataSettingsHttpPostIn" />
+      <wsdl:output message="tns:PostPriceDataSettingsHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetReclame">
+      <wsdl:input message="tns:GetReclameHttpPostIn" />
+      <wsdl:output message="tns:GetReclameHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ReclameComplete">
+      <wsdl:input message="tns:ReclameCompleteHttpPostIn" />
+      <wsdl:output message="tns:ReclameCompleteHttpPostOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="PrgDataExSoap12" type="tns:PrgDataExSoap12">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="SendLetter">
+      <soap12:operation soapAction="IOS.Service/SendLetter" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetInfo">
+      <soap12:operation soapAction="IOS.Service/GetInfo" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetUserData">
+      <soap12:operation soapAction="IOS.Service/GetUserData" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="MaxSynonymCode">
+      <soap12:operation soapAction="IOS.Service/MaxSynonymCode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetArchivedOrdersList">
+      <soap12:operation soapAction="IOS.Service/GetArchivedOrdersList" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder2">
+      <soap12:operation soapAction="IOS.Service/PostOrder2" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder">
+      <soap12:operation soapAction="IOS.Service/PostOrder" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrders">
+      <soap12:operation soapAction="IOS.Service/PostSomeOrders" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrdersWithSupplierPriceMarkup">
+      <soap12:operation soapAction="IOS.Service/PostSomeOrdersWithSupplierPriceMarkup" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetPasswords">
+      <soap12:operation soapAction="IOS.Service/GetPasswords" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostPriceDataSettings">
+      <soap12:operation soapAction="IOS.Service/PostPriceDataSettings" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetReclame">
+      <soap12:operation soapAction="IOS.Service/GetReclame" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ReclameComplete">
+      <soap12:operation soapAction="IOS.Service/ReclameComplete" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="PrgDataExHttpPost" type="tns:PrgDataExHttpPost">
+    <http:binding verb="POST" />
+    <wsdl:operation name="SendLetter">
+      <http:operation location="/SendLetter" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetInfo">
+      <http:operation location="/GetInfo" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetUserData">
+      <http:operation location="/GetUserData" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="MaxSynonymCode">
+      <http:operation location="/MaxSynonymCode" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetArchivedOrdersList">
+      <http:operation location="/GetArchivedOrdersList" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder2">
+      <http:operation location="/PostOrder2" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostOrder">
+      <http:operation location="/PostOrder" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrders">
+      <http:operation location="/PostSomeOrders" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostSomeOrdersWithSupplierPriceMarkup">
+      <http:operation location="/PostSomeOrdersWithSupplierPriceMarkup" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetPasswords">
+      <http:operation location="/GetPasswords" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PostPriceDataSettings">
+      <http:operation location="/PostPriceDataSettings" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetReclame">
+      <http:operation location="/GetReclame" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ReclameComplete">
+      <http:operation location="/ReclameComplete" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="PrgDataEx">
+    <wsdl:port name="PrgDataExSoap12" binding="tns:PrgDataExSoap12">
+      <soap12:address location="http://localhost/PrgData/code.asmx" />
+    </wsdl:port>
+    <wsdl:port name="PrgDataExHttpPost" binding="tns:PrgDataExHttpPost">
+      <http:address location="http://localhost/PrgData/code.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

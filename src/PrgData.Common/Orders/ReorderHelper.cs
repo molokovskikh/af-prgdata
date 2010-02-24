@@ -34,7 +34,7 @@ namespace PrgData.Common.Orders
 			_useCorrectOrders = useCorrectOrders;
 		}
 
-		public string PostSameOrders()
+		public string PostSomeOrders()
 		{
 			CheckCanPostOrder();
 
@@ -240,7 +240,8 @@ and (Core.RegionCode = ?RegionCode)
                Cost             ,
                RequestRatio     ,
                MinOrderCount    ,
-               OrderCost        
+               OrderCost        ,
+               SupplierPriceMarkup
         )
  SELECT ?OrderID                                      ,
         products.ID                                   ,
@@ -255,7 +256,8 @@ and (Core.RegionCode = ?RegionCode)
         ?Cost                                         ,
         ?RequestRatio                                 ,
         ?MinOrderCount                                ,
-        ?OrderCost        
+        ?OrderCost                                    ,
+        ?SupplierPriceMarkup
  FROM   catalogs.products
         LEFT JOIN farm.synonym syn
         ON     syn.synonymcode=?SynonymCode
@@ -298,6 +300,8 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 			command.Parameters.AddWithValue("?RequestRatio", position.RequestRatio);
 			command.Parameters.AddWithValue("?MinOrderCount", position.MinOrderCount);
 			command.Parameters.AddWithValue("?OrderCost", position.OrderCost);
+
+			command.Parameters.AddWithValue("?SupplierPriceMarkup", position.SupplierPriceMarkup);
 
 			command.ExecuteNonQuery();
 		}
@@ -424,7 +428,8 @@ AND    RCS.clientcode          = ?ClientCode"
             string[] minCost, 
             string[] minPriceCode,
             string[] leaderMinCost, 
-            string[] leaderMinPriceCode
+            string[] leaderMinPriceCode,
+			string[] supplierPriceMarkup
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -456,6 +461,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, minPriceCode.Length, "minPriceCode");
 			CheckArrayCount(allPositionCount, leaderMinCost.Length, "leaderMinCost");
 			CheckArrayCount(allPositionCount, leaderMinPriceCode.Length, "leaderMinPriceCode");
+			CheckArrayCount(allPositionCount, supplierPriceMarkup.Length, "supplierPriceMarkup");			
 
 			var detailsPosition = 0;
 			for (int i = 0; i < orderCount; i++)
@@ -515,7 +521,13 @@ AND    RCS.clientcode          = ?ClientCode"
 									System.Globalization.NumberStyles.Currency,
 									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 						LeaderMinPriceCode =
-							String.IsNullOrEmpty(leaderMinPriceCode[detailIndex]) ? null : (ulong?)ulong.Parse(leaderMinPriceCode[detailIndex])
+							String.IsNullOrEmpty(leaderMinPriceCode[detailIndex]) ? null : (ulong?)ulong.Parse(leaderMinPriceCode[detailIndex]),
+						SupplierPriceMarkup =
+							String.IsNullOrEmpty(supplierPriceMarkup[detailIndex]) ? null : (decimal?)decimal
+								.Parse(
+									supplierPriceMarkup[detailIndex],
+									System.Globalization.NumberStyles.Currency,
+									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 					};
 
 					clientOrder.Positions.Add(position);

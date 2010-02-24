@@ -764,6 +764,109 @@ where
   if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)";
 		}
 
+		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup)
+		{
+			if (exportInforoomPrice)
+				return @"
+SELECT 2647                             ,
+       ?OffersRegionCode                ,
+       A.ProductId                      ,
+       A.CodeFirmCr                     ,
+       S.SynonymCode                    ,
+       SF.SynonymFirmCrCode             ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       0                                ,
+       0                                ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       0                                ,
+       ''                               ,
+       IF(?ShowAvgCosts, CryptCost, '') ,
+       @RowId := @RowId + 1             ,
+       ''                               ,
+       ''
+FROM   farm.Synonym S        ,
+       farm.SynonymFirmCr SF ,
+       CoreT A
+WHERE  S.PriceCode            =2647
+AND    SF.PriceCode           =2647
+AND    S.ProductId            =A.ProductId
+AND    SF.CodeFirmCr          =A.CodeFirmCr
+AND    A.CodeFirmCr IS NOT NULL
+
+UNION
+
+SELECT 2647                              ,
+       ?OffersRegionCode                 ,
+       A.ProductId                       ,
+       1                                 ,
+       S.SynonymCode                     ,
+       0                                 ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       0                                 ,
+       0                                 ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       0                                 ,
+       ''                                ,
+       IF(?ShowAvgCosts, A.CryptCost, ''),
+       @RowId := @RowId + 1              ,
+       ''                                ,
+       ''
+FROM   farm.Synonym S ,
+       CoreTP A
+WHERE  S.PriceCode =2647
+AND    S.ProductId =A.ProductId";
+			else
+				return 
+				String.Format(@"
+SELECT CT.PriceCode               ,
+       CT.regioncode              ,
+       CT.ProductId               ,
+       ifnull(Core.codefirmcr, 0) ,
+       Core.synonymcode           ,
+       Core.SynonymFirmCrCode     ,
+       Core.Code                  ,
+       Core.CodeCr                ,
+       Core.unit                  ,
+       Core.volume                ,
+       Core.Junk                  ,
+       Core.Await                 ,
+       Core.quantity              ,
+       Core.note                  ,
+       Core.period                ,
+       Core.doc                   ,
+       Core.RegistryCost          ,
+       Core.VitallyImportant      ,
+       Core.RequestRatio          ,
+       CT.Cost                    ,
+       RIGHT(CT.ID, 9)            ,
+       OrderCost                  ,
+       MinOrderCount
+       {0}
+FROM   Core CT        ,
+       ActivePrices AT,
+       farm.core0 Core
+WHERE  ct.pricecode =at.pricecode
+AND    ct.regioncode=at.regioncode
+AND    Core.id      =CT.id
+AND    IF(?Cumulative, 1, fresh)"
+				,
+				exportSupplierPriceMarkup ? ", if((Core.ProducerCost is null) or (Core.ProducerCost = 0), null, (CT.Cost/Core.ProducerCost-1)*100) " : "");
+		}
+
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
 			var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
