@@ -54,11 +54,7 @@ Public Class PrgDataEx
     End Sub
 
     ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
-#If DEBUG Then
-    ReadOnly MySqlFilePath As String = "\\testsql.adc.analit.net\AFFiles\"
-#Else
     ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
-#End If
 
     ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
