@@ -227,5 +227,43 @@ namespace Integration
 				});
 			}
 		}
+
+		[Test(Description = "проверяем, что маска регионов загружается из future.Users")]
+		public void check_OrderRegions_for_future_client()
+		{
+			//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
+			var userName = "10081";
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var trans = connection.BeginTransaction();
+				try
+				{
+					var updateData = UpdateHelper.GetUpdateData(connection, userName);
+
+					var command = new MySqlCommand(@"
+update usersettings.RetClientsSet set OrderRegionMask = 1 where ClientCode = ?clientId ;
+update future.Users set OrderRegionMask = 2 where Id = ?userId ;", connection, trans);
+					command.Parameters.AddWithValue("?userId", updateData.UserId);
+					command.Parameters.AddWithValue("?clientId", updateData.ClientId);
+					command.ExecuteNonQuery();					
+
+					var updateHelper = new UpdateHelper(updateData, connection, connection);
+
+					var clients = MySqlHelper.ExecuteDataset(
+						connection,
+						updateHelper.GetClientsCommand(false),
+						new MySqlParameter("?OffersRegionCode", updateData.OffersRegionCode),
+						new MySqlParameter("?UserId", updateData.UserId));
+
+					Assert.AreEqual(2, clients.Tables[0].Rows[0]["OrderRegionMask"], "Не выбрали регион из Users");
+				}
+				finally
+				{
+					trans.Rollback();
+				}
+			}
+		}
 	}
 }

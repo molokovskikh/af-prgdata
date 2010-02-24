@@ -611,7 +611,7 @@ SELECT a.Id as FirmCode,
      rcs.OverCostPercent,
      rcs.DifferenceCalculation,
      rcs.MultiUserLevel,
-     rcs.OrderRegionMask,
+     u.OrderRegionMask,
      {0}
      rcs.CalculateLeader
      {1}
