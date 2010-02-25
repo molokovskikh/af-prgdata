@@ -227,16 +227,10 @@ Public Class PrgDataEx
     ByVal WINDesc As String, _
     ByVal WayBillsOnly As Boolean, _
     ByVal ClientHFile As String) As String
-        'Context.Request.SaveAs(ResultFileName & "res.txt", True)
         Dim LockCount As Int32
         Dim ResStr As String = String.Empty
         Dim NeedFreeLock As Boolean = False
-        'StringDataSet
         Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
-
-        'Thread.Sleep(5000)
-        'Return ""
-        'Stop
 
         Try
 
@@ -266,23 +260,12 @@ Public Class PrgDataEx
                 'Получаем код и параметры клиента клиента
                 GetClientCode()
 
-
-                'MessageH = "Доступ закрыт."
-                'MessageD = "Обновление в данный момент невозможно.[5]"
-                'UpdateType = 5
-                'ErrorFlag = True
-                'GoTo endproc
-
-
-                'CCode = 3699
-
                 If CCode < 1 Then
                     MessageH = "Доступ закрыт."
                     MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[1]"
                     Addition &= "Для логина " & UserName & " услуга не предоставляется; "
                     UpdateType = 5
                     ErrorFlag = True
-                    'NeedCloseCn = True
                     GoTo endproc
                 End If
 
@@ -315,7 +298,6 @@ Public Class PrgDataEx
                     Addition &= "Попытка обновить устаревшую версию; "
                     UpdateType = 5
                     ErrorFlag = True
-                    'NeedCloseCn = True
                     GoTo endproc
                 End If
 
@@ -328,28 +310,13 @@ Public Class PrgDataEx
                         Addition &= "Несоответствие UIN; "
                         UpdateType = 5
                         ErrorFlag = True
-                        'NeedCloseCn = True
                         GoTo endproc
                     End If
                 End If
 
 
-                '#End If
                 'Если с момента последнего обновления менее установленного времени
                 If Not Documents Then
-
-                    '#If Not Debug Then
-                    'MinCount = CheckUpdatePeriod()
-                    'If (MinCount <= 5 And UpdateType < 3) Then
-                    '    MessageH = "Нет доступа. Обновление возможно не чаще 1 раза в 5 минут."
-                    '    MessageD = "Доступ будет открыт через " & CInt(5 - MinCount) + 1 & " мин.[4]"
-                    '    Addition &= "5-минутное ограничение, осталось " & CInt(5 - MinCount) + 1 & " мин."
-                    '    UpdateType = 5
-                    '    ErrorFlag = True
-                    '    'NeedCloseCn = True
-                    '    GoTo endproc
-                    'End If
-
 
                     If AllowBuildNo < BuildNo Then
                         Cm.Connection = ReadWriteCn
@@ -376,7 +343,6 @@ RestartInsertTrans:
 
                     End If
 
-                    '#End If
                     'Если несовпадает время последнего обновления на клиете и сервере
                     If Not CheckUpdateTime(AccessTime.ToLocalTime, GED) Then
                         GED = True
@@ -425,11 +391,6 @@ RestartInsertTrans:
 
                 End If
 
-
-
-
-
-
                 If Documents Then
 
                     CurUpdTime = Now()
@@ -441,7 +402,6 @@ RestartInsertTrans:
                         Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
                         UpdateType = 5
                         ErrorFlag = True
-                        'NeedCloseCn = True
                         GoTo endproc
                     End Try
 
@@ -566,7 +526,6 @@ endproc:
                     UpdateType = 5
 
                     ErrorFlag = True
-                    ' NeedCloseCn = True
 
                 End If
             End If
@@ -602,7 +561,6 @@ endproc:
                     Thread.Sleep(500)
                 End While
 
-                'ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & "/FileHandlerService/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
                 ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
@@ -621,12 +579,18 @@ endproc:
                 If SpyAccount Then ResStr &= ";SendUData=True"
 
             End If
-            'Err.Raise(1)
             GetUserDataEx = ResStr
 
-        Catch ErrorTXT As Exception
-            LogManager.GetLogger(Me.GetType).Error("Ошибка при обновлении", ErrorTXT)
-            Utils.Mail(ErrorTXT.Message & ": " & ErrorTXT.StackTrace, "Колличество попыток: " & LockCount & "; Базовый поток: ")
+        Catch ex As Exception
+            Log.Error("Параметры\r\n" & _
+                String.Format("AccessTime = {0}\r\n", AccessTime) & _
+                String.Format("GetEtalonData = {0}\r\n", GetEtalonData) & _
+                String.Format("EXEVersion = {0}\r\n", EXEVersion) & _
+                String.Format("MDBVersion = {0}\r\n", MDBVersion) & _
+                String.Format("UniqueID = {0}\r\n", UniqueID) & _
+                String.Format("WINVersion = {0}\r\n", WINVersion) & _
+                String.Format("WINDesc = {0}\r\n", WINDesc) & _
+                String.Format("WayBillsOnly = {0}\r\n", WayBillsOnly), ex)
             UpdateType = 6
             GetUserDataEx = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
