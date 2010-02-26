@@ -582,15 +582,15 @@ endproc:
             GetUserDataEx = ResStr
 
         Catch ex As Exception
-            Log.Error("Параметры\r\n" & _
-                String.Format("AccessTime = {0}\r\n", AccessTime) & _
-                String.Format("GetEtalonData = {0}\r\n", GetEtalonData) & _
-                String.Format("EXEVersion = {0}\r\n", EXEVersion) & _
-                String.Format("MDBVersion = {0}\r\n", MDBVersion) & _
-                String.Format("UniqueID = {0}\r\n", UniqueID) & _
-                String.Format("WINVersion = {0}\r\n", WINVersion) & _
-                String.Format("WINDesc = {0}\r\n", WINDesc) & _
-                String.Format("WayBillsOnly = {0}\r\n", WayBillsOnly), ex)
+            Log.Error("Параметры " & _
+                String.Format("AccessTime = {0}, ", AccessTime) & _
+                String.Format("GetEtalonData = {0}, ", GetEtalonData) & _
+                String.Format("EXEVersion = {0}, ", EXEVersion) & _
+                String.Format("MDBVersion = {0}, ", MDBVersion) & _
+                String.Format("UniqueID = {0}, ", UniqueID) & _
+                String.Format("WINVersion = {0}, ", WINVersion) & _
+                String.Format("WINDesc = {0}, ", WINDesc) & _
+                String.Format("WayBillsOnly = {0}", WayBillsOnly), ex)
             UpdateType = 6
             GetUserDataEx = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
