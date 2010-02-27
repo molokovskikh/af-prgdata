@@ -659,6 +659,7 @@ endproc:
                 Try
                     ArchCmd.Connection = ArchCn
                     ArchCmd.CommandText = helper.GetDocumentsCommand()
+                    ArchCmd.Parameters.Clear()
                     ArchCmd.Parameters.AddWithValue("?UserId", UpdateData.UserId)
                     ArchCmd.Parameters.AddWithValue("?ClientCode", UpdateData.ClientId)
 
