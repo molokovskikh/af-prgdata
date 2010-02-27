@@ -2017,19 +2017,23 @@ PostLog:
                         Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
 
                         If processedDocuments.Rows.Count > 0 Then
-                            Dim DocumentsIdRow As DataRow
 
-                            For Each DocumentsIdRow In processedDocuments.Rows
+                            If Not UpdateData.IsFutureClient Then
+                                Dim DocumentsIdRow As DataRow
 
-                                СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
-                                      DocumentsIdRow.Item("ClientCode").ToString & _
-                                      "\" & _
-                                      CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
-                                      DocumentsIdRow.Item("DocumentId").ToString & "_*")
+                                For Each DocumentsIdRow In processedDocuments.Rows
 
-                                MySQLResultFile.Delete(СписокФайлов(0))
+                                    СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
+                                          DocumentsIdRow.Item("ClientCode").ToString & _
+                                          "\" & _
+                                          CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
+                                          DocumentsIdRow.Item("DocumentId").ToString & "_*")
 
-                            Next
+                                    MySQLResultFile.Delete(СписокФайлов(0))
+
+                                Next
+
+                            End If
 
                             LogCm.CommandText = "" & _
                                  "UPDATE AnalitFDocumentsProcessing A, " & _
