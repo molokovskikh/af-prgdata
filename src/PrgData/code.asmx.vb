@@ -696,8 +696,8 @@ endproc:
                                 'startInfo.UserName = ѕользователь
                                 'startInfo.Password = Ѕезопасныйѕароль
 
-                                startInfo.Arguments = "a " & _
-                                   SevenZipTmpArchive & _
+                                startInfo.Arguments = "a """ & _
+                                   SevenZipTmpArchive & """ " & _
                                    " -i!""" & _
                                    CType(Row.Item("DocumentType"), “ипƒокумента).ToString & "\" & _
                                    Path.GetFileName(—писок‘айлов(0)) & _
@@ -2019,7 +2019,7 @@ PostLog:
                         If processedDocuments.Rows.Count > 0 Then
                             Dim DocumentsIdRow As DataRow
 
-                            For Each DocumentsIdRow In DS.Tables("ProcessingDocuments").Rows
+                            For Each DocumentsIdRow In processedDocuments.Rows
 
                                 —писок‘айлов = Directory.GetFiles(ѕуть ƒокументам & _
                                       DocumentsIdRow.Item("ClientCode").ToString & _
