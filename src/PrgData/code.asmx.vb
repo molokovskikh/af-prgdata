@@ -643,9 +643,9 @@ endproc:
 
 
             If Reclame Then
-                SevenZipTmpArchive = ResultFileName & "r" & UserId
+                SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
             Else
-                SevenZipTmpArchive = ResultFileName & UserId
+                SevenZipTmpArchive = Path.GetTempPath() & UserId
             End If
 
             SevenZipTmpArchive &= "T.zip"
@@ -828,7 +828,7 @@ endproc:
                             If ef.Length > 0 Then
                                 'Pr.StartInfo.UserName = Пользователь
                                 'Pr.StartInfo.Password = БезопасныйПароль
-                                Pr = System.Diagnostics.Process.Start(SevenZipExe, "a " & SevenZipTmpArchive & " " & ResultFileName & "Updates\Future_" & BuildNo & "\EXE" & SevenZipParam)
+                                Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & ResultFileName & "Updates\Future_" & BuildNo & "\EXE"" " & SevenZipParam)
 
 #If Not Debug Then
                                 try
@@ -891,7 +891,7 @@ endproc:
                                     If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
                                         'Pr.StartInfo.UserName = Пользователь
                                         'Pr.StartInfo.Password = БезопасныйПароль
-                                        Pr = System.Diagnostics.Process.Start(SevenZipExe, "a " & SevenZipTmpArchive & " " & FileInfo.FullName & SevenZipParam)
+                                        Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
 
 
 #If Not Debug Then
