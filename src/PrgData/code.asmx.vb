@@ -644,8 +644,10 @@ endproc:
 
             If Reclame Then
                 SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
+                MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
             Else
                 SevenZipTmpArchive = Path.GetTempPath() & UserId
+                MySQLFileDelete(ResultFileName & UserId & ".zip")
             End If
 
             SevenZipTmpArchive &= "T.zip"
