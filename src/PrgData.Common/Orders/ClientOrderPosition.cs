@@ -38,6 +38,15 @@ namespace PrgData.Common.Orders
 
 		public decimal? SupplierPriceMarkup { get; set; }
 
+		public string CoreQuantity { get; set; }
+		public string Unit { get; set; }
+		public string Volume { get; set; }
+		public string Note { get; set; }
+		public string Period { get; set; }
+		public string Doc { get; set; }
+		public decimal? RegistryCost { get; set; }
+		public bool VitallyImportant { get; set; }
+
 		public PositionSendResult SendResult { get; set; }
 
 		public decimal ServerCost { get; set; }

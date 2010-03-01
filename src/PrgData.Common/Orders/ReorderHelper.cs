@@ -271,6 +271,8 @@ and (Core.RegionCode = ?RegionCode)
 				_readWriteConnection);
 
 			command.Parameters.Clear();
+			//
+			command.CommandText += "set @LastOrderDetailId = last_insert_id();";
 
 			if (_calculateLeaders
 				&& (position.MinCost.HasValue || position.LeaderMinCost.HasValue)
@@ -278,12 +280,17 @@ and (Core.RegionCode = ?RegionCode)
 			{
 				command.CommandText += @"
 insert into orders.leaders 
-values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?MinPriceCode, 0), nullif(?LeaderMinPriceCode, 0));";
+values (@LastOrderDetailId, nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?MinPriceCode, 0), nullif(?LeaderMinPriceCode, 0));";
 				command.Parameters.AddWithValue("?MinCost", position.MinCost);
 				command.Parameters.AddWithValue("?LeaderMinCost", position.LeaderMinCost);
 				command.Parameters.AddWithValue("?MinPriceCode", position.MinPriceCode);
 				command.Parameters.AddWithValue("?LeaderMinPriceCode", position.LeaderMinPriceCode);
 			}
+
+			command.CommandText += @"
+insert into orders.OrderedOffers
+(Id, Unit, Volume, Note, Period, Doc, VitallyImportant, RegistryCost, Quantity) 
+values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImportant, ?RegistryCost, ?CoreQuantity);";
 
 			command.Parameters.AddWithValue("?OrderId", order.ServerOrderId);
 
@@ -303,6 +310,15 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 			command.Parameters.AddWithValue("?OrderCost", position.OrderCost);
 
 			command.Parameters.AddWithValue("?SupplierPriceMarkup", position.SupplierPriceMarkup);
+
+			command.Parameters.AddWithValue("?Unit", position.Unit);
+			command.Parameters.AddWithValue("?Volume", position.Volume);
+			command.Parameters.AddWithValue("?Note", position.Note);
+			command.Parameters.AddWithValue("?Period", position.Period);
+			command.Parameters.AddWithValue("?Doc", position.Doc);
+			command.Parameters.AddWithValue("?VitallyImportant", position.VitallyImportant);
+			command.Parameters.AddWithValue("?RegistryCost", position.RegistryCost);
+			command.Parameters.AddWithValue("?CoreQuantity", position.CoreQuantity);
 
 			command.ExecuteNonQuery();
 		}
@@ -431,7 +447,15 @@ AND    RCS.clientcode          = ?ClientCode"
             string[] leaderMinCost, 
             string[] leaderMinPriceCode,
 			string[] supplierPriceMarkup,
-			string[] delayOfPayment
+			string[] delayOfPayment,
+			string[] coreQuantity,
+			string[] unit,
+			string[] volume,
+			string[] note,
+			string[] period,
+			string[] doc,
+			string[] registryCost,
+			bool[] vitallyImportant
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -465,6 +489,15 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, leaderMinCost.Length, "leaderMinCost");
 			CheckArrayCount(allPositionCount, leaderMinPriceCode.Length, "leaderMinPriceCode");
 			CheckArrayCount(allPositionCount, supplierPriceMarkup.Length, "supplierPriceMarkup");
+
+			CheckArrayCount(allPositionCount, coreQuantity.Length, "coreQuantity");
+			CheckArrayCount(allPositionCount, unit.Length, "unit");
+			CheckArrayCount(allPositionCount, volume.Length, "volume");
+			CheckArrayCount(allPositionCount, note.Length, "note");
+			CheckArrayCount(allPositionCount, period.Length, "period");
+			CheckArrayCount(allPositionCount, doc.Length, "doc");
+			CheckArrayCount(allPositionCount, registryCost.Length, "registryCost");
+			CheckArrayCount(allPositionCount, vitallyImportant.Length, "vitallyImportant");
 
 			var detailsPosition = 0;
 			for (int i = 0; i < orderCount; i++)
@@ -537,6 +570,19 @@ AND    RCS.clientcode          = ?ClientCode"
 									supplierPriceMarkup[detailIndex],
 									System.Globalization.NumberStyles.Currency,
 									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+						CoreQuantity = coreQuantity[detailIndex],
+						Unit = unit[detailIndex],
+						Volume = volume[detailIndex],
+						Note = note[detailIndex],
+						Period = period[detailIndex],
+						Doc = doc[detailIndex],
+						RegistryCost =
+							String.IsNullOrEmpty(registryCost[detailIndex]) ? null : (decimal?)decimal
+									.Parse(
+										registryCost[detailIndex],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+						VitallyImportant = vitallyImportant[detailIndex],
 					};
 
 					clientOrder.Positions.Add(position);

@@ -1763,8 +1763,17 @@ ItsEnd:
         Dim SupplierPriceMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
         Dim DelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
 
+        Dim CoreQuantity As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Unit As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Volume As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Note As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Period As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Doc As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim RegistryCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim VitallyImportant As IEnumerable(Of Boolean) = Enumerable.Repeat(False, New List(Of UInt16)(RowCount).Sum(Function(item) item))
+
         Return _
-            PostSomeOrdersWithSupplierPriceMarkup( _
+            PostSomeOrdersFull( _
                 UniqueID, _
                 ForceSend, _
                 UseCorrectOrders, _
@@ -1776,6 +1785,7 @@ ItsEnd:
                 PriceDate, _
                 ClientAddition, _
                 RowCount, _
+                DelayOfPayment.ToArray(), _
                 ClientPositionID, _
                 ClientServerCoreID, _
                 ProductID, _
@@ -1796,12 +1806,20 @@ ItsEnd:
                 LeaderMinCost, _
                 LeaderMinPriceCode, _
                 SupplierPriceMarkup.ToArray(), _
-                DelayOfPayment.ToArray())
+                CoreQuantity.ToArray(), _
+                Unit.ToArray(), _
+                Volume.ToArray(), _
+                Note.ToArray(), _
+                Period.ToArray(), _
+                Doc.ToArray(), _
+                RegistryCost.ToArray(), _
+                VitallyImportant.ToArray() _
+                )
     End Function
 
     'Отправляем несколько заказов скопом и по ним все формируем ответ
     <WebMethod()> _
-    Public Function PostSomeOrdersWithSupplierPriceMarkup( _
+    Public Function PostSomeOrdersFull( _
         ByVal UniqueID As String, _
         ByVal ForceSend As Boolean, _
         ByVal UseCorrectOrders As Boolean, _
@@ -1813,6 +1831,7 @@ ItsEnd:
         ByVal PriceDate As Date(), _
         ByVal ClientAddition As String(), _
         ByVal RowCount As UInt16(), _
+        ByVal DelayOfPayment As String(), _
         ByVal ClientPositionID As UInt64(), _
         ByVal ClientServerCoreID As UInt64(), _
         ByVal ProductID As UInt64(), _
@@ -1833,7 +1852,14 @@ ItsEnd:
         ByVal LeaderMinCost As String(), _
         ByVal LeaderMinPriceCode As String(), _
         ByVal SupplierPriceMarkup As String(), _
-        ByVal DelayOfPayment As String()) As String
+        ByVal CoreQuantity As String(), _
+        ByVal Unit As String(), _
+        ByVal Volume As String(), _
+        ByVal Note As String(), _
+        ByVal Period As String(), _
+        ByVal Doc As String(), _
+        ByVal RegistryCost As String(), _
+        ByVal VitallyImportant As Boolean()) As String
 
         Dim ResStr As String = String.Empty
 
@@ -1896,7 +1922,15 @@ ItsEnd:
                     LeaderMinCost, _
                     LeaderMinPriceCode, _
                     SupplierPriceMarkup, _
-                    DelayOfPayment _
+                    DelayOfPayment, _
+                    CoreQuantity, _
+                    Unit, _
+                    Volume, _
+                    Note, _
+                    Period, _
+                    Doc, _
+                    RegistryCost, _
+                    VitallyImportant _
                 )
 
 
