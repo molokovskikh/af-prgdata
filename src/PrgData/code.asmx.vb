@@ -1761,6 +1761,7 @@ ItsEnd:
 
         'генерируем массив наценок поставщика размером с общее кол-во позиций в заказах, значения в массиве - пустые строчки ("")
         Dim SupplierPriceMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim DelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
 
         Return _
             PostSomeOrdersWithSupplierPriceMarkup( _
@@ -1794,7 +1795,8 @@ ItsEnd:
                 MinPriceCode, _
                 LeaderMinCost, _
                 LeaderMinPriceCode, _
-                SupplierPriceMarkup.ToArray())
+                SupplierPriceMarkup.ToArray(), _
+                DelayOfPayment.ToArray())
     End Function
 
     'Отправляем несколько заказов скопом и по ним все формируем ответ
@@ -1830,7 +1832,8 @@ ItsEnd:
         ByVal MinPriceCode As String(), _
         ByVal LeaderMinCost As String(), _
         ByVal LeaderMinPriceCode As String(), _
-        ByVal SupplierPriceMarkup As String()) As String
+        ByVal SupplierPriceMarkup As String(), _
+        ByVal DelayOfPayment As String()) As String
 
         Dim ResStr As String = String.Empty
 
@@ -1892,7 +1895,8 @@ ItsEnd:
                     MinPriceCode, _
                     LeaderMinCost, _
                     LeaderMinPriceCode, _
-                    SupplierPriceMarkup _
+                    SupplierPriceMarkup, _
+                    DelayOfPayment _
                 )
 
 

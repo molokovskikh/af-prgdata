@@ -213,7 +213,8 @@ and (Core.RegionCode = ?RegionCode)
 						order.PriceDate,
 						order.GetSavedRowCount(),
 						Convert.ToUInt32(order.ClientOrderId),
-						order.ClientAddition);
+						order.ClientAddition,
+						order.DelayOfPayment);
 					foreach (var position in order.Positions)
 						if (!position.Duplicated)
 							SaveOrderDetail(order, position);
@@ -257,7 +258,7 @@ and (Core.RegionCode = ?RegionCode)
         ?RequestRatio                                 ,
         ?MinOrderCount                                ,
         ?OrderCost                                    ,
-        ?SupplierPriceMarkup
+        ?SupplierPriceMarkup                          
  FROM   catalogs.products
         LEFT JOIN farm.synonym syn
         ON     syn.synonymcode=?SynonymCode
@@ -429,7 +430,8 @@ AND    RCS.clientcode          = ?ClientCode"
             string[] minPriceCode,
             string[] leaderMinCost, 
             string[] leaderMinPriceCode,
-			string[] supplierPriceMarkup
+			string[] supplierPriceMarkup,
+			string[] delayOfPayment
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -438,6 +440,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(orderCount, priceDate.Length, "priceDate");
 			CheckArrayCount(orderCount, clientAddition.Length, "clientAddition");
 			CheckArrayCount(orderCount, rowCount.Length, "rowCount");
+			CheckArrayCount(orderCount, delayOfPayment.Length, "delayOfPayment");						
 
 			int allPositionCount = rowCount.Sum(item => item);
 
@@ -461,7 +464,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, minPriceCode.Length, "minPriceCode");
 			CheckArrayCount(allPositionCount, leaderMinCost.Length, "leaderMinCost");
 			CheckArrayCount(allPositionCount, leaderMinPriceCode.Length, "leaderMinPriceCode");
-			CheckArrayCount(allPositionCount, supplierPriceMarkup.Length, "supplierPriceMarkup");			
+			CheckArrayCount(allPositionCount, supplierPriceMarkup.Length, "supplierPriceMarkup");
 
 			var detailsPosition = 0;
 			for (int i = 0; i < orderCount; i++)
@@ -473,7 +476,13 @@ AND    RCS.clientcode          = ?ClientCode"
 					RegionCode = regionCode[i],
 					PriceDate = priceDate[i],
 					ClientAddition = DecodedDelphiString(clientAddition[i]),
-					RowCount = rowCount[i]
+					RowCount = rowCount[i],
+					DelayOfPayment =
+						String.IsNullOrEmpty(delayOfPayment[i]) ? null : (decimal?)decimal
+							.Parse(
+								delayOfPayment[i],
+								System.Globalization.NumberStyles.Currency,
+								System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 				};
 
 				_orders.Add(clientOrder);

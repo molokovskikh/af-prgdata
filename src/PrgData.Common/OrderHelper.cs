@@ -94,6 +94,11 @@ where osuseraccessright.RowId = ?UserId", _connection);
 
 		public ulong SaveOrder(uint clientId, uint priceId, ulong regionId, DateTime priceDate, uint rowCount, uint clientOrderId, string clientAddition)
 		{
+			return SaveOrder(clientId, priceId, regionId, priceDate, rowCount, clientOrderId, clientAddition, null);
+		}
+
+		public ulong SaveOrder(uint clientId, uint priceId, ulong regionId, DateTime priceDate, uint rowCount, uint clientOrderId, string clientAddition, decimal? delayOfPayment)
+		{
 			priceDate = priceDate.ToLocalTime();
 			if (_data.IsFutureClient)
 			{
@@ -110,7 +115,8 @@ INTO orders.ordershead (
 	RowCount,
 	ClientOrderId,
 	Submited,
-	SubmitDate
+	SubmitDate,
+    DelayOfPayment
 )
 SELECT ?ClientCode,
 	?AddressId,
@@ -122,7 +128,8 @@ SELECT ?ClientCode,
 	?RowCount,
 	?ClientOrderID,
 	NOT (u.SubmitOrders),
-	IF(NOT(u.SubmitOrders), NOW(), NULL)
+	IF(NOT(u.SubmitOrders), NOW(), NULL),
+    ?DelayOfPayment
 FROM Future.Users u
 WHERE u.Id = ?UserId;
 
@@ -136,6 +143,7 @@ select LAST_INSERT_ID();", _readWriteConnection);
 				command.Parameters.AddWithValue("?RowCount", rowCount);
 				command.Parameters.AddWithValue("?ClientOrderId", clientOrderId);
 				command.Parameters.AddWithValue("?ClientAddition", clientAddition);
+				command.Parameters.AddWithValue("?DelayOfPayment", delayOfPayment);
 				return Convert.ToUInt32(command.ExecuteScalar());
 			}
 			else
@@ -151,7 +159,8 @@ INTO orders.ordershead (
 	RowCount,
 	ClientOrderID ,
 	Submited,
-	SubmitDate
+	SubmitDate,
+    DelayOfPayment
 )
 SELECT ?ClientCode,
 		?PriceCode,
@@ -161,7 +170,8 @@ SELECT ?ClientCode,
 		?RowCount,
 		?ClientOrderID ,
 		NOT (SubmitOrders and AllowSubmitOrders),
-		IF(NOT(SubmitOrders and AllowSubmitOrders), NOW(), NULL)
+		IF(NOT(SubmitOrders and AllowSubmitOrders), NOW(), NULL),
+        ?DelayOfPayment
 FROM RetClientsSet RCS
 WHERE RCS.ClientCode=?ClientCode;
 
@@ -173,6 +183,7 @@ select LAST_INSERT_ID();", _readWriteConnection);
 				command.Parameters.AddWithValue("?RowCount", rowCount);
 				command.Parameters.AddWithValue("?ClientOrderId", clientOrderId);
 				command.Parameters.AddWithValue("?ClientAddition", clientAddition);
+				command.Parameters.AddWithValue("?DelayOfPayment", delayOfPayment);
 				return Convert.ToUInt64(command.ExecuteScalar());
 			}
 		}

@@ -33,6 +33,8 @@ namespace PrgData.Common.Orders
 
 		public uint? MinReq { get; set; }
 
+		public decimal? DelayOfPayment { get; set; }
+
 		public ClientOrderHeader()
 		{
 			this.Positions = new List<ClientOrderPosition>();
