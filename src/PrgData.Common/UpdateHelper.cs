@@ -574,7 +574,7 @@ Order by 3";
 select
   DocumentHeaders.Id,
   DocumentHeaders.DownloadId,
-  DocumentHeaders.WriteTime,
+  date_sub(DocumentHeaders.WriteTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as WriteTime,
   DocumentHeaders.FirmCode,
   DocumentHeaders.ClientCode,
   DocumentHeaders.DocumentType,
@@ -596,7 +596,7 @@ select
   DocumentBodies.*
 from
   documents.DocumentHeaders,
-  documents.DocumentBodies,
+  documents.DocumentBodies
 where
     DocumentHeaders.DownloadId in ({0})
 and DocumentBodies.DocumentId = DocumentHeaders.Id

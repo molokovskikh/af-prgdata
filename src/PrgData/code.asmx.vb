@@ -808,60 +808,62 @@ endproc:
 
                         Next
 
-                        '                        If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-                        '                            MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                        '                            MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                        If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+                            MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
-                        '                            Dim ids As String = String.Empty
-                        '                            For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
-                        '                                If String.IsNullOrEmpty(ids) Then
-                        '                                    ids = documentRow("DocumentId").ToString()
-                        '                                Else
-                        '                                    ids += ", " & documentRow("DocumentId").ToString()
-                        '                                End If
-                        '                            Next
+                            Dim ids As String = String.Empty
+                            For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
+                                If String.IsNullOrEmpty(ids) Then
+                                    ids = documentRow("DocumentId").ToString()
+                                Else
+                                    ids += ", " & documentRow("DocumentId").ToString()
+                                End If
+                            Next
 
-                        '                            GetMySQLFileWithDefault("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids))
-                        '                            GetMySQLFileWithDefault("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids))
+                            GetMySQLFileWithDefault("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids))
+                            GetMySQLFileWithDefault("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids))
 
-                        '                            Pr = New Process
+                            Thread.Sleep(1000)
 
-                        '                            startInfo = New ProcessStartInfo(SevenZipExe)
-                        '                            startInfo.CreateNoWindow = True
-                        '                            startInfo.RedirectStandardOutput = True
-                        '                            startInfo.RedirectStandardError = True
-                        '                            startInfo.UseShellExecute = False
-                        '                            startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-                        '                            startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlFilePath & "Document*" & UserId & ".txt", SevenZipParam)
-                        '                            startInfo.FileName = SevenZipExe
+                            Pr = New Process
 
-                        '                            Pr.StartInfo = startInfo
+                            startInfo = New ProcessStartInfo(SevenZipExe)
+                            startInfo.CreateNoWindow = True
+                            startInfo.RedirectStandardOutput = True
+                            startInfo.RedirectStandardError = True
+                            startInfo.UseShellExecute = False
+                            startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                            startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlFilePath & "Document*" & UserId & ".txt", SevenZipParam)
+                            startInfo.FileName = SevenZipExe
 
-                        '                            Pr.Start()
-                        '                            If Not Pr.HasExited Then
-                        '#If Not Debug Then
-                        '                        Try
-                        '                            Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                        '                        Catch
-                        '                        End Try
-                        '#End If
-                        '                            End If
+                            Pr.StartInfo = startInfo
 
-                        '                            Вывод7Z = Pr.StandardOutput.ReadToEnd
-                        '                            Ошибка7Z = Pr.StandardError.ReadToEnd
+                            Pr.Start()
+                            If Not Pr.HasExited Then
+#If Not Debug Then
+                                Try
+                                    Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                Catch
+                                End Try
+#End If
+                            End If
 
-                        '                            Pr.WaitForExit()
+                            Вывод7Z = Pr.StandardOutput.ReadToEnd
+                            Ошибка7Z = Pr.StandardError.ReadToEnd
 
-                        '                            If Pr.ExitCode <> 0 Then
-                        '                                Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
-                        '                                MySQLFileDelete(SevenZipTmpArchive)
-                        '                                Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
-                        '                            End If
-                        '                            Pr = Nothing
+                            Pr.WaitForExit()
 
-                        '                            MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                        '                            MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
-                        '                        End If
+                            If Pr.ExitCode <> 0 Then
+                                Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                                MySQLFileDelete(SevenZipTmpArchive)
+                                Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                            End If
+                            Pr = Nothing
+
+                            MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                        End If
 
                     End If
 

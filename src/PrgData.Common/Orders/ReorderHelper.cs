@@ -6,6 +6,7 @@ using MySql.Data.MySqlClient;
 using Common.MySql;
 using System.Data;
 using log4net;
+using System.IO;
 
 
 namespace PrgData.Common.Orders
@@ -84,6 +85,9 @@ namespace PrgData.Common.Orders
 
 						//сохраняем сами заявки в базу
 						SaveOrders();
+
+						if (_data.ClientId == 1349)
+							GenerateDocsHelper.GenerateDocs(_readWriteConnection, _data, _orders);
 
 						transaction.Commit();
 					}
