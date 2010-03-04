@@ -64,9 +64,9 @@ values
   (?FirmCode, ?ClientCode, ?DocumentType, ?FileName);
 set @LastDownloadId = last_insert_id();
 insert into documents.DocumentHeaders 
-  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, Header)
+  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, Header, ProviderDocumentId)
 values
-  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, ?Header);
+  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, ?Header, concat(hex(?OrderId), '-', hex(@LastDownloadId)));
 set @LastDocumentId = last_insert_id();
 ";
 
