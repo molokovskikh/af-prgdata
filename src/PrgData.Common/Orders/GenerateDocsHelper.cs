@@ -152,12 +152,17 @@ values
 
 				if (documentType == DocumentType.Waybills)
 				{
-					detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
 
 					if (position.SupplierPriceMarkup.HasValue)
+					{
+						detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
 						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (position.SupplierPriceMarkup / 100));
+					}
 					else
-						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (10m/100));
+					{
+						detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
+						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (10m / 100));
+					}
 
 					detailCommand.Parameters["?GRCost"].Value = detailCommand.Parameters["?ProducerCost"].Value;
 					detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost * 0.82m;
