@@ -812,6 +812,9 @@ endproc:
                             MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
                             MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
+                            'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
+                            Thread.Sleep(2000)
+
                             Dim ids As String = String.Empty
                             For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
                                 If String.IsNullOrEmpty(ids) Then
