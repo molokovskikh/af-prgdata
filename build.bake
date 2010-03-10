@@ -5,7 +5,7 @@ import file from Migration.bake
 Global(
 	project : "PrgData",
 	humanReadableName : "Служба подготовки данных",
-	deployTo : "\\\\acdcserv\\ios\\PrgData\\",
+	deployTo : "\\\\ADC.ANALIT.NET\\Инфорум\\WebApps\\PrgDataService\\PrgData\\", 
 	platform : "x64"
 )
 
