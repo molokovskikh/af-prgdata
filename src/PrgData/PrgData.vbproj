@@ -170,6 +170,14 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\Common.Tools\Common.Tools\7zip\7z.dll">
+      <Link>7Zip\7z.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\Common.Tools\Common.Tools\7zip\7z.exe">
+      <Link>7Zip\7z.exe</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="GetFileHandler.ashx" />
     <Content Include="GetFileReclameHandler.ashx" />
     <Content Include="Global.asax" />
@@ -188,6 +196,10 @@
     <ProjectReference Include="..\Common.Model.MYSql\Common.MySql\Common.MySql.csproj">
       <Project>{8A680813-C83B-497A-85E6-E8F07B7D7650}</Project>
       <Name>Common.MySql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Common.Tools\Common.Tools\Common.Tools.csproj">
+      <Project>{72AFCFE8-C9E9-45FA-9698-BEE896A517A3}</Project>
+      <Name>Common.Tools</Name>
     </ProjectReference>
     <ProjectReference Include="..\Counter\Counter.vbproj">
       <Project>{1F803C8E-DD78-47C2-941A-B3D3D753B37E}</Project>

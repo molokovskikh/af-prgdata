@@ -5,6 +5,7 @@ using System.Text;
 using MySql.Data.MySqlClient;
 using System.IO;
 using System.Configuration;
+using Inforoom.Common;
 
 namespace PrgData.Common.Orders
 {
@@ -108,12 +109,12 @@ set @LastDocumentId = last_insert_id();
 			var detailCommand = new MySqlCommand();
 			detailCommand.Connection = connection;
 			detailCommand.Parameters.AddWithValue("?DocumentId", lastDocumentId);
-			detailCommand.Parameters.Add("?PositionName", MySqlDbType.String);
+			detailCommand.Parameters.Add("?Product", MySqlDbType.String);
 			detailCommand.Parameters.Add("?Code", MySqlDbType.String);
 			detailCommand.Parameters.Add("?Period", MySqlDbType.String);
-			detailCommand.Parameters.Add("?ProducerName", MySqlDbType.String);
+			detailCommand.Parameters.Add("?Producer", MySqlDbType.String);
 			detailCommand.Parameters.Add("?ProducerCost", MySqlDbType.Decimal);
-			detailCommand.Parameters.Add("?GRCost", MySqlDbType.Decimal);
+			detailCommand.Parameters.Add("?RegistryCost", MySqlDbType.Decimal);
 			detailCommand.Parameters.Add("?SupplierPriceMarkup", MySqlDbType.Decimal);
 			detailCommand.Parameters.Add("?SupplierCostWithoutNDS", MySqlDbType.Decimal);
 			detailCommand.Parameters.Add("?SupplierCost", MySqlDbType.Decimal);
@@ -122,15 +123,15 @@ set @LastDocumentId = last_insert_id();
 			if (documentType == DocumentType.Waybills)
 				detailCommand.CommandText = @"
 insert into documents.DocumentBodies
-  (DocumentId, PositionName, Code, Period, ProducerName, ProducerCost, GRCost, SupplierPriceMarkup, SupplierCostWithoutNDS, SupplierCost, Quantity)
+  (DocumentId, Product, Code, Period, Producer, ProducerCost, RegistryCost, SupplierPriceMarkup, SupplierCostWithoutNDS, SupplierCost, Quantity)
 values
-  (?DocumentId, ?PositionName, ?Code, ?Period, ?ProducerName, ?ProducerCost, ?GRCost, ?SupplierPriceMarkup, ?SupplierCostWithoutNDS, ?SupplierCost, ?Quantity);";
+  (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?ProducerCost, ?RegistryCost, ?SupplierPriceMarkup, ?SupplierCostWithoutNDS, ?SupplierCost, ?Quantity);";
 			else
 			  detailCommand.CommandText = @"
 insert into documents.DocumentBodies
-  (DocumentId, PositionName, Code, Period, ProducerName, SupplierCost, Quantity)
+  (DocumentId, PositionName, Code, Period, Producer, SupplierCost, Quantity)
 values
-  (?DocumentId, ?PositionName, ?Code, ?Period, ?ProducerName, ?SupplierCost, ?Quantity);";
+  (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?SupplierCost, ?Quantity);";
 
 			order.Positions.ForEach((position) =>
 			{
@@ -143,10 +144,10 @@ values
 					"select Synonym from farm.SynonymFirmCr where SynonymFirmCrCode = ?SynonymFirmCrCode",
 					new MySqlParameter("?SynonymFirmCrCode", position.SynonymFirmCrCode)));
 
-				detailCommand.Parameters["?PositionName"].Value = synonymName;
+				detailCommand.Parameters["?Product"].Value = synonymName;
 				detailCommand.Parameters["?Code"].Value = position.Code;
 				detailCommand.Parameters["?Period"].Value = position.Period;
-				detailCommand.Parameters["?ProducerName"].Value = synonymFirmCrName;
+				detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
 				detailCommand.Parameters["?Quantity"].Value = position.Quantity;
 				detailCommand.Parameters["?SupplierCost"].Value = position.Cost;
 
@@ -164,7 +165,7 @@ values
 						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (10m / 100));
 					}
 
-					detailCommand.Parameters["?GRCost"].Value = detailCommand.Parameters["?ProducerCost"].Value;
+					detailCommand.Parameters["?RegistryCost"].Value = detailCommand.Parameters["?ProducerCost"].Value;
 					detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost * 0.82m;
 					
 				}
@@ -173,6 +174,72 @@ values
 			});
 
 		}
+
+		public static bool ParseWaybils(MySqlConnection connection, UpdateData updateData, uint clientId, ulong[] providerIds, string[] fileNames, string waybillArchive)
+		{
+			string extractDir = Path.GetDirectoryName(waybillArchive) + "\\WaybillExtract";
+			if (!Directory.Exists(extractDir))
+				Directory.CreateDirectory(extractDir);
+
+			ArchiveHelper.Extract(waybillArchive, "*.*", extractDir);
+
+			for (int i = 0; i < fileNames.Length; i++)
+			{
+				if (File.Exists(extractDir + "\\" + fileNames[i]))
+					CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i]);
+			}
+
+		    return true;
+		}
+
+		private static void CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName)
+		{
+			var headerCommand = new MySqlCommand();
+			headerCommand.Connection = connection;
+			headerCommand.Parameters.Add("?PriceCode", MySqlDbType.UInt64);
+			headerCommand.Parameters.Add("?FirmCode", MySqlDbType.UInt64);
+			headerCommand.Parameters.Add("?ClientCode", MySqlDbType.UInt64);
+			headerCommand.Parameters.Add("?AddressId", MySqlDbType.UInt64);
+			headerCommand.Parameters.Add("?OrderId", MySqlDbType.UInt64);
+			headerCommand.Parameters.Add("?DocumentType", MySqlDbType.Int32);
+			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
+
+			headerCommand.CommandText = @"
+insert into logs.document_logs 
+  (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
+values 
+  (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
+set @LastDownloadId = last_insert_id();
+insert into documents.DocumentHeaders 
+  (DownloadId, FirmCode, ClientCode, DocumentType, ProviderDocumentId)
+values
+  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, concat(hex(0), '-', hex(@LastDownloadId)));
+set @LastDocumentId = last_insert_id();
+";
+
+			headerCommand.Parameters["?FirmCode"].Value = providerId;
+			headerCommand.Parameters["?FileName"].Value = Path.GetFileName( waybillFileName);
+			headerCommand.Parameters["?DocumentType"].Value = (int)DocumentType.Waybills;
+			if (updateData.IsFutureClient)
+			{
+				headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
+				headerCommand.Parameters["?AddressId"].Value = clientId;
+			}
+			else
+			  headerCommand.Parameters["?ClientCode"].Value = clientId;
+			headerCommand.ExecuteNonQuery();
+
+			headerCommand.CommandText = "select @LastDownloadId";
+			var lastDownloadId = Convert.ToUInt64(headerCommand.ExecuteScalar());
+
+			File.Copy(
+				waybillFileName,
+				ConfigurationManager.AppSettings["DocumentsPath"]
+				+ updateData.ClientId.ToString().PadLeft(3, '0')
+				+ "\\" + DocumentType.Waybills.ToString() + "\\"
+				+ lastDownloadId + "_" + Path.GetFileName(waybillFileName));
+		}
+
 
 	}
 }
