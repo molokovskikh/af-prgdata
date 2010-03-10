@@ -129,7 +129,7 @@ values
 			else
 			  detailCommand.CommandText = @"
 insert into documents.DocumentBodies
-  (DocumentId, PositionName, Code, Period, Producer, SupplierCost, Quantity)
+  (DocumentId, Product, Code, Period, Producer, SupplierCost, Quantity)
 values
   (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?SupplierCost, ?Quantity);";
 
