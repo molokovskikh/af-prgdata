@@ -24,6 +24,14 @@ Public Class Global_asax
         ' Fires at the beginning of each request
     End Sub
 
+    Sub Application_EndRequest(ByVal sender As Object, ByVal e As EventArgs)
+        'Логируем все запросы при статусе 500
+        If Context.Response.StatusCode = 500 Then
+            LogRequestHelper.MailWithRequest("Данный запрос сгенерировал ошибку 500")
+        End If
+    End Sub
+
+
     Sub Application_AuthenticateRequest(ByVal sender As Object, ByVal e As EventArgs)
         ' Fires upon attempting to authenticate the use
     End Sub
