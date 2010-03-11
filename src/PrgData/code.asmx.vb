@@ -200,7 +200,7 @@ Public Class PrgDataEx
                 Finally
                     If Directory.Exists(tmpWaybillFolder) Then
                         Try
-                            Directory.Delete(tmpWaybillFolder)
+                            Directory.Delete(tmpWaybillFolder, True)
                         Catch ex As Exception
                             Log.Error("Ошибка при удалении временнной директории при обработке накладных", ex)
                         End Try
@@ -209,8 +209,8 @@ Public Class PrgDataEx
             End Using
 
         Catch ex As Exception
-            Return "Status=1"
             Log.Error("Ошибка при загрузке накладных", ex)
+            Return "Status=1"
         End Try
     End Function
 

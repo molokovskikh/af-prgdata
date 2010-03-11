@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.ServiceModel;
 using System.Text;
 using MySql.Data.MySqlClient;
 using System.IO;
 using System.Configuration;
 using Inforoom.Common;
+using PrgData.Common.Waybills;
 
 namespace PrgData.Common.Orders
 {
@@ -177,22 +179,42 @@ values
 
 		public static bool ParseWaybils(MySqlConnection connection, UpdateData updateData, uint clientId, ulong[] providerIds, string[] fileNames, string waybillArchive)
 		{
-			string extractDir = Path.GetDirectoryName(waybillArchive) + "\\WaybillExtract";
+			var extractDir = Path.GetDirectoryName(waybillArchive) + "\\WaybillExtract";
 			if (!Directory.Exists(extractDir))
 				Directory.CreateDirectory(extractDir);
 
 			ArchiveHelper.Extract(waybillArchive, "*.*", extractDir);
+			var ids = new List<uint>();
 
-			for (int i = 0; i < fileNames.Length; i++)
+			for (var i = 0; i < fileNames.Length; i++)
 			{
 				if (File.Exists(extractDir + "\\" + fileNames[i]))
-					CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i]);
+					ids.Add(CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i]));
 			}
 
-		    return true;
+			return ProcessWaybills(ids);
 		}
 
-		private static void CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName)
+		private static bool ProcessWaybills(List<uint> ids)
+		{
+			var factory = new ChannelFactory<IWaybillService>(new NetTcpBinding(), ConfigurationManager.AppSettings["WaybillServiceUri"]);
+			var channel = factory.CreateChannel();
+			var communicationObject = (ICommunicationObject)channel;
+			try
+			{
+				var parsedIds = channel.ParseWaybill(ids.ToArray());
+				communicationObject.Close();
+				return parsedIds.Length > 0;
+			}
+			catch(Exception)
+			{
+				if (communicationObject.State != CommunicationState.Closed)
+					communicationObject.Abort();
+				throw;
+			}
+		}
+
+		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName)
 		{
 			var headerCommand = new MySqlCommand();
 			headerCommand.Connection = connection;
@@ -205,16 +227,10 @@ values
 			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
 
 			headerCommand.CommandText = @"
-insert into logs.document_logs 
-  (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
-values 
-  (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
+insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
+values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
+
 set @LastDownloadId = last_insert_id();
-insert into documents.DocumentHeaders 
-  (DownloadId, FirmCode, ClientCode, DocumentType, ProviderDocumentId)
-values
-  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, concat(hex(0), '-', hex(@LastDownloadId)));
-set @LastDocumentId = last_insert_id();
 ";
 
 			headerCommand.Parameters["?FirmCode"].Value = providerId;
@@ -230,7 +246,7 @@ set @LastDocumentId = last_insert_id();
 			headerCommand.ExecuteNonQuery();
 
 			headerCommand.CommandText = "select @LastDownloadId";
-			var lastDownloadId = Convert.ToUInt64(headerCommand.ExecuteScalar());
+			var lastDownloadId = Convert.ToUInt32(headerCommand.ExecuteScalar());
 
 			File.Copy(
 				waybillFileName,
@@ -238,8 +254,8 @@ set @LastDocumentId = last_insert_id();
 				+ updateData.ClientId.ToString().PadLeft(3, '0')
 				+ "\\" + DocumentType.Waybills.ToString() + "\\"
 				+ lastDownloadId + "_" + Path.GetFileName(waybillFileName));
+
+			return lastDownloadId;
 		}
-
-
 	}
 }
