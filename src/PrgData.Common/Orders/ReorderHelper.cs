@@ -6,6 +6,7 @@ using MySql.Data.MySqlClient;
 using Common.MySql;
 using System.Data;
 using log4net;
+using System.IO;
 
 
 namespace PrgData.Common.Orders

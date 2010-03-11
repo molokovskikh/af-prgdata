@@ -568,6 +568,43 @@ Order by 3";
 			}
 		}
 
+		public string GetDocumentHeadersCommand(string downloadIds)
+		{
+			return String.Format(@"
+select
+  DocumentHeaders.Id,
+  DocumentHeaders.DownloadId,
+  date_sub(DocumentHeaders.WriteTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as WriteTime,
+  DocumentHeaders.FirmCode,
+  DocumentHeaders.ClientCode,
+  DocumentHeaders.DocumentType,
+  DocumentHeaders.ProviderDocumentId,
+  DocumentHeaders.OrderId
+from
+  documents.DocumentHeaders
+where
+  DocumentHeaders.DownloadId in ({0})
+"
+				,
+				downloadIds);
+ 		}
+
+		public string GetDocumentBodiesCommand(string downloadIds)
+		{
+			return String.Format(@"
+select
+  DocumentBodies.*
+from
+  documents.DocumentHeaders,
+  documents.DocumentBodies
+where
+    DocumentHeaders.DownloadId in ({0})
+and DocumentBodies.DocumentId = DocumentHeaders.Id
+"
+				,
+				downloadIds);
+		}
+
 		public string GetUserCommand()
 		{
 			if (_updateData.IsFutureClient)

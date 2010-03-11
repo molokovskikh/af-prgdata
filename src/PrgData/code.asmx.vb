@@ -12,19 +12,27 @@ Imports PrgData.Common
 Imports System.Net.Mail
 Imports log4net.Core
 Imports PrgData.Common.Orders
+Imports Inforoom.Common
 
 
 <WebService(Namespace:="IOS.Service")> _
 Public Class PrgDataEx
     Inherits System.Web.Services.WebService
 
+    Const SevenZipExe As String = "C:\Program Files\7-Zip\7z.exe"
+
     Public Sub New()
         MyBase.New()
 
         InitializeComponent()
 
-        ResultFileName = Server.MapPath("/Results") & "\"
-        ConnectionManager = New Global.Common.MySql.ConnectionManager()
+        Try
+            ResultFileName = Server.MapPath("/Results") & "\"
+            ConnectionManager = New Global.Common.MySql.ConnectionManager()
+            ArchiveHelper.SevenZipExePath = SevenZipExe
+        Catch ex As Exception
+            Log.Error("Ошибка при инициализации приложения", ex)
+        End Try
 
     End Sub
 
@@ -150,6 +158,66 @@ Public Class PrgDataEx
             Return "Error=" & "Не удалось отправить письмо. Попробуйте позднее."
         End Try
     End Function
+
+    'Получает письмо и отправляет его
+    <WebMethod()> _
+    Public Function SendWaybills( _
+    ByVal ClientId As UInt32, _
+    ByVal ProviderIds As UInt64(), _
+    ByVal FileNames As String(), _
+    ByVal Waybills() As Byte) As String
+        Try
+            Dim updateData As UpdateData
+
+            Using connection As MySqlConnection = New MySqlConnection(Settings.ConnectionString())
+                connection.Open()
+
+                updateData = UpdateHelper.GetUpdateData(connection, HttpContext.Current.User.Identity.Name)
+
+                If updateData Is Nothing Then
+                    Throw New Exception("Клиент не найден")
+                End If
+
+                Dim tmpWaybillFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName())
+                Dim tmpWaybillArchive = tmpWaybillFolder + "\waybills.7z"
+
+
+                Directory.CreateDirectory(tmpWaybillFolder)
+
+                Try
+
+                    Using fileWaybills As New FileStream(tmpWaybillArchive, FileMode.CreateNew)
+                        fileWaybills.Write(Waybills, 0, Waybills.Length)
+                    End Using
+
+                    If Not ArchiveHelper.TestArchive(tmpWaybillArchive) Then
+                        Throw New Exception("Полученный архив поврежден.")
+                    End If
+
+                    If GenerateDocsHelper.ParseWaybils(connection, updateData, ClientId, ProviderIds, FileNames, tmpWaybillArchive) Then
+                        Return "Status=0"
+                    Else
+                        Return "Status=2"
+                    End If
+
+
+                Finally
+                    If Directory.Exists(tmpWaybillFolder) Then
+                        Try
+                            Directory.Delete(tmpWaybillFolder, True)
+                        Catch ex As Exception
+                            Log.Error("Ошибка при удалении временнной директории при обработке накладных", ex)
+                        End Try
+                    End If
+                End Try
+            End Using
+
+        Catch ex As Exception
+            Log.Error("Ошибка при загрузке накладных", ex)
+            Return "Status=1"
+        End Try
+    End Function
+
 
     <WebMethod()> Public Function GetInfo( _
        ByVal LibraryName() As String, _
@@ -621,7 +689,6 @@ endproc:
 
 
             ArhiveStartTime = Now()
-            Const SevenZipExe As String = "C:\Program Files\7-Zip\7z.exe"
             Dim SevenZipParam As String = " -mx7 -bd -slp -mmt=6 -w" & Path.GetTempPath
             Dim SevenZipTmpArchive, Name As String
             Dim xRow As DataRow
@@ -771,6 +838,66 @@ endproc:
 
 
                         Next
+
+                        If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+                            MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+
+                            'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
+                            Thread.Sleep(2000)
+
+                            Dim ids As String = String.Empty
+                            For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
+                                If String.IsNullOrEmpty(ids) Then
+                                    ids = documentRow("DocumentId").ToString()
+                                Else
+                                    ids += ", " & documentRow("DocumentId").ToString()
+                                End If
+                            Next
+
+                            GetMySQLFileWithDefault("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids))
+                            GetMySQLFileWithDefault("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids))
+
+                            Thread.Sleep(3000)
+
+                            Pr = New Process
+
+                            startInfo = New ProcessStartInfo(SevenZipExe)
+                            startInfo.CreateNoWindow = True
+                            startInfo.RedirectStandardOutput = True
+                            startInfo.RedirectStandardError = True
+                            startInfo.UseShellExecute = False
+                            startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                            startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlFilePath & "Document*" & UserId & ".txt", SevenZipParam)
+                            startInfo.FileName = SevenZipExe
+
+                            Pr.StartInfo = startInfo
+
+                            Pr.Start()
+                            If Not Pr.HasExited Then
+#If Not Debug Then
+                                Try
+                                    Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                Catch
+                                End Try
+#End If
+                            End If
+
+                            Вывод7Z = Pr.StandardOutput.ReadToEnd
+                            Ошибка7Z = Pr.StandardError.ReadToEnd
+
+                            Pr.WaitForExit()
+
+                            If Pr.ExitCode <> 0 Then
+                                Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                                MySQLFileDelete(SevenZipTmpArchive)
+                                Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                            End If
+                            Pr = Nothing
+
+                            MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                        End If
 
                     End If
 
@@ -1586,24 +1713,24 @@ RestartInsertTrans:
                         'MailErr("Приняли архивный заказ", "Заказ №" & ServerOrderId)
 
                     End If
-                OrderInsertCm.Connection = ReadWriteCn
-                OrderInsertCm.CommandText = "SELECT " & _
-                 "        `MinCost`          , " & _
-                 "        `LeaderMinCost`    , " & _
-                 "        `PriceCode`         , " & _
-                 "        `LeaderPriceCode`   , " & _
-                 "        `ProductID`         , " & _
-                 "        `CodeFirmCr`       , " & _
-                 "        `SynonymCode`      , " & _
-                 "        `SynonymFirmCrCode`, " & _
-                 "        `Code`             , " & _
-                 "        `CodeCr`           , " & _
-                 "        `Quantity`         , " & _
-                 "        `Junk`             , " & _
-                 "        `Await`            , " & _
-                 "        `Cost` " & _
-                 "FROM    orders.orderslist, " & _
-                 "        orders.leaders"
+                    OrderInsertCm.Connection = ReadWriteCn
+                    OrderInsertCm.CommandText = "SELECT " & _
+                     "        `MinCost`          , " & _
+                     "        `LeaderMinCost`    , " & _
+                     "        `PriceCode`         , " & _
+                     "        `LeaderPriceCode`   , " & _
+                     "        `ProductID`         , " & _
+                     "        `CodeFirmCr`       , " & _
+                     "        `SynonymCode`      , " & _
+                     "        `SynonymFirmCrCode`, " & _
+                     "        `Code`             , " & _
+                     "        `CodeCr`           , " & _
+                     "        `Quantity`         , " & _
+                     "        `Junk`             , " & _
+                     "        `Await`            , " & _
+                     "        `Cost` " & _
+                     "FROM    orders.orderslist, " & _
+                     "        orders.leaders"
 
                     OrderInsertDA.FillSchema(DS, SchemaType.Source, "OrdersL")
 
@@ -4032,37 +4159,37 @@ RestartTrans2:
                     BasecostPassword = SQLdr.GetString(0)
                 End Using
 
-				'Получаем маску разрешенных для сохранения гридов
-				If Not UpdateData.IsFutureClient Then
-					Cm.CommandText = "SELECT ifnull(sum(SaveGridID), 0) FROM ret_save_grids r where ClientCode = " & CCode
-				Else
-					Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
-	  "from usersettings.AssignedPermissions ap " & _
-	  "join usersettings.UserPermissions up on up.Id = ap.PermissionId " & _
-	  "where ap.UserId=" & UpdateData.UserId
-				End If
+                'Получаем маску разрешенных для сохранения гридов
+                If Not UpdateData.IsFutureClient Then
+                    Cm.CommandText = "SELECT ifnull(sum(SaveGridID), 0) FROM ret_save_grids r where ClientCode = " & CCode
+                Else
+                    Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
+                  "from usersettings.AssignedPermissions ap " & _
+                  "join usersettings.UserPermissions up on up.Id = ap.PermissionId " & _
+                  "where ap.UserId=" & UpdateData.UserId
+                End If
 
-				Dim SaveGridMask As UInt64 = Convert.ToUInt64(Cm.ExecuteScalar())
+                Dim SaveGridMask As UInt64 = Convert.ToUInt64(Cm.ExecuteScalar())
 
-				If (BasecostPassword <> Nothing) Then
-					Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
-					Return S
-				Else
-					MailErr("Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
-					Addition = "Не заданы пароли для шифрации данных"
-					ErrorFlag = True
-					UpdateType = 5
-					'ProtocolThread.Start()
-				End If
-			Catch Exp As Exception
-				MailErr("Ошибка при получении паролей", Exp.Message & ": " & Exp.StackTrace)
-				Addition = Exp.Message
-				ErrorFlag = True
-				UpdateType = 5
-				'ProtocolThread.Start()
-			Finally
-				DBDisconnect()
-			End Try
+                If (BasecostPassword <> Nothing) Then
+                    Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
+                    Return S
+                Else
+                    MailErr("Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
+                    Addition = "Не заданы пароли для шифрации данных"
+                    ErrorFlag = True
+                    UpdateType = 5
+                    'ProtocolThread.Start()
+                End If
+            Catch Exp As Exception
+                MailErr("Ошибка при получении паролей", Exp.Message & ": " & Exp.StackTrace)
+                Addition = Exp.Message
+                ErrorFlag = True
+                UpdateType = 5
+                'ProtocolThread.Start()
+            Finally
+                DBDisconnect()
+            End Try
         End If
 
         If ErrorFlag Then
