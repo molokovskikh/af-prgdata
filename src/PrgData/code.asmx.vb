@@ -855,8 +855,8 @@ endproc:
                                 End If
                             Next
 
-                            GetMySQLFileWithDefault("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids))
-                            GetMySQLFileWithDefault("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids))
+                            GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
+                            GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
 
                             Thread.Sleep(3000)
 
@@ -3232,19 +3232,22 @@ RestartTrans2:
                     "   AND C.FormId                        =CF.Id " & _
                     "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
                     "   AND C.hidden                          =0", _
-                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
+                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                    True)
 
                     GetMySQLFileWithDefaultEx( _
                         "MNN", _
                         SelProc, _
                         helper.GetMNNCommand(), _
-                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                        True)
 
                     GetMySQLFileWithDefaultEx( _
                     "Descriptions", _
                     SelProc, _
                     helper.GetDescriptionCommand(), _
-                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate)
+                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                    True)
                 Else
                     GetMySQLFileWithDefault("Catalogs", SelProc, _
                     "SELECT C.Id             , " & _
@@ -4547,11 +4550,11 @@ RestartMaxCodesSet:
 
     Private Sub GetMySQLFileWithDefault(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
 
-        GetMySQLFileWithDefaultEx(FileName, MyCommand, SQLText, False)
+        GetMySQLFileWithDefaultEx(FileName, MyCommand, SQLText, False, True)
 
     End Sub
 
-    Private Sub GetMySQLFileWithDefaultEx(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean)
+    Private Sub GetMySQLFileWithDefaultEx(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean, ByVal AddToQueue As Boolean)
         Dim SQL As String = SQLText
         Dim oldCumulative As Boolean
 
@@ -4571,11 +4574,13 @@ RestartMaxCodesSet:
             End If
         End Try
 
-        SyncLock (FilesForArchive)
+        If AddToQueue Then
+            SyncLock (FilesForArchive)
 
-            FilesForArchive.Enqueue(New FileForArchive(FileName, False))
+                FilesForArchive.Enqueue(New FileForArchive(FileName, False))
 
-        End SyncLock
+            End SyncLock
+        End If
 
     End Sub
 
