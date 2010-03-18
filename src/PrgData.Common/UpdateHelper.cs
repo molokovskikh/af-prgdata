@@ -714,9 +714,11 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 				return @"
 SELECT 
      c.Id as ClientId,
-     c.Name
+     c.Name,
+     regions.CalculateOnProducerCost
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
+  join farm.regions on regions.RegionCode = c.RegionCode
 WHERE u.Id = ?UserId";
 			}
 			else
@@ -724,9 +726,11 @@ WHERE u.Id = ?UserId";
 				return @"
 SELECT 
      clientsdata.firmcode   as ClientId,
-     clientsdata.ShortName  as Name 
+     clientsdata.ShortName  as Name, 
+     regions.CalculateOnProducerCost
 FROM   
      clientsdata 
+     join farm.regions on regions.RegionCode = clientsdata.RegionCode
 WHERE  clientsdata.firmcode    = ?ClientCode";
 			}
 		}

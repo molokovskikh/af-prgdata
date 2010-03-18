@@ -34,7 +34,6 @@ namespace PrgData.Common.Orders
 			headerCommand.Parameters.Add("?ClientCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?OrderId", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?DocumentType", MySqlDbType.Int32);
-			headerCommand.Parameters.Add("?Header", MySqlDbType.String);
 			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
 
 			orders.ForEach((item) =>
@@ -67,9 +66,9 @@ values
   (?FirmCode, ?ClientCode, ?DocumentType, ?FileName);
 set @LastDownloadId = last_insert_id();
 insert into documents.DocumentHeaders 
-  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, Header, ProviderDocumentId)
+  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, ProviderDocumentId)
 values
-  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, ?Header, concat(hex(?OrderId), '-', hex(@LastDownloadId)));
+  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)));
 set @LastDocumentId = last_insert_id();
 ";
 
@@ -77,10 +76,6 @@ set @LastDocumentId = last_insert_id();
 			headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
 			headerCommand.Parameters["?OrderId"].Value = order.ServerOrderId;
 			headerCommand.Parameters["?DocumentType"].Value = (int)documentType;
-			if (documentType == DocumentType.Docs)
-				headerCommand.Parameters["?Header"].Value = "Это документ от компании Инфорум";
-			else
-				headerCommand.Parameters["?Header"].Value = DBNull.Value;
 			headerCommand.Parameters["?FileName"].Value = fileNames[(int)documentType] + ".txt";
 			headerCommand.ExecuteNonQuery();
 
@@ -108,7 +103,8 @@ set @LastDocumentId = last_insert_id();
 
 		private static void GenerateDocDetail(ulong lastDocumentId, MySqlConnection connection, DocumentType documentType, ClientOrderHeader order)
 		{
-/*			var detailCommand = new MySqlCommand();
+			var random = new Random();
+			var detailCommand = new MySqlCommand();
 			detailCommand.Connection = connection;
 			detailCommand.Parameters.AddWithValue("?DocumentId", lastDocumentId);
 			detailCommand.Parameters.Add("?Product", MySqlDbType.String);
@@ -121,13 +117,15 @@ set @LastDocumentId = last_insert_id();
 			detailCommand.Parameters.Add("?SupplierCostWithoutNDS", MySqlDbType.Decimal);
 			detailCommand.Parameters.Add("?SupplierCost", MySqlDbType.Decimal);
 			detailCommand.Parameters.Add("?Quantity", MySqlDbType.Int32);
+			detailCommand.Parameters.Add("?VitallyImportant", MySqlDbType.Byte);
+			detailCommand.Parameters.Add("?NDS", MySqlDbType.Int32);
 
 			if (documentType == DocumentType.Waybills)
 				detailCommand.CommandText = @"
 insert into documents.DocumentBodies
-  (DocumentId, Product, Code, Period, Producer, ProducerCost, RegistryCost, SupplierPriceMarkup, SupplierCostWithoutNDS, SupplierCost, Quantity)
+  (DocumentId, Product, Code, Period, Producer, ProducerCost, RegistryCost, SupplierPriceMarkup, SupplierCostWithoutNDS, SupplierCost, Quantity, VitallyImportant, NDS)
 values
-  (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?ProducerCost, ?RegistryCost, ?SupplierPriceMarkup, ?SupplierCostWithoutNDS, ?SupplierCost, ?Quantity);";
+  (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?ProducerCost, ?RegistryCost, ?SupplierPriceMarkup, ?SupplierCostWithoutNDS, ?SupplierCost, ?Quantity, ?VitallyImportant, ?NDS);";
 			else
 			  detailCommand.CommandText = @"
 insert into documents.DocumentBodies
@@ -148,7 +146,7 @@ values
 
 				detailCommand.Parameters["?Product"].Value = synonymName;
 				detailCommand.Parameters["?Code"].Value = position.Code;
-				detailCommand.Parameters["?Period"].Value = position.Period;
+				//detailCommand.Parameters["?Period"].Value = position.Period;
 				detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
 				detailCommand.Parameters["?Quantity"].Value = position.Quantity;
 				detailCommand.Parameters["?SupplierCost"].Value = position.Cost;
@@ -156,6 +154,7 @@ values
 				if (documentType == DocumentType.Waybills)
 				{
 
+/*
 					if (position.SupplierPriceMarkup.HasValue)
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
@@ -165,16 +164,33 @@ values
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
 						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (10m / 100));
-					}
+ 					}
+ */ 
+					detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
+					detailCommand.Parameters["?ProducerCost"].Value = position.Cost / 1.25m;
 
 					detailCommand.Parameters["?RegistryCost"].Value = detailCommand.Parameters["?ProducerCost"].Value;
-					detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost * 0.82m;
-					
+					detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.18m;
+					detailCommand.Parameters["?NDS"].Value = 18;
+
+					switch (random.Next(3))
+					{ 
+						case 1:
+							detailCommand.Parameters["?VitallyImportant"].Value = 0;
+							break;
+						case 2:
+							detailCommand.Parameters["?VitallyImportant"].Value = 1;
+							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.1m;
+							detailCommand.Parameters["?NDS"].Value = 10;
+							break;
+						default:
+							detailCommand.Parameters["?VitallyImportant"].Value = null;
+							break;
+					}				
 				}
 
 				detailCommand.ExecuteNonQuery();
-			});*/
-
+			});
 		}
 
 		public static bool ParseWaybils(MySqlConnection connection, UpdateData updateData, uint clientId, ulong[] providerIds, string[] fileNames, string waybillArchive)
@@ -250,10 +266,15 @@ set @LastDownloadId = last_insert_id();
 
 			File.Copy(
 				waybillFileName,
-				ConfigurationManager.AppSettings["DocumentsPath"]
-				+ updateData.ClientId.ToString().PadLeft(3, '0')
-				+ "\\" + DocumentType.Waybills.ToString() + "\\"
-				+ lastDownloadId + "_" + Path.GetFileName(waybillFileName));
+				Path.Combine(
+					Path.Combine(
+						Path.Combine(
+							ConfigurationManager.AppSettings["DocumentsPath"],
+						updateData.ClientId.ToString().PadLeft(3, '0')),
+						DocumentType.Waybills.ToString()),
+					lastDownloadId + "_" + Path.GetFileName(waybillFileName)
+				)
+			);
 
 			return lastDownloadId;
 		}
