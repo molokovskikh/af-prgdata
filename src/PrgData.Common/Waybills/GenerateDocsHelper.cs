@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Security;
 using System.ServiceModel;
 using System.Text;
 using MySql.Data.MySqlClient;
@@ -213,7 +214,10 @@ values
 
 		private static bool ProcessWaybills(List<uint> ids)
 		{
-			var factory = new ChannelFactory<IWaybillService>(new NetTcpBinding(), ConfigurationManager.AppSettings["WaybillServiceUri"]);
+			var binding = new NetTcpBinding();
+			binding.Security.Mode = SecurityMode.None;
+
+			var factory = new ChannelFactory<IWaybillService>(binding, ConfigurationManager.AppSettings["WaybillServiceUri"]);
 			var channel = factory.CreateChannel();
 			var communicationObject = (ICommunicationObject)channel;
 			try
