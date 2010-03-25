@@ -273,7 +273,7 @@ set @LastDownloadId = last_insert_id();
 				Path.Combine(
 					Path.Combine(
 						Path.Combine(
-							ConfigurationManager.AppSettings["DocumentsPath"],
+							ConfigurationManager.AppSettings["WaybillPath"],
 						updateData.ClientId.ToString().PadLeft(3, '0')),
 						DocumentType.Waybills.ToString()),
 					lastDownloadId + "_" + Path.GetFileName(waybillFileName)
