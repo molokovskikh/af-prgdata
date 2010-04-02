@@ -73,7 +73,7 @@ namespace PrgData.Common
 
 		public UpdateHelper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
 		{
-			MaxProducerCostsPriceId = 4853;
+			MaxProducerCostsPriceId = 4863;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
 			_readOnlyConnection = readOnlyConnection;
@@ -646,23 +646,54 @@ Order by 3";
 
 		public string GetDocumentHeadersCommand(string downloadIds)
 		{
-			return String.Format(@"
+			if (_updateData.IsFutureClient)
+			{
+				return String.Format(@"
 select
   DocumentHeaders.Id,
   DocumentHeaders.DownloadId,
-  date_sub(DocumentHeaders.WriteTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as WriteTime,
+  date_sub(date_sub(DocumentHeaders.DocumentDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second), interval regions.MoscowBias hour) as WriteTime,
+  DocumentHeaders.FirmCode,
+  DocumentHeaders.AddressId as ClientCode,
+  DocumentHeaders.DocumentType,
+  DocumentHeaders.ProviderDocumentId,
+  DocumentHeaders.OrderId
+from
+  documents.DocumentHeaders,
+  future.Clients,
+  farm.regions
+where
+    DocumentHeaders.DownloadId in ({0})
+and (Clients.Id = DocumentHeaders.ClientCode)
+and (regions.RegionCode = Clients.RegionCode)
+"
+					,
+					downloadIds);
+			}
+			else
+			{
+				return String.Format(@"
+select
+  DocumentHeaders.Id,
+  DocumentHeaders.DownloadId,
+  date_sub(date_sub(DocumentHeaders.DocumentDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second), interval regions.MoscowBias hour) as WriteTime,
   DocumentHeaders.FirmCode,
   DocumentHeaders.ClientCode,
   DocumentHeaders.DocumentType,
   DocumentHeaders.ProviderDocumentId,
   DocumentHeaders.OrderId
 from
-  documents.DocumentHeaders
+  documents.DocumentHeaders,
+  usersettings.clientsdata,
+  farm.regions
 where
   DocumentHeaders.DownloadId in ({0})
+and (clientsdata.FirmCode = DocumentHeaders.ClientCode)
+and (regions.RegionCode = clientsdata.RegionCode)
 "
-				,
-				downloadIds);
+					,
+					downloadIds);
+			}
  		}
 
 		public string GetDocumentBodiesCommand(string downloadIds)
