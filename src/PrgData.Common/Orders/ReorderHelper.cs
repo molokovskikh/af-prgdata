@@ -214,7 +214,8 @@ and (Core.RegionCode = ?RegionCode)
 						order.PriceDate,
 						order.GetSavedRowCount(),
 						Convert.ToUInt32(order.ClientOrderId),
-						order.ClientAddition);
+						order.ClientAddition,
+						order.DelayOfPayment);
 					foreach (var position in order.Positions)
 						if (!position.Duplicated)
 							SaveOrderDetail(order, position);
@@ -242,7 +243,8 @@ and (Core.RegionCode = ?RegionCode)
                RequestRatio     ,
                MinOrderCount    ,
                OrderCost        ,
-               SupplierPriceMarkup
+               SupplierPriceMarkup,
+               RetailMarkup
         )
  SELECT ?OrderID                                      ,
         products.ID                                   ,
@@ -258,7 +260,8 @@ and (Core.RegionCode = ?RegionCode)
         ?RequestRatio                                 ,
         ?MinOrderCount                                ,
         ?OrderCost                                    ,
-        ?SupplierPriceMarkup
+        ?SupplierPriceMarkup                          ,
+        ?RetailMarkup
  FROM   catalogs.products
         LEFT JOIN farm.synonym syn
         ON     syn.synonymcode=?SynonymCode
@@ -271,6 +274,8 @@ and (Core.RegionCode = ?RegionCode)
 				_readWriteConnection);
 
 			command.Parameters.Clear();
+			//
+			command.CommandText += "set @LastOrderDetailId = last_insert_id();";
 
 			if (_calculateLeaders
 				&& (position.MinCost.HasValue || position.LeaderMinCost.HasValue)
@@ -278,12 +283,17 @@ and (Core.RegionCode = ?RegionCode)
 			{
 				command.CommandText += @"
 insert into orders.leaders 
-values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?MinPriceCode, 0), nullif(?LeaderMinPriceCode, 0));";
+values (@LastOrderDetailId, nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?MinPriceCode, 0), nullif(?LeaderMinPriceCode, 0));";
 				command.Parameters.AddWithValue("?MinCost", position.MinCost);
 				command.Parameters.AddWithValue("?LeaderMinCost", position.LeaderMinCost);
 				command.Parameters.AddWithValue("?MinPriceCode", position.MinPriceCode);
 				command.Parameters.AddWithValue("?LeaderMinPriceCode", position.LeaderMinPriceCode);
 			}
+
+			command.CommandText += @"
+insert into orders.OrderedOffers
+(Id, Unit, Volume, Note, Period, Doc, VitallyImportant, RegistryCost, Quantity, ProducerCost, NDS) 
+values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImportant, ?RegistryCost, ?CoreQuantity, ?ProducerCost, ?NDS);";
 
 			command.Parameters.AddWithValue("?OrderId", order.ServerOrderId);
 
@@ -303,6 +313,20 @@ values (last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif
 			command.Parameters.AddWithValue("?OrderCost", position.OrderCost);
 
 			command.Parameters.AddWithValue("?SupplierPriceMarkup", position.SupplierPriceMarkup);
+
+			command.Parameters.AddWithValue("?Unit", position.Unit);
+			command.Parameters.AddWithValue("?Volume", position.Volume);
+			command.Parameters.AddWithValue("?Note", position.Note);
+			command.Parameters.AddWithValue("?Period", position.Period);
+			command.Parameters.AddWithValue("?Doc", position.Doc);
+			command.Parameters.AddWithValue("?VitallyImportant", position.VitallyImportant);
+			command.Parameters.AddWithValue("?RegistryCost", position.RegistryCost);
+			command.Parameters.AddWithValue("?CoreQuantity", position.CoreQuantity);
+
+			command.Parameters.AddWithValue("?RetailMarkup", position.RetailMarkup);
+
+			command.Parameters.AddWithValue("?ProducerCost", position.ProducerCost);
+			command.Parameters.AddWithValue("?NDS", position.NDS);
 
 			command.ExecuteNonQuery();
 		}
@@ -430,7 +454,19 @@ AND    RCS.clientcode          = ?ClientCode"
             string[] minPriceCode,
             string[] leaderMinCost, 
             string[] leaderMinPriceCode,
-			string[] supplierPriceMarkup
+			string[] supplierPriceMarkup,
+			string[] delayOfPayment,
+			string[] coreQuantity,
+			string[] unit,
+			string[] volume,
+			string[] note,
+			string[] period,
+			string[] doc,
+			string[] registryCost,
+			bool[] vitallyImportant,
+			string[] retailMarkup,
+			string[] producerCost,
+			string[] nds
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -439,6 +475,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(orderCount, priceDate.Length, "priceDate");
 			CheckArrayCount(orderCount, clientAddition.Length, "clientAddition");
 			CheckArrayCount(orderCount, rowCount.Length, "rowCount");
+			CheckArrayCount(orderCount, delayOfPayment.Length, "delayOfPayment");						
 
 			int allPositionCount = rowCount.Sum(item => item);
 
@@ -462,7 +499,21 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, minPriceCode.Length, "minPriceCode");
 			CheckArrayCount(allPositionCount, leaderMinCost.Length, "leaderMinCost");
 			CheckArrayCount(allPositionCount, leaderMinPriceCode.Length, "leaderMinPriceCode");
-			CheckArrayCount(allPositionCount, supplierPriceMarkup.Length, "supplierPriceMarkup");			
+			CheckArrayCount(allPositionCount, supplierPriceMarkup.Length, "supplierPriceMarkup");
+
+			CheckArrayCount(allPositionCount, coreQuantity.Length, "coreQuantity");
+			CheckArrayCount(allPositionCount, unit.Length, "unit");
+			CheckArrayCount(allPositionCount, volume.Length, "volume");
+			CheckArrayCount(allPositionCount, note.Length, "note");
+			CheckArrayCount(allPositionCount, period.Length, "period");
+			CheckArrayCount(allPositionCount, doc.Length, "doc");
+			CheckArrayCount(allPositionCount, registryCost.Length, "registryCost");
+			CheckArrayCount(allPositionCount, vitallyImportant.Length, "vitallyImportant");
+
+			CheckArrayCount(allPositionCount, retailMarkup.Length, "retailMarkup");
+
+			CheckArrayCount(allPositionCount, producerCost.Length, "producerCost");
+			CheckArrayCount(allPositionCount, nds.Length, "nds");
 
 			var detailsPosition = 0;
 			for (int i = 0; i < orderCount; i++)
@@ -474,7 +525,13 @@ AND    RCS.clientcode          = ?ClientCode"
 					RegionCode = regionCode[i],
 					PriceDate = priceDate[i],
 					ClientAddition = DecodedDelphiString(clientAddition[i]),
-					RowCount = rowCount[i]
+					RowCount = rowCount[i],
+					DelayOfPayment =
+						String.IsNullOrEmpty(delayOfPayment[i]) ? null : (decimal?)decimal
+							.Parse(
+								delayOfPayment[i],
+								System.Globalization.NumberStyles.Currency,
+								System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 				};
 
 				_orders.Add(clientOrder);
@@ -529,6 +586,33 @@ AND    RCS.clientcode          = ?ClientCode"
 									supplierPriceMarkup[detailIndex],
 									System.Globalization.NumberStyles.Currency,
 									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+						CoreQuantity = coreQuantity[detailIndex],
+						Unit = unit[detailIndex],
+						Volume = volume[detailIndex],
+						Note = note[detailIndex],
+						Period = period[detailIndex],
+						Doc = doc[detailIndex],
+						RegistryCost =
+							String.IsNullOrEmpty(registryCost[detailIndex]) ? null : (decimal?)decimal
+									.Parse(
+										registryCost[detailIndex],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+						VitallyImportant = vitallyImportant[detailIndex],
+						RetailMarkup =
+							String.IsNullOrEmpty(retailMarkup[detailIndex]) ? null : (decimal?)decimal
+								.Parse(
+									retailMarkup[detailIndex],
+									System.Globalization.NumberStyles.Currency,
+									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+						ProducerCost =
+							String.IsNullOrEmpty(producerCost[detailIndex]) ? null : (decimal?)decimal
+								.Parse(
+									producerCost[detailIndex],
+									System.Globalization.NumberStyles.Currency,
+									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+						NDS =
+							String.IsNullOrEmpty(nds[detailIndex]) ? null : (ushort?)ushort.Parse(nds[detailIndex])
 					};
 
 					clientOrder.Positions.Add(position);

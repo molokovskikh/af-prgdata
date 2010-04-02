@@ -53,6 +53,7 @@ namespace PrgData.Common
 	{
 		public string Region { get; set; }
 		public DateTime ReclameDate { get; set;}
+		public bool ShowAdvertising { get; set; }
 
 		public Reclame()
 		{
@@ -66,11 +67,80 @@ namespace PrgData.Common
 		private MySqlConnection _readWriteConnection;
 		private MySqlConnection _readOnlyConnection;
 
+		//Код поставщика 7664
+		public uint MaxProducerCostsPriceId { get; private set; }
+		private uint maxProducerCostsCostId;
+
 		public UpdateHelper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
 		{
+			MaxProducerCostsPriceId = 4853;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
 			_readOnlyConnection = readOnlyConnection;
+		}
+
+		public bool DefineMaxProducerCostsCostId()
+		{
+			var costId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readOnlyConnection, @"
+select CostCode 
+from 
+  usersettings.PricesCosts,
+  usersettings.PriceItems
+where
+    (PricesCosts.PriceCode = ?PriceCode)
+and (PriceItems.Id = PricesCosts.PriceItemId)
+"
+				,
+				new MySqlParameter("?PriceCode", MaxProducerCostsPriceId));
+			return ((costId != null) && uint.TryParse(costId.ToString(), out maxProducerCostsCostId));
+		}
+
+		public bool MaxProducerCostIsFresh()
+		{
+			var fresh = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readOnlyConnection, @"
+select Id 
+from 
+  usersettings.PricesCosts,
+  usersettings.PriceItems
+where
+    (PricesCosts.CostCode = ?CostCode)
+and (PriceItems.Id = PricesCosts.PriceItemId)
+and (PriceItems.LastFormalization > ?UpdateTime)
+"
+				,
+				new MySqlParameter("?CostCode", maxProducerCostsCostId),
+				new MySqlParameter("?UpdateTime", _updateData.OldUpdateTime));
+			return (fresh != null);
+		}
+
+		public string GetMaxProducerCostsCommand()
+		{
+			return String.Format(@"
+select
+  c.Id,
+  p.CatalogId,
+  c.ProductId,
+  s.Synonym,
+  sfc.Synonym,
+  c.Note
+from
+  (
+  farm.Core0 c,
+  farm.CoreCosts cc,
+  catalogs.products p,
+  farm.synonym s
+  )
+  left join farm.SynonymFirmCr sfc on sfc.SynonymFirmCrCode = c.SynonymFirmCrCode
+where
+    (c.PriceCode = {0})
+and (cc.Core_Id = c.Id)
+and (cc.PC_CostCode = {1})
+and (p.Id = c.ProductId)
+and (s.SynonymCode = c.SynonymCode)
+"
+				,
+				MaxProducerCostsPriceId,
+				maxProducerCostsCostId);
 		}
 
 		public void MaintainReplicationInfo()
@@ -361,9 +431,11 @@ WHERE r.clientcode = ?ClientCode
 			{
 				command = new MySqlCommand(@"
 SELECT r.Region,
-       uui.ReclameDate
+       uui.ReclameDate,
+       rcs.ShowAdvertising
 FROM Future.Clients c
 	join Future.Users u on c.Id = u.Clientid
+    join usersettings.RetClientsSet rcs on rcs.ClientCode = u.Clientid
 	join farm.regions r on r.RegionCode = c.RegionCode
 	join UserUpdateInfo uui on u.Id = uui.UserId
 WHERE u.Id = ?UserId", _readOnlyConnection);
@@ -371,13 +443,16 @@ WHERE u.Id = ?UserId", _readOnlyConnection);
 			else
 			{
 				command = new MySqlCommand(@"
-SELECT Region,
-       ReclameDate
+SELECT r.Region,
+       UUI.ReclameDate,
+       rcs.ShowAdvertising
 FROM   clientsdata cd,
+       usersettings.RetClientsSet rcs,
        farm.regions r,
        UserUpdateInfo UUI,
        OsUserAccessRight OUAR
 WHERE  r.regioncode = cd.regioncode
+   and rcs.ClientCode = cd.FirmCode
    AND OUAR.RowId = ?UserId
    AND OUAR.Rowid =UUI.UserId
    AND OUAR.ClientCode = cd.firmcode", _readOnlyConnection);
@@ -387,7 +462,8 @@ WHERE  r.regioncode = cd.regioncode
 			{
 				reader.Read();
 				var reclame = new Reclame {
-					Region = reader.GetString("region")
+					Region = reader.GetString("region"),
+					ShowAdvertising = reader.GetBoolean("ShowAdvertising")
 				};
 				if (!reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
 					reclame.ReclameDate = reader.GetDateTime("ReclameDate");
@@ -593,7 +669,22 @@ where
 		{
 			return String.Format(@"
 select
-  DocumentBodies.*
+  DocumentBodies.Id, 
+  DocumentBodies.DocumentId, 
+  DocumentBodies.Product, 
+  DocumentBodies.Code, 
+  DocumentBodies.Certificates, 
+  DocumentBodies.Period, 
+  DocumentBodies.Producer, 
+  DocumentBodies.Country, 
+  DocumentBodies.ProducerCost, 
+  DocumentBodies.RegistryCost, 
+  DocumentBodies.SupplierPriceMarkup, 
+  DocumentBodies.SupplierCostWithoutNDS, 
+  DocumentBodies.SupplierCost, 
+  DocumentBodies.Quantity, 
+  DocumentBodies.VitallyImportant, 
+  DocumentBodies.NDS
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
@@ -715,10 +806,14 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 SELECT 
      c.Id as ClientId,
      c.Name,
-     regions.CalculateOnProducerCost
+     regions.CalculateOnProducerCost,
+     rcs.ParseWaybills,
+     rcs.SendRetailMarkup,
+     rcs.ShowAdvertising
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join farm.regions on regions.RegionCode = c.RegionCode
+  join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
 WHERE u.Id = ?UserId";
 			}
 			else
@@ -727,10 +822,14 @@ WHERE u.Id = ?UserId";
 SELECT 
      clientsdata.firmcode   as ClientId,
      clientsdata.ShortName  as Name, 
-     regions.CalculateOnProducerCost
+     regions.CalculateOnProducerCost,
+     rcs.ParseWaybills,
+     rcs.SendRetailMarkup,
+     rcs.ShowAdvertising
 FROM   
      clientsdata 
      join farm.regions on regions.RegionCode = clientsdata.RegionCode
+     join usersettings.RetClientsSet rcs on rcs.ClientCode = clientsdata.FirmCode
 WHERE  clientsdata.firmcode    = ?ClientCode";
 			}
 		}
@@ -774,7 +873,8 @@ where
 			return @"
 select
   Mnn.Id,
-  Mnn.Mnn
+  Mnn.Mnn,
+  Mnn.RussianMnn
 from
   catalogs.Mnn
 where
@@ -828,7 +928,7 @@ SELECT 2647                             ,
        ''                               ,
        0                                ,
        ''                               ,
-       IF(?ShowAvgCosts, CryptCost, '') ,
+       IF(?ShowAvgCosts, a.Cost, '') ,
        @RowId := @RowId + 1             ,
        ''                               ,
        ''
@@ -862,7 +962,7 @@ SELECT 2647                              ,
        ''                                ,
        0                                 ,
        ''                                ,
-       IF(?ShowAvgCosts, A.CryptCost, ''),
+       IF(?ShowAvgCosts, A.Cost, ''),
        @RowId := @RowId + 1              ,
        ''                                ,
        ''
@@ -905,7 +1005,17 @@ AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
 AND    IF(?Cumulative, 1, fresh)"
 				,
-				exportSupplierPriceMarkup ? ", if((Core.ProducerCost is null) or (Core.ProducerCost = 0), null, (CT.Cost/Core.ProducerCost-1)*100) " : "");
+				exportSupplierPriceMarkup ? @"
+, 
+if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
+   null, 
+   if((Core.NDS is null) or (Core.NDS <= 0), 
+     (CT.Cost/(Core.ProducerCost*1.11)-1)*100,
+     (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
+   )
+),
+Core.ProducerCost,
+Core.NDS " : "");
 		}
 
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)

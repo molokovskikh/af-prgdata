@@ -147,47 +147,49 @@ values
 
 				detailCommand.Parameters["?Product"].Value = synonymName;
 				detailCommand.Parameters["?Code"].Value = position.Code;
-				//detailCommand.Parameters["?Period"].Value = position.Period;
+				detailCommand.Parameters["?Period"].Value = position.Period;
 				detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
 				detailCommand.Parameters["?Quantity"].Value = position.Quantity;
 				detailCommand.Parameters["?SupplierCost"].Value = position.Cost;
+				detailCommand.Parameters["?RegistryCost"].Value = position.RegistryCost;
 
 				if (documentType == DocumentType.Waybills)
 				{
 
-/*
 					if (position.SupplierPriceMarkup.HasValue)
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
-						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (position.SupplierPriceMarkup / 100));
+						detailCommand.Parameters["?ProducerCost"].Value = position.ProducerCost;
+						detailCommand.Parameters["?VitallyImportant"].Value = position.VitallyImportant;
+						detailCommand.Parameters["?NDS"].Value = position.NDS;
+						if (position.NDS.HasValue)
+							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / (1 + position.NDS/100);
+						else
+							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.10m;
 					}
 					else
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
-						detailCommand.Parameters["?ProducerCost"].Value = position.Cost * (1 - (10m / 100));
- 					}
- */ 
-					detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
-					detailCommand.Parameters["?ProducerCost"].Value = position.Cost / 1.25m;
+						detailCommand.Parameters["?ProducerCost"].Value = position.Cost / 1.25m;
 
-					detailCommand.Parameters["?RegistryCost"].Value = detailCommand.Parameters["?ProducerCost"].Value;
-					detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.18m;
-					detailCommand.Parameters["?NDS"].Value = 18;
+						detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.18m;
+						detailCommand.Parameters["?NDS"].Value = 18;
 
-					switch (random.Next(3))
-					{ 
-						case 1:
-							detailCommand.Parameters["?VitallyImportant"].Value = 0;
-							break;
-						case 2:
-							detailCommand.Parameters["?VitallyImportant"].Value = 1;
-							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.1m;
-							detailCommand.Parameters["?NDS"].Value = 10;
-							break;
-						default:
-							detailCommand.Parameters["?VitallyImportant"].Value = null;
-							break;
-					}				
+						switch (random.Next(3))
+						{
+							case 1:
+								detailCommand.Parameters["?VitallyImportant"].Value = 0;
+								break;
+							case 2:
+								detailCommand.Parameters["?VitallyImportant"].Value = 1;
+								detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.1m;
+								detailCommand.Parameters["?NDS"].Value = 10;
+								break;
+							default:
+								detailCommand.Parameters["?VitallyImportant"].Value = null;
+								break;
+						}
+					}
 				}
 
 				detailCommand.ExecuteNonQuery();

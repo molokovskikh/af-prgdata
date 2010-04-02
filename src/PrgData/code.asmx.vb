@@ -62,11 +62,7 @@ Public Class PrgDataEx
     End Sub
 
     ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
-#If DEBUG Then
-    ReadOnly MySqlFilePath As String = "\\testsql.adc.analit.net\AFFiles\"
-#Else
     ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
-#End If
 
     ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
@@ -429,10 +425,10 @@ RestartInsertTrans:
                     If BuildNo > 716 Then
                         'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
                         If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
-                            FileCount = 18
+                            FileCount = 19
                         Else
                             If (BuildNo >= 829) And (BuildNo <= 837) And UpdateData.EnableUpdate Then
-                                FileCount = 18
+                                FileCount = 19
                                 Addition &= "Производится обновление программы с 800-х версий на MySql; "
                             Else
                                 FileCount = 16
@@ -443,7 +439,7 @@ RestartInsertTrans:
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
-                            FileCount = 18
+                            FileCount = 19
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -1859,9 +1855,22 @@ ItsEnd:
 
         'генерируем массив наценок поставщика размером с общее кол-во позиций в заказах, значения в массиве - пустые строчки ("")
         Dim SupplierPriceMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim DelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
+
+        Dim CoreQuantity As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Unit As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Volume As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Note As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Period As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Doc As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim RegistryCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim VitallyImportant As IEnumerable(Of Boolean) = Enumerable.Repeat(False, New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim RetailMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim ProducerCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim NDS As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
 
         Return _
-            PostSomeOrdersWithSupplierPriceMarkup( _
+            PostSomeOrdersFull( _
                 UniqueID, _
                 ForceSend, _
                 UseCorrectOrders, _
@@ -1873,6 +1882,7 @@ ItsEnd:
                 PriceDate, _
                 ClientAddition, _
                 RowCount, _
+                DelayOfPayment.ToArray(), _
                 ClientPositionID, _
                 ClientServerCoreID, _
                 ProductID, _
@@ -1892,12 +1902,24 @@ ItsEnd:
                 MinPriceCode, _
                 LeaderMinCost, _
                 LeaderMinPriceCode, _
-                SupplierPriceMarkup.ToArray())
+                SupplierPriceMarkup.ToArray(), _
+                CoreQuantity.ToArray(), _
+                Unit.ToArray(), _
+                Volume.ToArray(), _
+                Note.ToArray(), _
+                Period.ToArray(), _
+                Doc.ToArray(), _
+                RegistryCost.ToArray(), _
+                VitallyImportant.ToArray(), _
+                RetailMarkup.ToArray(), _
+                ProducerCost.ToArray(), _
+                NDS.ToArray() _
+                )
     End Function
 
     'Отправляем несколько заказов скопом и по ним все формируем ответ
     <WebMethod()> _
-    Public Function PostSomeOrdersWithSupplierPriceMarkup( _
+    Public Function PostSomeOrdersFull( _
         ByVal UniqueID As String, _
         ByVal ForceSend As Boolean, _
         ByVal UseCorrectOrders As Boolean, _
@@ -1909,6 +1931,7 @@ ItsEnd:
         ByVal PriceDate As Date(), _
         ByVal ClientAddition As String(), _
         ByVal RowCount As UInt16(), _
+        ByVal DelayOfPayment As String(), _
         ByVal ClientPositionID As UInt64(), _
         ByVal ClientServerCoreID As UInt64(), _
         ByVal ProductID As UInt64(), _
@@ -1928,7 +1951,18 @@ ItsEnd:
         ByVal MinPriceCode As String(), _
         ByVal LeaderMinCost As String(), _
         ByVal LeaderMinPriceCode As String(), _
-        ByVal SupplierPriceMarkup As String()) As String
+        ByVal SupplierPriceMarkup As String(), _
+        ByVal CoreQuantity As String(), _
+        ByVal Unit As String(), _
+        ByVal Volume As String(), _
+        ByVal Note As String(), _
+        ByVal Period As String(), _
+        ByVal Doc As String(), _
+        ByVal RegistryCost As String(), _
+        ByVal VitallyImportant As Boolean(), _
+        ByVal RetailMarkup As String(), _
+        ByVal ProducerCost As String(), _
+        ByVal NDS As String()) As String
 
         Dim ResStr As String = String.Empty
 
@@ -1990,7 +2024,19 @@ ItsEnd:
                     MinPriceCode, _
                     LeaderMinCost, _
                     LeaderMinPriceCode, _
-                    SupplierPriceMarkup _
+                    SupplierPriceMarkup, _
+                    DelayOfPayment, _
+                    CoreQuantity, _
+                    Unit, _
+                    Volume, _
+                    Note, _
+                    Period, _
+                    Doc, _
+                    RegistryCost, _
+                    VitallyImportant, _
+                    RetailMarkup, _
+                    ProducerCost, _
+                    NDS _
                 )
 
 
@@ -3254,6 +3300,7 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Descriptions" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "MaxProducerCosts" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3320,7 +3367,7 @@ RestartTrans2:
                         "MNN", _
                         SelProc, _
                         helper.GetMNNCommand(), _
-                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
                         True)
 
                     GetMySQLFileWithDefaultEx( _
@@ -3584,25 +3631,38 @@ RestartTrans2:
 
                         CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
 
-                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(False, BuildNo >= 930))
+                        GetMySQLFileWithDefaultEx( _
+                            "Core", _
+                            SelProc, _
+                            helper.GetCoreCommand( _
+                                False, _
+                                (BuildNo > 1027) Or (UpdateData.EnableUpdate And ((BuildNo >= 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
+                            ), _
+                            (BuildNo <= 1027) And UpdateData.EnableUpdate, _
+                            True _
+                        )
                     Else
-                        SelProc.CommandText = "SELECT ''" & _
-                        " INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
-                        SelProc.ExecuteNonQuery()
-
-
-
-
-                        SyncLock (FilesForArchive)
-
-                            FilesForArchive.Enqueue(New FileForArchive("Core", False))
-
-
-                        End SyncLock
-
-
+                        'Выгружаем пустую таблицу Core
+                        'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
+                        GetMySQLFileWithDefault("Core", SelProc, "SELECT * from ActivePrices limit 0")
                     End If
 
+                    If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) Then
+                        If helper.DefineMaxProducerCostsCostId() Then
+                            If GED Or (UpdateData.EnableUpdate And (BuildNo < 1049)) Or helper.MaxProducerCostIsFresh() Then
+                                'Если прайс-лист не обновлен, то отдаем пустой файл
+                                GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand())
+                            Else
+                                'Если прайс-лист не обновлен, то отдаем пустой файл
+                                GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+                            End If
+                        Else
+                            GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+                            Log.WarnFormat("Не возможно определить базовую цены для прайс-листа с максимальными ценами производителей. Код прайс-листа: {0}", helper.MaxProducerCostsPriceId)
+                        End If
+                    Else
+                        GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+                    End If
                 Else
 
                     SelProc.CommandText = "" & _
@@ -3703,70 +3763,9 @@ RestartTrans2:
                     SelProc.ExecuteNonQuery()
 
                     'Выгрузка данных для ГУП
-                    GetMySQLFileWithDefault("Core", SelProc, "" & _
-                     "SELECT 2647                             , " & _
-                     "       ?OffersRegionCode                , " & _
-                     "       A.ProductId                      , " & _
-                     "       A.CodeFirmCr                     , " & _
-                     "       S.SynonymCode                    , " & _
-                     "       SF.SynonymFirmCrCode             , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       0                                , " & _
-                     "       0                                , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       0                                , " & _
-                     "       ''                               , " & _
-                     "       IF(?ShowAvgCosts, a.Cost, '')    , " & _
-                     "       @RowId := @RowId + 1             , " & _
-                     "       ''                               , " & _
-                     "       ''                                 " & _
-                     "FROM   farm.Synonym S                   , " & _
-                     "       farm.SynonymFirmCr SF            , " & _
-                     "       CoreT A " & _
-                     "WHERE  S.PriceCode   =2647 " & _
-                     "   AND SF.PriceCode  =2647 " & _
-                     "   AND S.ProductId   =A.ProductId " & _
-                     "   AND SF.CodeFirmCr =A.CodeFirmCr " & _
-                     "   AND A.CodeFirmCr IS NOT NULL " & _
-                     " " & _
-                     "UNION " & _
-                     " " & _
-                     "SELECT 2647                              , " & _
-                     "       ?OffersRegionCode                 , " & _
-                     "       A.ProductId                       , " & _
-                     "       1                                 , " & _
-                     "       S.SynonymCode                     , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       0                                 , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       IF(?ShowAvgCosts, A.Cost, '')     , " & _
-                     "       @RowId := @RowId + 1              , " & _
-                     "       ''                                , " & _
-                     "       ''                                  " & _
-                     "FROM   farm.Synonym S                    , " & _
-                     "       CoreTP A " & _
-                     "WHERE  S.PriceCode =2647 " & _
-                     "   AND S.ProductId =A.ProductId")
-
-
+                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, False))
+                    'выгружаем пустую таблицу MaxProducerCosts
+                    GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
                 End If
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
@@ -4395,7 +4394,14 @@ RestartTrans2:
                 GetClientCode()
 
                 Dim updateHelpe = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+
                 Dim reclameData = updateHelpe.GetReclame()
+
+                If Not reclameData.ShowAdvertising Then
+                    GetReclame = ""
+                    Exit Function
+                End If
+
                 MaxReclameFileDate = reclameData.ReclameDate
 
                 Reclame = True
