@@ -1929,6 +1929,7 @@ ItsEnd:
             ErrorFlag = updateException.ErrorFlag
         Catch ex As Exception
             'Log.Error("Ошибка при отправке заказа", ex)
+            LogRequestHelper.MailWithRequest("Ошибка при отправке заказа" & vbCrLf & ex.ToString())
             MessageH = "Отправка заказов завершилась неудачно."
             MessageD = "Пожалуйста повторите попытку через несколько минут."
             ErrorFlag = True
