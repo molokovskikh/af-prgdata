@@ -144,7 +144,9 @@ Public Class PrgDataEx
                 Throw New Exception("Клиент не найден")
             End If
 
-            Dim mess As MailMessage = New MailMessage(New MailAddress("farm@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), New MailAddress("tech@analit.net"))
+            Dim mess As MailMessage = New MailMessage( _
+                New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
+                New MailAddress("tech@analit.net"))
             mess.Body = body
             mess.IsBodyHtml = False
             mess.BodyEncoding = Encoding.UTF8
