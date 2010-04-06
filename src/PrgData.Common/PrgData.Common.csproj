@@ -119,6 +119,7 @@
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="OrderHelper.cs" />
     <Compile Include="Orders\ClientOrderPosition.cs" />
+    <Compile Include="ShareFileHelper.cs" />
     <Compile Include="Waybills\GenerateDocsHelper.cs" />
     <Compile Include="Orders\OrderException.cs" />
     <Compile Include="Orders\ClientOrderHeader.cs" />

@@ -849,7 +849,8 @@ endproc:
                             MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
                             'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-                            Thread.Sleep(2000)
+                            ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
                             Dim ids As String = String.Empty
                             For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -863,7 +864,8 @@ endproc:
                             GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
                             GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
 
-                            Thread.Sleep(3000)
+                            ShareFileHelper.WaitFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            ShareFileHelper.WaitFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
                             Pr = New Process
 
@@ -902,6 +904,9 @@ endproc:
 
                             MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
                             MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+
+                            ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                            ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
                         End If
 
                     End If
@@ -1105,12 +1110,7 @@ StartZipping:
 
                         FileName = MySqlFilePath & FileForArchive.FileName & UserId & ".txt"
 
-
-                        While Not File.Exists(FileName)
-                            i += 1
-                            Thread.Sleep(500)
-                            If i > 50 Then Err.Raise(1, , "Файл" & FileName & " так и не появился")
-                        End While
+                        ShareFileHelper.WaitFile(FileName)
                     End If
 
                     Pr = New Process
