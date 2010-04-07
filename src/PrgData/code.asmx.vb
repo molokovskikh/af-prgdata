@@ -1408,7 +1408,7 @@ StartZipping:
         End Try
 
         Try
-            If Not ReadOnlyCn Is Nothing Then ReadOnlyCn.Dispose()
+            If Not ReadWriteCn Is Nothing Then ReadWriteCn.Dispose()
         Catch e As Exception
             Log.Error("Ошибка при закритии соединения", e)
             ErrorFlag = True
