@@ -86,11 +86,22 @@ namespace PrgData.Common.Orders
 						//сохраняем сами заявки в базу
 						SaveOrders();
 
+						//if (_data.ClientId == 1349)
+						//    GenerateDocsHelper.GenerateDocs(_readWriteConnection, _data, _orders);
+
 						transaction.Commit();
 					}
 					catch
 					{
-						transaction.Rollback();
+						try
+						{
+							transaction.Rollback();
+						}
+						catch (Exception rollbackException)
+						{
+							ILog _logger = LogManager.GetLogger(this.GetType());
+							_logger.Error("Ошибка при rollback'е транзакции сохранения заказов", rollbackException);
+						}
 						throw;
 					}
 				});
