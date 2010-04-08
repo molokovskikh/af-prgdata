@@ -21,7 +21,7 @@ Public Class Utils
     End Sub
 
     Public Shared Function Request(ByVal CommandText As String, ByRef ParametersAsAnonymousObject As Object) As IList(Of ClientStatus)
-        Using connection = New Global.Common.MySql.ConnectionManager().GetConnection()
+        Using connection = New MySqlConnection(Settings.ConnectionString)
             connection.Open()
             Dim command = New MySqlCommand(CommandText, connection)
             BindParameters(command, ParametersAsAnonymousObject)
@@ -36,7 +36,7 @@ Public Class Utils
     End Function
 
     Public Shared Function RequestScalar(Of T)(ByVal CommandText As String) As T
-        Using connection = New Global.Common.MySql.ConnectionManager().GetConnection()
+        Using connection = New MySqlConnection(Settings.ConnectionString)
             connection.Open()
             Dim command = New MySqlCommand(CommandText, connection)
             Return CType(command.ExecuteScalar(), T)
