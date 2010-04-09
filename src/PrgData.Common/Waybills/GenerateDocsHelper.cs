@@ -279,6 +279,11 @@ select last_insert_id()
 
 		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName, ulong updateId)
 		{
+			var resultFileName = Path.GetFileName(waybillFileName);
+			var index = resultFileName.IndexOf('_');
+			if (index >= 0)
+				resultFileName = resultFileName.Substring(index + 1);
+
 			var headerCommand = new MySqlCommand();
 			headerCommand.Connection = connection;
 			headerCommand.Parameters.Add("?PriceCode", MySqlDbType.UInt64);
@@ -298,7 +303,7 @@ set @LastDownloadId = last_insert_id();
 ";
 
 			headerCommand.Parameters["?FirmCode"].Value = providerId;
-			headerCommand.Parameters["?FileName"].Value = Path.GetFileName(waybillFileName);
+			headerCommand.Parameters["?FileName"].Value = resultFileName;
 			headerCommand.Parameters["?DocumentType"].Value = (int)DocumentType.Waybills;
 			if (updateData.IsFutureClient)
 			{
@@ -313,6 +318,16 @@ set @LastDownloadId = last_insert_id();
 			headerCommand.CommandText = "select @LastDownloadId";
 			var lastDownloadId = Convert.ToUInt32(headerCommand.ExecuteScalar());
 
+			headerCommand.CommandText = "select ShortName from usersettings.ClientsData where FirmCode = ?FirmCode;";
+			var shortName = headerCommand.ExecuteScalar();
+
+			resultFileName = 
+				String.Format("{0}_{1}({2}){3}",
+					lastDownloadId,
+					shortName,
+					Path.GetFileNameWithoutExtension(resultFileName),
+					Path.GetExtension(resultFileName));
+
 			File.Copy(
 				waybillFileName,
 				Path.Combine(
@@ -321,7 +336,7 @@ set @LastDownloadId = last_insert_id();
 							ConfigurationManager.AppSettings["WaybillPath"],
 						updateData.ClientId.ToString().PadLeft(3, '0')),
 						DocumentType.Waybills.ToString()),
-					lastDownloadId + "_" + Path.GetFileName(waybillFileName)
+					resultFileName
 				)
 			);
 
