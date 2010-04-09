@@ -9,6 +9,7 @@ using System.IO;
 using System.Configuration;
 using Inforoom.Common;
 using PrgData.Common.Waybills;
+using log4net;
 
 namespace PrgData.Common.Orders
 {
@@ -203,16 +204,55 @@ values
 				Directory.CreateDirectory(extractDir);
 
 			ArchiveHelper.Extract(waybillArchive, "*.*", extractDir);
+			var fileLength = new FileInfo(waybillArchive).Length;
+
 			var ids = new List<uint>();
 
-			for (var i = 0; i < fileNames.Length; i++)
+			global::Common.MySql.With.DeadlockWraper(() =>
 			{
-				if (File.Exists(extractDir + "\\" + fileNames[i]))
-					ids.Add(CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i]));
-			}
+				var transaction = connection.BeginTransaction();
+				try
+				{
+					var updateId = Convert.ToUInt64(MySqlHelper.ExecuteScalar(
+						connection,
+						@"
+insert into logs.AnalitFUpdates 
+  (RequestTime, UpdateType, UserId, ResultSize, Commit) 
+values 
+  (now(), ?UpdateType, ?UserId, ?Size, 1);
+select last_insert_id()
+"
+						,
+						new MySqlParameter("?UpdateType", 9),
+						new MySqlParameter("?UserId", updateData.UserId),
+						new MySqlParameter("?Size", fileLength)));
+
+					ids.Clear();
+
+					for (var i = 0; i < fileNames.Length; i++)
+					{
+						if (File.Exists(extractDir + "\\" + fileNames[i]))
+							ids.Add(CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i], updateId));
+					}
+
+					transaction.Commit();
+				}
+				catch
+				{
+					try
+					{
+						transaction.Rollback();
+					}
+					catch (Exception rollbackException)
+					{
+						ILog _logger = LogManager.GetLogger(typeof(GenerateDocsHelper));
+						_logger.Error("Ошибка при rollback'е транзакции сохранения заказов", rollbackException);
+					}
+					throw;
+				}
+			});
 
 			return ProcessWaybills(ids);
-			//return true;
 		}
 
 		private static bool ProcessWaybills(List<uint> ids)
@@ -237,7 +277,7 @@ values
 			}
 		}
 
-		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName)
+		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName, ulong updateId)
 		{
 			var headerCommand = new MySqlCommand();
 			headerCommand.Connection = connection;
@@ -248,16 +288,17 @@ values
 			headerCommand.Parameters.Add("?OrderId", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?DocumentType", MySqlDbType.Int32);
 			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
+			headerCommand.Parameters.Add("?SendUpdateId", MySqlDbType.UInt64);
 
 			headerCommand.CommandText = @"
-insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
-values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
+insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId) 
+values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId, ?SendUpdateId);
 
 set @LastDownloadId = last_insert_id();
 ";
 
 			headerCommand.Parameters["?FirmCode"].Value = providerId;
-			headerCommand.Parameters["?FileName"].Value = Path.GetFileName( waybillFileName);
+			headerCommand.Parameters["?FileName"].Value = Path.GetFileName(waybillFileName);
 			headerCommand.Parameters["?DocumentType"].Value = (int)DocumentType.Waybills;
 			if (updateData.IsFutureClient)
 			{
@@ -265,7 +306,8 @@ set @LastDownloadId = last_insert_id();
 				headerCommand.Parameters["?AddressId"].Value = clientId;
 			}
 			else
-			  headerCommand.Parameters["?ClientCode"].Value = clientId;
+				headerCommand.Parameters["?ClientCode"].Value = clientId;
+			headerCommand.Parameters["?SendUpdateId"].Value = updateId;
 			headerCommand.ExecuteNonQuery();
 
 			headerCommand.CommandText = "select @LastDownloadId";
