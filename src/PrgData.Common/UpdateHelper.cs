@@ -1041,7 +1041,7 @@ AND    IF(?Cumulative, 1, fresh)"
 if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
    null, 
    if((Core.NDS is null) or (Core.NDS <= 0), 
-     (CT.Cost/(Core.ProducerCost*1.11)-1)*100,
+     (CT.Cost/(Core.ProducerCost*1.1)-1)*100,
      (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
    )
 ),
