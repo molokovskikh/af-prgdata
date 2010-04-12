@@ -715,7 +715,8 @@ select
   DocumentBodies.SupplierCost, 
   DocumentBodies.Quantity, 
   DocumentBodies.VitallyImportant, 
-  DocumentBodies.NDS
+  DocumentBodies.NDS,
+  DocumentBodies.SerialNumber
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
