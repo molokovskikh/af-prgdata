@@ -277,12 +277,20 @@ select last_insert_id()
 			}
 		}
 
+		private static string GetCuttedFileName(string fileName)
+		{
+			if (fileName.Length > 50)
+				return fileName.Substring(fileName.Length - 50, 50);
+			return fileName;
+		}
+
 		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName, ulong updateId)
 		{
 			var resultFileName = Path.GetFileName(waybillFileName);
 			var index = resultFileName.IndexOf('_');
 			if (index >= 0)
 				resultFileName = resultFileName.Substring(index + 1);
+			resultFileName = GetCuttedFileName(resultFileName);
 
 			var headerCommand = new MySqlCommand();
 			headerCommand.Connection = connection;
