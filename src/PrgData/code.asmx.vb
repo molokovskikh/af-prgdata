@@ -1251,9 +1251,10 @@ StartZipping:
                 GetClientCode()
                 UpdateType = 7
 
-                If Not Counter.Counter.TryLock(UserId, "MaxSynonymCode") Then
-                    Return DateTime.Now
-                End If
+				If Not Counter.Counter.TryLock(UserId, "MaxSynonymCode") Then
+					Me.Log.Error("Не удалось наложить блокировку для подтверждения обновления")
+					Return DateTime.Now
+				End If
 
                 If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
 
@@ -1289,9 +1290,7 @@ StartZipping:
 
                 If SetResultCodes.IsAlive Then SetResultCodes.Join()
 
-                'ProtocolUpdatesThread.Start()
-
-                MaxSynonymCode = UpdateTime.ToUniversalTime
+				MaxSynonymCode = UpdateTime.ToUniversalTime
             Else
                 MaxSynonymCode = Now().ToUniversalTime
             End If
@@ -1307,9 +1306,9 @@ StartZipping:
                 MySQLFileDelete(ResultFileName & UserId & ".zip")
                 MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
-            Catch ex As Exception
-                'MailErr("Удаление полученных файлов;", ex.Message)
-            End Try
+			Catch ex As Exception
+				Me.Log.Error("Ошибка при сохранении подготовленных данных", e)
+			End Try
             ProtocolUpdatesThread.Start()
         Catch e As Exception
             Me.Log.Error("Ошибка при подтверждении обновления", e)
