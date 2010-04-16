@@ -119,6 +119,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConnectionHelper.cs" />
     <Compile Include="CostOptimizer.cs" />
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="OrderHelper.cs" />

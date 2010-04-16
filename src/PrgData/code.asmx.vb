@@ -1307,7 +1307,7 @@ StartZipping:
                 MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
 			Catch ex As Exception
-				Me.Log.Error("Ошибка при сохранении подготовленных данных", e)
+				Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
 			End Try
             ProtocolUpdatesThread.Start()
         Catch e As Exception
@@ -3232,9 +3232,9 @@ RestartTrans2:
                 If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
                 'If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
             End Try
-        Catch err As Exception
-            MailErr("Основной поток выборки, general " & CCode, err.Message & ": " & err.StackTrace)
-            ErrorFlag = True
+		Catch err As Exception
+			Me.Log.Error("Основной поток выборки, general " & CCode, err)
+			ErrorFlag = True
         End Try
     End Sub
 
@@ -3756,38 +3756,32 @@ RestartTrans2:
                 End If
 
             Catch ex As ThreadAbortException
-                If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+				ConnectionHelper.SafeRollback(myTrans)
+			Catch MySQLErr As MySqlException
+				ConnectionHelper.SafeRollback(myTrans)
 
-            Catch MySQLErr As MySqlException
+				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
 
-                If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
-                If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+				If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
+					System.Threading.Thread.Sleep(500)
+					GoTo RestartTrans2
+				End If
 
-
-                If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Then
-                    System.Threading.Thread.Sleep(500)
-                    GoTo RestartTrans2
-                End If
-
-                MailErr("Основной поток выборки: " & MySQLErr.Message, SelProc.CommandText & MySQLErr.StackTrace)
-                ErrorFlag = True
-                UpdateType = 6
-                'NeedCloseCn = True
-                Addition &= MySQLErr.Message
-
-
-            Catch ErrorTXT As Exception
-                ErrorFlag = True
-                'NeedCloseCn = True
-                UpdateType = 6
-                Addition &= ErrorTXT.Message
-                MailErr("Основной поток выборки, клиент: " & CCode, ErrorTXT.Message & ErrorTXT.StackTrace)
-                If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
-                If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-            End Try
-        Catch err As Exception
-            MailErr("Основной поток выборки, general " & CCode, err.Message & ": " & err.StackTrace)
-            ErrorFlag = True
+				ErrorFlag = True
+				UpdateType = 6
+				Addition &= MySQLErr.Message
+				MailErr("Основной поток выборки: " & MySQLErr.Message, SelProc.CommandText & MySQLErr.StackTrace)
+			Catch ErrorTXT As Exception
+				ConnectionHelper.SafeRollback(myTrans)
+				ErrorFlag = True
+				UpdateType = 6
+				Addition &= ErrorTXT.Message
+				MailErr("Основной поток выборки, клиент: " & CCode, ErrorTXT.Message & ErrorTXT.StackTrace)
+				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+			End Try
+		Catch err As Exception
+			Me.Log.Error("Основной поток выборки, general " & CCode, err)
+			ErrorFlag = True
         End Try
     End Sub
 
