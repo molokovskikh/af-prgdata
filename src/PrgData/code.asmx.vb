@@ -414,10 +414,10 @@ RestartInsertTrans:
                     End If
 
                     'Если несовпадает время последнего обновления на клиете и сервере
-                    If Not CheckUpdateTime(AccessTime.ToLocalTime, GED) Then
-                        GED = True
-                        Addition &= "Время обновления не совпало на клиенте и сервере, готовим КО; "
-                    End If
+					If OldUpTime <> AccessTime.ToLocalTime Then
+						GED = True
+						Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
+					End If
 
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
@@ -2506,737 +2506,697 @@ PostLog:
             CkeckZipTimeAndExist = False
 
         End If
-        'CkeckZipTimeAndExist = True
-    End Function
+	End Function
 
-    Private Function CheckUpdateTime(ByVal AccessTime As DateTime, ByVal GetEtalonData As Boolean) As Boolean
-        Dim LCheckUpdateTime As Boolean
-        LCheckUpdateTime = (OldUpTime = AccessTime Or _
-                GetEtalonData)
+	Private Sub FirebirdProc()
+		Dim SQLText As String
+		Dim StartTime As DateTime = Now()
+		Dim TS As TimeSpan
 
-        Return LCheckUpdateTime
-
-
-
-    End Function
-
-    Private Function CheckUpdatePeriod() As UInt32
-        Dim Min1, Min2, MinRes As UInt32
-        'Min1 = CType(Math.Round(Now().Subtract(OldUpTime).TotalMinutes), UInt32)
-        'Min2 = CType(Math.Round(Now().Subtract(UncDT).TotalMinutes), UInt32)
+		Try
+			Try
 
 
-        'Cm.Transaction = NothingZ
-
-        'Cm.CommandText = "select not exists(SELECT * FROM UserUpdateInfo rui, logs.AnalitFUpdates p " & _
-        '"where p.requesttime >= rui.UncommitedUpdateDate " & _
-        '"and rui.UserId=p.UserId " & _
-        '"and rui.UserId=" & UserId & ")"
-
-        'If CType(Cm.ExecuteScalar, UInt16) = 1 Then
-
-        '    MinRes = Min1
-        '    If Min2 < MinRes Then MinRes = Min2
-
-        'Else
-        MinRes = 10
-
-        'End If
-
-
-        Return MinRes
-    End Function
-
-
-    Private Sub FirebirdProc()
-        Dim SQLText As String
-        Dim StartTime As DateTime = Now()
-        Dim TS As TimeSpan
-
-        Try
-            Try
-
-
-                Dim helper As UpdateHelper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+				Dim helper As UpdateHelper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
 
 
 RestartTrans2:
-                If ErrorFlag Then Exit Try
-
-                MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Catalog" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogCurrency" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "ClientsDataN" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
-
-                MySQLFileDelete(MySqlFilePath & "PriceAvg" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Section" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Synonym" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogFarmGroups" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
-
-                helper.MaintainReplicationInfo()
-
-                If ThreadZipStream.IsAlive Then
-                    ThreadZipStream.Abort()
-                End If
-
-                SelProc = New MySqlCommand
-                SelProc.Connection = ReadOnlyCn
-                SelProc.Parameters.AddWithValue("?ClientCode", CCode)
-                SelProc.Parameters.AddWithValue("?Cumulative", GED)
-                SelProc.Parameters.AddWithValue("?UserId", UserId)
-                SelProc.Parameters.AddWithValue("?UpdateTime", OldUpTime)
-
-                Cm = New MySqlCommand
-                Cm.Connection = ReadWriteCn
-                Cm.Parameters.AddWithValue("?UpdateTime", OldUpTime)
-
-                Cm.Parameters.AddWithValue("?OfferRegionCode", UpdateData.OffersRegionCode)
-
-                myTrans = ReadOnlyCn.BeginTransaction(IsoLevel)
-                SelProc.Transaction = myTrans
-
-                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
-                SelProc.ExecuteNonQuery()
-
-                MySQLFileDelete(MySqlFilePath & "MinPrices" & UserId & ".txt")
-                GetMySQLFile("PriceAvg", SelProc, "select ''")
-
-                SQLText = "SELECT P.Id       ," & _
-             " P.CatalogId" & _
-             " FROM   Catalogs.Products P" & _
-             " WHERE hidden                = 0"
-
-                If Not GED Then
-                    SQLText &= " AND P.UpdateTime >= ?UpdateTime"
-                End If
-
-                GetMySQLFile("Products", SelProc, SQLText)
-
-                ThreadZipStream = New Thread(AddressOf ZipStream)
-                ThreadZipStream.Start()
-
-                SQLText = "SELECT C.Id             , " & _
-                "       CN.Id            , " & _
-                "       LEFT(CN.name, 250)  , " & _
-                "       LEFT(form, 250)  , " & _
-                "       vitallyimportant , " & _
-                "       needcold         , " & _
-                "       fragile " & _
-                "FROM   Catalogs.Catalog C       , " & _
-                "       Catalogs.CatalogForms CF , " & _
-                "       Catalogs.CatalogNames CN " & _
-                "WHERE  C.NameId                        =CN.Id " & _
-                "   AND C.FormId                        =CF.Id " & _
-                "   AND hidden    =0"
-
-                If Not GED Then
-                    SQLText &= "   AND C.UpdateTime >= ?UpdateTime "
-                End If
-
-                GetMySQLFile("Catalog", SelProc, SQLText)
-
-                GetMySQLFile("CatDel", SelProc, _
-                " SELECT C.Id " & _
-                " FROM   Catalogs.Catalog C " & _
-                " WHERE  C.UpdateTime > ?UpdateTime " & _
-                "   AND hidden        = 1 " & _
-                "   AND NOT ?Cumulative")
-
-                SelProc.Parameters.AddWithValue("?OffersClientCode", UpdateData.OffersClientCode)
-                SelProc.Parameters.AddWithValue("?OffersRegionCode", UpdateData.OffersRegionCode)
-                SelProc.Parameters.AddWithValue("?ShowAvgCosts", UpdateData.ShowAvgCosts)
-
-                GetMySQLFile("Regions", SelProc, helper.GetRegionsCommand())
-
-                helper.SelectPrices()
-
-                If UpdateData.ShowJunkOffers Then
-
-                    SelProc.CommandText = "" & _
-                    "      CREATE TEMPORARY TABLE PricesTMP " & _
-                    "      SELECT * " & _
-                    "      FROM   Prices " & _
-                    "      WHERE  PriceCode=2647; " & _
-                    "       " & _
-                    "      CALL GetPrices2(?OffersClientCode); " & _
-                    "      INSERT " & _
-                    "      INTO   Prices " & _
-                    "      SELECT * " & _
-                    "      FROM   PricesTMP; " & _
-                    "       " & _
-                    "      DROP TEMPORARY TABLE PricesTMP;"
-
-                    SelProc.ExecuteNonQuery()
-
-                End If
-
-                GetMySQLFile("ClientsDataN", SelProc, _
-                "SELECT firm.FirmCode, " & _
-                "       firm.FullName, " & _
-                "       firm.Fax     , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-'          , " & _
-                "       '-' " & _
-                "FROM   clientsdata AS firm " & _
-                "WHERE  firmcode IN " & _
-                "                   (SELECT DISTINCT FirmCode " & _
-                "                   FROM             Prices " & _
-                "                   )")
-
-                GetMySQLFile("RegionalData", SelProc, _
-                "SELECT DISTINCT regionaldata.FirmCode  , " & _
-                "                regionaldata.RegionCode, " & _
-                "                supportphone           , " & _
-                "                LEFT(adminmail, 50)    , " & _
-                "                ContactInfo            , " & _
-                "                OperativeInfo " & _
-                "FROM            regionaldata, " & _
-                "                Prices " & _
-                "WHERE           regionaldata.firmcode  = Prices.firmcode " & _
-                "            AND regionaldata.regioncode= Prices.regioncode")
-
-
-                GetMySQLFile("PricesRegionalData", SelProc, _
-                "SELECT PriceCode           , " & _
-                "       RegionCode          , " & _
-                "       STORAGE             , " & _
-                "       PublicUpCost        , " & _
-                "       MinReq              , " & _
-                "       MainFirm            , " & _
-                "       NOT disabledbyclient, " & _
-                "       CostCorrByClient    , " & _
-                "       ControlMinReq " & _
-                "FROM   Prices")
-
-                SelProc.CommandText = "" & _
-                "CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
-                "INSERT " & _
-                "INTO   tmpprd " & _
-                "SELECT   firmcode, " & _
-                "         COUNT(pricecode) " & _
-                "FROM     Prices " & _
-                "GROUP BY FirmCode, " & _
-                "         RegionCode;"
-
-                SelProc.ExecuteNonQuery()
-
-
-                GetMySQLFile("PricesData", SelProc, _
-                  "SELECT   Prices.FirmCode , " & _
-                  "         Prices.pricecode, " & _
-                  "                  concat(firm.shortname, IF(PriceCount> 1 " & _
-                  "      OR ShowPriceName                                = 1, concat(' (', pricename, ')'), '')), " & _
-                  "          0                                                                  , " & _
-                  "         ''                                                                                  , " & _
-                  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)  , " & _
-                  "         if(?OffersClientCode is null, ((ForceReplication != 0) " & _
-                  "          OR (actual = 0) or ?Cumulative), 1)  , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         '0' " & _
-                  "FROM     clientsdata AS firm, " & _
-                  "         tmpprd             , " & _
-                  "         Prices, " & _
-                  "         AnalitFReplicationInfo ARI " & _
-                  "WHERE    tmpprd.firmcode = firm.firmcode " & _
-                  "     AND firm.firmcode   = Prices.FirmCode " & _
-                  "     AND ARI.FirmCode    = Prices.FirmCode " & _
-                  "     AND ARI.UserId    = ?UserId " & _
-                  "GROUP BY Prices.FirmCode, " & _
-                  "         Prices.pricecode")
-
-                SQLText = "SELECT FirmCr        , " & _
-                  "       CountryCr     , " & _
-                  "       FullName      , " & _
-                  "       Series        , " & _
-                  "       LetterNo      , " & _
-                  "       LetterDate    , " & _
-                  "       LaboratoryName, " & _
-                  "       CauseRejects " & _
-                  "FROM   addition.rejects, " & _
-                  "       retclientsset rcs " & _
-                  "WHERE rcs.clientcode = ?ClientCode" & _
-                  "   AND alowrejection  = 1 "
-
-                If Not GED Then
-                    SQLText &= "   AND accessTime     > ?UpdateTime"
-                End If
-
-                GetMySQLFile("Rejects", SelProc, SQLText)
-                GetMySQLFile("Clients", SelProc, helper.GetClientsCommand(True))
-
-                helper.SelectActivePrices()
-
-                SelProc.CommandText = "" & _
-                "CREATE TEMPORARY TABLE ParentCodes ENGINE=memory " & _
-                "SELECT   PriceSynonymCode PriceCode, " & _
-                "         MaxSynonymCode                 , " & _
-                "         MaxSynonymFirmCrCode " & _
-                "FROM     ActivePrices Prices        " & _
-                "GROUP BY 1; "
-
-                SelProc.ExecuteNonQuery()
-
-                SQLText = "" & _
-                "SELECT synonymfirmcr.synonymfirmcrcode, " & _
-                "       LEFT(SYNONYM, 250) " & _
-                "FROM   farm.synonymfirmcr, " & _
-                "       ParentCodes " & _
-                "WHERE  synonymfirmcr.pricecode        = ParentCodes.PriceCode "
-                If Not GED Then
-
-                    SQLText &= "AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode "
-
-                End If
-
-                SQLText &= " " & _
-               "UNION " & _
-               " " & _
-               "SELECT 1, " & _
-               "       '-' "
-
-                GetMySQLFile("SynonymFirmCr", SelProc, SQLText)
-
-                SQLText = "" & _
-                "SELECT synonym.synonymcode, " & _
-                "       LEFT(synonym.synonym, 250) " & _
-                "FROM   farm.synonym, " & _
-                "       ParentCodes " & _
-                "WHERE  synonym.pricecode  = ParentCodes.PriceCode "
-
-                If Not GED Then
-                    SQLText &= "AND synonym.synonymcode > MaxSynonymCode"
-                End If
-
-                GetMySQLFile("Synonym", SelProc, SQLText)
-
-                GetMySQLFile("CatalogCurrency", SelProc, _
-                "SELECT currency, " & _
-                "       exchange " & _
-                "FROM   farm.catalogcurrency " & _
-                "WHERE  currency='$' " & _
-                "    OR currency='Eu'")
-
-
-                If UpdateData.OffersClientCode Is Nothing Then
-
-                    SelProc.CommandText = "" & _
-                    "SELECT IFNULL(SUM(fresh), 0) " & _
-                    "FROM   ActivePrices"
-                    If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
-                        helper.SelectOffers()
-                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
-
-                        SelProc.CommandText = "" & _
-                        "UPDATE ActivePrices Prices, " & _
-                        "       Core " & _
-                        "SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
-                        "WHERE  Prices.PriceCode= Core.PriceCode " & _
-                        "   AND IF(?Cumulative, 1, Fresh) " & _
-                        "   AND Core.PriceCode!=2647 ; " & _
-                        " " & _
-                        "UPDATE Core " & _
-                        "SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
-                        "WHERE  LENGTH(CryptCost)>0 " & _
-                        "   AND Core.PriceCode!=2647;"
-                        SelProc.ExecuteNonQuery()
-
-
-                        GetMySQLFile("MinPrices", SelProc, _
-                         "SELECT RIGHT(MinCosts.ID, 9), " & _
-                         "       MinCosts.ProductId   , " & _
-                         "       MinCosts.RegionCode  , " & _
-                         "       IF(PriceCode=2647, '', (99999900 ^ TRUNCATE((MinCost*100), 0))) " & _
-                         "FROM   MinCosts")
-
-                        GetMySQLFile("Core", SelProc, _
-                        "SELECT CT.PriceCode                      , " & _
-                        "       CT.regioncode                     , " & _
-                        "       CT.ProductId                      , " & _
-                        "       ifnull(Core.codefirmcr, '')       , " & _
-                        "       Core.synonymcode                  , " & _
-                        "       if(ifnull(Core.SynonymFirmCrCode, 0)<1, 1, Core.SynonymFirmCrCode), " & _
-                        "       Core.Code                         , " & _
-                        "       Core.CodeCr                       , " & _
-                        "       Core.unit                         , " & _
-                        "       Core.volume                       , " & _
-                        "       Core.Junk                         , " & _
-                        "       Core.Await                        , " & _
-                        "       Core.quantity                     , " & _
-                        "       Core.note                         , " & _
-                        "       Core.period                       , " & _
-                        "       Core.doc                          , " & _
-                        "       ifnull(Core.RegistryCost, '')     , " & _
-                        "       Core.VitallyImportant             , " & _
-                        "       ifnull(Core.RequestRatio, '')     , " & _
-                        "       CT.CryptCost                      , " & _
-                        "       RIGHT(CT.ID, 9)                   , " & _
-                        "       ifnull(OrderCost, '')             , " & _
-                        "       ifnull(MinOrderCount, '') " & _
-                        "FROM   Core CT        , " & _
-                        "       ActivePrices AT, " & _
-                        "       farm.core0 Core " & _
-                        "WHERE  ct.pricecode =at.pricecode " & _
-                        "   AND ct.regioncode=at.regioncode " & _
-                        "   AND Core.id      =CT.id " & _
-                        "   AND IF(?Cumulative, 1, fresh)")
-                    Else
-                        SelProc.CommandText = "SELECT ''" & _
-                        " INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
-                        SelProc.ExecuteNonQuery()
-
-
-                        SelProc.CommandText = "SELECT ''" & _
-                          " INTO OUTFILE 'C:/AFFiles/MinPrices" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
-                        SelProc.ExecuteNonQuery()
-
-
-
-                        SyncLock (FilesForArchive)
-
-                            FilesForArchive.Enqueue(New FileForArchive("Core", False))
-                            FilesForArchive.Enqueue(New FileForArchive("MinPrices", False))
-
-                        End SyncLock
-
-
-                    End If
-
-                Else
-
-                    SelProc.CommandText = "" & _
-                     "DROP TEMPORARY TABLE IF EXISTS  ActivePrices; " & _
-                     "CREATE TEMPORARY TABLE ActivePrices engine=MEMORY " & _
-                     "SELECT pricesdata.firmcode                            , " & _
-                     "       i.pricecode                                    , " & _
-                     "       i.costcode                                     , " & _
-                     "       i.RegionCode                                   , " & _
-                     "       1 UpCost, " & _
-                     "       pricesdata.CostType " & _
-                     "FROM   usersettings.intersection i " & _
-                     "       JOIN usersettings.pricesdata " & _
-                     "       ON     pricesdata.pricecode = i.pricecode " & _
-                     "       JOIN usersettings.PricesCosts pc " & _
-                     "       ON     pc.CostCode = i.CostCode " & _
-                     "       JOIN usersettings.PriceItems pi " & _
-                     "       ON     pi.Id = pc.PriceItemId " & _
-                     "       JOIN farm.formrules f " & _
-                     "       ON     f.Id = pi.FormRuleId " & _
-                     "       JOIN usersettings.clientsdata " & _
-                     "       ON     clientsdata.firmcode = pricesdata.firmcode " & _
-                     "       JOIN usersettings.pricesregionaldata " & _
-                     "       ON     pricesregionaldata.regioncode = i.regioncode " & _
-                     "          AND pricesregionaldata.pricecode  = pricesdata.pricecode " & _
-                     "       JOIN usersettings.RegionalData rd " & _
-                     "       ON     rd.RegionCode = i.regioncode " & _
-                     "          AND rd.FirmCode   = pricesdata.firmcode " & _
-                     "       JOIN usersettings.clientsdata AS AClientsData " & _
-                     "       ON     AClientsData.firmcode   = i.clientcode " & _
-                     "          AND clientsdata.firmsegment = AClientsData.firmsegment " & _
-                     "       JOIN usersettings.retclientsset r " & _
-                     "       ON     r.clientcode    = AClientsData.FirmCode " & _
-                     "WHERE  i.DisabledByAgency     = 0 " & _
-                     "   AND clientsdata.firmstatus = 1 " & _
-                     "   AND clientsdata.firmtype   = 0 " & _
-                     "   AND ( " & _
-                     "              clientsdata.maskregion & i.regioncode " & _
-                     "       ) " & _
-                     "       > 0 " & _
-                     "   AND ( " & _
-                     "              AClientsData.maskregion & i.regioncode " & _
-                     "       ) " & _
-                     "                                                    > 0 " & _
-                     "   AND pricesdata.agencyenabled                     = 1 " & _
-                     "   AND pricesdata.enabled                           = 1 " & _
-                     "   AND pricesdata.pricetype                        <> 1 " & _
-                     "   AND pricesregionaldata.enabled                   = 1 " & _
-                     "   AND clientsdata.FirmCode!=234                        " & _
-                     "   AND to_days(Now()) - to_days(pi.PriceDate) < f.maxold " & _
-                     "   AND i.DisabledByClient=0 " & _
-                     "   AND i.InvisibleOnClient=0 " & _
-                     "   AND i.DisabledByFirm=0 " & _
-                     "   AND i.clientcode                                 = ?OffersClientCode;"
-
-
-
-
-                    helper.SelectOffers()
-
-                    SelProc.CommandText &= "" & _
-                     "DROP TEMPORARY TABLE " & _
-                     "IF EXISTS CoreT, CoreTP , CoreT2; " & _
-                     "        CREATE TEMPORARY TABLE CoreT(ProductId                  INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
-                     "                CREATE TEMPORARY TABLE CoreT2(ProductId         INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
-                     "                        CREATE TEMPORARY TABLE CoreTP(ProductId INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32), UNIQUE MultiK(ProductId))engine                                    =MEMORY; " & _
-                     "                                INSERT " & _
-                     "                                INTO   CoreT " & _
-                     "                                       ( " & _
-                     "                                              ProductId , " & _
-                     "                                              CodeFirmCr, " & _
-                     "                                              Cost " & _
-                     "                                       ) " & _
-                     "                                SELECT   core0.ProductId , " & _
-                     "                                         core0.codefirmcr, " & _
-                     "                                         ROUND(AVG(cost), 2) " & _
-                     "                                FROM     farm.core0, " & _
-                     "                                         Core " & _
-                     "                                WHERE    core0.id=Core.id " & _
-                     "                                GROUP BY ProductId, " & _
-                     "                                         CodeFirmCr; " & _
-                     "                                 " & _
-                     "                                UPDATE CoreT " & _
-                     "                                SET    CryptCost = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00'); " & _
-                     "                                 " & _
-                     "                                UPDATE CoreT " & _
-                     "                                SET    CryptCost=concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)); " & _
-                     "                                 " & _
-                     "                                INSERT " & _
-                     "                                INTO   CoreTP " & _
-                     "                                       ( " & _
-                     "                                              ProductId, " & _
-                     "                                              Cost " & _
-                     "                                       ) " & _
-                     "                                SELECT   ProductId, " & _
-                     "                                         ROUND(AVG(cost), 2) " & _
-                     "                                FROM     CoreT " & _
-                     "                                GROUP BY ProductId; " & _
-                     "                                 " & _
-                     "                                UPDATE CoreTP " & _
-                     "                                SET    CryptCost = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00'); " & _
-                     "                                 " & _
-                     "                                UPDATE CoreTP " & _
-                     "                                SET    CryptCost=concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)); " & _
-                     "                                 " & _
-                     "                                INSERT " & _
-                     "                                INTO   CoreT2 " & _
-                     "                                SELECT * " & _
-                     "                                FROM   CoreT; " & _
-                     "SET @RowId :=1;"
-                    SelProc.ExecuteNonQuery()
-
-                    'Err.Raise(1, "Технический запрет обновления")
-
-                    GetMySQLFile("Core", SelProc, "" & _
-                     "SELECT 2647                             , " & _
-                     "       ?OffersRegionCode                , " & _
-                     "       A.ProductId                      , " & _
-                     "       A.CodeFirmCr                     , " & _
-                     "       S.SynonymCode                    , " & _
-                     "       SF.SynonymFirmCrCode             , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       0                                , " & _
-                     "       0                                , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       ''                               , " & _
-                     "       0                                , " & _
-                     "       ''                               , " & _
-                     "       IF(?ShowAvgCosts, CryptCost, '') , " & _
-                     "       @RowId := @RowId + 1             , " & _
-                     "       ''                               , " & _
-                     "       ''                                 " & _
-                     "FROM   farm.Synonym S                   , " & _
-                     "       farm.SynonymFirmCr SF            , " & _
-                     "       CoreT A " & _
-                     "WHERE  S.PriceCode   =2647 " & _
-                     "   AND SF.PriceCode  =2647 " & _
-                     "   AND S.ProductId   =A.ProductId " & _
-                     "   AND SF.CodeFirmCr =A.CodeFirmCr " & _
-                     "   AND A.CodeFirmCr IS NOT NULL " & _
-                     " " & _
-                     "UNION " & _
-                     " " & _
-                     "SELECT 2647                              , " & _
-                     "       ?OffersRegionCode                 , " & _
-                     "       A.ProductId                       , " & _
-                     "       ''                                , " & _
-                     "       S.SynonymCode                     , " & _
-                     "       1                                 , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       0                                 , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       ''                                , " & _
-                     "       0                                 , " & _
-                     "       ''                                , " & _
-                     "       IF(?ShowAvgCosts, A.CryptCost, ''), " & _
-                     "       @RowId := @RowId + 1              , " & _
-                     "       ''                                , " & _
-                     "       ''                                  " & _
-                     "FROM   farm.Synonym S                    , " & _
-                     "       CoreTP A " & _
-                     "WHERE  S.PriceCode =2647 " & _
-                     "   AND S.ProductId =A.ProductId")
-
-
-                    GetMySQLFile("MinPrices", SelProc, "SELECT 0        , " & _
-                     "       ProductId, " & _
-                     "       ?OffersRegionCode         , " & _
-                     "       ''        " & _
-                     "FROM   CoreTP")
-
-
-
-
-                End If
-
-
-                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
-                SelProc.ExecuteNonQuery()
-
-                myTrans.Commit()
-
-                helper.UpdateReplicationInfo()
-
-                TS = Now().Subtract(StartTime)
-
-                If Math.Round(TS.TotalSeconds, 0) > 30 Then
-
-                    Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
-
-                End If
-
-
-
-
-            Catch ex As ThreadAbortException
-
-                'ErrorFlag = True
-
-                ' If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-
-            Catch MySQLErr As MySqlException
-
-                If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-
-
-                If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
-                ThreadZipStream.Join()
-
-
-                If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Or MySQLErr.Number = 1086 Then
-                    System.Threading.Thread.Sleep(2500)
-                    GoTo RestartTrans2
-                End If
-
-                MailErr("Основной поток выборки: " & MySQLErr.Message, SelProc.CommandText & MySQLErr.StackTrace)
-                ErrorFlag = True
-                UpdateType = 6
-                'NeedCloseCn = True
-                Addition &= MySQLErr.Message
-
-
-            Catch ErrorTXT As Exception
+				If ErrorFlag Then Exit Try
+
+				MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Catalog" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "CatalogCurrency" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "ClientsDataN" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
+
+				MySQLFileDelete(MySqlFilePath & "PriceAvg" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Section" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Synonym" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "CatalogFarmGroups" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
+				MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
+
+				helper.MaintainReplicationInfo()
+
+				If ThreadZipStream.IsAlive Then
+					ThreadZipStream.Abort()
+				End If
+
+				SelProc = New MySqlCommand
+				SelProc.Connection = ReadOnlyCn
+				SelProc.Parameters.AddWithValue("?ClientCode", CCode)
+				SelProc.Parameters.AddWithValue("?Cumulative", GED)
+				SelProc.Parameters.AddWithValue("?UserId", UserId)
+				SelProc.Parameters.AddWithValue("?UpdateTime", OldUpTime)
+
+				Cm = New MySqlCommand
+				Cm.Connection = ReadWriteCn
+				Cm.Parameters.AddWithValue("?UpdateTime", OldUpTime)
+
+				Cm.Parameters.AddWithValue("?OfferRegionCode", UpdateData.OffersRegionCode)
+
+				myTrans = ReadOnlyCn.BeginTransaction(IsoLevel)
+				SelProc.Transaction = myTrans
+
+				SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+				SelProc.ExecuteNonQuery()
+
+				MySQLFileDelete(MySqlFilePath & "MinPrices" & UserId & ".txt")
+				GetMySQLFile("PriceAvg", SelProc, "select ''")
+
+				SQLText = "SELECT P.Id       ," & _
+			 " P.CatalogId" & _
+			 " FROM   Catalogs.Products P" & _
+			 " WHERE hidden                = 0"
+
+				If Not GED Then
+					SQLText &= " AND P.UpdateTime >= ?UpdateTime"
+				End If
+
+				GetMySQLFile("Products", SelProc, SQLText)
+
+				ThreadZipStream = New Thread(AddressOf ZipStream)
+				ThreadZipStream.Start()
+
+				SQLText = "SELECT C.Id             , " & _
+				"       CN.Id            , " & _
+				"       LEFT(CN.name, 250)  , " & _
+				"       LEFT(form, 250)  , " & _
+				"       vitallyimportant , " & _
+				"       needcold         , " & _
+				"       fragile " & _
+				"FROM   Catalogs.Catalog C       , " & _
+				"       Catalogs.CatalogForms CF , " & _
+				"       Catalogs.CatalogNames CN " & _
+				"WHERE  C.NameId                        =CN.Id " & _
+				"   AND C.FormId                        =CF.Id " & _
+				"   AND hidden    =0"
+
+				If Not GED Then
+					SQLText &= "   AND C.UpdateTime >= ?UpdateTime "
+				End If
+
+				GetMySQLFile("Catalog", SelProc, SQLText)
+
+				GetMySQLFile("CatDel", SelProc, _
+				" SELECT C.Id " & _
+				" FROM   Catalogs.Catalog C " & _
+				" WHERE  C.UpdateTime > ?UpdateTime " & _
+				"   AND hidden        = 1 " & _
+				"   AND NOT ?Cumulative")
+
+				SelProc.Parameters.AddWithValue("?OffersClientCode", UpdateData.OffersClientCode)
+				SelProc.Parameters.AddWithValue("?OffersRegionCode", UpdateData.OffersRegionCode)
+				SelProc.Parameters.AddWithValue("?ShowAvgCosts", UpdateData.ShowAvgCosts)
+
+				GetMySQLFile("Regions", SelProc, helper.GetRegionsCommand())
+
+				helper.SelectPrices()
+
+				If UpdateData.ShowJunkOffers Then
+
+					SelProc.CommandText = "" & _
+					"      CREATE TEMPORARY TABLE PricesTMP " & _
+					"      SELECT * " & _
+					"      FROM   Prices " & _
+					"      WHERE  PriceCode=2647; " & _
+					"       " & _
+					"      CALL GetPrices2(?OffersClientCode); " & _
+					"      INSERT " & _
+					"      INTO   Prices " & _
+					"      SELECT * " & _
+					"      FROM   PricesTMP; " & _
+					"       " & _
+					"      DROP TEMPORARY TABLE PricesTMP;"
+
+					SelProc.ExecuteNonQuery()
+
+				End If
+
+				GetMySQLFile("ClientsDataN", SelProc, _
+				"SELECT firm.FirmCode, " & _
+				"       firm.FullName, " & _
+				"       firm.Fax     , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-'          , " & _
+				"       '-' " & _
+				"FROM   clientsdata AS firm " & _
+				"WHERE  firmcode IN " & _
+				"                   (SELECT DISTINCT FirmCode " & _
+				"                   FROM             Prices " & _
+				"                   )")
+
+				GetMySQLFile("RegionalData", SelProc, _
+				"SELECT DISTINCT regionaldata.FirmCode  , " & _
+				"                regionaldata.RegionCode, " & _
+				"                supportphone           , " & _
+				"                LEFT(adminmail, 50)    , " & _
+				"                ContactInfo            , " & _
+				"                OperativeInfo " & _
+				"FROM            regionaldata, " & _
+				"                Prices " & _
+				"WHERE           regionaldata.firmcode  = Prices.firmcode " & _
+				"            AND regionaldata.regioncode= Prices.regioncode")
+
+
+				GetMySQLFile("PricesRegionalData", SelProc, _
+				"SELECT PriceCode           , " & _
+				"       RegionCode          , " & _
+				"       STORAGE             , " & _
+				"       PublicUpCost        , " & _
+				"       MinReq              , " & _
+				"       MainFirm            , " & _
+				"       NOT disabledbyclient, " & _
+				"       CostCorrByClient    , " & _
+				"       ControlMinReq " & _
+				"FROM   Prices")
+
+				SelProc.CommandText = "" & _
+				"CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
+				"INSERT " & _
+				"INTO   tmpprd " & _
+				"SELECT   firmcode, " & _
+				"         COUNT(pricecode) " & _
+				"FROM     Prices " & _
+				"GROUP BY FirmCode, " & _
+				"         RegionCode;"
+
+				SelProc.ExecuteNonQuery()
+
+
+				GetMySQLFile("PricesData", SelProc, _
+				  "SELECT   Prices.FirmCode , " & _
+				  "         Prices.pricecode, " & _
+				  "                  concat(firm.shortname, IF(PriceCount> 1 " & _
+				  "      OR ShowPriceName                                = 1, concat(' (', pricename, ')'), '')), " & _
+				  "          0                                                                  , " & _
+				  "         ''                                                                                  , " & _
+				  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)  , " & _
+				  "         if(?OffersClientCode is null, ((ForceReplication != 0) " & _
+				  "          OR (actual = 0) or ?Cumulative), 1)  , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         ''          , " & _
+				  "         '0' " & _
+				  "FROM     clientsdata AS firm, " & _
+				  "         tmpprd             , " & _
+				  "         Prices, " & _
+				  "         AnalitFReplicationInfo ARI " & _
+				  "WHERE    tmpprd.firmcode = firm.firmcode " & _
+				  "     AND firm.firmcode   = Prices.FirmCode " & _
+				  "     AND ARI.FirmCode    = Prices.FirmCode " & _
+				  "     AND ARI.UserId    = ?UserId " & _
+				  "GROUP BY Prices.FirmCode, " & _
+				  "         Prices.pricecode")
+
+				SQLText = "SELECT FirmCr        , " & _
+				  "       CountryCr     , " & _
+				  "       FullName      , " & _
+				  "       Series        , " & _
+				  "       LetterNo      , " & _
+				  "       LetterDate    , " & _
+				  "       LaboratoryName, " & _
+				  "       CauseRejects " & _
+				  "FROM   addition.rejects, " & _
+				  "       retclientsset rcs " & _
+				  "WHERE rcs.clientcode = ?ClientCode" & _
+				  "   AND alowrejection  = 1 "
+
+				If Not GED Then
+					SQLText &= "   AND accessTime     > ?UpdateTime"
+				End If
+
+				GetMySQLFile("Rejects", SelProc, SQLText)
+				GetMySQLFile("Clients", SelProc, helper.GetClientsCommand(True))
+
+				helper.SelectActivePrices()
+
+				SelProc.CommandText = "" & _
+				"CREATE TEMPORARY TABLE ParentCodes ENGINE=memory " & _
+				"SELECT   PriceSynonymCode PriceCode, " & _
+				"         MaxSynonymCode                 , " & _
+				"         MaxSynonymFirmCrCode " & _
+				"FROM     ActivePrices Prices        " & _
+				"GROUP BY 1; "
+
+				SelProc.ExecuteNonQuery()
+
+				SQLText = "" & _
+				"SELECT synonymfirmcr.synonymfirmcrcode, " & _
+				"       LEFT(SYNONYM, 250) " & _
+				"FROM   farm.synonymfirmcr, " & _
+				"       ParentCodes " & _
+				"WHERE  synonymfirmcr.pricecode        = ParentCodes.PriceCode "
+				If Not GED Then
+
+					SQLText &= "AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode "
+
+				End If
+
+				SQLText &= " " & _
+			   "UNION " & _
+			   " " & _
+			   "SELECT 1, " & _
+			   "       '-' "
+
+				GetMySQLFile("SynonymFirmCr", SelProc, SQLText)
+
+				SQLText = "" & _
+				"SELECT synonym.synonymcode, " & _
+				"       LEFT(synonym.synonym, 250) " & _
+				"FROM   farm.synonym, " & _
+				"       ParentCodes " & _
+				"WHERE  synonym.pricecode  = ParentCodes.PriceCode "
+
+				If Not GED Then
+					SQLText &= "AND synonym.synonymcode > MaxSynonymCode"
+				End If
+
+				GetMySQLFile("Synonym", SelProc, SQLText)
+
+				GetMySQLFile("CatalogCurrency", SelProc, _
+				"SELECT currency, " & _
+				"       exchange " & _
+				"FROM   farm.catalogcurrency " & _
+				"WHERE  currency='$' " & _
+				"    OR currency='Eu'")
+
+
+				If UpdateData.OffersClientCode Is Nothing Then
+
+					SelProc.CommandText = "" & _
+					"SELECT IFNULL(SUM(fresh), 0) " & _
+					"FROM   ActivePrices"
+					If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
+						helper.SelectOffers()
+						CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
+
+						SelProc.CommandText = "" & _
+						"UPDATE ActivePrices Prices, " & _
+						"       Core " & _
+						"SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
+						"WHERE  Prices.PriceCode= Core.PriceCode " & _
+						"   AND IF(?Cumulative, 1, Fresh) " & _
+						"   AND Core.PriceCode!=2647 ; " & _
+						" " & _
+						"UPDATE Core " & _
+						"SET    CryptCost        =concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)) " & _
+						"WHERE  LENGTH(CryptCost)>0 " & _
+						"   AND Core.PriceCode!=2647;"
+						SelProc.ExecuteNonQuery()
+
+
+						GetMySQLFile("MinPrices", SelProc, _
+						 "SELECT RIGHT(MinCosts.ID, 9), " & _
+						 "       MinCosts.ProductId   , " & _
+						 "       MinCosts.RegionCode  , " & _
+						 "       IF(PriceCode=2647, '', (99999900 ^ TRUNCATE((MinCost*100), 0))) " & _
+						 "FROM   MinCosts")
+
+						GetMySQLFile("Core", SelProc, _
+						"SELECT CT.PriceCode                      , " & _
+						"       CT.regioncode                     , " & _
+						"       CT.ProductId                      , " & _
+						"       ifnull(Core.codefirmcr, '')       , " & _
+						"       Core.synonymcode                  , " & _
+						"       if(ifnull(Core.SynonymFirmCrCode, 0)<1, 1, Core.SynonymFirmCrCode), " & _
+						"       Core.Code                         , " & _
+						"       Core.CodeCr                       , " & _
+						"       Core.unit                         , " & _
+						"       Core.volume                       , " & _
+						"       Core.Junk                         , " & _
+						"       Core.Await                        , " & _
+						"       Core.quantity                     , " & _
+						"       Core.note                         , " & _
+						"       Core.period                       , " & _
+						"       Core.doc                          , " & _
+						"       ifnull(Core.RegistryCost, '')     , " & _
+						"       Core.VitallyImportant             , " & _
+						"       ifnull(Core.RequestRatio, '')     , " & _
+						"       CT.CryptCost                      , " & _
+						"       RIGHT(CT.ID, 9)                   , " & _
+						"       ifnull(OrderCost, '')             , " & _
+						"       ifnull(MinOrderCount, '') " & _
+						"FROM   Core CT        , " & _
+						"       ActivePrices AT, " & _
+						"       farm.core0 Core " & _
+						"WHERE  ct.pricecode =at.pricecode " & _
+						"   AND ct.regioncode=at.regioncode " & _
+						"   AND Core.id      =CT.id " & _
+						"   AND IF(?Cumulative, 1, fresh)")
+					Else
+						SelProc.CommandText = "SELECT ''" & _
+						" INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
+						SelProc.ExecuteNonQuery()
+
+
+						SelProc.CommandText = "SELECT ''" & _
+						  " INTO OUTFILE 'C:/AFFiles/MinPrices" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
+						SelProc.ExecuteNonQuery()
+
+
+
+						SyncLock (FilesForArchive)
+
+							FilesForArchive.Enqueue(New FileForArchive("Core", False))
+							FilesForArchive.Enqueue(New FileForArchive("MinPrices", False))
+
+						End SyncLock
+
+
+					End If
+
+				Else
+
+					SelProc.CommandText = "" & _
+					 "DROP TEMPORARY TABLE IF EXISTS  ActivePrices; " & _
+					 "CREATE TEMPORARY TABLE ActivePrices engine=MEMORY " & _
+					 "SELECT pricesdata.firmcode                            , " & _
+					 "       i.pricecode                                    , " & _
+					 "       i.costcode                                     , " & _
+					 "       i.RegionCode                                   , " & _
+					 "       1 UpCost, " & _
+					 "       pricesdata.CostType " & _
+					 "FROM   usersettings.intersection i " & _
+					 "       JOIN usersettings.pricesdata " & _
+					 "       ON     pricesdata.pricecode = i.pricecode " & _
+					 "       JOIN usersettings.PricesCosts pc " & _
+					 "       ON     pc.CostCode = i.CostCode " & _
+					 "       JOIN usersettings.PriceItems pi " & _
+					 "       ON     pi.Id = pc.PriceItemId " & _
+					 "       JOIN farm.formrules f " & _
+					 "       ON     f.Id = pi.FormRuleId " & _
+					 "       JOIN usersettings.clientsdata " & _
+					 "       ON     clientsdata.firmcode = pricesdata.firmcode " & _
+					 "       JOIN usersettings.pricesregionaldata " & _
+					 "       ON     pricesregionaldata.regioncode = i.regioncode " & _
+					 "          AND pricesregionaldata.pricecode  = pricesdata.pricecode " & _
+					 "       JOIN usersettings.RegionalData rd " & _
+					 "       ON     rd.RegionCode = i.regioncode " & _
+					 "          AND rd.FirmCode   = pricesdata.firmcode " & _
+					 "       JOIN usersettings.clientsdata AS AClientsData " & _
+					 "       ON     AClientsData.firmcode   = i.clientcode " & _
+					 "          AND clientsdata.firmsegment = AClientsData.firmsegment " & _
+					 "       JOIN usersettings.retclientsset r " & _
+					 "       ON     r.clientcode    = AClientsData.FirmCode " & _
+					 "WHERE  i.DisabledByAgency     = 0 " & _
+					 "   AND clientsdata.firmstatus = 1 " & _
+					 "   AND clientsdata.firmtype   = 0 " & _
+					 "   AND ( " & _
+					 "              clientsdata.maskregion & i.regioncode " & _
+					 "       ) " & _
+					 "       > 0 " & _
+					 "   AND ( " & _
+					 "              AClientsData.maskregion & i.regioncode " & _
+					 "       ) " & _
+					 "                                                    > 0 " & _
+					 "   AND pricesdata.agencyenabled                     = 1 " & _
+					 "   AND pricesdata.enabled                           = 1 " & _
+					 "   AND pricesdata.pricetype                        <> 1 " & _
+					 "   AND pricesregionaldata.enabled                   = 1 " & _
+					 "   AND clientsdata.FirmCode!=234                        " & _
+					 "   AND to_days(Now()) - to_days(pi.PriceDate) < f.maxold " & _
+					 "   AND i.DisabledByClient=0 " & _
+					 "   AND i.InvisibleOnClient=0 " & _
+					 "   AND i.DisabledByFirm=0 " & _
+					 "   AND i.clientcode                                 = ?OffersClientCode;"
+
+
+
+
+					helper.SelectOffers()
+
+					SelProc.CommandText &= "" & _
+					 "DROP TEMPORARY TABLE " & _
+					 "IF EXISTS CoreT, CoreTP , CoreT2; " & _
+					 "        CREATE TEMPORARY TABLE CoreT(ProductId                  INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
+					 "                CREATE TEMPORARY TABLE CoreT2(ProductId         INT unsigned, CodeFirmCr INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32),UNIQUE MultiK(ProductId, CodeFirmCr))engine=MEMORY; " & _
+					 "                        CREATE TEMPORARY TABLE CoreTP(ProductId INT unsigned, Cost DECIMAL(8,2), CryptCost VARCHAR(32), UNIQUE MultiK(ProductId))engine                                    =MEMORY; " & _
+					 "                                INSERT " & _
+					 "                                INTO   CoreT " & _
+					 "                                       ( " & _
+					 "                                              ProductId , " & _
+					 "                                              CodeFirmCr, " & _
+					 "                                              Cost " & _
+					 "                                       ) " & _
+					 "                                SELECT   core0.ProductId , " & _
+					 "                                         core0.codefirmcr, " & _
+					 "                                         ROUND(AVG(cost), 2) " & _
+					 "                                FROM     farm.core0, " & _
+					 "                                         Core " & _
+					 "                                WHERE    core0.id=Core.id " & _
+					 "                                GROUP BY ProductId, " & _
+					 "                                         CodeFirmCr; " & _
+					 "                                 " & _
+					 "                                UPDATE CoreT " & _
+					 "                                SET    CryptCost = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00'); " & _
+					 "                                 " & _
+					 "                                UPDATE CoreT " & _
+					 "                                SET    CryptCost=concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)); " & _
+					 "                                 " & _
+					 "                                INSERT " & _
+					 "                                INTO   CoreTP " & _
+					 "                                       ( " & _
+					 "                                              ProductId, " & _
+					 "                                              Cost " & _
+					 "                                       ) " & _
+					 "                                SELECT   ProductId, " & _
+					 "                                         ROUND(AVG(cost), 2) " & _
+					 "                                FROM     CoreT " & _
+					 "                                GROUP BY ProductId; " & _
+					 "                                 " & _
+					 "                                UPDATE CoreTP " & _
+					 "                                SET    CryptCost = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00'); " & _
+					 "                                 " & _
+					 "                                UPDATE CoreTP " & _
+					 "                                SET    CryptCost=concat(LEFT(CryptCost, 1), CHAR(ROUND((rand()*110)+32,0)), SUBSTRING(CryptCost,2,LENGTH(CryptCost)-4), CHAR(ROUND((rand()*110)+32,0)), RIGHT(CryptCost, 3)); " & _
+					 "                                 " & _
+					 "                                INSERT " & _
+					 "                                INTO   CoreT2 " & _
+					 "                                SELECT * " & _
+					 "                                FROM   CoreT; " & _
+					 "SET @RowId :=1;"
+					SelProc.ExecuteNonQuery()
+
+					'Err.Raise(1, "Технический запрет обновления")
+
+					GetMySQLFile("Core", SelProc, "" & _
+					 "SELECT 2647                             , " & _
+					 "       ?OffersRegionCode                , " & _
+					 "       A.ProductId                      , " & _
+					 "       A.CodeFirmCr                     , " & _
+					 "       S.SynonymCode                    , " & _
+					 "       SF.SynonymFirmCrCode             , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       0                                , " & _
+					 "       0                                , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       ''                               , " & _
+					 "       0                                , " & _
+					 "       ''                               , " & _
+					 "       IF(?ShowAvgCosts, CryptCost, '') , " & _
+					 "       @RowId := @RowId + 1             , " & _
+					 "       ''                               , " & _
+					 "       ''                                 " & _
+					 "FROM   farm.Synonym S                   , " & _
+					 "       farm.SynonymFirmCr SF            , " & _
+					 "       CoreT A " & _
+					 "WHERE  S.PriceCode   =2647 " & _
+					 "   AND SF.PriceCode  =2647 " & _
+					 "   AND S.ProductId   =A.ProductId " & _
+					 "   AND SF.CodeFirmCr =A.CodeFirmCr " & _
+					 "   AND A.CodeFirmCr IS NOT NULL " & _
+					 " " & _
+					 "UNION " & _
+					 " " & _
+					 "SELECT 2647                              , " & _
+					 "       ?OffersRegionCode                 , " & _
+					 "       A.ProductId                       , " & _
+					 "       ''                                , " & _
+					 "       S.SynonymCode                     , " & _
+					 "       1                                 , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       0                                 , " & _
+					 "       0                                 , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       ''                                , " & _
+					 "       0                                 , " & _
+					 "       ''                                , " & _
+					 "       IF(?ShowAvgCosts, A.CryptCost, ''), " & _
+					 "       @RowId := @RowId + 1              , " & _
+					 "       ''                                , " & _
+					 "       ''                                  " & _
+					 "FROM   farm.Synonym S                    , " & _
+					 "       CoreTP A " & _
+					 "WHERE  S.PriceCode =2647 " & _
+					 "   AND S.ProductId =A.ProductId")
+
+
+					GetMySQLFile("MinPrices", SelProc, "SELECT 0        , " & _
+					 "       ProductId, " & _
+					 "       ?OffersRegionCode         , " & _
+					 "       ''        " & _
+					 "FROM   CoreTP")
+
+
+
+
+				End If
+
+
+				SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+				SelProc.ExecuteNonQuery()
+
+				myTrans.Commit()
+
+				helper.UpdateReplicationInfo()
+
+				TS = Now().Subtract(StartTime)
+
+				If Math.Round(TS.TotalSeconds, 0) > 30 Then
+
+					Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
+
+				End If
+
+
+
+
+			Catch ex As ThreadAbortException
+
+				'ErrorFlag = True
+
+				' If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+
+			Catch MySQLErr As MySqlException
+
+				If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+
+
+				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+				ThreadZipStream.Join()
+
+
+				If MySQLErr.Number = 1213 Or MySQLErr.Number = 1205 Or MySQLErr.Number = 1086 Then
+					System.Threading.Thread.Sleep(2500)
+					GoTo RestartTrans2
+				End If
+
+				MailErr("Основной поток выборки: " & MySQLErr.Message, SelProc.CommandText & MySQLErr.StackTrace)
+				ErrorFlag = True
+				UpdateType = 6
+				'NeedCloseCn = True
+				Addition &= MySQLErr.Message
+
+
+			Catch ErrorTXT As Exception
 
 #If DEBUG Then
 
-                'If ErrorTXT.Message = "Определенная приложением или объектом ошибка." Then
+				'If ErrorTXT.Message = "Определенная приложением или объектом ошибка." Then
 
-                '    If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+				'    If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
 
-                '    If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
-                '    ThreadZipStream.Join()
+				'    If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+				'    ThreadZipStream.Join()
 
-                '    System.Threading.Thread.Sleep(2500)
+				'    System.Threading.Thread.Sleep(2500)
 
-                '    GoTo RestartTrans2
+				'    GoTo RestartTrans2
 
-                'End If
+				'End If
 #End If
 
 
-                ErrorFlag = True
-                'NeedCloseCn = True
-                UpdateType = 6
-                Addition &= ErrorTXT.Message
-                MailErr("Основной поток выборки, клиент: " & CCode, ErrorTXT.Message & ErrorTXT.StackTrace)
-                If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
-                'If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-            End Try
+				ErrorFlag = True
+				'NeedCloseCn = True
+				UpdateType = 6
+				Addition &= ErrorTXT.Message
+				MailErr("Основной поток выборки, клиент: " & CCode, ErrorTXT.Message & ErrorTXT.StackTrace)
+				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+				'If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
+			End Try
 		Catch err As Exception
 			Me.Log.Error("Основной поток выборки, general " & CCode, err)
 			ErrorFlag = True
-        End Try
-    End Sub
+		End Try
+	End Sub
 
 
     Private Sub MySqlProc()
