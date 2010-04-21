@@ -10,12 +10,13 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Integration</RootNamespace>
     <AssemblyName>Integration</AssemblyName>
-    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -35,9 +36,19 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Castle.ActiveRecord">
+      <HintPath>..\..\lib\Castle.ActiveRecord.dll</HintPath>
+    </Reference>
+    <Reference Include="Castle.ActiveRecord.Linq, Version=1.9.201.0, Culture=neutral, PublicKeyToken=407dd0808d44fbdc, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\lib\Castle.ActiveRecord.Linq.dll</HintPath>
+    </Reference>
     <Reference Include="MySql.Data, Version=6.0.4.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\lib\MySql.Data.dll</HintPath>
+    </Reference>
+    <Reference Include="NHibernate.ByteCode.Castle">
+      <HintPath>..\..\lib\NHibernate.ByteCode.Castle.dll</HintPath>
     </Reference>
     <Reference Include="nunit.framework, Version=2.5.1.9189, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -67,6 +78,7 @@
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
+    <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
     <Compile Include="PostSomeOrdersFixture.cs" />
     <Compile Include="ProcedureFixture.cs" />
@@ -89,6 +101,14 @@
     <ProjectReference Include="..\PrgData.Common\PrgData.Common.csproj">
       <Project>{A781C338-F75D-45A8-A7DC-C49E66051FC5}</Project>
       <Name>PrgData.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\PrgData\PrgData.vbproj">
+      <Project>{7CE51224-CC70-403A-A037-C19749A13F41}</Project>
+      <Name>PrgData</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Test.Support\Test.Support\Test.Support.csproj">
+      <Project>{A215E837-1208-49E3-AF93-A9612223122C}</Project>
+      <Name>Test.Support</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

@@ -30,16 +30,16 @@ Public Class PrgDataEx
         InitializeComponent()
 
         Try
-            ResultFileName = Server.MapPath("/Results") & "\"
-            ConnectionManager = New Global.Common.MySql.ConnectionManager()
-            ArchiveHelper.SevenZipExePath = SevenZipExe
+			ConnectionManager = New Global.Common.MySql.ConnectionManager()
+			ArchiveHelper.SevenZipExePath = SevenZipExe
+			ResultFileName = Server.MapPath("/Results") & "\"
         Catch ex As Exception
             Log.Error("Ошибка при инициализации приложения", ex)
         End Try
 
-    End Sub
+	End Sub
 
-    Private ConnectionManager As Global.Common.MySql.ConnectionManager
+	Private ConnectionManager As Global.Common.MySql.ConnectionManager
     Private WithEvents SelProc As MySql.Data.MySqlClient.MySqlCommand
     Private WithEvents dataTable4 As System.Data.DataTable
     Private WithEvents DA As MySql.Data.MySqlClient.MySqlDataAdapter
@@ -64,22 +64,18 @@ Public Class PrgDataEx
     ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
     Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
-    Dim zipfilecount As Int32
-    Private FileInfo As System.IO.FileInfo
+	Private FileInfo As System.IO.FileInfo
     Private FileCount As Integer = 16
-    Private tspan As New TimeSpan()
-    Private Запрос, UserName, MessageD, MailMessage As String
+	Private Запрос, UserName, MessageD, MailMessage As String
     'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
     Private AbsentPriceCodes As String
     Private MessageH As String
-    Private rowcount, i, NewMDBVer As Integer
-    Private MinCount As UInt32
-    Private ErrorFlag, Documents As Boolean
+	Private i As Integer
+	Private ErrorFlag, Documents As Boolean
     Private Addition, ClientLog As String
     Private Reclame As Boolean
-    Private ResultFileName As String
+	Public ResultFileName As String
     Dim ArhiveStartTime As DateTime
-    Dim ArhiveTS As TimeSpan
 
     'Потоки
     Private ThreadZipStream As New Thread(AddressOf ZipStream)
@@ -88,8 +84,7 @@ Public Class PrgDataEx
     Private SetResultCodes As New Thread(AddressOf SetCodesProc)
 
     Private CurUpdTime, OldUpTime As DateTime
-    Private ResultRow As Data.DataRow
-    Private BuildNo, AllowBuildNo, UpdateType, MDBVer As Integer
+	Private BuildNo, AllowBuildNo, UpdateType, MDBVer As Integer
     Private ResultLenght, OrderId As UInt32
     Dim CCode, UserId As UInt32
     Private SpyHostsFile, SpyAccount As Boolean
@@ -118,7 +113,6 @@ Public Class PrgDataEx
     Private ReadWriteCn As MySql.Data.MySqlClient.MySqlConnection
 
     Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
-
 
     Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
 
@@ -174,7 +168,7 @@ Public Class PrgDataEx
             Using connection = New MySqlConnection(Settings.ConnectionString())
                 connection.Open()
 
-                updateData = UpdateHelper.GetUpdateData(connection, HttpContext.Current.User.Identity.Name)
+				updateData = UpdateHelper.GetUpdateData(connection, ServiceContext.GetUserName())
 
                 If updateData Is Nothing Then
                     Throw New Exception("Клиент не найден")
@@ -604,7 +598,7 @@ endproc:
             If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
 
             If NewZip And Not ErrorFlag Then
-                ArhiveTS = Now().Subtract(ArhiveStartTime)
+				Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
 
                 If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
 
@@ -631,7 +625,7 @@ endproc:
                     Thread.Sleep(500)
                 End While
 
-                ResStr = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
+				ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
@@ -697,7 +691,7 @@ endproc:
             Dim SevenZipTmpArchive, Name As String
             Dim xRow As DataRow
             Dim FileName, Вывод7Z, Ошибка7Z As String
-            zipfilecount = 0
+			Dim zipfilecount = 0
             Dim xset As New DataTable
             Dim ArchTrans As MySqlTransaction
             Dim ef(), СписокФайлов() As String
@@ -758,7 +752,8 @@ endproc:
 
                                 If СписокФайлов.Length = 1 Then
 
-                                    xRow = DS.Tables("ProcessingDocuments").NewRow
+									xRow = DS.Tables("ProcessingDocuments").NewRow
+									xRow("Comited") = True
 
                                     startInfo = New ProcessStartInfo(SevenZipExe)
                                     startInfo.CreateNoWindow = True
@@ -766,8 +761,6 @@ endproc:
                                     startInfo.RedirectStandardError = True
                                     startInfo.UseShellExecute = False
                                     startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-                                    'startInfo.UserName = Пользователь
-                                    'startInfo.Password = БезопасныйПароль
 
                                     startInfo.Arguments = "a """ & _
                                        SevenZipTmpArchive & """ " & _
@@ -785,11 +778,7 @@ endproc:
                                     Pr = New Process
                                     Pr.StartInfo = startInfo
                                     Pr = Process.Start(startInfo)
-                                    '#If Not Debug Then
-                                    '                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                    '#End If
-
-                                    Pr.WaitForExit()
+									Pr.WaitForExit()
 
 
                                     Вывод7Z = Pr.StandardOutput.ReadToEnd
@@ -1320,7 +1309,7 @@ StartZipping:
     End Function
 
     Private Sub GetClientCode()
-        UserName = HttpContext.Current.User.Identity.Name
+		UserName = ServiceContext.GetUserName()
         If Left(UserName, 7) = "ANALIT\" Then
             UserName = Mid(UserName, 8)
         End If
@@ -1374,8 +1363,8 @@ StartZipping:
 
 
     Private Function DBConnect(ByVal FromProcess As String) As Boolean
-        UserHost = HttpContext.Current.Request.UserHostAddress
-        Try
+		UserHost = ServiceContext.GetUserHost()
+		Try
             ReadOnlyCn = ConnectionManager.GetConnection()
             ReadOnlyCn.Open()
 
@@ -1510,28 +1499,6 @@ StartZipping:
            LeaderMinPriceCode)
 
     End Function
-
-    'Private Function ParseDecimal(ByVal InString As String()) As Decimal()
-    '    Dim ResDecimal As Decimal()
-    '    Dim i As Integer
-
-    '    If InString.Length > 0 Then
-
-    '        For i = 0 To InString.Length - 1
-
-    '            ResDecimal(i) = New Decimal
-    '            Decimal.TryParse(InString(i), ResDecimal(i))
-
-    '        Next
-
-    '    Else
-    '        Return ResDecimal
-    '        Return Nothing
-    '    End If
-
-    'End Function
-
-
 
     <WebMethod()> _
     Public Function PostOrder(ByVal UniqueID As String, _
@@ -2076,38 +2043,19 @@ ItsEnd:
         Utils.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "Ошибка в сервисе подготовки данных")
     End Sub
 
-    ' Private Sub MailUpdate(ByVal OldMDBVersion As Int32, ByVal NewMDBVersion As Int32, ByVal OldEXEVersion As Int32, ByVal NewEXEVersion As Int32)
-    '        Cm.CommandText = " insert into logs.programmupgrade values(null, now(), " & CCode & ", " & OldMDBVersion & ", " & NewMDBVersion & ", " & OldEXEVersion & ", " & NewEXEVersion & "); SELECT email," & _
-    '" ShortName FROM clientsdata, accessright.regionaladmins" & _
-    '" where SendAlert=1 and RegionCode & regionaladmins.regionmask>0 and firmcode=" & CCode
-    '        SQLdr = Cm.ExecuteReader
-    '        While SQLdr.Read
-    '            Mail("service@analit.net", "Обновление программы - " & SQLdr.Item(1), MailFormat.Text, "Код клиента: ", SQLdr.Item(0), System.Text.Encoding.UTF8)
-    '        End While
-    '        SQLdr.Close()
-
-    '    End Sub
-
     Private Function FnCheckID() As Boolean
-        '#If DEBUG Then
-        '        Return True
-        '#Else
-
-        Cm.Transaction = myTrans
+		Cm.Transaction = myTrans
 RePost:
 
         Cm.CommandText = "select AFCopyId from UserUpdateInfo where UserId=" & UserId
-        'Cm.Parameters.Add(New MySqlParameter("?ClientCode", MySqlDbType.Int32))
-        'Cm.Parameters("?ClientCode").Value = CCode
-        Cm.Transaction = myTrans
+		Cm.Transaction = myTrans
 
         myTrans = ReadOnlyCn.BeginTransaction(IsoLevel)
-        ' Cm.Parameters.
-        Using SQLdr As MySqlDataReader = Cm.ExecuteReader
-            SQLdr.Read()
-            UniqueCID = SQLdr.GetString(0)
-            SQLdr.Close()
-        End Using
+		Using SQLdr As MySqlDataReader = Cm.ExecuteReader
+			SQLdr.Read()
+			UniqueCID = SQLdr.GetString(0)
+			SQLdr.Close()
+		End Using
 
 
         If UniqueCID.Length < 1 Then
@@ -2126,8 +2074,7 @@ RePost:
         Else
 
             If UniqueCID <> UID Then
-                'MailErr("Несоответствие UIN", UniqueCID & " " & UID)
-                FnCheckID = False
+				FnCheckID = False
             Else
                 FnCheckID = True
             End If
@@ -2135,8 +2082,7 @@ RePost:
         End If
 
         myTrans.Commit()
-        '#End If
-    End Function
+	End Function
 
     Private Sub ProtocolUpdates()
         Dim LogTrans As MySqlTransaction
@@ -2285,22 +2231,9 @@ PostLog:
 
                                     Next
 
-                                End If
-
-                                LogCm.CommandText = "" & _
-                                     "UPDATE AnalitFDocumentsProcessing A, " & _
-                                     "        `logs`.document_logs d " & _
-                                     "SET     d.UpdateId=A.UpdateId " & _
-                                     "WHERE   d.RowId   =A.DocumentId " & _
-                                     "    AND A.UpdateId=" & GUpdateId & _
-                                     "; "
-
-                                LogCm.CommandText &= "" & _
-                                     "DELETE " & _
-                                     "FROM    AnalitFDocumentsProcessing " & _
-                                     "WHERE   UpdateId=" & GUpdateId
-
-                                LogCm.ExecuteNonQuery()
+								End If
+								LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
+								LogCm.ExecuteNonQuery()
 
                             End If
 

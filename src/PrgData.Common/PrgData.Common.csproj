@@ -109,6 +109,7 @@
     <Reference Include="System.ServiceModel">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -120,6 +121,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConnectionHelper.cs" />
+    <Compile Include="Context.cs" />
     <Compile Include="CostOptimizer.cs" />
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="OrderHelper.cs" />

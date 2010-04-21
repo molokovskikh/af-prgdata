@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
@@ -77,6 +78,36 @@ namespace PrgData.Common
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
 			_readOnlyConnection = readOnlyConnection;
+		}
+
+		public static Func<string> GetDownloadUrl =
+			() => HttpContext.Current.Request.Url.Scheme
+				+ Uri.SchemeDelimiter
+				+ HttpContext.Current.Request.Url.Authority
+				+ HttpContext.Current.Request.ApplicationPath;
+
+		public string GetConfirmDocumentsCommnad(uint? updateId)
+		{
+			if (!_updateData.IsFutureClient)
+			{
+				return String.Format(@"
+UPDATE AnalitFDocumentsProcessing A
+`logs`.document_logs d 
+SET d.UpdateId = A.UpdateId 
+WHERE d.RowId = A.DocumentId 
+	AND A.UpdateId = {0};
+
+DELETE 
+FROM AnalitFDocumentsProcessing 
+WHERE UpdateId = {0};", updateId);
+			}
+			else
+			{
+				return @"
+update AnalitFDocumentsProcessing A
+set a.Comited = 1
+where updateid = " + updateId;
+			}
 		}
 
 		public bool DefineMaxProducerCostsCostId()
@@ -600,10 +631,14 @@ select d.AddressId as ClientCode,
 from future.Users u
 	join future.UserAddresses ua on u.Id = ua.UserId
 		join logs.document_logs d on ua.AddressId = d.AddressId
+			left join usersettings.AnalitFDocumentsProcessing afp on afp.DocumentId = d.RowId
+				left join logs.AnalitFUpdates afu on afu.UpdateId = afp.UpdateId and afu.UserId = u.Id
 where u.Id = ?UserId
-	and d.UpdateId is null
 	and d.FirmCode is not null
-	and d.Addition IS NULL
+	and d.Addition is null
+	and d.UpdateId is null
+	and afu.UpdateId is null
+	and d.LogTime > curdate() - interval 30 day
 	and (d.DocumentType = if(u.SendRejects, 2, 0) or
 		d.DocumentType = if(u.SendWaybills, 1, 0) or
 		d.DocumentType = 3)
