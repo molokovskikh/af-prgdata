@@ -91,8 +91,7 @@ namespace PrgData.Common
 			if (!_updateData.IsFutureClient)
 			{
 				return String.Format(@"
-UPDATE AnalitFDocumentsProcessing A
-`logs`.document_logs d 
+UPDATE AnalitFDocumentsProcessing A, `logs`.document_logs d 
 SET d.UpdateId = A.UpdateId 
 WHERE d.RowId = A.DocumentId 
 	AND A.UpdateId = {0};
@@ -638,6 +637,7 @@ where u.Id = ?UserId
 	and d.Addition is null
 	and d.UpdateId is null
 	and afu.UpdateId is null
+	and afp.Committed = 0
 	and d.LogTime > curdate() - interval 30 day
 	and (d.DocumentType = if(u.SendRejects, 2, 0) or
 		d.DocumentType = if(u.SendWaybills, 1, 0) or

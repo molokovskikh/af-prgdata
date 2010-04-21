@@ -753,7 +753,7 @@ endproc:
                                 If СписокФайлов.Length = 1 Then
 
 									xRow = DS.Tables("ProcessingDocuments").NewRow
-									xRow("Comited") = True
+									xRow("Committed") = False
 
                                     startInfo = New ProcessStartInfo(SevenZipExe)
                                     startInfo.CreateNoWindow = True
