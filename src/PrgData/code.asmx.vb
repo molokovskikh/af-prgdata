@@ -3628,7 +3628,7 @@ RestartTrans2:
                     SelProc.ExecuteNonQuery()
 
                     'Выгрузка данных для ГУП
-                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, False))
+                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True))
                     'выгружаем пустую таблицу MaxProducerCosts
                     GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
                 End If
