@@ -975,7 +975,8 @@ where
 		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup)
 		{
 			if (exportInforoomPrice)
-				return @"
+				if (!exportSupplierPriceMarkup)
+					return @"
 SELECT 2647                             ,
        ?OffersRegionCode                ,
        A.ProductId                      ,
@@ -1033,6 +1034,75 @@ SELECT 2647                              ,
        @RowId := @RowId + 1              ,
        ''                                ,
        ''
+FROM   farm.Synonym S ,
+       CoreTP A
+WHERE  S.PriceCode =2647
+AND    S.ProductId =A.ProductId";
+				else
+					return @"
+SELECT 2647                             ,
+       ?OffersRegionCode                ,
+       A.ProductId                      ,
+       A.CodeFirmCr                     ,
+       S.SynonymCode                    ,
+       SF.SynonymFirmCrCode             ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       0                                ,
+       0                                ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       ''                               ,
+       null as RegistryCost              ,
+       0 as VitallyImportant             ,
+       null as RequestRatio              ,
+       IF(?ShowAvgCosts, a.Cost, '') ,
+       @RowId := @RowId + 1             ,
+       null as OrderCost                 ,
+       null as MinOrderCount             ,
+       null as SupplierPriceMarkup       ,
+       null as ProducerCost              ,
+       null as NDS
+FROM   farm.Synonym S        ,
+       farm.SynonymFirmCr SF ,
+       CoreT A
+WHERE  S.PriceCode            =2647
+AND    SF.PriceCode           =2647
+AND    S.ProductId            =A.ProductId
+AND    SF.CodeFirmCr          =A.CodeFirmCr
+AND    A.CodeFirmCr IS NOT NULL
+
+UNION
+
+SELECT 2647                              ,
+       ?OffersRegionCode                 ,
+       A.ProductId                       ,
+       1                                 ,
+       S.SynonymCode                     ,
+       0                                 ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       0                                 ,
+       0                                 ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       ''                                ,
+       null as RegistryCost              ,
+       0 as VitallyImportant             ,
+       null as RequestRatio              ,
+       IF(?ShowAvgCosts, A.Cost, ''),
+       @RowId := @RowId + 1              ,
+       null as OrderCost                 ,
+       null as MinOrderCount             ,
+       null as SupplierPriceMarkup       ,
+       null as ProducerCost              ,
+       null as NDS
 FROM   farm.Synonym S ,
        CoreTP A
 WHERE  S.PriceCode =2647
