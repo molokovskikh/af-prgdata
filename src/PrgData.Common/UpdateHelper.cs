@@ -944,9 +944,22 @@ where
 			}
 		}
 
-		public string GetMNNCommand(bool Cumulative)
+		public string GetMNNCommand(bool before1150, bool Cumulative)
 		{
-			if (Cumulative)
+			if (before1150)
+			{
+				return @"
+select
+  Mnn.Id,
+  Mnn.Mnn,
+  Mnn.RussianMnn
+from
+  catalogs.Mnn
+where
+  if(not ?Cumulative, Mnn.UpdateTime > ?UpdateTime, 1)";
+			}
+			else
+				if (Cumulative)
 				return @"
 select
   Mnn.Id,
@@ -980,9 +993,33 @@ and (MnnLogs.Operation = 2)
 ";
 		}
 
-		public string GetDescriptionCommand(bool Cumulative)
+		public string GetDescriptionCommand(bool before1150, bool Cumulative)
 		{
-			if (Cumulative)
+			if (before1150)
+			{
+				return @"
+select
+  Descriptions.Id,
+  Descriptions.Name,
+  Descriptions.EnglishName,
+  Descriptions.Description,
+  Descriptions.Interaction, 
+  Descriptions.SideEffect, 
+  Descriptions.IndicationsForUse, 
+  Descriptions.Dosing, 
+  Descriptions.Warnings, 
+  Descriptions.ProductForm, 
+  Descriptions.PharmacologicalAction, 
+  Descriptions.Storage, 
+  Descriptions.Expiration, 
+  Descriptions.Composition
+from
+  catalogs.Descriptions
+where
+  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)";
+			}
+			else
+				if (Cumulative)
 				return @"
 select
   Descriptions.Id,
@@ -1085,9 +1122,35 @@ and (DescriptionLogs.Operation = 2)
       ";
 		}
 
-		public string GetCatalogCommand(bool Cumulative)
+		public string GetCatalogCommand(bool before1150, bool Cumulative)
 		{
-			if (Cumulative)
+			if (before1150)
+			{
+				return @"
+SELECT C.Id               ,
+       CN.Id              ,
+       LEFT(CN.name, 250) ,
+       LEFT(CF.form, 250) ,
+       C.vitallyimportant ,
+       C.needcold         ,
+       C.fragile          ,
+       C.MandatoryList    ,
+       CN.MnnId           ,
+       CN.DescriptionId
+FROM   Catalogs.Catalog C       ,
+       Catalogs.CatalogForms CF ,
+       Catalogs.CatalogNames CN
+WHERE  C.NameId =CN.Id
+AND    C.FormId =CF.Id
+AND
+       (
+              IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+       OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+       )
+AND    C.hidden =0";
+			}
+			else
+				if (Cumulative)
 				return @"
 SELECT C.Id               ,
        CN.Id              ,

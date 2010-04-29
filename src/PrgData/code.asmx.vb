@@ -3375,33 +3375,58 @@ RestartTrans2:
 
                 If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
                 Then
-                    GetMySQLFileWithDefaultEx( _
-                        "Catalogs", _
-                        SelProc, _
-                        helper.GetCatalogCommand(GED), _
-                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
-                        True)
 
-                    GetMySQLFileWithDefaultEx( _
-                        "MNN", _
-                        SelProc, _
-                        helper.GetMNNCommand(GED), _
-                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
-                        True)
+                    If (BuildNo >= 1150) Or UpdateData.EnableUpdate Then
+                        'Подготовка данных для версии программы >= 1150 или обновление на нее
+                        GetMySQLFileWithDefaultEx( _
+                            "Catalogs", _
+                            SelProc, _
+                            helper.GetCatalogCommand(False, GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                            True)
 
-                    GetMySQLFileWithDefaultEx( _
-                        "Descriptions", _
-                        SelProc, _
-                        helper.GetDescriptionCommand(GED), _
-                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
-                        True)
+                        GetMySQLFileWithDefaultEx( _
+                            "MNN", _
+                            SelProc, _
+                            helper.GetMNNCommand(False, GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
+                            True)
 
-                    GetMySQLFileWithDefaultEx( _
-                        "Producers", _
-                        SelProc, _
-                        helper.GetProducerCommand(GED), _
-                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
-                        True)
+                        GetMySQLFileWithDefaultEx( _
+                            "Descriptions", _
+                            SelProc, _
+                            helper.GetDescriptionCommand(False, GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                            True)
+
+                        GetMySQLFileWithDefaultEx( _
+                            "Producers", _
+                            SelProc, _
+                            helper.GetProducerCommand(GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                            True)
+                    Else
+                        GetMySQLFileWithDefaultEx( _
+                            "Catalogs", _
+                            SelProc, _
+                            helper.GetCatalogCommand(True, GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                            True)
+
+                        GetMySQLFileWithDefaultEx( _
+                            "MNN", _
+                            SelProc, _
+                            helper.GetMNNCommand(True, GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
+                            True)
+
+                        GetMySQLFileWithDefaultEx( _
+                            "Descriptions", _
+                            SelProc, _
+                            helper.GetDescriptionCommand(True, GED), _
+                            ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                            True)
+                    End If
                 Else
                     GetMySQLFileWithDefault("Catalogs", SelProc, _
                     "SELECT C.Id             , " & _
