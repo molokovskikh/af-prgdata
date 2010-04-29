@@ -84,7 +84,8 @@ Public Class PrgDataEx
     Private SetResultCodes As New Thread(AddressOf SetCodesProc)
 
     Private CurUpdTime, OldUpTime As DateTime
-	Private BuildNo, AllowBuildNo, UpdateType, MDBVer As Integer
+    Private BuildNo, AllowBuildNo, MDBVer As Integer
+    Private UpdateType As RequestType
     Private ResultLenght, OrderId As UInt32
     Dim CCode, UserId As UInt32
     Private SpyHostsFile, SpyAccount As Boolean
@@ -302,7 +303,7 @@ Public Class PrgDataEx
             If DBConnect("GetUserData") Then
 
                 'Начинаем обычное обновление
-                UpdateType = 1
+                UpdateType = RequestType.GetData
 
                 'Нет критических ошибок
                 ErrorFlag = False
@@ -328,7 +329,7 @@ Public Class PrgDataEx
                     MessageH = "Доступ закрыт."
                     MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[1]"
                     Addition &= "Для логина " & UserName & " услуга не предоставляется; "
-                    UpdateType = 5
+                    UpdateType = RequestType.Forbidden
                     ErrorFlag = True
                     GoTo endproc
                 End If
@@ -339,7 +340,7 @@ Public Class PrgDataEx
                     MessageH = "Обновление данных в настоящее время невозможно."
                     MessageD = "Пожалуйста, повторите попытку через несколько минут.[6]"
                     Addition &= "Перегрузка; "
-                    UpdateType = 6
+                    UpdateType = RequestType.Error
                     ErrorFlag = True
                     GoTo endproc
 
@@ -360,7 +361,7 @@ Public Class PrgDataEx
                     MessageH = "Доступ закрыт."
                     MessageD = "Используемая версия программы не актуальна, необходимо обновление до версии №" & AllowBuildNo & ".[5]"
                     Addition &= "Попытка обновить устаревшую версию; "
-                    UpdateType = 5
+                    UpdateType = RequestType.Forbidden
                     ErrorFlag = True
                     GoTo endproc
                 End If
@@ -372,7 +373,7 @@ Public Class PrgDataEx
                         MessageH = "Обновление программы на данном компьютере запрещено."
                         MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
                         Addition &= "Несоответствие UIN; "
-                        UpdateType = 5
+                        UpdateType = RequestType.Forbidden
                         ErrorFlag = True
                         GoTo endproc
                     End If
@@ -443,7 +444,7 @@ RestartInsertTrans:
                     'Готовим кумулятивное
                     If GED Then
 
-                        UpdateType = 2
+                        UpdateType = RequestType.GetCumulative
                         Cm.Connection = ReadWriteCn
                         Cm.CommandText = "update UserUpdateInfo set ReclameDate = NULL where UserId=" & UserId & "; "
                         myTrans = ReadWriteCn.BeginTransaction(IsoLevel)
@@ -459,12 +460,12 @@ RestartInsertTrans:
 
                     CurUpdTime = Now()
 
-                    UpdateType = 8
+                    UpdateType = RequestType.GetDocs
                     Try
                         MySQLFileDelete(ResultFileName & UserId & ".zip")
                     Catch ex As Exception
                         Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
-                        UpdateType = 5
+                        UpdateType = RequestType.Forbidden
                         ErrorFlag = True
                         GoTo endproc
                     End Try
@@ -478,7 +479,7 @@ RestartInsertTrans:
 
                         If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
 
-                            UpdateType = 3
+                            UpdateType = RequestType.ResumeData
                             NewZip = False
                             PackFinished = True
                             GoTo endproc
@@ -493,7 +494,7 @@ RestartInsertTrans:
 
                         Catch ex As Exception
                             Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
-                            UpdateType = 5
+                            UpdateType = RequestType.Forbidden
                             ErrorFlag = True
                             GoTo endproc
                         End Try
@@ -506,7 +507,7 @@ RestartInsertTrans:
                                 .Connection = ReadWriteCn
                                 .CommandText = String.Empty
 
-                                If UpdateType <> 3 Then
+                                If (UpdateType <> RequestType.ResumeData) Then
 
                                     .CommandText = "update UserUpdateInfo set UncommitedUpdateDate=now() where UserId=" & UserId & "; "
 
@@ -584,10 +585,10 @@ endproc:
 
                     GoTo endproc
 
-                ElseIf Not PackFinished And Not ErrorFlag And UpdateType <> 5 And Not WayBillsOnly Then
+                ElseIf Not PackFinished And Not ErrorFlag And (UpdateType <> RequestType.Forbidden) And Not WayBillsOnly Then
 
                     Addition &= "; Нет работающих потоков, данные не готовы."
-                    UpdateType = 5
+                    UpdateType = RequestType.Forbidden
 
                     ErrorFlag = True
 
@@ -625,7 +626,7 @@ endproc:
                     Thread.Sleep(500)
                 End While
 
-				ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = 2)
+				ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative)
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
@@ -655,7 +656,7 @@ endproc:
                 String.Format("WINVersion = {0}, ", WINVersion) & _
                 String.Format("WINDesc = {0}, ", WINDesc) & _
                 String.Format("WayBillsOnly = {0}", WayBillsOnly), ex)
-            UpdateType = 6
+            UpdateType = RequestType.Error
             GetUserDataEx = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
             DBDisconnect()
@@ -1147,7 +1148,7 @@ StartZipping:
 
                                 'ArchCmd.CommandText &= "0"
                                 File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-                                If UpdateType = 2 Then File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
+                                If (UpdateType = RequestType.GetCumulative) Then File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
 
                                 FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
                                 ResultLenght = Convert.ToUInt32(FileInfo.Length)
@@ -1192,7 +1193,7 @@ StartZipping:
 
                     If Not TypeOf ex.InnerException Is ThreadAbortException Then
                         ErrorFlag = True
-                        UpdateType = 6
+                        UpdateType = RequestType.Error
                         MailErr("Архивирование", ex.Source & ": " & ex.ToString())
                     End If
                     Addition &= " Архивирование: " & ex.ToString() & "; "
@@ -1200,7 +1201,7 @@ StartZipping:
                 Catch Unhandled As Exception
 
                     ErrorFlag = True
-                    UpdateType = 6
+                    UpdateType = RequestType.Error
                     If Not Pr Is Nothing Then
                         If Not Pr.HasExited Then Pr.Kill()
                         Pr.WaitForExit()
@@ -1238,7 +1239,7 @@ StartZipping:
 
             If DBConnect("MaxSynonymCode") Then
                 GetClientCode()
-                UpdateType = 7
+                UpdateType = RequestType.CommitExchange
 
 				If Not Counter.Counter.TryLock(UserId, "MaxSynonymCode") Then
 					Me.Log.Error("Не удалось наложить блокировку для подтверждения обновления")
@@ -1354,7 +1355,7 @@ StartZipping:
 
 
         Catch ErrorTXT As Exception
-            UpdateType = 6
+            UpdateType = RequestType.Error
             ErrorFlag = True
             MailErr("Получение информации о клиенте", ErrorTXT.Message)
         End Try
@@ -1376,7 +1377,7 @@ StartZipping:
         Catch err As Exception
             MailErr("Соединение с БД", err.Message)
             ErrorFlag = True
-            UpdateType = 6
+            UpdateType = RequestType.Error
             DBDisconnect()
             Return False
         End Try
@@ -1392,7 +1393,7 @@ StartZipping:
         Catch e As Exception
             Log.Error("Ошибка при закритии соединения", e)
             ErrorFlag = True
-            UpdateType = 6
+            UpdateType = RequestType.Error
         End Try
 
         Try
@@ -1400,7 +1401,7 @@ StartZipping:
         Catch e As Exception
             Log.Error("Ошибка при закритии соединения", e)
             ErrorFlag = True
-            UpdateType = 6
+            UpdateType = RequestType.Error
         End Try
     End Sub
 
@@ -1542,7 +1543,7 @@ StartZipping:
 
                 If CCode = Nothing Then
                     CCode = ClientCode
-                    UpdateType = 5
+                    UpdateType = RequestType.Forbidden
                     MessageH = "Доступ закрыт."
                     MessageD = "Пожалуйста, обратитесь в АК ""Инфорум""."
                     ErrorFlag = True
@@ -1556,7 +1557,7 @@ StartZipping:
                     MessageH = "Отправка заказов в настоящее время невозможна."
                     MessageD = "Пожалуйста, повторите попытку через несколько минут.[7]"
                     Addition &= "Перегрузка; "
-                    UpdateType = 5
+                    UpdateType = RequestType.Forbidden
                     ErrorFlag = True
                     GoTo ItsEnd
                 End If
@@ -1572,7 +1573,7 @@ StartZipping:
                             MessageH = "Отправка заказов на данном компьютере запрещена."
                             MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
                             Addition = "Несоответствие UIN."
-                            UpdateType = 5
+                            UpdateType = RequestType.Forbidden
                             ErrorFlag = True
 
                             GoTo ItsEnd
@@ -1585,7 +1586,7 @@ StartZipping:
                     End With
 
                     If Not helper.CanPostOrder(ClientCode) Then
-                        UpdateType = 5
+                        UpdateType = RequestType.Forbidden
                         MessageH = "Отправка заказов запрещена."
                         MessageD = "Пожалуйста обратитесь в АК ""Инфорум""."
                         ErrorFlag = True
@@ -1611,7 +1612,7 @@ StartZipping:
                     WeeklySumOrder = Convert.ToUInt32(Cm.ExecuteScalar)
 
                     If WeeklySumOrder > 0 Then
-                        UpdateType = 5
+                        UpdateType = RequestType.Forbidden
                         MessageH = "Превышен недельный лимит заказа (уже заказано на " & WeeklySumOrder & " руб.)"
                         ' MessageD = 
                         ErrorFlag = True
@@ -1630,7 +1631,7 @@ StartZipping:
                             If SumOrder < minReq.MinReq Then
                                 MessageD = "Поставщик отказал в приеме заказа."
                                 MessageH = "Сумма заказа меньше минимально допустимой."
-                                UpdateType = 5
+                                UpdateType = RequestType.Forbidden
                                 ErrorFlag = True
                                 GoTo ItsEnd
                             End If
@@ -1638,7 +1639,7 @@ StartZipping:
 
                     Catch err As Exception
                         Log.Error("Учет минимальной цены", err)
-                        UpdateType = 6
+                        UpdateType = RequestType.Error
                         ErrorFlag = True
                         MailErr("Учет минимальной цены. Клиент: " & CCode, "Ошибка: " & err.Source & ": " & err.StackTrace)
                     End Try
@@ -1704,7 +1705,7 @@ RestartInsertTrans:
                         ResultLenght = Convert.ToUInt32(OID)
 
 
-                        UpdateType = 4
+                        UpdateType = RequestType.SendOrders
                     Else
                         Try
                             myTrans.Rollback()
@@ -1730,7 +1731,7 @@ RestartInsertTrans:
 
                     MailErr("Постинг заказа. Клиент: " & CCode, "Ошибка MySQL(" & MySQLErr.Number & "): " & MySQLErr.Message & " в " & MySQLErr.Source & ": " & MySQLErr.StackTrace)
 
-                    UpdateType = 6
+                    UpdateType = RequestType.Error
                     ErrorFlag = True
 
                 Catch err As Exception
@@ -1742,7 +1743,7 @@ RestartInsertTrans:
                     Catch
                     End Try
 
-                    UpdateType = 6
+                    UpdateType = RequestType.Error
                     ErrorFlag = True
 
 
@@ -1767,7 +1768,7 @@ ItsEnd:
             DBDisconnect()
         End Try
 
-        If ErrorFlag Or UpdateType > 4 Then
+        If ErrorFlag Or (UpdateType > RequestType.SendOrders) Then
             If Len(MessageH) = 0 Then
                 PostOrder = "Error=Отправка заказов завершилась неудачно.;Desc=Некоторые заявки не были обработанны."
             Else
@@ -2025,7 +2026,7 @@ ItsEnd:
             DBDisconnect()
         End Try
 
-        If ErrorFlag Or UpdateType > 4 Then
+        If ErrorFlag Or (UpdateType > RequestType.SendOrders) Then
             If Len(MessageH) = 0 Then
                 Return "Error=Отправка заказов завершилась неудачно.;Desc=Некоторые заявки не были обработанны."
             Else
@@ -2108,11 +2109,11 @@ RePost:
                 End If
 
                 Try
-                    If UpdateType = 1 _
-                    Or UpdateType = 2 _
-                    Or UpdateType = 5 _
-                    Or UpdateType = 6 _
-                    Or UpdateType = 8 Then
+                    If (UpdateType = RequestType.GetData) _
+                    Or (UpdateType = RequestType.GetCumulative) _
+                    Or (UpdateType = RequestType.Forbidden) _
+                    Or (UpdateType = RequestType.Error) _
+                    Or (UpdateType = RequestType.GetDocs) Then
 
                         LogTrans = LogCn.BeginTransaction(IsoLevel)
 
@@ -2129,7 +2130,7 @@ RePost:
 
                             .Parameters.Add(New MySqlParameter("?ClientHost", UserHost))
 
-                            .Parameters.Add(New MySqlParameter("?UpdateType", UpdateType))
+                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
 
                             .Parameters.Add(New MySqlParameter("?EXEVersion", BuildNo))
 
@@ -2180,7 +2181,7 @@ PostLog:
                         DS.Tables.Clear()
 
                     End If
-                    If UpdateType = 3 Then
+                    If (UpdateType = RequestType.ResumeData) Then
 
                         LogCm.CommandText = "" & _
                               "SELECT  MAX(UpdateId) " & _
@@ -2197,7 +2198,7 @@ PostLog:
 
                     If Not NoNeedProcessDocuments Then
 
-                        If UpdateType = 7 Then
+                        If (UpdateType = RequestType.CommitExchange) Then
                             Dim СписокФайлов() As String
 
                             LogTrans = LogCn.BeginTransaction(IsoLevel)
@@ -3093,7 +3094,7 @@ RestartTrans2:
 
 				MailErr("Основной поток выборки: " & MySQLErr.Message, SelProc.CommandText & MySQLErr.StackTrace)
 				ErrorFlag = True
-				UpdateType = 6
+                UpdateType = RequestType.Error
 				'NeedCloseCn = True
 				Addition &= MySQLErr.Message
 
@@ -3119,7 +3120,7 @@ RestartTrans2:
 
 				ErrorFlag = True
 				'NeedCloseCn = True
-				UpdateType = 6
+                UpdateType = RequestType.Error
 				Addition &= ErrorTXT.Message
 				MailErr("Основной поток выборки, клиент: " & CCode, ErrorTXT.Message & ErrorTXT.StackTrace)
 				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
@@ -3661,13 +3662,13 @@ RestartTrans2:
 				End If
 
 				ErrorFlag = True
-				UpdateType = 6
+                UpdateType = RequestType.Error
 				Addition &= MySQLErr.Message
 				MailErr("Основной поток выборки: " & MySQLErr.Message, SelProc.CommandText & MySQLErr.StackTrace)
 			Catch ErrorTXT As Exception
 				ConnectionHelper.SafeRollback(myTrans)
 				ErrorFlag = True
-				UpdateType = 6
+                UpdateType = RequestType.Error
 				Addition &= ErrorTXT.Message
 				MailErr("Основной поток выборки, клиент: " & CCode, ErrorTXT.Message & ErrorTXT.StackTrace)
 				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
@@ -4058,7 +4059,7 @@ RestartTrans2:
                         MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
                         Addition = "Несоответствие UIN."
                         'MailErr("Несоответствие уникального идентификатора при получении паролей", "")
-                        UpdateType = 5
+                        UpdateType = RequestType.Forbidden
                         ErrorFlag = True
                         'ProtocolThread.Start()
                         Return "Error=" & MessageH & ";Desc=" & MessageD
@@ -4090,14 +4091,14 @@ RestartTrans2:
                     MailErr("Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
                     Addition = "Не заданы пароли для шифрации данных"
                     ErrorFlag = True
-                    UpdateType = 5
+                    UpdateType = RequestType.Forbidden
                     'ProtocolThread.Start()
                 End If
             Catch Exp As Exception
                 MailErr("Ошибка при получении паролей", Exp.Message & ": " & Exp.StackTrace)
                 Addition = Exp.Message
                 ErrorFlag = True
-                UpdateType = 5
+                UpdateType = RequestType.Forbidden
                 'ProtocolThread.Start()
             Finally
                 DBDisconnect()
@@ -4125,7 +4126,7 @@ RestartTrans2:
                         MessageD = "Пожалуйста, обратитесь в АК «Инфорум».[2]"
                         Addition = "Несоответствие UIN."
                         'MailErr("Несоответствие уникального идентификатора при обновлении настроек прайс-листов", "")
-                        UpdateType = 5
+                        UpdateType = RequestType.Forbidden
                         ErrorFlag = True
                         'ProtocolThread.Start()
                         Return "Error=" & MessageH & ";Desc=" & MessageD
@@ -4433,14 +4434,14 @@ RestartMaxCodesSet:
             End If
             MailErr("Присвоение значений максимальных синонимов", MySQLErr.Message)
             Addition = MySQLErr.Message
-            UpdateType = 6
+            UpdateType = RequestType.Error
             ErrorFlag = True
 
         Catch err As Exception
             MailErr("Присвоение значений максимальных синонимов", err.Message)
             Addition = err.Message
             If Not (ReadOnlyCn.State = ConnectionState.Closed Or ReadOnlyCn.State = ConnectionState.Broken) Then myTrans.Rollback()
-            UpdateType = 6
+            UpdateType = RequestType.Error
             ErrorFlag = True
         Finally
 

@@ -15,13 +15,13 @@ namespace PrgData.Common.Orders
 	public class OrderUpdateException : OrderException
 	{
 		public bool ErrorFlag { get; private set; }
-		public int UpdateType { get; private set; }
+		public RequestType UpdateType { get; private set; }
 		public string MessageHeader { get; private set; }
 		public string MessageDescription { get; private set; }
 
 		public OrderUpdateException(
 			bool errorFlag,
-			int updateType, 
+			RequestType updateType, 
 			string messageHeader,
 			string messageDescription) : 
 			base("Ошибка при UpdateType.")

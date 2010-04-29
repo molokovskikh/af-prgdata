@@ -404,7 +404,7 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 			if (!CanPostOrder(_orderedClientCode))
 				throw new OrderUpdateException(
 					true,
-					5,
+					RequestType.Forbidden,
 					"Отправка заказов запрещена.",
 					"Пожалуйста обратитесь в АК \"Инфорум\".");
 		}
@@ -430,7 +430,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			if (WeeklySumOrder > 0)
 				throw new OrderUpdateException(
 					true,
-					5,
+					RequestType.Forbidden,
 					String.Format("Превышен недельный лимит заказа (уже заказано на {0} руб).", WeeklySumOrder),
 					String.Empty);
 		}
