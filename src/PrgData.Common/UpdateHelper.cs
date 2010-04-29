@@ -5,6 +5,7 @@ using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
+using log4net;
 
 namespace PrgData.Common
 {
@@ -75,6 +76,7 @@ namespace PrgData.Common
 		public UpdateHelper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
 		{
 			MaxProducerCostsPriceId = 4863;
+			maxProducerCostsCostId = 8317;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
 			_readOnlyConnection = readOnlyConnection;
@@ -119,10 +121,12 @@ from
 where
     (PricesCosts.PriceCode = ?PriceCode)
 and (PriceItems.Id = PricesCosts.PriceItemId)
+and (PricesCosts.CostCode = ?CostCode)
 "
 				,
-				new MySqlParameter("?PriceCode", MaxProducerCostsPriceId));
-			return ((costId != null) && uint.TryParse(costId.ToString(), out maxProducerCostsCostId));
+				new MySqlParameter("?PriceCode", MaxProducerCostsPriceId),
+				new MySqlParameter("?CostCode", maxProducerCostsCostId));
+			return (costId != null);
 		}
 
 		public bool MaxProducerCostIsFresh()
@@ -152,7 +156,9 @@ select
   c.ProductId,
   s.Synonym,
   sfc.Synonym,
-  c.Note
+  c.Note,
+  ifnull(c.CodeFirmCr, 0) as ProducerId,
+  cc.Cost as RealCost
 from
   (
   farm.Core0 c,
@@ -877,7 +883,8 @@ SELECT
      regions.CalculateOnProducerCost,
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
-     rcs.ShowAdvertising
+     rcs.ShowAdvertising,
+     rcs.SendWaybillsFromClient
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join farm.regions on regions.RegionCode = c.RegionCode
@@ -893,7 +900,8 @@ SELECT
      regions.CalculateOnProducerCost,
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
-     rcs.ShowAdvertising
+     rcs.ShowAdvertising,
+     rcs.SendWaybillsFromClient
 FROM   
      clientsdata 
      join farm.regions on regions.RegionCode = clientsdata.RegionCode
@@ -936,22 +944,46 @@ where
 			}
 		}
 
-		public string GetMNNCommand()
+		public string GetMNNCommand(bool Cumulative)
 		{
-			return @"
+			if (Cumulative)
+				return @"
 select
   Mnn.Id,
   Mnn.Mnn,
-  Mnn.RussianMnn
+  Mnn.RussianMnn,
+  0 as Hidden
+from
+  catalogs.Mnn";
+			else
+				return @"
+select
+  Mnn.Id,
+  Mnn.Mnn,
+  Mnn.RussianMnn,
+  0 as Hidden
 from
   catalogs.Mnn
 where
-  if(not ?Cumulative, Mnn.UpdateTime > ?UpdateTime, 1)";
+  Mnn.UpdateTime > ?UpdateTime
+union
+select
+  MnnLogs.MnnId,
+  MnnLogs.Mnn,
+  MnnLogs.RussianMnn,
+  1 as Hidden
+from
+  logs.MnnLogs
+where
+    (MnnLogs.LogTime >= ?UpdateTime) 
+and (MnnLogs.Operation = 2)
+";
 		}
 
-		public string GetDescriptionCommand()
+		public string GetDescriptionCommand(bool Cumulative)
 		{
-			return @"
+			if (Cumulative)
+				return @"
 select
   Descriptions.Id,
   Descriptions.Name,
@@ -966,11 +998,139 @@ select
   Descriptions.PharmacologicalAction, 
   Descriptions.Storage, 
   Descriptions.Expiration, 
-  Descriptions.Composition
+  Descriptions.Composition,
+  0 as Hidden
+from
+  catalogs.Descriptions";
+			else
+				return @"
+select
+  Descriptions.Id,
+  Descriptions.Name,
+  Descriptions.EnglishName,
+  Descriptions.Description,
+  Descriptions.Interaction, 
+  Descriptions.SideEffect, 
+  Descriptions.IndicationsForUse, 
+  Descriptions.Dosing, 
+  Descriptions.Warnings, 
+  Descriptions.ProductForm, 
+  Descriptions.PharmacologicalAction, 
+  Descriptions.Storage, 
+  Descriptions.Expiration, 
+  Descriptions.Composition,
+  0 as Hidden
 from
   catalogs.Descriptions
 where
-  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)";
+  Descriptions.UpdateTime > ?UpdateTime
+union
+select
+  DescriptionLogs.DescriptionId,
+  DescriptionLogs.Name,
+  DescriptionLogs.EnglishName,
+  DescriptionLogs.Description,
+  DescriptionLogs.Interaction, 
+  DescriptionLogs.SideEffect, 
+  DescriptionLogs.IndicationsForUse, 
+  DescriptionLogs.Dosing, 
+  DescriptionLogs.Warnings, 
+  DescriptionLogs.ProductForm, 
+  DescriptionLogs.PharmacologicalAction, 
+  DescriptionLogs.Storage, 
+  DescriptionLogs.Expiration, 
+  DescriptionLogs.Composition,
+  1 as Hidden
+from
+  logs.DescriptionLogs
+where
+    (DescriptionLogs.LogTime >= ?UpdateTime) 
+and (DescriptionLogs.Operation = 2)
+";
+		}
+
+		public string GetProducerCommand(bool Cumulative)
+		{
+			if (Cumulative)
+				return @"
+	select
+	  Producers.Id,
+	  Producers.Name,
+      0 as Hidden
+	from
+	  catalogs.Producers
+	where
+		(Producers.Id > 1)";
+			else
+				return @"
+	select
+	  Producers.Id,
+	  Producers.Name,
+      0 as Hidden
+	from
+	  catalogs.Producers
+	where
+		(Producers.Id > 1)
+	and Producers.UpdateTime > ?UpdateTime
+    union
+    select
+	  ProducerLogs.ProducerId,
+	  ProducerLogs.Name,
+      1 as Hidden
+    from
+      logs.ProducerLogs
+    where
+        (ProducerLogs.LogTime >= ?UpdateTime) 
+    and (ProducerLogs.Operation = 2)        
+      ";
+		}
+
+		public string GetCatalogCommand(bool Cumulative)
+		{
+			if (Cumulative)
+				return @"
+SELECT C.Id               ,
+       CN.Id              ,
+       LEFT(CN.name, 250) ,
+       LEFT(CF.form, 250) ,
+       C.vitallyimportant ,
+       C.needcold         ,
+       C.fragile          ,
+       C.MandatoryList    ,
+       CN.MnnId           ,
+       CN.DescriptionId   ,
+       C.Hidden
+FROM   Catalogs.Catalog C       ,
+       Catalogs.CatalogForms CF ,
+       Catalogs.CatalogNames CN
+WHERE  C.NameId =CN.Id
+AND    C.FormId =CF.Id
+AND    C.hidden =0
+";
+			else
+				return @"
+SELECT C.Id               ,
+       CN.Id              ,
+       LEFT(CN.name, 250) ,
+       LEFT(CF.form, 250) ,
+       C.vitallyimportant ,
+       C.needcold         ,
+       C.fragile          ,
+       C.MandatoryList    ,
+       CN.MnnId           ,
+       CN.DescriptionId   ,
+       C.Hidden
+FROM   Catalogs.Catalog C       ,
+       Catalogs.CatalogForms CF ,
+       Catalogs.CatalogNames CN
+WHERE  C.NameId =CN.Id
+AND    C.FormId =CF.Id
+AND
+       (
+              IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+       OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+       )
+";
 		}
 
 		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup)
@@ -1185,6 +1345,180 @@ where not exists (
 				command.Parameters["?RegionId"].Value = regionIds[i];
 				command.ExecuteNonQuery();
 			}
+		}
+
+		public bool NeedClientToAddressMigration()
+		{
+			var userId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readOnlyConnection, @"
+select UserId 
+from 
+  future.ClientToAddressMigrations
+where
+    (UserId = ?UserId)
+limit 1
+"
+				,
+				new MySqlParameter("?UserId", _updateData.UserId));
+			return (userId != null);
+		}
+
+		public string GetClientToAddressMigrationCommand()
+		{
+			return @"
+select 
+  ClientCode, AddressId
+from 
+  future.ClientToAddressMigrations
+where
+    UserId = " + _updateData.UserId;
+		}
+
+		public void OldCommit(string absentPriceCodes)
+		{
+			var commitCommand =
+				String.Format(
+@"
+UPDATE AnalitFReplicationInfo
+SET    ForceReplication =0
+WHERE  UserId           = {0}
+AND    ForceReplication =2;
+
+UPDATE UserUpdateInfo
+SET    UpdateDate      =UncommitedUpdateDate,
+       MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
+WHERE  UserId          = {0};
+"
+					,
+					_updateData.UserId);
+
+			if (String.IsNullOrEmpty(absentPriceCodes))
+				commitCommand += 
+					String.Format(@"
+UPDATE AnalitFReplicationInfo
+SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode
+WHERE  UncMaxSynonymFirmCrCode!=0
+AND    UserId                  = {0};
+
+UPDATE AnalitFReplicationInfo
+SET    MaxSynonymCode    =UncMaxSynonymCode
+WHERE  UncMaxSynonymCode!=0
+AND    UserId            = {0};
+"
+						,
+						_updateData.UserId);
+			else
+			{
+				commitCommand +=
+				String.Format(@"
+UPDATE AnalitFReplicationInfo ARI,
+       PricesData Pd
+SET    MaxSynonymFirmCrCode   =0,
+       MaxSynonymCode         =0,
+       UncMaxSynonymCode      =0,
+       UncMaxSynonymFirmCrCode=0
+WHERE  UserId                 = {0}
+AND    Pd.FirmCode            =ARI.FirmCode
+AND    Pd.PriceCode IN ( {1} );
+
+UPDATE AnalitFReplicationInfo ARI,
+       PricesData Pd
+SET    ARI.MaxSynonymFirmCrCode    =ARI.UncMaxSynonymFirmCrCode
+WHERE  ARI.UncMaxSynonymFirmCrCode!=0
+AND    ARI.UserId                  = {0}
+AND    Pd.FirmCode            =ARI.FirmCode
+AND    not (Pd.PriceCode IN ( {1} ));
+
+UPDATE AnalitFReplicationInfo ARI,
+       PricesData Pd
+SET    ARI.MaxSynonymCode    =ARI.UncMaxSynonymCode
+WHERE  ARI.UncMaxSynonymCode!=0
+AND    ARI.UserId            = {0}
+AND    Pd.FirmCode            =ARI.FirmCode
+AND    not (Pd.PriceCode IN ( {1} ));
+"
+					,
+					_updateData.UserId,
+					absentPriceCodes);
+			}
+
+			ProcessCommitCommand(commitCommand, "OldCommit");
+		}
+
+		public void ResetAbsentPriceCodes(string absentPriceCodes)
+		{
+			var commitCommand = 
+				String.Format(@"
+UPDATE AnalitFReplicationInfo ARI,
+       PricesData Pd
+SET    MaxSynonymFirmCrCode   =0,
+       MaxSynonymCode         =0,
+       UncMaxSynonymCode      =0,
+       UncMaxSynonymFirmCrCode=0
+WHERE  UserId                 = {0}
+AND    Pd.FirmCode            =ARI.FirmCode
+AND    Pd.PriceCode IN ( {1} );"
+					,
+					_updateData.UserId,
+					absentPriceCodes);
+
+			ProcessCommitCommand(commitCommand, "ResetAbsentPriceCodes");
+		}
+
+		public void CommitExchange()
+		{
+			var commitCommand = 
+				String.Format(
+@"
+UPDATE AnalitFReplicationInfo
+SET    ForceReplication =0
+WHERE  UserId           = {0}
+AND    ForceReplication =2;
+
+UPDATE UserUpdateInfo
+SET    UpdateDate      =UncommitedUpdateDate,
+       MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
+WHERE  UserId          = {0};
+
+UPDATE AnalitFReplicationInfo
+SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode
+WHERE  UncMaxSynonymFirmCrCode!=0
+AND    UserId                  = {0};
+
+UPDATE AnalitFReplicationInfo
+SET    MaxSynonymCode    =UncMaxSynonymCode
+WHERE  UncMaxSynonymCode!=0
+AND    UserId            = {0};
+"
+					,
+					_updateData.UserId);
+
+			ProcessCommitCommand(commitCommand, "CommitExchange");
+		}
+
+		private void ProcessCommitCommand(string commitCommand, string methodName)
+		{
+			global::Common.MySql.With.DeadlockWraper(() =>
+			{
+				var transaction = _readWriteConnection.BeginTransaction();
+				try
+				{
+					global::MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);
+					transaction.Commit();
+				}
+				catch
+				{
+					try
+					{
+						transaction.Rollback();
+					}
+					catch (Exception rollbackException)
+					{
+						ILog _logger = LogManager.GetLogger(typeof(UpdateHelper));
+						_logger.Error("Ошибка при rollback'е транзакции " + methodName, rollbackException);
+					}
+					throw;
+				}
+			});
 		}
 	}
 }

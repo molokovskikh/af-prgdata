@@ -446,13 +446,13 @@ RestartInsertTrans:
                     If BuildNo > 716 Then
                         'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
                         If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
-                            FileCount = 19
+                            'FileCount = 19
                         Else
                             If (BuildNo >= 829) And (BuildNo <= 837) And UpdateData.EnableUpdate Then
-                                FileCount = 19
+                                'FileCount = 19
                                 Addition &= "Производится обновление программы с 800-х версий на MySql; "
                             Else
-                                FileCount = 16
+                                'FileCount = 16
                             End If
                         End If
                         BaseThread = New Thread(AddressOf MySqlProc)
@@ -460,7 +460,7 @@ RestartInsertTrans:
                         Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
                         If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
                             BaseThread = New Thread(AddressOf MySqlProc)
-                            FileCount = 19
+                            'FileCount = 19
                             GED = True
                             Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
                         Else
@@ -489,8 +489,9 @@ RestartInsertTrans:
                                 AbsentPriceCodes &= "," & PriceCodes(I)
                             Next
                         End If
-                        SetResultCodes.Start()
-                        SetResultCodes.Join()
+                        If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
+                        'SetResultCodes.Start()
+                        'SetResultCodes.Join()
                     End If
 
                 End If
@@ -1125,7 +1126,27 @@ StartZipping:
                         End If
 
 
+                        If FileForArchive.FileName.StartsWith("EndOfFiles.txt") Then
+                            If Reclame Then
 
+                                'ArchCmd.CommandText &= "1"
+                                File.Move(SevenZipTmpArchive, ResultFileName & "r" & UserId & ".zip")
+
+                            Else
+
+                                'ArchCmd.CommandText &= "0"
+                                File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
+                                If (UpdateType = RequestType.GetCumulative) Then File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
+
+                                FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
+                                ResultLenght = Convert.ToUInt32(FileInfo.Length)
+
+                            End If
+                            'ArchCmd.ExecuteNonQuery()
+
+                            PackFinished = True
+                            Exit Sub
+                        End If
 
                         If Reclame Then
                             FileName = ReclamePath & FileForArchive.FileName
@@ -1173,36 +1194,16 @@ StartZipping:
                         If Not Reclame Then MySQLFileDelete(FileName)
                         zipfilecount += 1
 
-                        If zipfilecount >= FileCount Then
+                        'If zipfilecount >= FileCount Then
 
-                            'ArchCmd.CommandText = "delete from ready_client_files where clientcode=" & CCode
-                            'ArchCmd.CommandText &= " and reclame="
+                        '    'ArchCmd.CommandText = "delete from ready_client_files where clientcode=" & CCode
+                        '    'ArchCmd.CommandText &= " and reclame="
 
-                            If Reclame Then
+                        'Else
 
-                                'ArchCmd.CommandText &= "1"
-                                File.Move(SevenZipTmpArchive, ResultFileName & "r" & UserId & ".zip")
+                        'End If
 
-                            Else
-
-                                'ArchCmd.CommandText &= "0"
-                                File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-                                If (UpdateType = RequestType.GetCumulative) Then File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
-
-                                FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
-                                ResultLenght = Convert.ToUInt32(FileInfo.Length)
-
-                            End If
-                            'ArchCmd.ExecuteNonQuery()
-
-                            PackFinished = True
-                            Exit Sub
-
-                        Else
-
-                            GoTo StartZipping
-
-                        End If
+                        GoTo StartZipping
 
                     End If
 
@@ -1295,8 +1296,10 @@ StartZipping:
                             AbsentPriceCodes &= "," & PriceCode(I)
                         Next
                     End If
-                    SetResultCodes.Start()
-                    SetResultCodes.Join()
+
+                    ProcessOldCommit(AbsentPriceCodes)
+                    'SetResultCodes.Start()
+                    'SetResultCodes.Join()
 
                 End If
 
@@ -1317,7 +1320,7 @@ StartZipping:
                     UpdateTime = Now().ToUniversalTime
                 End Try
 
-                If SetResultCodes.IsAlive Then SetResultCodes.Join()
+                'If SetResultCodes.IsAlive Then SetResultCodes.Join()
 
 				MaxSynonymCode = UpdateTime.ToUniversalTime
             Else
@@ -1369,6 +1372,7 @@ StartZipping:
 
                 If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
                     ' Здесь сбрасывались коды прайс-листов
+                    ProcessCommitExchange()
                 End If
 
                 Try
@@ -1387,8 +1391,6 @@ StartZipping:
                     MailErr("Выборка даты обновления ", ex.Message & ex.Source)
                     UpdateTime = Now().ToUniversalTime
                 End Try
-
-                If SetResultCodes.IsAlive Then SetResultCodes.Join()
 
                 'ProtocolUpdatesThread.Start()
 
@@ -2362,6 +2364,10 @@ PostLog:
                             LogCm.ExecuteNonQuery()
 
                             Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+
+                            LogCm.CommandText = "delete from future.ClientToAddressMigrations where UserId = " & UpdateData.UserId
+                            LogCm.ExecuteNonQuery()
+
                             Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
 
                             If processedDocuments.Rows.Count > 0 Then
@@ -3197,8 +3203,7 @@ RestartTrans2:
 					 "       ''        " & _
 					 "FROM   CoreTP")
 
-
-
+                    AddEndOfFiles()
 
 				End If
 
@@ -3316,6 +3321,9 @@ RestartTrans2:
                 MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "Descriptions" & UserId & ".txt")
                 MySQLFileDelete(MySqlFilePath & "MaxProducerCosts" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "Producers" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "UpdateInfo" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "ClientToAddressMigrations" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3338,7 +3346,17 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
 
+                GetMySQLFileWithDefault( _
+                    "UpdateInfo", _
+                    SelProc, _
+                    "select " & _
+                    "  date_sub(UncommitedUpdateDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)," & _
+                    "  ?Cumulative " & _
+                    "from UserUpdateInfo where UserId=" & UserId)
 
+                If helper.NeedClientToAddressMigration() Then
+                    GetMySQLFileWithDefault("ClientToAddressMigrations", SelProc, helper.GetClientToAddressMigrationCommand())
+                End If
 
                 GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())
                 GetMySQLFileWithDefault("Client", SelProc, helper.GetClientCommand())
@@ -3357,40 +3375,33 @@ RestartTrans2:
 
                 If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
                 Then
-                    GetMySQLFileWithDefaultEx("Catalogs", SelProc, _
-                    "SELECT C.Id             , " & _
-                    "       CN.Id            , " & _
-                    "       LEFT(CN.name, 250)  , " & _
-                    "       LEFT(CF.form, 250)  , " & _
-                    "       C.vitallyimportant , " & _
-                    "       C.needcold         , " & _
-                    "       C.fragile, " & _
-                    "       C.MandatoryList , " & _
-                    "       CN.MnnId, " & _
-                    "       CN.DescriptionId " & _
-                    "FROM   Catalogs.Catalog C       , " & _
-                    "       Catalogs.CatalogForms CF , " & _
-                    "       Catalogs.CatalogNames CN " & _
-                    "WHERE  C.NameId                        =CN.Id " & _
-                    "   AND C.FormId                        =CF.Id " & _
-                    "   AND (IF(NOT ?Cumulative, C.UpdateTime > ?UpdateTime, 1) or IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)) " & _
-                    "   AND C.hidden                          =0", _
-                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
-                    True)
+                    GetMySQLFileWithDefaultEx( _
+                        "Catalogs", _
+                        SelProc, _
+                        helper.GetCatalogCommand(GED), _
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                        True)
 
                     GetMySQLFileWithDefaultEx( _
                         "MNN", _
                         SelProc, _
-                        helper.GetMNNCommand(), _
+                        helper.GetMNNCommand(GED), _
                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
                         True)
 
                     GetMySQLFileWithDefaultEx( _
-                    "Descriptions", _
-                    SelProc, _
-                    helper.GetDescriptionCommand(), _
-                    ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
-                    True)
+                        "Descriptions", _
+                        SelProc, _
+                        helper.GetDescriptionCommand(GED), _
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                        True)
+
+                    GetMySQLFileWithDefaultEx( _
+                        "Producers", _
+                        SelProc, _
+                        helper.GetProducerCommand(GED), _
+                        ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                        True)
                 Else
                     GetMySQLFileWithDefault("Catalogs", SelProc, _
                     "SELECT C.Id             , " & _
@@ -3665,7 +3676,6 @@ RestartTrans2:
                     If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) Then
                         If helper.DefineMaxProducerCostsCostId() Then
                             If GED Or (UpdateData.EnableUpdate And (BuildNo < 1049)) Or helper.MaxProducerCostIsFresh() Then
-                                'Если прайс-лист не обновлен, то отдаем пустой файл
                                 GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand())
                             Else
                                 'Если прайс-лист не обновлен, то отдаем пустой файл
@@ -3782,6 +3792,8 @@ RestartTrans2:
                     'выгружаем пустую таблицу MaxProducerCosts
                     GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
                 End If
+
+                AddEndOfFiles()
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
@@ -4450,6 +4462,8 @@ RestartTrans2:
 
                 If FileCount > 0 Then
 
+                    AddEndOfFiles()
+
                     ZipStream()
 
                     FileInfo = New FileInfo(ResultFileName & "r" & UserId & ".zip")
@@ -4596,6 +4610,50 @@ RestartMaxCodesSet:
 
         End Try
 
+    End Sub
+
+    Private Sub ProcessCommitExchange()
+        Try
+            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            helper.CommitExchange()
+        Catch err As Exception
+            MailErr("Присвоение значений максимальных синонимов", err.Message)
+            Addition = err.Message
+            UpdateType = RequestType.Error
+            ErrorFlag = True
+        End Try
+    End Sub
+
+    Private Sub ProcessOldCommit(ByVal AbsentPriceCodes As String)
+        Try
+            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            helper.OldCommit(AbsentPriceCodes)
+            Addition &= "!!! " & AbsentPriceCodes
+        Catch err As Exception
+            MailErr("Присвоение значений максимальных синонимов", err.Message)
+            Addition = err.Message
+            UpdateType = RequestType.Error
+            ErrorFlag = True
+        End Try
+    End Sub
+
+    Private Sub ProcessResetAbsentPriceCodes(ByVal AbsentPriceCodes As String)
+        Try
+            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            helper.ResetAbsentPriceCodes(AbsentPriceCodes)
+            Addition &= "!!! " & AbsentPriceCodes
+        Catch err As Exception
+            MailErr("Сброс информации по прайс-листам с недостающими синонимами", err.Message)
+            Addition = err.Message
+            UpdateType = RequestType.Error
+            ErrorFlag = True
+        End Try
+    End Sub
+
+    Private Sub AddEndOfFiles()
+        SyncLock (FilesForArchive)
+            FilesForArchive.Enqueue(New FileForArchive("EndOfFiles.txt", False))
+        End SyncLock
     End Sub
 
     Private Sub GetMySQLFile(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
