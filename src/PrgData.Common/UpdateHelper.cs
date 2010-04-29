@@ -751,7 +751,8 @@ select
   DocumentBodies.SupplierCost, 
   DocumentBodies.Quantity, 
   DocumentBodies.VitallyImportant, 
-  DocumentBodies.NDS
+  DocumentBodies.NDS,
+  DocumentBodies.SerialNumber
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
@@ -817,7 +818,7 @@ FROM Future.Users u
   join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 WHERE u.Id = ?UserId", 
 					 isFirebird ? "'', " : "",
-					 isFirebird ? "" : ", rcs.AllowDelayOfPayment");
+					 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ");
 			}
 			else
 			{
@@ -861,7 +862,7 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
  AND Primaryclientcode       = ?ClientCode"
 					,
 					isFirebird ? "'', " : "",
-					isFirebird ? "" : ", retclientsset.AllowDelayOfPayment");
+					isFirebird ? "" : ", retclientsset.AllowDelayOfPayment, clientsdata.FullName ");
 			}
 		}
 
