@@ -269,7 +269,7 @@ Public Class PrgDataEx
     ByVal WINDesc As String, _
     ByVal WayBillsOnly As Boolean) As String
 
-        Return GetUserDataEx( _
+        Return GetUserDataWithPriceCodes( _
         AccessTime, _
         GetEtalonData, _
         EXEVersion, _
@@ -278,6 +278,7 @@ Public Class PrgDataEx
         WINVersion, _
         WINDesc, _
         WayBillsOnly, _
+        Nothing, _
         Nothing)
 
     End Function
@@ -292,6 +293,32 @@ Public Class PrgDataEx
     ByVal WINDesc As String, _
     ByVal WayBillsOnly As Boolean, _
     ByVal ClientHFile As String) As String
+
+        Return GetUserDataWithPriceCodes( _
+        AccessTime, _
+        GetEtalonData, _
+        EXEVersion, _
+        MDBVersion, _
+        UniqueID, _
+        WINVersion, _
+        WINDesc, _
+        WayBillsOnly, _
+        Nothing, _
+        Nothing)
+
+    End Function
+
+    <WebMethod()> Public Function GetUserDataWithPriceCodes( _
+    ByVal AccessTime As Date, _
+    ByVal GetEtalonData As Boolean, _
+    ByVal EXEVersion As String, _
+    ByVal MDBVersion As Int16, _
+    ByVal UniqueID As String, _
+    ByVal WINVersion As String, _
+    ByVal WINDesc As String, _
+    ByVal WayBillsOnly As Boolean, _
+    ByVal ClientHFile As String, _
+    ByVal PriceCodes As UInt32()) As String
         Dim LockCount As Int32
         Dim ResStr As String = String.Empty
         Dim NeedFreeLock As Boolean = False
@@ -451,7 +478,19 @@ RestartInsertTrans:
                         Cm.Transaction = myTrans
                         Cm.ExecuteNonQuery()
                         myTrans.Commit()
+                    Else
 
+                        'Сбрасываем коды прайс-листов, у которых нехватает синонимов
+                        AbsentPriceCodes = String.Empty
+                        If (PriceCodes IsNot Nothing) AndAlso (PriceCodes.Length > 0) AndAlso (PriceCodes(0) <> 0) Then
+                            AbsentPriceCodes = PriceCodes(0).ToString
+                            Dim I As Integer
+                            For I = 1 To PriceCodes.Length - 1
+                                AbsentPriceCodes &= "," & PriceCodes(I)
+                            Next
+                        End If
+                        SetResultCodes.Start()
+                        SetResultCodes.Join()
                     End If
 
                 End If
@@ -644,7 +683,7 @@ endproc:
                 If SpyAccount Then ResStr &= ";SendUData=True"
 
             End If
-            GetUserDataEx = ResStr
+            GetUserDataWithPriceCodes = ResStr
 
         Catch ex As Exception
             Log.Error("Параметры " & _
@@ -657,7 +696,7 @@ endproc:
                 String.Format("WINDesc = {0}, ", WINDesc) & _
                 String.Format("WayBillsOnly = {0}", WayBillsOnly), ex)
             UpdateType = RequestType.Error
-            GetUserDataEx = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+            GetUserDataWithPriceCodes = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
             DBDisconnect()
             If NeedFreeLock Then ReleaseLock(UserId, "GetUserData")
@@ -1307,6 +1346,116 @@ StartZipping:
             DBDisconnect()
         End Try
 
+    End Function
+
+    <WebMethod()> _
+    Public Function CommitExchange( _
+       ByVal UpdateId As UInt32, _
+       ByVal WayBillsOnly As Boolean) As Date
+        Dim UpdateTime As Date
+        Cm.Transaction = Nothing
+        'здесь корректировка
+        'ClientLog = Log
+        GUpdateId = UpdateId
+
+        Try
+            If DBConnect("CommitExchange") Then
+                GetClientCode()
+                UpdateType = RequestType.CommitExchange
+
+                If Not Counter.Counter.TryLock(UserId, "CommitExchange") Then
+                    Return DateTime.Now
+                End If
+
+                If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+                    ' Здесь сбрасывались коды прайс-листов
+                End If
+
+                Try
+
+                    If Not WayBillsOnly Then
+                        Cm.Connection = ReadOnlyCn
+                        Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
+                        Cm.CommandText = Запрос
+                        Using SQLdr As MySqlDataReader = Cm.ExecuteReader
+                            SQLdr.Read()
+                            UpdateTime = SQLdr.GetDateTime(0)
+                        End Using
+                    End If
+
+                Catch ex As Exception
+                    MailErr("Выборка даты обновления ", ex.Message & ex.Source)
+                    UpdateTime = Now().ToUniversalTime
+                End Try
+
+                If SetResultCodes.IsAlive Then SetResultCodes.Join()
+
+                'ProtocolUpdatesThread.Start()
+
+                CommitExchange = UpdateTime.ToUniversalTime
+            Else
+                CommitExchange = Now().ToUniversalTime
+            End If
+
+            Try
+
+                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
+                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                    If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
+                    File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
+                End If
+
+                MySQLFileDelete(ResultFileName & UserId & ".zip")
+                MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
+
+            Catch ex As Exception
+                'MailErr("Удаление полученных файлов;", ex.Message)
+            End Try
+            ProtocolUpdatesThread.Start()
+        Catch e As Exception
+            Me.Log.Error("Ошибка при подтверждении обновления", e)
+        Finally
+            DBDisconnect()
+            ReleaseLock(UserId, "CommitExchange")
+        End Try
+    End Function
+
+    <WebMethod()> _
+    Public Function SendClientLog( _
+        ByVal UpdateId As UInt32, _
+        ByVal Log As String _
+        ) As String
+
+
+        Try
+            If DBConnect("SendClientLog") Then
+                GetClientCode()
+
+                If Not Counter.Counter.TryLock(UserId, "SendClientLog") Then
+                    Return "Error"
+                End If
+
+                Try
+                    MySqlHelper.ExecuteNonQuery( _
+                        ReadWriteCn, _
+                        "update logs.AnalitFUpdates set Log=?Log  where UpdateId=?UpdateId", _
+                        New MySqlParameter("?Log", Log), _
+                        New MySqlParameter("?UpdateId", UpdateId))
+
+                Catch ex As Exception
+                    MailErr("Сохранение лога клиента ", ex.Message & ex.Source)
+                End Try
+                SendClientLog = "OK"
+            Else
+                SendClientLog = "Error"
+            End If
+        Catch e As Exception
+            Me.Log.Error("Ошибка при сохранении лога клиента", e)
+            SendClientLog = "Error"
+        Finally
+            DBDisconnect()
+            ReleaseLock(UserId, "SendClientLog")
+        End Try
     End Function
 
     Private Sub GetClientCode()
