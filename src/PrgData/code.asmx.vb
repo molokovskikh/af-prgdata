@@ -2736,27 +2736,9 @@ RestartTrans2:
 				"FROM     ActivePrices Prices        " & _
 				"GROUP BY 1; "
 
-				SelProc.ExecuteNonQuery()
+                SelProc.ExecuteNonQuery()
 
-				SQLText = "" & _
-				"SELECT synonymfirmcr.synonymfirmcrcode, " & _
-				"       LEFT(SYNONYM, 250) " & _
-				"FROM   farm.synonymfirmcr, " & _
-				"       ParentCodes " & _
-				"WHERE  synonymfirmcr.pricecode        = ParentCodes.PriceCode "
-				If Not GED Then
-
-					SQLText &= "AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode "
-
-				End If
-
-				SQLText &= " " & _
-			   "UNION " & _
-			   " " & _
-			   "SELECT 1, " & _
-			   "       '-' "
-
-				GetMySQLFile("SynonymFirmCr", SelProc, SQLText)
+                GetMySQLFile("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(GED))
 
 				SQLText = "" & _
 				"SELECT synonym.synonymcode, " & _
@@ -3437,29 +3419,7 @@ RestartTrans2:
                 "GROUP BY 1; "
                 SelProc.ExecuteNonQuery()
 
-                SQLText = "" & _
-                "SELECT synonymfirmcr.synonymfirmcrcode, " & _
-                "       LEFT(SYNONYM, 250) " & _
-                "FROM   farm.synonymfirmcr, " & _
-                "       ParentCodes " & _
-                "WHERE  synonymfirmcr.pricecode        = ParentCodes.PriceCode "
-                If Not GED Then
-
-                    SQLText &= "AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode "
-
-                Else
-
-                    SQLText &= " " & _
-                   "UNION " & _
-                   " " & _
-                   "SELECT synonymfirmcrcode, " & _
-                   "       LEFT(SYNONYM, 250) " & _
-                   "FROM   farm.synonymfirmcr " & _
-                   "WHERE  synonymfirmcrcode=0"
-
-                End If
-
-                GetMySQLFileWithDefault("SynonymFirmCr", SelProc, SQLText)
+                GetMySQLFileWithDefault("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(GED))
 
                 SQLText = "" & _
                 "SELECT synonym.synonymcode, " & _

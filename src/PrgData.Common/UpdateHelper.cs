@@ -1082,7 +1082,7 @@ SELECT 2647                              ,
        A.ProductId                       ,
        1                                 ,
        S.SynonymCode                     ,
-       0                                 ,
+       1                                 ,
        ''                                ,
        ''                                ,
        ''                                ,
@@ -1153,6 +1153,26 @@ if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
 ),
 Core.ProducerCost,
 Core.NDS " : "");
+		}
+
+		public string GetSynonymFirmCrCommand(bool Cumulative)
+		{ 
+			var sql = @"
+SELECT synonymfirmcr.synonymfirmcrcode,
+       LEFT(SYNONYM, 250)
+FROM   farm.synonymfirmcr,
+       ParentCodes
+WHERE  synonymfirmcr.pricecode = ParentCodes.PriceCode";
+			if (!Cumulative)
+				sql += " AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode ";
+			sql += @"
+UNION
+
+SELECT 1,
+       '-'
+";
+
+			return sql;
 		}
 
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
