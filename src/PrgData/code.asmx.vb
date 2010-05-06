@@ -521,6 +521,7 @@ RestartInsertTrans:
                     UpdateType = RequestType.GetDocs
                     Try
                         MySQLFileDelete(ResultFileName & UserId & ".zip")
+                        Log.DebugFormat("При подготовке документов удален предыдущий файл: {0}", ResultFileName & UserId & ".zip")
                     Catch ex As Exception
                         Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
                         UpdateType = RequestType.Forbidden
@@ -534,21 +535,24 @@ RestartInsertTrans:
 
                     If CkeckZipTimeAndExist(GetEtalonData) Then
 
-
+                        Log.DebugFormat("Атрибуты подготовленного файла {1}: {0}", ResultFileName & UserId & ".zip", File.GetAttributes(ResultFileName & UserId & ".zip"))
                         If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
 
                             UpdateType = RequestType.ResumeData
                             NewZip = False
                             PackFinished = True
+                            Log.DebugFormat("Файл будет докачиваться: {0}", ResultFileName & UserId & ".zip")
                             GoTo endproc
 
                         End If
+                        Log.DebugFormat("Файл будет архивироваться заново: {0}", ResultFileName & UserId & ".zip")
 
                     Else
 
                         Try
 
                             MySQLFileDelete(ResultFileName & UserId & ".zip")
+                            Log.DebugFormat("Удалили предыдущие подготовленные данные: {0}", ResultFileName & UserId & ".zip")
 
                         Catch ex As Exception
                             Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
@@ -771,6 +775,7 @@ endproc:
                 Else
                     SevenZipTmpArchive = Path.GetTempPath() & UserId
                     MySQLFileDelete(ResultFileName & UserId & ".zip")
+                    Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", ResultFileName & UserId & ".zip")
                 End If
 
                 SevenZipTmpArchive &= "T.zip"
@@ -1154,7 +1159,11 @@ StartZipping:
 
                                 'ArchCmd.CommandText &= "0"
                                 File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-                                If (UpdateType = RequestType.GetCumulative) Then File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
+                                Log.DebugFormat("Закончено архивирование файла: {0}", ResultFileName & UserId & ".zip")
+                                If (UpdateType = RequestType.GetCumulative) Then
+                                    File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
+                                    Log.DebugFormat("Для файла выставлен атрибут Normal: {0}", ResultFileName & UserId & ".zip")
+                                End If
 
                                 FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
                                 ResultLenght = Convert.ToUInt32(FileInfo.Length)
@@ -1354,6 +1363,7 @@ StartZipping:
                 End If
 
                 MySQLFileDelete(ResultFileName & UserId & ".zip")
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
                 MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
 			Catch ex As Exception
@@ -1427,6 +1437,7 @@ StartZipping:
                 End If
 
                 MySQLFileDelete(ResultFileName & UserId & ".zip")
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
                 MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
             Catch ex As Exception
@@ -2603,18 +2614,48 @@ PostLog:
                  "    AND RequestTime > curdate() - interval 1 DAY " & _
                  "    AND UserId  =" & UserId
 
-        If Convert.ToUInt32(Cm.ExecuteScalar) < 1 Then Return False
+        If Convert.ToUInt32(Cm.ExecuteScalar) < 1 Then
+            Log.DebugFormat("Не найден предыдущий неподтвержденный запрос данных: {0}", UserId)
+            Return False
+        Else
+            Log.DebugFormat("Найден предыдущий неподтвержденный запрос данных: {0}", UserId)
+        End If
 
 
         FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
 
         If FileInfo.Exists Then
 
-            CkeckZipTimeAndExist = (((Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
-           Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8))) Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
+            Log.DebugFormat("Файл с подготовленными данными существует: {0}", ResultFileName & UserId & ".zip")
+            CkeckZipTimeAndExist = _
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
+                Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
+                Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
 
+            Log.DebugFormat( _
+                "Результат проверки CkeckZipTimeAndExist: {0}  " & vbCrLf & _
+                "Параметры " & vbCrLf & _
+                "GetEtalonData  : {1}" & vbCrLf & _
+                "UncDT          : {2}" & vbCrLf & _
+                "OldUpTime      : {3}" & vbCrLf & _
+                "FileName       : {4}" & vbCrLf & _
+                "FileAttributes : {5}" & vbCrLf & _
+                "Expression1    : {6}" & vbCrLf & _
+                "Expression2    : {7}" & vbCrLf & _
+                "Expression3    : {8}" _
+                , _
+                CkeckZipTimeAndExist, _
+                GetEtalonData, _
+                UncDT, _
+                OldUpTime, _
+                ResultFileName & UserId & ".zip", _
+                File.GetAttributes(ResultFileName & UserId & ".zip"), _
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData), _
+                (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
+                (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData))
         Else
 
+            Log.DebugFormat("Файл с подготовленными данными не существует: {0}", ResultFileName & UserId & ".zip")
             CkeckZipTimeAndExist = False
 
         End If
