@@ -7,7 +7,7 @@ import file from Test.bake
 Global(
 	project : "PrgData",
 	humanReadableName : "Служба подготовки данных",
-	deployTo : "\\\\ACDCSERV.ADC.ANALIT.NET\\WebApps\\PrgDataService\\PrgData\\", 
+	deployTo : "\\\\ACDCSERV.ADC.ANALIT.NET\\WebApps\\PrgDataService\\PrgDataEx\\", 
 	platform : "x64"
 )
 
