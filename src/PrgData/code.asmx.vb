@@ -3319,6 +3319,7 @@ RestartTrans2:
                 SelProc.Parameters.AddWithValue("?Cumulative", GED)
                 SelProc.Parameters.AddWithValue("?UserId", UserId)
                 SelProc.Parameters.AddWithValue("?UpdateTime", OldUpTime)
+                SelProc.Parameters.AddWithValue("?LastUpdateTime", CurUpdTime)
 
 
 
@@ -3332,7 +3333,7 @@ RestartTrans2:
                     "UpdateInfo", _
                     SelProc, _
                     "select " & _
-                    "  date_sub(UncommitedUpdateDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)," & _
+                    "  date_sub(?LastUpdateTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)," & _
                     "  ?Cumulative " & _
                     "from UserUpdateInfo where UserId=" & UserId)
 
