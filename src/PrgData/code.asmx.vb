@@ -84,6 +84,7 @@ Public Class PrgDataEx
     Private SetResultCodes As New Thread(AddressOf SetCodesProc)
 
     Private CurUpdTime, OldUpTime As DateTime
+    Private LimitedCumulative As Boolean
     Private BuildNo, AllowBuildNo, MDBVer As Integer
     Private UpdateType As RequestType
     Private ResultLenght, OrderId As UInt32
@@ -331,6 +332,7 @@ Public Class PrgDataEx
 
                 'Начинаем обычное обновление
                 UpdateType = RequestType.GetData
+                LimitedCumulative = False
 
                 'Нет критических ошибок
                 ErrorFlag = False
@@ -436,10 +438,26 @@ RestartInsertTrans:
                     End If
 
                     'Если несовпадает время последнего обновления на клиете и сервере
-					If OldUpTime <> AccessTime.ToLocalTime Then
-						GED = True
-						Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
-					End If
+                    If OldUpTime <> AccessTime.ToLocalTime Then
+                        If (BuildNo > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) Then
+                            Try
+                                Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
+                                LimitedCumulative = True
+                                OldUpTime = AccessTime.ToLocalTime()
+                                Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                                helper.PrepareLimitedCumulative(OldUpTime)
+                            Catch err As Exception
+                                MailErr("Подготовка к частичному КО", err.ToString())
+                                Addition = err.Message
+                                UpdateType = RequestType.Error
+                                ErrorFlag = True
+                                GoTo endproc
+                            End Try
+                        Else
+                            GED = True
+                            Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
+                        End If
+                    End If
 
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
@@ -639,7 +657,7 @@ endproc:
             If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
 
             If NewZip And Not ErrorFlag Then
-				Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
+                Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
 
                 If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
 
@@ -666,7 +684,7 @@ endproc:
                     Thread.Sleep(500)
                 End While
 
-				ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative)
+                ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative)
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
@@ -1367,6 +1385,7 @@ StartZipping:
                 UpdateType = RequestType.CommitExchange
 
                 If Not Counter.Counter.TryLock(UserId, "CommitExchange") Then
+                    Me.Log.Error("Не удалось наложить блокировку для подтверждения обновления")
                     Return DateTime.Now
                 End If
 
@@ -2281,7 +2300,11 @@ RePost:
 
                             .Parameters.Add(New MySqlParameter("?ClientHost", UserHost))
 
-                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                            If (UpdateType = RequestType.GetData) And LimitedCumulative Then
+                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
+                            Else
+                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                            End If
 
                             .Parameters.Add(New MySqlParameter("?EXEVersion", BuildNo))
 
@@ -3608,18 +3631,7 @@ RestartTrans2:
 
                 GetMySQLFileWithDefault("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(GED))
 
-                SQLText = "" & _
-                "SELECT synonym.synonymcode, " & _
-                "       LEFT(synonym.synonym, 250) " & _
-                "FROM   farm.synonym, " & _
-                "       ParentCodes " & _
-                "WHERE  synonym.pricecode  = ParentCodes.PriceCode "
-
-                If Not GED Then
-                    SQLText &= "AND synonym.synonymcode > MaxSynonymCode"
-                End If
-
-                GetMySQLFileWithDefault("Synonyms", SelProc, SQLText)
+                GetMySQLFileWithDefault("Synonyms", SelProc, helper.GetSynonymCommand(GED))
 
 
                 If UpdateData.OffersClientCode Is Nothing Then
