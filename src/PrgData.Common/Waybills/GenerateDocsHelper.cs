@@ -284,7 +284,7 @@ select last_insert_id()
 			return fileName;
 		}
 
-		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint clientId, ulong providerId, string waybillFileName, ulong updateId)
+		private static uint CopyWaybill(MySqlConnection connection, UpdateData updateData, uint addressId, ulong providerId, string waybillFileName, ulong updateId)
 		{
 			var resultFileName = Path.GetFileName(waybillFileName);
 			var index = resultFileName.IndexOf('_');
@@ -316,10 +316,10 @@ set @LastDownloadId = last_insert_id();
 			if (updateData.IsFutureClient)
 			{
 				headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
-				headerCommand.Parameters["?AddressId"].Value = clientId;
+				headerCommand.Parameters["?AddressId"].Value = addressId;
 			}
 			else
-				headerCommand.Parameters["?ClientCode"].Value = clientId;
+				headerCommand.Parameters["?ClientCode"].Value = addressId;
 			headerCommand.Parameters["?SendUpdateId"].Value = updateId;
 			headerCommand.ExecuteNonQuery();
 
@@ -342,7 +342,7 @@ set @LastDownloadId = last_insert_id();
 					Path.Combine(
 						Path.Combine(
 							ConfigurationManager.AppSettings["WaybillPath"],
-						updateData.ClientId.ToString().PadLeft(3, '0')),
+						addressId.ToString().PadLeft(3, '0')),
 						DocumentType.Waybills.ToString()),
 					resultFileName
 				)
