@@ -133,7 +133,10 @@ where c.Status = 1
 
 				var fn = context.Server.MapPath(@"/Results") + @"\" + UserId + ".zip";
 				if (!File.Exists(fn))
+				{
+					_log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
 					throw new Exception("Не удалось идентифицировать клиента. (1)");
+				}
 
 				if (!String.IsNullOrEmpty(context.Request.QueryString["Id"]))
 					Int64.TryParse(context.Request.QueryString["Id"], out _updateId);

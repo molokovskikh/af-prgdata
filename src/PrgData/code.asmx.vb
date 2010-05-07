@@ -84,6 +84,7 @@ Public Class PrgDataEx
     Private SetResultCodes As New Thread(AddressOf SetCodesProc)
 
     Private CurUpdTime, OldUpTime As DateTime
+    Private LimitedCumulative As Boolean
     Private BuildNo, AllowBuildNo, MDBVer As Integer
     Private UpdateType As RequestType
     Private ResultLenght, OrderId As UInt32
@@ -331,6 +332,7 @@ Public Class PrgDataEx
 
                 'Начинаем обычное обновление
                 UpdateType = RequestType.GetData
+                LimitedCumulative = False
 
                 'Нет критических ошибок
                 ErrorFlag = False
@@ -436,10 +438,26 @@ RestartInsertTrans:
                     End If
 
                     'Если несовпадает время последнего обновления на клиете и сервере
-					If OldUpTime <> AccessTime.ToLocalTime Then
-						GED = True
-						Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
-					End If
+                    If OldUpTime <> AccessTime.ToLocalTime Then
+                        If (BuildNo > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) Then
+                            Try
+                                Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
+                                LimitedCumulative = True
+                                OldUpTime = AccessTime.ToLocalTime()
+                                Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                                helper.PrepareLimitedCumulative(OldUpTime)
+                            Catch err As Exception
+                                MailErr("Подготовка к частичному КО", err.ToString())
+                                Addition = err.Message
+                                UpdateType = RequestType.Error
+                                ErrorFlag = True
+                                GoTo endproc
+                            End Try
+                        Else
+                            GED = True
+                            Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
+                        End If
+                    End If
 
 
                     'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
@@ -503,6 +521,7 @@ RestartInsertTrans:
                     UpdateType = RequestType.GetDocs
                     Try
                         MySQLFileDelete(ResultFileName & UserId & ".zip")
+                        Log.DebugFormat("При подготовке документов удален предыдущий файл: {0}", ResultFileName & UserId & ".zip")
                     Catch ex As Exception
                         Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
                         UpdateType = RequestType.Forbidden
@@ -516,21 +535,24 @@ RestartInsertTrans:
 
                     If CkeckZipTimeAndExist(GetEtalonData) Then
 
-
+                        Log.DebugFormat("Атрибуты подготовленного файла {1}: {0}", ResultFileName & UserId & ".zip", File.GetAttributes(ResultFileName & UserId & ".zip"))
                         If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
 
                             UpdateType = RequestType.ResumeData
                             NewZip = False
                             PackFinished = True
+                            Log.DebugFormat("Файл будет докачиваться: {0}", ResultFileName & UserId & ".zip")
                             GoTo endproc
 
                         End If
+                        Log.DebugFormat("Файл будет архивироваться заново: {0}", ResultFileName & UserId & ".zip")
 
                     Else
 
                         Try
 
                             MySQLFileDelete(ResultFileName & UserId & ".zip")
+                            Log.DebugFormat("Удалили предыдущие подготовленные данные: {0}", ResultFileName & UserId & ".zip")
 
                         Catch ex As Exception
                             Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
@@ -639,7 +661,7 @@ endproc:
             If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
 
             If NewZip And Not ErrorFlag Then
-				Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
+                Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
 
                 If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
 
@@ -666,7 +688,7 @@ endproc:
                     Thread.Sleep(500)
                 End While
 
-				ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative)
+                ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative)
 
                 If Message.Length > 0 Then ResStr &= ";Addition=" & Message
 
@@ -753,6 +775,7 @@ endproc:
                 Else
                     SevenZipTmpArchive = Path.GetTempPath() & UserId
                     MySQLFileDelete(ResultFileName & UserId & ".zip")
+                    Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", ResultFileName & UserId & ".zip")
                 End If
 
                 SevenZipTmpArchive &= "T.zip"
@@ -1136,7 +1159,11 @@ StartZipping:
 
                                 'ArchCmd.CommandText &= "0"
                                 File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-                                If (UpdateType = RequestType.GetCumulative) Then File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
+                                Log.DebugFormat("Закончено архивирование файла: {0}", ResultFileName & UserId & ".zip")
+                                If (UpdateType = RequestType.GetCumulative) Then
+                                    File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
+                                    Log.DebugFormat("Для файла выставлен атрибут Normal: {0}", ResultFileName & UserId & ".zip")
+                                End If
 
                                 FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
                                 ResultLenght = Convert.ToUInt32(FileInfo.Length)
@@ -1343,6 +1370,7 @@ StartZipping:
                 End If
 
                 MySQLFileDelete(ResultFileName & UserId & ".zip")
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
                 MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
 			Catch ex As Exception
@@ -1374,6 +1402,7 @@ StartZipping:
                 UpdateType = RequestType.CommitExchange
 
                 If Not Counter.Counter.TryLock(UserId, "CommitExchange") Then
+                    Me.Log.Error("Не удалось наложить блокировку для подтверждения обновления")
                     Return DateTime.Now
                 End If
 
@@ -1392,6 +1421,13 @@ StartZipping:
                             SQLdr.Read()
                             UpdateTime = SQLdr.GetDateTime(0)
                         End Using
+
+                        Dim masterUpdateTime As Object = MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                        Me.Log.DebugFormat("CommitExchange: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
+                        If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
+                            UpdateTime = CType(masterUpdateTime, DateTime)
+                            Me.Log.Debug("CommitExchange: дата, выбранная из мастера, больше, чем дата из slave")
+                        End If
                     End If
 
                 Catch ex As Exception
@@ -1415,6 +1451,7 @@ StartZipping:
                 End If
 
                 MySQLFileDelete(ResultFileName & UserId & ".zip")
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
                 MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
             Catch ex As Exception
@@ -2288,7 +2325,11 @@ RePost:
 
                             .Parameters.Add(New MySqlParameter("?ClientHost", UserHost))
 
-                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                            If (UpdateType = RequestType.GetData) And LimitedCumulative Then
+                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
+                            Else
+                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                            End If
 
                             .Parameters.Add(New MySqlParameter("?EXEVersion", BuildNo))
 
@@ -2587,18 +2628,48 @@ PostLog:
                  "    AND RequestTime > curdate() - interval 1 DAY " & _
                  "    AND UserId  =" & UserId
 
-        If Convert.ToUInt32(Cm.ExecuteScalar) < 1 Then Return False
+        If Convert.ToUInt32(Cm.ExecuteScalar) < 1 Then
+            Log.DebugFormat("Не найден предыдущий неподтвержденный запрос данных: {0}", UserId)
+            Return False
+        Else
+            Log.DebugFormat("Найден предыдущий неподтвержденный запрос данных: {0}", UserId)
+        End If
 
 
         FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
 
         If FileInfo.Exists Then
 
-            CkeckZipTimeAndExist = (((Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
-           Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8))) Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
+            Log.DebugFormat("Файл с подготовленными данными существует: {0}", ResultFileName & UserId & ".zip")
+            CkeckZipTimeAndExist = _
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
+                Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
+                Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
 
+            Log.DebugFormat( _
+                "Результат проверки CkeckZipTimeAndExist: {0}  " & vbCrLf & _
+                "Параметры " & vbCrLf & _
+                "GetEtalonData  : {1}" & vbCrLf & _
+                "UncDT          : {2}" & vbCrLf & _
+                "OldUpTime      : {3}" & vbCrLf & _
+                "FileName       : {4}" & vbCrLf & _
+                "FileAttributes : {5}" & vbCrLf & _
+                "Expression1    : {6}" & vbCrLf & _
+                "Expression2    : {7}" & vbCrLf & _
+                "Expression3    : {8}" _
+                , _
+                CkeckZipTimeAndExist, _
+                GetEtalonData, _
+                UncDT, _
+                OldUpTime, _
+                ResultFileName & UserId & ".zip", _
+                File.GetAttributes(ResultFileName & UserId & ".zip"), _
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData), _
+                (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
+                (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData))
         Else
 
+            Log.DebugFormat("Файл с подготовленными данными не существует: {0}", ResultFileName & UserId & ".zip")
             CkeckZipTimeAndExist = False
 
         End If
@@ -3615,18 +3686,7 @@ RestartTrans2:
 
                 GetMySQLFileWithDefault("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(GED))
 
-                SQLText = "" & _
-                "SELECT synonym.synonymcode, " & _
-                "       LEFT(synonym.synonym, 250) " & _
-                "FROM   farm.synonym, " & _
-                "       ParentCodes " & _
-                "WHERE  synonym.pricecode  = ParentCodes.PriceCode "
-
-                If Not GED Then
-                    SQLText &= "AND synonym.synonymcode > MaxSynonymCode"
-                End If
-
-                GetMySQLFileWithDefault("Synonyms", SelProc, SQLText)
+                GetMySQLFileWithDefault("Synonyms", SelProc, helper.GetSynonymCommand(GED))
 
 
                 If UpdateData.OffersClientCode Is Nothing Then

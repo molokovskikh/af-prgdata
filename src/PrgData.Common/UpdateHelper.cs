@@ -594,6 +594,75 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 			});
 		}
 
+		public void PrepareLimitedCumulative(DateTime oldUpdateTime)
+		{
+			InsistHelper(() =>
+			{
+				Cleanup();
+
+				SelectActivePricesInMaster();
+
+				var commandText = @"
+
+UPDATE AnalitFReplicationInfo AFRI 
+SET    ForceReplication    = 1 
+WHERE  
+  AFRI.UserId = ?UserId;
+
+CREATE TEMPORARY TABLE MaxCodesSyn engine=MEMORY
+SELECT   
+  Prices.FirmCode, 
+  max(SynonymLogs.synonymcode) SynonymCode 
+FROM     
+  ActivePrices Prices, 
+  logs.SynonymLogs
+WHERE    
+      SynonymLogs.pricecode = PriceSynonymCode
+  and SynonymLogs.LogTime >= (?oldUpdateTime - interval ?Depth day)
+  and SynonymLogs.LogTime < ?oldUpdateTime 
+GROUP BY 1;
+
+CREATE TEMPORARY TABLE MaxCodesSynFirmCr engine=MEMORY 
+SELECT   
+  Prices.FirmCode, 
+  max(SynonymFirmCrLogs.synonymfirmcrcode) SynonymCode 
+FROM     
+  ActivePrices Prices, 
+  logs.SynonymFirmCrLogs
+WHERE    
+      SynonymFirmCrLogs.pricecode = PriceSynonymCode 
+  and SynonymFirmCrLogs.LogTime >= (?oldUpdateTime - interval ?Depth day)
+  AND SynonymFirmCrLogs.LogTime < ?oldUpdateTime 
+GROUP BY 1;
+
+UPDATE AnalitFReplicationInfo AFRI 
+SET    UncMaxSynonymFirmCrCode    = 0, 
+     UncMaxSynonymCode          = 0 
+WHERE  AFRI.UserId                =  ?UserId;
+
+UPDATE AnalitFReplicationInfo AFRI, 
+       MaxCodesSynFirmCr            
+SET    MaxSynonymFirmCrCode    = MaxCodesSynFirmCr.synonymcode 
+WHERE  MaxCodesSynFirmCr.FirmCode = AFRI.FirmCode 
+   AND AFRI.UserId = ?UserId
+  and AFRI.MaxSynonymFirmCrCode > MaxCodesSynFirmCr.synonymcode;
+
+UPDATE AnalitFReplicationInfo AFRI, 
+       maxcodessyn                  
+SET    MaxSynonymCode     = maxcodessyn.synonymcode 
+WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
+  AND AFRI.UserId = ?UserId
+  and AFRI.MaxSynonymCode > maxcodessyn.synonymcode;";
+				var command = new MySqlCommand(commandText, _readWriteConnection);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				command.Parameters.AddWithValue("?oldUpdateTime", oldUpdateTime);
+				command.Parameters.AddWithValue("?Depth", System.Configuration.ConfigurationManager.AppSettings["AccessTimeHistoryDepth"]);				
+				command.ExecuteNonQuery();
+
+				Cleanup();
+			});
+		}
+
 		public DataTable GetProcessedDocuments(uint updateId)
 		{
 			string command;
@@ -1395,6 +1464,24 @@ UNION
 SELECT 1,
        '-'
 ";
+
+			return sql;
+		}
+
+		public string GetSynonymCommand(bool Cumulative)
+		{
+			var sql = @"
+SELECT 
+  synonym.synonymcode, 
+  LEFT(synonym.synonym, 250) 
+FROM   
+  farm.synonym,
+  ParentCodes 
+WHERE  
+  synonym.pricecode = ParentCodes.PriceCode ";
+
+			if (!Cumulative)
+				sql += " AND synonym.synonymcode > MaxSynonymCode ";
 
 			return sql;
 		}
