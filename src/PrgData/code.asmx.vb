@@ -3728,7 +3728,10 @@ RestartTrans2:
 
                     If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) Then
                         If helper.DefineMaxProducerCostsCostId() Then
-                            If GED Or (UpdateData.EnableUpdate And (BuildNo < 1049)) Or helper.MaxProducerCostIsFresh() Then
+                            If GED _
+                                Or (UpdateData.EnableUpdate And ((BuildNo < 1049) Or ((BuildNo >= 1079) And (BuildNo < 1150)))) _
+                                Or helper.MaxProducerCostIsFresh() _
+                            Then
                                 GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand())
                             Else
                                 'Если прайс-лист не обновлен, то отдаем пустой файл
