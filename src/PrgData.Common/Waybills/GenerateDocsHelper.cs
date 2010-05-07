@@ -223,7 +223,7 @@ values
 select last_insert_id()
 "
 						,
-						new MySqlParameter("?UpdateType", 9),
+						new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills),
 						new MySqlParameter("?UserId", updateData.UserId),
 						new MySqlParameter("?Size", fileLength)));
 
