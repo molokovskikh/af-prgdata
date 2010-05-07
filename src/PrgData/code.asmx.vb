@@ -1340,6 +1340,13 @@ StartZipping:
                             SQLdr.Read()
                             UpdateTime = SQLdr.GetDateTime(0)
                         End Using
+
+                        Dim masterUpdateTime As Object = MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                        Me.Log.DebugFormat("MaxSynonymCode: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
+                        If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
+                            UpdateTime = CType(masterUpdateTime, DateTime)
+                            Me.Log.Debug("MaxSynonymCode: дата, выбранная из мастера, больше, чем дата из slave")
+                        End If
                     End If
 
                 Catch ex As Exception
@@ -1414,6 +1421,13 @@ StartZipping:
                             SQLdr.Read()
                             UpdateTime = SQLdr.GetDateTime(0)
                         End Using
+
+                        Dim masterUpdateTime As Object = MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                        Me.Log.DebugFormat("CommitExchange: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
+                        If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
+                            UpdateTime = CType(masterUpdateTime, DateTime)
+                            Me.Log.Debug("CommitExchange: дата, выбранная из мастера, больше, чем дата из slave")
+                        End If
                     End If
 
                 Catch ex As Exception
