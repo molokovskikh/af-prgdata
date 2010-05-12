@@ -3421,19 +3421,20 @@ RestartTrans2:
 				"            AND c.Type  = 0;"
 				SelProc.ExecuteNonQuery()
 
-				GetMySQLFileWithDefault("Providers", SelProc, "" & _
-				"SELECT   firm.FirmCode, " & _
-				"         firm.FullName, " & _
-				"         firm.Fax     , " & _
-				"         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255) " & _
-				"FROM     clientsdata AS firm " & _
-				"         LEFT JOIN ProviderContacts " & _
-				"         ON       ProviderContacts.FirmCode = firm.FirmCode " & _
-				"WHERE    firm.firmcode IN " & _
-				"                          (SELECT DISTINCT FirmCode " & _
-				"                          FROM             Prices " & _
-				"                          ) " & _
-				"GROUP BY firm.firmcode")
+                GetMySQLFileWithDefault("Providers", SelProc, "" & _
+                "SELECT   firm.FirmCode, " & _
+                "         firm.FullName, " & _
+                "         firm.Fax     , " & _
+                "         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255), " & _
+                "         firm.ShortName " & _
+                "FROM     clientsdata AS firm " & _
+                "         LEFT JOIN ProviderContacts " & _
+                "         ON       ProviderContacts.FirmCode = firm.FirmCode " & _
+                "WHERE    firm.firmcode IN " & _
+                "                          (SELECT DISTINCT FirmCode " & _
+                "                          FROM             Prices " & _
+                "                          ) " & _
+                "GROUP BY firm.firmcode")
 
 				SelProc.CommandText = "drop TEMPORARY TABLE IF EXISTS ProviderContacts"
 				SelProc.ExecuteNonQuery()
