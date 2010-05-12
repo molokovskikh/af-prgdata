@@ -14,6 +14,7 @@ namespace PrgData.Common
 		public string ShortName;
 		public uint ClientId;
 		public uint UserId;
+		public string UserName;
 		public bool CheckCopyId;
 		public string Message;
 		public DateTime OldUpdateTime;
@@ -392,7 +393,7 @@ WHERE r.clientcode = ?ClientCode
 				if (!(row["OfferRegionCode"] is DBNull))
 					updateData.OffersRegionCode = Convert.ToUInt64(row["OfferRegionCode"]);
 			}
-
+			updateData.UserName = userName;
 			return updateData;
 		}
 
@@ -1665,27 +1666,51 @@ AND    UserId            = {0};
 			ProcessCommitCommand(commitCommand, "CommitExchange");
 		}
 
+		public DateTime GetCurrentUpdateDate(RequestType updateType)
+		{
+			return With.DeadlockWraper(() => {
+				var transaction = _readWriteConnection.BeginTransaction();
+				try
+				{
+					var command = new MySqlCommand("", _readWriteConnection);
+					if (updateType != RequestType.ResumeData)
+						command.CommandText = @"update UserUpdateInfo set UncommitedUpdateDate=now() where UserId = ?userId; ";
+
+					command.CommandText += "select UncommitedUpdateDate from UserUpdateInfo where UserId = ?userId;";
+
+					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+
+					DateTime updateTime;
+					using (var reader = command.ExecuteReader())
+					{
+						reader.Read();
+						updateTime = reader.GetDateTime(0);
+					}
+
+					transaction.Commit();
+					return updateTime;
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			});
+		}
+
 		private void ProcessCommitCommand(string commitCommand, string methodName)
 		{
-			global::Common.MySql.With.DeadlockWraper(() =>
+			With.DeadlockWraper(() =>
 			{
 				var transaction = _readWriteConnection.BeginTransaction();
 				try
 				{
-					global::MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);
+					MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);
 					transaction.Commit();
 				}
 				catch
 				{
-					try
-					{
-						transaction.Rollback();
-					}
-					catch (Exception rollbackException)
-					{
-						ILog _logger = LogManager.GetLogger(typeof(UpdateHelper));
-						_logger.Error("Ошибка при rollback'е транзакции " + methodName, rollbackException);
-					}
+					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
 			});
