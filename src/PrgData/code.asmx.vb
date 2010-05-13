@@ -3225,6 +3225,7 @@ RestartTrans2:
 				MySQLFileDelete(MySqlFilePath & "Producers" & UserId & ".txt")
 				MySQLFileDelete(MySqlFilePath & "UpdateInfo" & UserId & ".txt")
 				MySQLFileDelete(MySqlFilePath & "ClientToAddressMigrations" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "MinReqRules" & UserId & ".txt")
 
 				helper.MaintainReplicationInfo()
 
@@ -3451,15 +3452,17 @@ RestartTrans2:
 				"            AND regionaldata.regioncode= Prices.regioncode")
 
 
-				GetMySQLFileWithDefault("PricesRegionalData", SelProc, _
-				"SELECT PriceCode           , " & _
-				"       RegionCode          , " & _
-				"       STORAGE             , " & _
-				"       MinReq              , " & _
-				"       MainFirm            , " & _
-				"       NOT disabledbyclient, " & _
-				"       ControlMinReq " & _
-				"FROM   Prices")
+                GetMySQLFileWithDefault("PricesRegionalData", SelProc, _
+                "SELECT PriceCode           , " & _
+                "       RegionCode          , " & _
+                "       STORAGE             , " & _
+                "       MinReq              , " & _
+                "       MainFirm            , " & _
+                "       NOT disabledbyclient, " & _
+                "       ControlMinReq " & _
+                "FROM   Prices")
+
+                GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
 
 				SelProc.CommandText = "" & _
 				"CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
