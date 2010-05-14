@@ -514,35 +514,9 @@ WHERE  r.regioncode = cd.regioncode
 			command.ExecuteNonQuery();
 		}
 
-		private void InsistHelper(Action action)
-		{
-			var iteration = 0;
-			var done = false;
-			while(!done)
-			{
-				iteration++;
-				var transaction = _readWriteConnection.BeginTransaction();
-				try
-				{
-					action();
-					transaction.Commit();
-					done = true;
-				}
-				catch(Exception ex)
-				{
-					transaction.Rollback();
-
-					if (!ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) || iteration > 3)
-						throw;
-
-					Thread.Sleep(500);
-				}
-			}
-		}
-
 		public void UpdateReplicationInfo()
 		{
-			InsistHelper(() => {
+			With.DeadlockWraper(() => {
 				Cleanup();
 
 				SelectActivePricesInMaster();
@@ -597,8 +571,7 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 
 		public void PrepareLimitedCumulative(DateTime oldUpdateTime)
 		{
-			InsistHelper(() =>
-			{
+			With.DeadlockWraper(() => {
 				Cleanup();
 
 				SelectActivePricesInMaster();
@@ -657,7 +630,7 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 				var command = new MySqlCommand(commandText, _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.Parameters.AddWithValue("?oldUpdateTime", oldUpdateTime);
-				command.Parameters.AddWithValue("?Depth", System.Configuration.ConfigurationManager.AppSettings["AccessTimeHistoryDepth"]);				
+				command.Parameters.AddWithValue("?Depth", System.Configuration.ConfigurationManager.AppSettings["AccessTimeHistoryDepth"]);
 				command.ExecuteNonQuery();
 
 				Cleanup();
@@ -1612,7 +1585,7 @@ AND    not (Pd.PriceCode IN ( {1} ));
 					absentPriceCodes);
 			}
 
-			ProcessCommitCommand(commitCommand, "OldCommit");
+			ProcessCommitCommand(commitCommand);
 		}
 
 		public void ResetAbsentPriceCodes(string absentPriceCodes)
@@ -1632,7 +1605,7 @@ AND    Pd.PriceCode IN ( {1} );"
 					_updateData.UserId,
 					absentPriceCodes);
 
-			ProcessCommitCommand(commitCommand, "ResetAbsentPriceCodes");
+			ProcessCommitCommand(commitCommand);
 		}
 
 		public void CommitExchange()
@@ -1663,7 +1636,7 @@ AND    UserId            = {0};
 					,
 					_updateData.UserId);
 
-			ProcessCommitCommand(commitCommand, "CommitExchange");
+			ProcessCommitCommand(commitCommand);
 		}
 
 		public DateTime GetCurrentUpdateDate(RequestType updateType)
@@ -1698,10 +1671,9 @@ AND    UserId            = {0};
 			});
 		}
 
-		private void ProcessCommitCommand(string commitCommand, string methodName)
+		private void ProcessCommitCommand(string commitCommand)
 		{
-			With.DeadlockWraper(() =>
-			{
+			With.DeadlockWraper(() => {
 				var transaction = _readWriteConnection.BeginTransaction();
 				try
 				{

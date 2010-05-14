@@ -3705,8 +3705,7 @@ RestartTrans2:
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
-
-                transaction.Commit()
+				transaction.Commit()
             Catch ex As Exception
                 ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
@@ -3716,11 +3715,18 @@ RestartTrans2:
                 Throw
             End Try
 
-			helper.UpdateReplicationInfo()
-			TS = Now().Subtract(StartTime)
-			If Math.Round(TS.TotalSeconds, 0) > 30 Then
-				Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
-			End If
+			Try
+				helper.UpdateReplicationInfo()
+				TS = Now().Subtract(StartTime)
+				If Math.Round(TS.TotalSeconds, 0) > 30 Then
+					Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
+				End If
+			Catch ex As Exception
+				If Not ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
+					Throw
+				End If
+				Addition &= "Не удалось сохранить информацию об подготовленных данных из-за блокировок в базе данных, в следующем обновлении отдадим больше данных"
+			End Try
 
 		Catch ex As Exception
 			Me.Log.Error("Основной поток подготовки данных, Код клиента " & CCode, ex)
