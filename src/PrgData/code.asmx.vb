@@ -3025,6 +3025,7 @@ RestartTrans2:
 				MySQLFileDelete(MySqlFilePath & "Producers" & UserId & ".txt")
 				MySQLFileDelete(MySqlFilePath & "UpdateInfo" & UserId & ".txt")
 				MySQLFileDelete(MySqlFilePath & "ClientToAddressMigrations" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "MinReqRules" & UserId & ".txt")
 
 				helper.MaintainReplicationInfo()
 
@@ -3271,6 +3272,8 @@ RestartTrans2:
                 "       NOT disabledbyclient, " & _
                 "       ControlMinReq " & _
                 "FROM   Prices")
+
+                GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
 
                 SelProc.CommandText = "" & _
                 "CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
