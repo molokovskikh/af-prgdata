@@ -30,4 +30,10 @@ Task @deploy, [@buildWebService, @Migrate]:
 	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\WebApps\\PrgDataService\\PrgDataEx\\"
 	internalDeployWebService
 	Engine.Execute("SendDeployNotification")
+
+Task @deployTest, [@buildWebService, @Migrate]:
+	Cp("src/${Globals.project}/Web.release.PrgDataTest.config", "${Path.GetFullPath('build')}/Web.config", true)
+	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\Test\\PrgDataTest\\"
+	internalDeployWebService
+	Engine.Execute("SendDeployNotification")
 	
