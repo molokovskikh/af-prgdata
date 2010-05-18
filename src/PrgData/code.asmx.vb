@@ -576,7 +576,6 @@ RestartInsertTrans:
 
 				End If
 
-				LockCount = 0
 endproc:
 
 				If Not PackFinished And (((BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive) Or ThreadZipStream.IsAlive) And Not ErrorFlag Then
@@ -591,8 +590,6 @@ endproc:
 
 					End If
 					Thread.Sleep(1000)
-					LockCount += 1
-
 
 					GoTo endproc
 
