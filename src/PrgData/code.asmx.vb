@@ -318,8 +318,7 @@ Public Class PrgDataEx
  ByVal ClientHFile As String, _
  ByVal PriceCodes As UInt32()) As String
 		Dim ResStr As String = String.Empty
-		Dim NeedFreeLock As Boolean = False
-		Addition = " ня: " & WINVersion & " " & WINDesc & "; "
+        Addition = " ня: " & WINVersion & " " & WINDesc & "; "
 
 		Try
 
