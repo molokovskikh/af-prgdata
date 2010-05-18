@@ -86,6 +86,11 @@ namespace PrgData.Common.Orders
 						//сохраняем сами заявки в базу
 						SaveOrders();
 
+#if DEBUG
+						if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
+							GenerateDocsHelper.GenerateDocs(_readWriteConnection, _data, _orders);
+#endif
+
 						transaction.Commit();
 					}
 					catch
