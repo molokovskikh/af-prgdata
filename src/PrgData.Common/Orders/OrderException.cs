@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace PrgData.Common.Orders
 {
@@ -10,26 +7,5 @@ namespace PrgData.Common.Orders
 		public OrderException(string message) :
 			base(message)
 		{ }
-	}
-
-	public class OrderUpdateException : OrderException
-	{
-		public bool ErrorFlag { get; private set; }
-		public RequestType UpdateType { get; private set; }
-		public string MessageHeader { get; private set; }
-		public string MessageDescription { get; private set; }
-
-		public OrderUpdateException(
-			bool errorFlag,
-			RequestType updateType, 
-			string messageHeader,
-			string messageDescription) : 
-			base("Ошибка при UpdateType.")
-		{
-			ErrorFlag = errorFlag;
-			UpdateType = updateType;
-			MessageHeader = messageHeader;
-			MessageDescription = messageDescription;
-		}
 	}
 }
