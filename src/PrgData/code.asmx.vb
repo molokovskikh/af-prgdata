@@ -3236,7 +3236,8 @@ RestartTrans2:
                 "SELECT   firm.FirmCode, " & _
                 "         firm.FullName, " & _
                 "         firm.Fax     , " & _
-                "         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255) " & _
+                "         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255), " & _
+                "         firm.ShortName " & _
                 "FROM     clientsdata AS firm " & _
                 "         LEFT JOIN ProviderContacts " & _
                 "         ON       ProviderContacts.FirmCode = firm.FirmCode " & _
