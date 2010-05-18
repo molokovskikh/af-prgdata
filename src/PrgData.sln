@@ -14,7 +14,7 @@ Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Counter", "Counter\Counter.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PrgData.Common", "PrgData.Common\PrgData.Common.csproj", "{A781C338-F75D-45A8-A7DC-C49E66051FC5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.MySql", "Common.Model.MYSql\Common.MySql\Common.MySql.csproj", "{8A680813-C83B-497A-85E6-E8F07B7D7650}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.MySql", "Common.MySql\Common.MySql\Common.MySql.csproj", "{8A680813-C83B-497A-85E6-E8F07B7D7650}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.Tools", "Common.Tools\Common.Tools\Common.Tools.csproj", "{72AFCFE8-C9E9-45FA-9698-BEE896A517A3}"
 EndProject
@@ -24,7 +24,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "lib", "lib", "{0324F3EE-D86
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test.Support", "Test.Support\Test.Support\Test.Support.csproj", "{A215E837-1208-49E3-AF93-A9612223122C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.MySql.Tests", "Common.Model.MySql\Common.MySql.Tests\Common.MySql.Tests.csproj", "{98EFE255-60D6-4C1B-95A6-49779D21E94E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.MySql.Tests", "Common.MySql\Common.MySql.Tests\Common.MySql.Tests.csproj", "{98EFE255-60D6-4C1B-95A6-49779D21E94E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.Tools.Tests", "Common.Tools\Common.Tools.Test\Common.Tools.Tests.csproj", "{A2C4864F-8976-4C5B-A2BF-60AE31749BB7}"
 EndProject
