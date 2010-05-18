@@ -66,8 +66,9 @@ where i.ClientCode = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCo
 			}
 		}
 
-		public bool CanPostOrder(uint clientCode)
+		public void CheckCanPostOrder(uint clientCode)
 		{
+			bool canPostOrder;
 			if (_data.IsFutureClient)
 			{
 				var command = new MySqlCommand(@"
@@ -77,7 +78,7 @@ from Future.Users u
 where u.Id = ?UserId", _connection);
 				command.Parameters.AddWithValue("?UserId", _data.UserId);
 				command.Parameters.AddWithValue("?AddressId", clientCode);
-				return Convert.ToBoolean(command.ExecuteScalar());
+				canPostOrder = Convert.ToBoolean(command.ExecuteScalar());
 			}
 			else
 			{
@@ -88,8 +89,11 @@ left join includeregulation on PrimaryClientCode=ClientCode and IncludeType in (
 where osuseraccessright.RowId = ?UserId", _connection);
 				command.Parameters.AddWithValue("?UserId", _data.UserId);
 				command.Parameters.AddWithValue("?clientcode", clientCode);
-				return Convert.ToBoolean(command.ExecuteScalar());
+				canPostOrder = Convert.ToBoolean(command.ExecuteScalar());
 			}
+
+			if (!canPostOrder)
+				throw new UpdateException("Отправка заказов запрещена", "Пожалуйста обратитесь в АК \"Инфорум\".", RequestType.Forbidden);
 		}
 
 		public ulong SaveOrder(uint clientId, uint priceId, ulong regionId, DateTime priceDate, uint rowCount, uint clientOrderId, string clientAddition)

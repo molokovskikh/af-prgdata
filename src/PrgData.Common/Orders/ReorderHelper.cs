@@ -401,12 +401,7 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 
 		private void CheckCanPostOrder()
 		{
-			if (!CanPostOrder(_orderedClientCode))
-				throw new OrderUpdateException(
-					true,
-					RequestType.Forbidden,
-					"Отправка заказов запрещена.",
-					"Пожалуйста обратитесь в АК \"Инфорум\".");
+			CheckCanPostOrder(_orderedClientCode);
 		}
 
 		private void CheckWeeklySumOrder()
@@ -428,11 +423,10 @@ AND    RCS.clientcode          = ?ClientCode"
 					new MySqlParameter("?ClientCode", _data.ClientId)
 											 ));
 			if (WeeklySumOrder > 0)
-				throw new OrderUpdateException(
-					true,
-					RequestType.Forbidden,
+				throw new UpdateException(
 					String.Format("Превышен недельный лимит заказа (уже заказано на {0} руб).", WeeklySumOrder),
-					String.Empty);
+					String.Empty,
+					RequestType.Forbidden);
 		}
 
 		public void ParseOrders(

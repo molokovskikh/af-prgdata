@@ -1,6 +1,7 @@
 ﻿
 Imports System.Runtime.Serialization
 Imports System.Configuration
+Imports PrgData.Common
 Imports log4net
 Imports log4net.Config
 
@@ -47,21 +48,32 @@ Public Class Counter
     Public Shared Function TryLock(ByVal UserId As UInt32, ByVal Method As String) As Boolean
 
         If Method = "GetUserData" Then
-            If TotalUpdatingClientCount() > MaxSessionCount Then
-                Utils.Mail("Клиент №" & UserId & " получил отказ в обновлении.", "Отказ в обновлении")
-                Return False
-            End If
+			If TotalUpdatingClientCount() > MaxSessionCount Then
+				Throw New UpdateException("Обновление данных в настоящее время невозможно.",
+				  "Пожалуйста, повторите попытку через несколько минут.[6]",
+				  "Перегрузка; ",
+				  RequestType.Forbidden)
+			End If
         End If
 
         If Not (Method = "ReclameFileHandler" Or Method = "FileHandler") Then
             Dim ClientItems = FindLocks(UserId, Method)
-            If Not CanLock(ClientItems) Then
-                Return False
-            End If
-        End If
+			If Not CanLock(ClientItems) Then
+				Dim messageHeader = "Обновление данных в настоящее время невозможно."
 
-        Save(New ClientStatus(UserId, Method, Now()))
-        Return True
+				If Method = "PostOrder" Then
+					messageHeader = "Отправка заказов в настоящее время невозможна."
+				End If
+
+				Throw New UpdateException(messageHeader,
+				 "Пожалуйста, повторите попытку через несколько минут.[6]",
+				 "Перегрузка; ",
+				 RequestType.Forbidden)
+			End If
+		End If
+
+		Save(New ClientStatus(UserId, Method, Now()))
+		Return True
     End Function
 
 	Public Shared Sub Clear()
