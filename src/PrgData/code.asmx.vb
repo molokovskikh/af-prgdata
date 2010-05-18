@@ -363,18 +363,12 @@ Public Class PrgDataEx
 
 
 				If Not Counter.Counter.TryLock(UserId, "GetUserData") Then
-
 					MessageH = "Обновление данных в настоящее время невозможно."
 					MessageD = "Пожалуйста, повторите попытку через несколько минут.[6]"
 					Addition &= "Перегрузка; "
 					UpdateType = RequestType.Error
 					ErrorFlag = True
 					GoTo endproc
-
-				Else
-
-					NeedFreeLock = True
-
 				End If
 
 				Cm.Transaction = Nothing
@@ -668,7 +662,7 @@ endproc:
 			GetUserDataWithPriceCodes = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
 		Finally
 			DBDisconnect()
-			If NeedFreeLock Then ReleaseLock(UserId, "GetUserData")
+			ReleaseLock(UserId, "GetUserData")
 		End Try
 
 		GC.Collect()
