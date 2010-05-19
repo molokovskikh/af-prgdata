@@ -802,7 +802,7 @@ endproc:
 
 							Next
 
-							If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+							If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
 								MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
 								MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
