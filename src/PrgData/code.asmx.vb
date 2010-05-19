@@ -1385,8 +1385,8 @@ StartZipping:
 	End Function
 
 	Private Sub GetClientCode()
-		ThreadContext.Properties("user") = UserName
 		UserName = ServiceContext.GetUserName()
+		ThreadContext.Properties("user") = UserName
 		If Left(UserName, 7) = "ANALIT\" Then
 			UserName = Mid(UserName, 8)
 		End If
@@ -2026,6 +2026,8 @@ RePost:
 				 Or (UpdateType = RequestType.Error) _
 				 Or (UpdateType = RequestType.GetDocs) Then
 
+PostLog:
+
 					transaction = connection.BeginTransaction(IsoLevel)
 
 					If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
@@ -2057,8 +2059,6 @@ RePost:
 
 					End With
 
-PostLog:
-
 					GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
 
 
@@ -2076,11 +2076,20 @@ PostLog:
 						LogDA.SelectCommand.Connection = connection
 						LogDA.SelectCommand.CommandText = "" & _
 						  "SELECT  * " & _
-						  "FROM    AnalitFDocumentsProcessing limit 0"
+						  "from AnalitFDocumentsProcessing limit 0"
 
 						DocumentsProcessingCommandBuilder.DataAdapter = LogDA
-						LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
-						LogDA.InsertCommand.Transaction = transaction
+						If UpdateData.IsFutureClient Then
+							Dim command = New MySqlCommand
+							command.CommandText = "update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId"
+							command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+							command.Parameters.AddWithValue("?UpdateId", GUpdateId)
+							command.Parameters.Add("?DocumentId", MySqlDbType.UInt32, 0, "DocumentId")
+							command.UpdatedRowSource = UpdateRowSource.None
+							LogDA.InsertCommand = command
+						Else
+							LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
+						End If
 
 						transaction = connection.BeginTransaction(IsoLevel)
 						LogDA.Update(DS.Tables("ProcessingDocuments"))
@@ -2125,30 +2134,22 @@ PostLog:
 						LogCm.CommandText = "delete from future.ClientToAddressMigrations where UserId = " & UpdateData.UserId
 						LogCm.ExecuteNonQuery()
 
-						Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
+						If Not UpdateData.IsFutureClient Then
+							Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
 
-						If processedDocuments.Rows.Count > 0 Then
+							For Each DocumentsIdRow As DataRow In processedDocuments.Rows
 
-							If Not UpdateData.IsFutureClient Then
-								Dim DocumentsIdRow As DataRow
+								СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
+								   DocumentsIdRow.Item("ClientCode").ToString & _
+								   "\" & _
+								   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
+								   DocumentsIdRow.Item("DocumentId").ToString & "_*")
 
-								For Each DocumentsIdRow In processedDocuments.Rows
-
-									СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
-									   DocumentsIdRow.Item("ClientCode").ToString & _
-									   "\" & _
-									   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
-									   DocumentsIdRow.Item("DocumentId").ToString & "_*")
-
-									MySQLResultFile.Delete(СписокФайлов(0))
-
-								Next
-
-							End If
-							LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
-							LogCm.ExecuteNonQuery()
-
+								MySQLResultFile.Delete(СписокФайлов(0))
+							Next
 						End If
+						LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
+						LogCm.ExecuteNonQuery()
 
 						transaction.Commit()
 					End If
