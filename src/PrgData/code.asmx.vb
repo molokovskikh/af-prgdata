@@ -2065,10 +2065,9 @@ PostLog:
 					transaction.Commit()
 
 					If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-						Dim DocumentsIdRow As DataRow
 						Dim DocumentsProcessingCommandBuilder As New MySqlCommandBuilder
 
-						For Each DocumentsIdRow In DS.Tables("ProcessingDocuments").Rows
+						For Each DocumentsIdRow As DataRow In DS.Tables("ProcessingDocuments").Rows
 							DocumentsIdRow.Item("UpdateId") = GUpdateId
 						Next
 
@@ -2079,20 +2078,22 @@ PostLog:
 						  "from AnalitFDocumentsProcessing limit 0"
 
 						DocumentsProcessingCommandBuilder.DataAdapter = LogDA
-						If UpdateData.IsFutureClient Then
-							Dim command = New MySqlCommand
-							command.CommandText = "update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId"
-							command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
-							command.Parameters.AddWithValue("?UpdateId", GUpdateId)
-							command.Parameters.Add("?DocumentId", MySqlDbType.UInt32, 0, "DocumentId")
-							command.UpdatedRowSource = UpdateRowSource.None
-							LogDA.InsertCommand = command
-						Else
-							LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
-						End If
+						LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
 
 						transaction = connection.BeginTransaction(IsoLevel)
-						LogDA.Update(DS.Tables("ProcessingDocuments"))
+						If UpdateData.IsFutureClient Then
+							Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId", connection)
+							command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+							command.Parameters.AddWithValue("?UpdateId", GUpdateId)
+							command.Parameters.Add("?DocumentId", MySqlDbType.UInt32)
+
+							For Each row As DataRow In DS.Tables("ProcessingDocuments").Rows
+								command.Parameters("?DocumentId").Value = row("DocumentId")
+								command.ExecuteNonQuery()
+							Next
+						Else
+							LogDA.Update(DS.Tables("ProcessingDocuments"))
+						End If
 						transaction.Commit()
 
 					End If
