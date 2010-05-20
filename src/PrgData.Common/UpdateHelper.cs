@@ -658,6 +658,8 @@ AND     AFDP.UpdateId = ?updateId";
 		{
 			if (_updateData.IsFutureClient)
 			{
+				//начинаем отдавать документы с самых новых что бы 
+				//отдать наиболее актуальные
 				return @"
 select d.AddressId as ClientCode,
 	d.RowId,
@@ -667,6 +669,7 @@ from Logs.DocumentSendLogs ds
 where ds.UserId = ?UserId 
 	and ds.Committed = 0
 	and d.LogTime > curdate() - interval 30 day
+order by d.LogTime desc
 limit 100;
 ";
 			}

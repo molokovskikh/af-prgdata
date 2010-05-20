@@ -1,10 +1,10 @@
 using System;
+using System.Configuration;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading;
 using Castle.ActiveRecord;
 using Common.Tools;
-using Common.Tools.Calendar;
 using Inforoom.Common;
 using NUnit.Framework;
 using PrgData;
@@ -23,6 +23,7 @@ namespace Integration
 		TestDocumentLog document;
 
 		TestClient client;
+		string waybills;
 
 		[SetUp]
 		public void Setup()
@@ -32,9 +33,9 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			using (new TransactionScope())
 			{
+				ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 				client = TestClient.CreateSimple();
 				var user = client.Users[0];
-				var supplierId = user.GetActivePrices()[0].FirmCode;
 				var permission = TestUserPermission.ByShortcut("AF");
 				client.Users.Each(u => {
 					u.AssignedPermissions.Add(permission);
@@ -43,34 +44,160 @@ namespace Integration
 				});
 				user.Update();
 
-				document = new TestDocumentLog {
+				if (Directory.Exists("FtpRoot"))
+					FileHelper.DeleteDir("FtpRoot");
+
+				Directory.CreateDirectory("FtpRoot");
+				waybills = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
+				Directory.CreateDirectory(waybills);
+
+				document = CreateDocument(user);
+
+				SetCurrentUser(user.Login);
+			}
+		}
+
+		private TestDocumentLog CreateDocument(TestUser user)
+		{
+			TestDocumentLog doc;
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				var supplierId = user.GetActivePrices()[0].FirmCode;
+				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
 					FirmCode = supplierId,
 					DocumentType = DocumentType.Waybill,
 					ClientCode = client.Id,
 					AddressId = client.Addresses[0].Id,
 					FileName = "test.data",
+					Ready = true
 				};
-				document.Save();
+				doc.Save();
 				new TestDocumentSendLog {
 					ForUser = user,
-					Document = document
+					Document = doc
 				}.Save();
-
-				if (Directory.Exists("FtpRoot"))
-					FileHelper.DeleteDir("FtpRoot");
-				Directory.CreateDirectory("FtpRoot");
-				var waybills = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
-				Directory.CreateDirectory(waybills);
-				File.WriteAllText(Path.Combine(waybills, String.Format("{0}_test.data", document.Id)), "");
-				var waybillsPath = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
-				document.LocalFile = Path.Combine(waybillsPath, String.Format("{0}_test.data", document.Id));
-				SetCurrentUser(user.Login);
+				transaction.VoteCommit();
 			}
+			File.WriteAllText(Path.Combine(waybills, String.Format("{0}_test.data", doc.Id)), "");
+			var waybillsPath = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
+			doc.LocalFile = Path.Combine(waybillsPath, String.Format("{0}_test.data", doc.Id));
+
+			return doc;
 		}
 
 		[Test]
 		public void Documents_should_be_sended_to_all_user_whom_address_avaliable()
+		{
+			CreateUser();
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			var url = LoadDocuments();
+			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
+
+			SetCurrentUser(client.Users[1].Login);
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Assert.That(File.Exists(document.LocalFile), Is.True, "удалил файл с накладной чего не нужно было делать");
+		}
+
+		[Test]
+		public void Send_documents_if_update_was_not_confirmed()
+		{
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			TestDocumentSendLog log;
+			using(new SessionScope())
+			{
+				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+				Assert.That(log.Committed, Is.False);
+			}
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+			}
+		}
+
+		[Test]
+		public void Warn_only_once_if_document_file_not_exists()
+		{
+			var brokenDoc = CreateDocument(client.Users[0]);
+			File.Delete(brokenDoc.LocalFile);
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
+			Assert.That(log.Addition, Is.StringContaining("не найден документ"));
+
+			var url = LoadDocuments();
+			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
+		}
+
+		[Test]
+		public void Confirm_update_if_new_document_not_found()
+		{
+			document.Delete();
+
+			var responce = LoadDocuments();
+			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
+
+			using (new SessionScope())
+			{
+				var maxId = TestAnalitFUpdateLog.Queryable.Max(l => l.Id);
+				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				Assert.That(log.Commit, Is.True);
+			}
+		}
+
+		[Test]
+		public void After_document_send_only_sender_receive_it()
+		{
+			CreateUser();
+			document.Delete();
+
+			SendWaybill();
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			SetCurrentUser(client.Users[1].Login);
+			LoadDocuments();
+			ShouldNotBeDocuments();
+		}
+
+		private void ShouldNotBeDocuments()
+		{
+			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
+		}
+
+		private void SendWaybill()
+		{
+			var service = new PrgDataEx();
+			service.ResultFileName = "results";
+			uint supplierId;
+			using (new TransactionScope())
+			{
+				supplierId = client.Users[0].GetActivePrices()[0].FirmCode;
+			}
+			
+			service.SendWaybills(client.Addresses[0].Id,
+				new ulong[] {supplierId},
+				new [] {"3687747_Протек-21_3687688_Протек-21_8993929-001__.sst"},
+				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"));
+		}
+
+		private void CreateUser()
 		{
 			using (new TransactionScope())
 			{
@@ -87,49 +214,6 @@ namespace Integration
 					Document = document
 				}.Save();
 			}
-
-			Update();
-			ShouldBeSuccessfull();
-			Confirm();
-
-			var url = Update();
-			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
-
-			SetCurrentUser(client.Users[1].Login);
-			Update();
-			ShouldBeSuccessfull();
-			Assert.That(File.Exists(document.LocalFile), Is.True, "удалил файл с накладной чего не нужно было делать");
-		}
-
-		[Test]
-		public void Send_documents_if_update_was_not_confirmed()
-		{
-			Update();
-			ShouldBeSuccessfull();
-
-			Update();
-			ShouldBeSuccessfull();
-			Confirm();
-		}
-
-		[Test]
-		public void Warn_only_once_if_document_file_not_exists()
-		{
-			File.Delete(document.LocalFile);
-
-			Update();
-			ShouldBeSuccessfull();
-			Confirm();
-
-			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
-			Assert.That(log.Addition, Is.StringContaining("Не найден документ"));
-
-			Update();
-			ShouldBeSuccessfull();
-			Confirm();
-
-			Assert.That(log.Id, Is.Not.EqualTo(lastUpdateId));
-			Assert.That(log.Addition, Is.Not.StringContaining("Не найден документ"));
 		}
 
 		private void ShouldBeSuccessfull()
@@ -144,7 +228,7 @@ namespace Integration
 			service.MaxSynonymCode("", new uint[0], lastUpdateId, true);
 		}
 
-		private string Update()
+		private string LoadDocuments()
 		{
 			var service = new PrgDataEx();
 			service.ResultFileName = "results";
