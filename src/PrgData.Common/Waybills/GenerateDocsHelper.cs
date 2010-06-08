@@ -34,6 +34,7 @@ namespace PrgData.Common.Orders
 			headerCommand.Parameters.Add("?PriceCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?FirmCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?ClientCode", MySqlDbType.UInt64);
+			headerCommand.Parameters.Add("?AddressId", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?OrderId", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?DocumentType", MySqlDbType.Int32);
 			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
@@ -45,32 +46,35 @@ namespace PrgData.Common.Orders
 				headerCommand.Parameters["?PriceCode"].Value = item.PriceCode;
 				var firmCode = Convert.ToUInt64(headerCommand.ExecuteScalar());
 
+				headerCommand.CommandText = "select cd.ShortName from usersettings.pricesdata pd, usersettings.clientsdata cd where pd.PriceCode = ?PriceCode and cd.FirmCode = pd.FirmCode";
+				var shortFirmName = Convert.ToString(headerCommand.ExecuteScalar());
+
 				//Кол-во генерируемых документов относительно данного заказа
 				var documentCount = random.Next(3) + 1;
 
 				if (documentCount >= 1)
-					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Waybills);
+					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Waybills, shortFirmName);
 
 				if (documentCount >= 2)
-					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Rejects);
+					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Rejects, shortFirmName);
 
 				if (documentCount >= 3)
-					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Docs);
+					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Docs, shortFirmName);
 			});
 		}
 
-		private static void GenerateDoc(ulong firmCode, MySqlCommand headerCommand, UpdateData updateData, ClientOrderHeader order, DocumentType documentType)
+		private static void GenerateDoc(ulong firmCode, MySqlCommand headerCommand, UpdateData updateData, ClientOrderHeader order, DocumentType documentType, string shortFirmName)
 		{
 			headerCommand.CommandText = @"
 insert into logs.document_logs 
-  (FirmCode, ClientCode, DocumentType, FileName) 
+  (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
 values 
-  (?FirmCode, ?ClientCode, ?DocumentType, ?FileName);
+  (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
 set @LastDownloadId = last_insert_id();
 insert into documents.DocumentHeaders 
-  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, ProviderDocumentId, DocumentDate)
+  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, ProviderDocumentId, DocumentDate, AddressId)
 values
-  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate());
+  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate(), ?AddressId);
 set @LastDocumentId = last_insert_id();
 ";
 
@@ -79,6 +83,14 @@ set @LastDocumentId = last_insert_id();
 			headerCommand.Parameters["?OrderId"].Value = order.ServerOrderId;
 			headerCommand.Parameters["?DocumentType"].Value = (int)documentType;
 			headerCommand.Parameters["?FileName"].Value = fileNames[(int)documentType] + ".txt";
+			object addressId = 0;
+			if (updateData.IsFutureClient)
+			{
+				headerCommand.Parameters["?AddressId"].Value = MySqlHelper.ExecuteScalar(headerCommand.Connection, "select AddressId from orders.OrdersHead where RowId = " + order.ServerOrderId);
+				addressId = headerCommand.Parameters["?AddressId"].Value;
+			}
+			else
+				headerCommand.Parameters["?AddressId"].Value = null;
 			headerCommand.ExecuteNonQuery();
 
 			headerCommand.CommandText = "select @LastDownloadId";
@@ -93,8 +105,14 @@ set @LastDocumentId = last_insert_id();
 			var createdFileName = 
 				ConfigurationManager.AppSettings["DocumentsPath"] 
 				+ updateData.ClientId.ToString().PadLeft(3, '0') 
-				+ "\\" + documentType.ToString() + "\\" 
-				+ lastDownloadId + "_" + fileNames[(int)documentType] + ".txt";
+				+ "\\" + documentType.ToString() + "\\"
+				+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
+			if (updateData.IsFutureClient)
+				createdFileName =
+					ConfigurationManager.AppSettings["DocumentsPath"]
+					+ addressId.ToString()
+					+ "\\" + documentType.ToString() + "\\"
+					+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
 			using (var stream = new StreamWriter(createdFileName, false, Encoding.GetEncoding(1251)))
 			{
 				stream.WriteLine("Это {0} №{1}", russianNames[(int)documentType], lastDocumentId);

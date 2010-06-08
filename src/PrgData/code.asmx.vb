@@ -92,7 +92,7 @@ Public Class PrgDataEx
 	Dim UpdateData As UpdateData
 	Private UserHost, Message, ReclamePath As String
 	Private UncDT As Date
-	Private Active, EnableUpdate, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
+    Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
 	Private NewZip As Boolean = True
 	Dim GUpdateId As UInt32? = 0
 	Private WithEvents DS As System.Data.DataSet
@@ -427,15 +427,14 @@ RestartInsertTrans:
 					End If
 					BaseThread = New Thread(AddressOf MySqlProc)
 				Else
-					Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
-					If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
-						BaseThread = New Thread(AddressOf MySqlProc)
-						'FileCount = 19
-						GED = True
-						Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
-					Else
-						BaseThread = New Thread(AddressOf FirebirdProc)
-					End If
+                    If ((BuildNo >= 705) And (BuildNo <= 716)) And UpdateData.EnableUpdate Then
+                        BaseThread = New Thread(AddressOf MySqlProc)
+                        'FileCount = 19
+                        GED = True
+                        Addition &= "Производится обновление программы с Firebird на MySql, готовим КО; "
+                    Else
+                        BaseThread = New Thread(AddressOf FirebirdProc)
+                    End If
 				End If
 
 				'Готовим кумулятивное
@@ -896,17 +895,14 @@ endproc:
 
 						'Архивирование обновления программы
 						Try
-							ArchCmd.CommandText = "select EnableUpdate from retclientsset where clientcode=" & CCode
-							EnableUpdate = Convert.ToBoolean(ArchCmd.ExecuteScalar)
+                            If UpdateData.EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\EXE") Then
 
-							If EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\EXE") Then
+                                ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\EXE")
 
-								ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\EXE")
-
-								If ef.Length > 0 Then
-									'Pr.StartInfo.UserName = Пользователь
-									'Pr.StartInfo.Password = БезопасныйПароль
-									Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & ResultFileName & "Updates\Future_" & BuildNo & "\EXE"" " & SevenZipParam)
+                                If ef.Length > 0 Then
+                                    'Pr.StartInfo.UserName = Пользователь
+                                    'Pr.StartInfo.Password = БезопасныйПароль
+                                    Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & ResultFileName & "Updates\Future_" & BuildNo & "\EXE"" " & SevenZipParam)
 
 #If Not Debug Then
                                 try
@@ -915,26 +911,26 @@ endproc:
                                 End try
 #End If
 
-									Pr.WaitForExit()
+                                    Pr.WaitForExit()
 
-									If Pr.ExitCode <> 0 Then
-										MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
-										Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-										'Try
-										'    If Not pr Is Nothing Then pr.Kill()
-										'    System.Threading.Thread.Sleep(2000)
-										'Catch
-										'End Try
-										MySQLFileDelete(SevenZipTmpArchive)
-									Else
+                                    If Pr.ExitCode <> 0 Then
+                                        MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                        Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
+                                        'Try
+                                        '    If Not pr Is Nothing Then pr.Kill()
+                                        '    System.Threading.Thread.Sleep(2000)
+                                        'Catch
+                                        'End Try
+                                        MySQLFileDelete(SevenZipTmpArchive)
+                                    Else
 
-										'Mail("service@analit.net", "Обновление программы с версии " & BuildNo, MailFormat.Text, "Код клиента: " & CCode, "service@analit.net", System.Text.Encoding.UTF8)
-										Addition &= "Обновление включает в себя новую версию программы; "
-									End If
+                                        'Mail("service@analit.net", "Обновление программы с версии " & BuildNo, MailFormat.Text, "Код клиента: " & CCode, "service@analit.net", System.Text.Encoding.UTF8)
+                                        Addition &= "Обновление включает в себя новую версию программы; "
+                                    End If
 
-								End If
+                                End If
 
-							End If
+                            End If
 
 						Catch ex As ThreadAbortException
 
@@ -961,15 +957,15 @@ endproc:
 
 						'Архивирование FRF
 						Try
-							If EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\FRF") Then
-								ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\FRF")
-								If ef.Length > 0 Then
-									For Each Name In ef
-										FileInfo = New FileInfo(Name)
-										If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
-											'Pr.StartInfo.UserName = Пользователь
-											'Pr.StartInfo.Password = БезопасныйПароль
-											Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
+                            If UpdateData.EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\FRF") Then
+                                ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\FRF")
+                                If ef.Length > 0 Then
+                                    For Each Name In ef
+                                        FileInfo = New FileInfo(Name)
+                                        If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
+                                            'Pr.StartInfo.UserName = Пользователь
+                                            'Pr.StartInfo.Password = БезопасныйПароль
+                                            Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
 
 
 #If Not Debug Then
@@ -979,20 +975,20 @@ endproc:
                                         End try
 #End If
 
-											Pr.WaitForExit()
+                                            Pr.WaitForExit()
 
-											If Pr.ExitCode <> 0 Then
-												MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
-												Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-												'If Not pr Is Nothing Then pr.Kill()
-												'System.Threading.Thread.Sleep(2000)
+                                            If Pr.ExitCode <> 0 Then
+                                                MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                                Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
+                                                'If Not pr Is Nothing Then pr.Kill()
+                                                'System.Threading.Thread.Sleep(2000)
 
-												MySQLFileDelete(SevenZipTmpArchive)
-											End If
-										End If
-									Next
-								End If
-							End If
+                                                MySQLFileDelete(SevenZipTmpArchive)
+                                            End If
+                                        End If
+                                    Next
+                                End If
+                            End If
 
 						Catch ex As ThreadAbortException
 
@@ -3024,6 +3020,7 @@ RestartTrans2:
 				MySQLFileDelete(MySqlFilePath & "Producers" & UserId & ".txt")
 				MySQLFileDelete(MySqlFilePath & "UpdateInfo" & UserId & ".txt")
 				MySQLFileDelete(MySqlFilePath & "ClientToAddressMigrations" & UserId & ".txt")
+                MySQLFileDelete(MySqlFilePath & "MinReqRules" & UserId & ".txt")
 
 				helper.MaintainReplicationInfo()
 
@@ -3235,7 +3232,8 @@ RestartTrans2:
                 "SELECT   firm.FirmCode, " & _
                 "         firm.FullName, " & _
                 "         firm.Fax     , " & _
-                "         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255) " & _
+                "         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255), " & _
+                "         firm.ShortName " & _
                 "FROM     clientsdata AS firm " & _
                 "         LEFT JOIN ProviderContacts " & _
                 "         ON       ProviderContacts.FirmCode = firm.FirmCode " & _
@@ -3269,6 +3267,8 @@ RestartTrans2:
                 "       NOT disabledbyclient, " & _
                 "       ControlMinReq " & _
                 "FROM   Prices")
+
+                GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
 
                 SelProc.CommandText = "" & _
                 "CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _

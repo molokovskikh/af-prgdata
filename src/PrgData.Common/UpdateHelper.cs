@@ -308,7 +308,7 @@ SELECT  c.Id ClientId,
     c.Name as ShortName,
     retclientsset.Spy, 
     retclientsset.SpyAccount,
-    retclientsset.EnableUpdate 
+    u.EnableUpdate 
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -716,7 +716,7 @@ Order by 3";
 select
   DocumentHeaders.Id,
   DocumentHeaders.DownloadId,
-  date_sub(date_sub(DocumentHeaders.DocumentDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second), interval regions.MoscowBias hour) as WriteTime,
+  DocumentHeaders.DocumentDate as WriteTime,
   DocumentHeaders.FirmCode,
   DocumentHeaders.AddressId as ClientCode,
   DocumentHeaders.DocumentType,
@@ -1494,6 +1494,58 @@ from
   future.ClientToAddressMigrations
 where
     UserId = " + _updateData.UserId;
+		}
+
+		public string GetMinReqRuleCommand()
+		{
+			if (_updateData.IsFutureClient)
+				return @"
+select
+  a.Id as ClientId,
+  i.PriceId as PriceCode,
+  i.RegionId as RegionCode,
+  ai.ControlMinReq,
+  if(ai.MinReq > 0, ai.MinReq, Prices.MinReq) as MinReq 
+from
+  Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join future.Intersection i on i.ClientId = c.Id
+  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+  join Prices on (Prices.PriceCode = i.PriceId) and (Prices.RegionCode = i.RegionId)
+where
+  (u.Id = ?UserId)";
+			else
+				return @"
+select
+  clients.FirmCode as ClientId,
+  Prices.PriceCode,
+  Prices.RegionCode,
+  Prices.ControlMinReq,
+  Prices.MinReq
+from
+  (
+SELECT
+  clientsdata.firmcode
+FROM
+  clientsdata
+WHERE
+  clientsdata.firmcode    = ?ClientCode
+UNION
+SELECT
+  clientsdata.firmcode
+FROM
+     clientsdata         ,
+     IncludeRegulation
+WHERE
+     clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
+ AND clientsdata.firmstatus               = 1
+ AND IncludeRegulation.IncludeType        IN (0,3)
+ AND IncludeRegulation.Primaryclientcode  = ?ClientCode
+ ) clients,
+ Prices
+  ";
 		}
 
 		public void OldCommit(string absentPriceCodes)

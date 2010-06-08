@@ -99,10 +99,7 @@ Public Class Counter
 				IsClientInProcess = True
 			End If
 		Next
-		If IsClientInProcess Then
-            Utils.Mail("Клиент №" & UserId & ".", "запрет обновления")
-		End If
-		Return Not IsClientInProcess
+        Return Not IsClientInProcess
 	End Function
 
     Private Shared Sub Remove(ByVal UserId As UInteger, ByVal Method As String)
