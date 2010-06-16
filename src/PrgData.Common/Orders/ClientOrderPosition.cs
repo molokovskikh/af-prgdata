@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 
@@ -66,7 +67,7 @@ namespace PrgData.Common.Orders
 				"ClientPositionID={0};DropReason={1};ServerCost={2};ServerQuantity={3}", 
 				ClientPositionID,
 				Convert.ToInt32(SendResult),
-				ServerCost,
+				ServerCost.ToString(CultureInfo.InvariantCulture.NumberFormat),
 				ServerQuantity);
 		}
 
