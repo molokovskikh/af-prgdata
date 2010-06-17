@@ -32,6 +32,9 @@ namespace PrgData.Common
 
 		public bool EnableUpdate;
 
+		public bool ClientEnabled;
+		public bool UserEnabled;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -44,11 +47,22 @@ namespace PrgData.Common
 			if (!(row["UncommitedUpdateDate"] is DBNull))
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
 			if (data.Tables[0].Columns.Contains("Future"))
+			{
 				IsFutureClient = true;
+				UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
+			}
+			else
+				UserEnabled = true;
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
 			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
+			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
+		}
+
+		public bool Disabled()
+		{
+			return !ClientEnabled || !UserEnabled;
 		}
 	}
 
@@ -308,7 +322,9 @@ SELECT  c.Id ClientId,
     c.Name as ShortName,
     retclientsset.Spy, 
     retclientsset.SpyAccount,
-    u.EnableUpdate 
+    u.EnableUpdate,
+    c.Status as ClientEnabled,
+    u.Enabled as UserEnabled 
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -320,7 +336,6 @@ WHERE u.Id = ap.UserId
     AND up.Shortcut = 'AF' 
     AND retclientsset.clientcode = c.Id 
     AND rui.UserId = u.Id 
-    AND c.Status = 1 
     AND u.Login = ?user", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?user", userName);
 
@@ -342,7 +357,8 @@ SELECT  ouar.clientcode as ClientId,
         clientsdata.ShortName,
         retclientsset.Spy, 
         retclientsset.SpyAccount,
-        retclientsset.EnableUpdate
+        retclientsset.EnableUpdate,
+        clientsdata.firmstatus as ClientEnabled
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,
@@ -357,7 +373,6 @@ WHERE   ouar.clientcode          =clientsdata.firmcode
     AND IF(ir.id                IS NULL, 1, ir.IncludeType IN (1,2,3)) 
     AND retclientsset.clientcode =ouar.clientcode 
     AND rui.UserId               =ouar.RowId 
-    AND firmstatus               =1 
     AND OSUserName = ?user";
 				data = new DataSet();
 				dataAdapter.Fill(data);
@@ -844,7 +859,9 @@ FROM Future.Users u
   join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
   join Future.UserAddresses ua on ua.UserId = u.Id
   join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-WHERE u.Id = ?UserId", 
+WHERE 
+    u.Id = ?UserId
+and a.Enabled = 1", 
 					 isFirebird ? "'', " : "",
 					 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ");
 			}
