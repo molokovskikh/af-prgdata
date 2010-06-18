@@ -170,6 +170,7 @@ namespace PrgData.Common
 					if (!String.IsNullOrEmpty(report.Comment))
 						comments.Add(report.Comment);
 					comments.AddRange(report.Item.Comments);
+					comments = comments.Distinct().ToList();
 					buildReport.AppendFormat(
 						//"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\n",
 						"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\n",
