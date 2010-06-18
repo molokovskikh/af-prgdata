@@ -20,8 +20,6 @@ Imports SmartOrderFactory
 Imports SmartOrderFactory.Domain
 Imports Common.Models
 
-
-
 <WebService(Namespace:="IOS.Service")> _
 Public Class PrgDataEx
 	Inherits System.Web.Services.WebService
@@ -36,7 +34,7 @@ Public Class PrgDataEx
 		Try
 			ConnectionManager = New Global.Common.MySql.ConnectionManager()
 			ArchiveHelper.SevenZipExePath = SevenZipExe
-			ResultFileName = Server.MapPath("/Results") & "\"
+			ResultFileName = ServiceContext.GetResultPath()
 		Catch ex As Exception
 			Log.Error("Ошибка при инициализации приложения", ex)
 		End Try

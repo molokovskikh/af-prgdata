@@ -12,9 +12,11 @@ Public Class Global_asax
 
     Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
         XmlConfigurator.Configure()
-        SmartOrderHelper.InitializeIoC()
-
-        'Logger.Debug("Приложение запущено")
+		SmartOrderHelper.InitializeIoC()
+#If DEBUG Then
+		ServiceContext.SetupLocalDebugContext()
+#End If
+		'Logger.Debug("Приложение запущено")
     End Sub
 
 	Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)

@@ -69,7 +69,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 		public static string GetUserId(HttpContext context)
 		{
-			var UserName = context.User.Identity.Name;
+			var UserName = ServiceContext.GetUserName();
 			if (UserName.StartsWith(@"ANALIT\", StringComparison.OrdinalIgnoreCase))
 				UserName = UserName.Substring(7);
 			string userId = null;
@@ -131,7 +131,7 @@ where c.Status = 1
 				if (String.IsNullOrEmpty(SUserId) || !UInt32.TryParse(SUserId, out UserId))
 					throw new Exception("Не удалось идентифицировать клиента. (2)");
 
-				var fn = context.Server.MapPath(@"/Results") + @"\" + UserId + ".zip";
+				var fn = ServiceContext.GetResultPath() + UserId + ".zip";
 				if (!File.Exists(fn))
 				{
 					_log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
