@@ -11,10 +11,13 @@ namespace PrgData.Common
 		public static Func<String> GetResultPath = () => HttpContext.Current.Server.MapPath(@"/Results") + @"\";
 
 
-		public static void SetupLocalDebugContext()
+		public static void SetupDebugContext()
 		{
-			GetUserName = () => Environment.UserName;
-			GetResultPath = () => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results") + @"\";
+			if (false)
+			{
+				GetUserName = () => Environment.UserName;
+				GetResultPath = () => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results") + @"\";
+			}
 		}
 	}
 }

@@ -14,7 +14,7 @@ Public Class Global_asax
         XmlConfigurator.Configure()
 		SmartOrderHelper.InitializeIoC()
 #If DEBUG Then
-		ServiceContext.SetupLocalDebugContext()
+		ServiceContext.SetupDebugContext()
 #End If
 		'Logger.Debug("Приложение запущено")
     End Sub
