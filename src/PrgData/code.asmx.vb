@@ -642,7 +642,11 @@ endproc:
             UpdateType = updateException.UpdateType
             Addition += updateException.Addition
             ErrorFlag = True
-            ProtocolUpdatesThread.Start()
+            If UpdateData IsNot Nothing Then
+                ProtocolUpdatesThread.Start()
+            Else
+                Log.Error(updateException)
+            End If
             Return updateException.GetAnalitFMessage()
         Catch ex As Exception
             Log.Error("Параметры " & _
@@ -1409,7 +1413,7 @@ StartZipping:
 		End If
 		UpdateData = UpdateHelper.GetUpdateData(ReadOnlyCn, UserName)
 
-		If UpdateData Is Nothing Then
+        If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
 			Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
 		End If
 
@@ -2092,7 +2096,6 @@ RePost:
                 If ThreadZipStream.IsAlive Then ThreadZipStream.Join()
 
                 If UserId < 1 Then
-                    GetClientCode()
                     NoNeedProcessDocuments = True
                 End If
 
@@ -2121,7 +2124,7 @@ PostLog:
 						.CommandText = "insert into `logs`.`AnalitFUpdates`(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit) values(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit); "
                         .CommandText &= "select last_insert_id()"
                         .Transaction = transaction
-                        .Parameters.Add(New MySqlParameter("?UserId", UserId))
+                        .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
                         .Parameters.Add(New MySqlParameter("?ClientHost", UserHost))
                         If (UpdateType = RequestType.GetData) And LimitedCumulative Then
                             .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
@@ -2184,7 +2187,7 @@ PostLog:
                       "FROM    `logs`.AnalitFUpdates " & _
                       "WHERE   UpdateType IN (1, 2) " & _
                        "    AND `Commit`    =0 " & _
-                       "    AND UserId  =" & UserId
+                       "    AND UserId  =" & UpdateData.UserId
 
                     GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
                     If GUpdateId < 1 Then GUpdateId = Nothing
