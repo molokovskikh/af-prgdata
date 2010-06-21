@@ -8,33 +8,18 @@ import file from Test.bake
 Global(
 	project : "PrgData",
 	humanReadableName : "Служба подготовки данных",
-	deployTo : "\\\\ACDCSERV.ADC.ANALIT.NET\\WebApps\\PrgDataService\\PrgData\\", 
+	deployTo : """\\ACDCSERV.ADC.ANALIT.NET\WebApps\PrgDataService\PrgData\""",
 	platform : "x64",
 	frameworkVersion : "4.0.30319"
 )
 
-
-def internalCleanDeploy:
-	Rm(FileSet("**/*.*", Excludes : ["*.log"], BaseDirectory : Globals.deployTo))
-
-def internalDeployWebService:
-	internalCleanDeploy
-	Cp(FileSet("**/*.*", BaseDirectory : Path.GetFullPath("build")), Globals.deployTo, true)
-
 Task @default, [@buildWebService]
 
-Task @deploy, [@buildWebService, @Migrate]:
-	Cp("src/${Globals.project}/Web.release.PrgData.config", "${Path.GetFullPath('build')}/Web.config", true)
-	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\WebApps\\PrgDataService\\PrgData\\"
-	internalDeployWebService
-	Cp("src/${Globals.project}/Web.release.PrgDataEx.config", "${Path.GetFullPath('build')}/Web.config", true)
-	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\WebApps\\PrgDataService\\PrgDataEx\\"
-	internalDeployWebService
-	Engine.Execute("SendDeployNotification")
+Task @deploy, [@buildWebService, @Migrate, @DeployWebService, @SendDeployNotification]
 
 Task @deployTest, [@buildWebService, @Migrate]:
 	Cp("src/${Globals.project}/Web.release.PrgDataTest.config", "${Path.GetFullPath('build')}/Web.config", true)
 	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\Test\\PrgDataSmart\\"
-	internalDeployWebService
+	Engine.Execute("DeployWebService")
 	Engine.Execute("SendDeployNotification")
 	
