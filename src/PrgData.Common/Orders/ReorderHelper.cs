@@ -190,6 +190,7 @@ namespace PrgData.Common.Orders
 			var clientServerCoreIdOffers = offers.FindAll(item => { 
 				return 
 					item.PriceList.PriceCode == order.PriceCode &&
+					//Здесь еще должен быть RegionCode
 					item.Id.ToString().EndsWith(position.ClientServerCoreID.ToString()); });
 
 			if (clientServerCoreIdOffers.Count == 1)
