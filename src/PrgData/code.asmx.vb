@@ -2611,17 +2611,31 @@ RestartTrans2:
                 "            AND regionaldata.regioncode= Prices.regioncode")
 
 
-                GetMySQLFile("PricesRegionalData", SelProc, _
-                "SELECT PriceCode           , " & _
-                "       RegionCode          , " & _
-                "       STORAGE             , " & _
-                "       PublicUpCost        , " & _
-                "       MinReq              , " & _
-                "       MainFirm            , " & _
-                "       NOT disabledbyclient, " & _
-                "       CostCorrByClient    , " & _
-                "       ControlMinReq " & _
-                "FROM   Prices")
+                If UpdateData.IsFutureClient Then
+                    GetMySQLFile("PricesRegionalData", SelProc, _
+                    "SELECT PriceCode           , " & _
+                    "       RegionCode          , " & _
+                    "       STORAGE             , " & _
+                    "       0 as PublicUpCost   , " & _
+                    "       MinReq              , " & _
+                    "       MainFirm            , " & _
+                    "       NOT disabledbyclient, " & _
+                    "       0 as CostCorrByClient, " & _
+                    "       ControlMinReq " & _
+                    "FROM   Prices")
+                Else
+                    GetMySQLFile("PricesRegionalData", SelProc, _
+                    "SELECT PriceCode           , " & _
+                    "       RegionCode          , " & _
+                    "       STORAGE             , " & _
+                    "       PublicUpCost        , " & _
+                    "       MinReq              , " & _
+                    "       MainFirm            , " & _
+                    "       NOT disabledbyclient, " & _
+                    "       CostCorrByClient    , " & _
+                    "       ControlMinReq " & _
+                    "FROM   Prices")
+                End If
 
                 SelProc.CommandText = "" & _
                 "CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
