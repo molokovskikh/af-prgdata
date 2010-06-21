@@ -57,7 +57,7 @@ namespace PrgData.Common.Orders
 
 		public decimal ServerCost { get; set; }
 
-		public ushort ServerQuantity { get; set; }
+		public uint ServerQuantity { get; set; }
 
 		public bool Duplicated { get; set; }
 

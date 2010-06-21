@@ -7,7 +7,10 @@ using Common.MySql;
 using System.Data;
 using log4net;
 using System.IO;
-
+using Common.Models;
+using SmartOrderFactory;
+using Common.Models.Repositories;
+using SmartOrderFactory.Repositories;
 
 namespace PrgData.Common.Orders
 {
@@ -61,16 +64,11 @@ namespace PrgData.Common.Orders
 			CheckDuplicatedOrders();
 
 			if (_useCorrectOrders && !_forceSend && AllOrdersIsSuccess())
-			{
-				//вызываем заполнение таблицы предложений в памяти MySql-сервера
-				GetOffers();
-
 				//делаем сравнение с существующим прайсом
 				CheckWithExistsPrices();
-			}
 
 			if (!_useCorrectOrders || AllOrdersIsSuccess())
-				With.DeadlockWraper(() =>
+				global::Common.MySql.With.DeadlockWraper(() =>
 				{
 					var transaction = _readWriteConnection.BeginTransaction();
 					try
@@ -109,51 +107,45 @@ namespace PrgData.Common.Orders
 				});
 		}
 
-		private void CheckWithExistsPrices()
+		private List<Offer> GetOffers()
 		{
+			var offersRepository = IoC.Resolve<ISmartOfferRepository>();
+			IOrderable Orderable;
+			if (_data.IsFutureClient)
+			{
+				Orderable = IoC.Resolve<IRepository<User>>().Get(_data.UserId);
+			}
+			else
+				Orderable = IoC.Resolve<IRepository<Client>>().Get(_data.ClientId);
+
+			var productIds = new List<uint>();
 			foreach (var order in _orders)
 			{
-				var existCore = new DataTable();
-				var dataAdapter = new MySqlDataAdapter(@"
-select
-  C.Id,
-  cast(RIGHT(core.ID, 9) as unsigned) as ClientServerCoreID,
-  Core.Cost,
-  core.ProductId,
-  c.CodeFirmCr,
-  c.SynonymCode,
-  c.SynonymFirmCrCode,
-  c.SynonymCode,
-  c.Code,
-  c.CodeCr,
-  c.Junk,
-  c.Await,
-  c.Quantity,
-  c.RequestRatio,
-  c.OrderCost,
-  c.MinOrderCount
-from
-  core,
-  farm.core0 c
-where
-    (c.Id = core.Id)
-and (Core.PriceCode = ?PriceCode)
-and (Core.RegionCode = ?RegionCode)
-				", _connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?PriceCode", order.PriceCode);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?RegionCode", order.RegionCode);
+				foreach (var position in order.Positions)
+				{
+					if (!position.Duplicated)
+						productIds.Add(Convert.ToUInt32(position.ProductID));
+				}
+			}
 
-				dataAdapter.Fill(existCore);
+			return offersRepository.GetByProductIds(Orderable, productIds).ToList();
+		}
 
+		private void CheckWithExistsPrices()
+		{
+			var offers = GetOffers();
+
+			foreach (var order in _orders)
+			{
 				foreach (var position in order.Positions)
 				{
 					if (!position.Duplicated)
 					{
-						var dataRow = GetDataRowByPosition(existCore, position);
-						if (dataRow == null)
+						var offer = GetDataRowByPosition(offers, order, position);
+						if (offer == null)
 							position.SendResult = PositionSendResult.NotExists;
 						else
-							CheckExistsCorePosition(dataRow, position);
+							CheckExistsCorePosition(offer, position);
 					}
 				}
 
@@ -162,22 +154,19 @@ and (Core.RegionCode = ?RegionCode)
 			}
 		}
 
-		private void CheckExistsCorePosition(DataRow dataRow, ClientOrderPosition position)
+		private void CheckExistsCorePosition(Offer offer, ClientOrderPosition position)
 		{
-			ushort? serverQuantity = null;
-			ushort temp;
+			uint? serverQuantity = null;
 
-			if (!Convert.IsDBNull(dataRow["Quantity"])
-				&& !String.IsNullOrEmpty(dataRow["Quantity"].ToString())
-				&& ushort.TryParse(dataRow["Quantity"].ToString(), out temp))
+			if (offer.Quantity.HasValue)
 			{
-				serverQuantity = (ushort?)temp;
+				serverQuantity = offer.Quantity;
 			}
 
-			if (!position.Cost.Equals(dataRow["Cost"]))
+			if (!position.Cost.Equals(Convert.ToDecimal(offer.Cost)))
 			{
 				position.SendResult = PositionSendResult.DifferentCost;
-				position.ServerCost = Convert.ToDecimal(dataRow["Cost"]);
+				position.ServerCost = Convert.ToDecimal(offer.Cost);
 				if (serverQuantity.HasValue)
 					position.ServerQuantity = serverQuantity.Value;
 			}
@@ -190,23 +179,41 @@ and (Core.RegionCode = ?RegionCode)
 				else
 				{
 					position.SendResult = PositionSendResult.DifferentQuantity;
-					position.ServerCost = Convert.ToDecimal(dataRow["Cost"]);
+					position.ServerCost = Convert.ToDecimal(offer.Cost);
 					position.ServerQuantity = serverQuantity.Value;
-				}			
+				}
 			}
 		}
 
-		private DataRow GetDataRowByPosition(DataTable existCore, ClientOrderPosition position)
+		private Offer GetDataRowByPosition(List<Offer> offers, ClientOrderHeader order, ClientOrderPosition position)
 		{
-			var offers = existCore.Select("ClientServerCoreID = " + position.ClientServerCoreID);
-			if (offers.Length == 1)
-				return offers[0];
+			var clientServerCoreIdOffers = offers.FindAll(item => { 
+				return 
+					item.PriceList.PriceCode == order.PriceCode &&
+					item.Id.ToString().EndsWith(position.ClientServerCoreID.ToString()); });
+
+			if (clientServerCoreIdOffers.Count == 1)
+				return clientServerCoreIdOffers[0];
 			else
-				if (offers.Length == 0)
+				if (clientServerCoreIdOffers.Count == 0)
 				{
-					offers = existCore.Select(position.GetFilter());
-					if (offers.Length > 0)
-						return offers[0];					
+					var filterOffers = offers.FindAll(item => 
+					{ 
+						return
+							item.PriceList.PriceCode == order.PriceCode &&
+							item.ProductId == position.ProductID &&
+							item.SynonymCode == position.SynonymCode &&
+							item.SynonymFirmCrCode == position.SynonymFirmCrCode &&
+							item.Code == position.Code &&
+							item.CodeCr == position.CodeCr &&
+							item.Junk == position.Junk &&
+							item.Await == position.Await &&
+							item.RequestRatio == position.RequestRatio &&
+							//item.OrderCost == position.OrderCost &&
+							item.MinOrderCount == position.MinOrderCount;						 
+					});
+					if (filterOffers.Count > 0)
+						return filterOffers[0];
 				}
 				else
 					throw new OrderException(String.Format("По ID = {0} нашли больше одной позиции.", position.ClientServerCoreID));
@@ -342,22 +349,6 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 			command.Parameters.AddWithValue("?NDS", position.NDS);
 
 			command.ExecuteNonQuery();
-		}
-
-		private void GetOffers()
-		{
-			if (_data.IsFutureClient)
-			{
-				var command = new MySqlCommand("call future.GetOffers(?UserId)", _connection);
-				command.Parameters.AddWithValue("?UserId", _data.UserId);
-				command.ExecuteNonQuery();
-			}
-			else
-			{
-				var command = new MySqlCommand("call GetOffers(?ClientCode, 0)", _connection);
-				command.Parameters.AddWithValue("?clientCode", _data.ClientId);
-				command.ExecuteNonQuery();
-			}
 		}
 
 		private void CheckOrdersByMinRequest()
