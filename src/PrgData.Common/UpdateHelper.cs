@@ -106,9 +106,9 @@ WHERE UpdateId = {0};", updateId);
 			else
 			{
 				return @"
-update AnalitFDocumentsProcessing A
-set a.Committed = 1
-where updateid = " + updateId;
+update Logs.DocumentSendLogs ds
+set ds.Committed = 1
+where ds.updateid = " + updateId;
 			}
 		}
 
@@ -639,20 +639,7 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 
 		public DataTable GetProcessedDocuments(uint updateId)
 		{
-			string command;
-			if (_updateData.IsFutureClient)
-			{
-				command = @"
-SELECT  DocumentId,
-        DocumentType,
-        dl.AddressId as ClientCode
-FROM AnalitFDocumentsProcessing AFDP
-	join logs.document_logs DL on DL.RowId=AFDP.DocumentId
-WHERE AFDP.UpdateId = ?updateId";
-			}
-			else
-			{
-				command = @"
+				var command = @"
 SELECT  DocumentId,
         DocumentType,
         ClientCode 
@@ -660,7 +647,6 @@ FROM    AnalitFDocumentsProcessing AFDP,
         `logs`.document_logs DL
 WHERE   DL.RowId = AFDP.DocumentId
 AND     AFDP.UpdateId = ?updateId";
-			}
 			var dataAdapter = new MySqlDataAdapter(command, _readOnlyConnection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?updateId", updateId);
 			var documents = new DataTable();
@@ -676,22 +662,12 @@ AND     AFDP.UpdateId = ?updateId";
 select d.AddressId as ClientCode,
 	d.RowId,
 	d.DocumentType
-from future.Users u
-	join future.UserAddresses ua on u.Id = ua.UserId
-		join logs.document_logs d on ua.AddressId = d.AddressId
-where u.Id = ?UserId
-	and d.FirmCode is not null
-	and d.Addition is null
-	and d.UpdateId is null
-and not exists(
-	select *
-	from usersettings.AnalitFDocumentsProcessing afp
-	join logs.AnalitFUpdates afu on afu.UserId = ?UserId and afp.UpdateId = afu.UpdateId
-where Committed = 1 and afp.DocumentId = d.RowId)
+from Logs.DocumentSendLogs ds
+	join Logs.Document_logs d on d.RowId = ds.DocumentId
+where ds.UserId = ?UserId 
+	and ds.Committed = 0
 	and d.LogTime > curdate() - interval 30 day
-	and (d.DocumentType = if(u.SendRejects, 2, 0) or
-		d.DocumentType = if(u.SendWaybills, 1, 0) or
-		d.DocumentType = 3)
+limit 100;
 ";
 			}
 			else
