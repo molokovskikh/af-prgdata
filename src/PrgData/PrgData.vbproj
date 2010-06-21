@@ -216,8 +216,6 @@
     <Content Include="Web.Release.config">
       <SubType>Designer</SubType>
     </Content>
-    <Content Include="Web.Release.PrgData.config" />
-    <Content Include="Web.Release.PrgDataEx.config" />
     <Content Include="Web.Release.PrgDataTest.config">
       <SubType>Designer</SubType>
     </Content>
