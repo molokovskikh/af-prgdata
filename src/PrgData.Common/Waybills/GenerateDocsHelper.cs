@@ -275,6 +275,7 @@ select last_insert_id()
 
 		private static bool ProcessWaybills(List<uint> ids)
 		{
+#if !DEBUG
 			var binding = new NetTcpBinding();
 			binding.Security.Mode = SecurityMode.None;
 
@@ -293,6 +294,9 @@ select last_insert_id()
 					communicationObject.Abort();
 				throw;
 			}
+#else
+			return true;
+#endif
 		}
 
 		private static string GetCuttedFileName(string fileName)
@@ -322,8 +326,8 @@ select last_insert_id()
 			headerCommand.Parameters.Add("?SendUpdateId", MySqlDbType.UInt64);
 
 			headerCommand.CommandText = @"
-insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId) 
-values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId, ?SendUpdateId);
+insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId, Ready) 
+values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId, ?SendUpdateId, 1);
 
 set @LastDownloadId = last_insert_id();
 ";
@@ -335,6 +339,10 @@ set @LastDownloadId = last_insert_id();
 			{
 				headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
 				headerCommand.Parameters["?AddressId"].Value = addressId;
+				headerCommand.Parameters.AddWithValue("?UserId", updateData.UserId);
+				headerCommand.CommandText += @"
+insert into logs.DocumentSendLogs(UserId, DocumentId)
+values (?UserId, @LastDownloadId);";
 			}
 			else
 				headerCommand.Parameters["?ClientCode"].Value = addressId;

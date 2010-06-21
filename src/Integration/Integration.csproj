@@ -74,7 +74,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CostCorrectionFixture.cs" />
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />

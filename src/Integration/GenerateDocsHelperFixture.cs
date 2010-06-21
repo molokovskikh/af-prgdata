@@ -65,8 +65,9 @@ namespace Integration
 					// Проверяем, что в папке лежит файл с именем в формате ИД_Поставщик(ИмяФайлаВdocument_logs).расширение
 					Assert.IsTrue(String.Equals(Path.GetFileName(files[0]), name, StringComparison.OrdinalIgnoreCase));
 				}
-				Directory.Delete(@"..\..\Data\Waybills", true);
-				Directory.Delete(@"..\..\Data\WaybillExtract", true);
+
+				FileHelper.DeleteDir(@"..\..\Data\Waybills");
+				FileHelper.DeleteDir(@"..\..\Data\WaybillExtract");
 			}
 		}
 	}

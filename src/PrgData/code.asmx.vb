@@ -741,11 +741,7 @@ endproc:
 							  "SELECT  * " & _
 							  "FROM    AnalitFDocumentsProcessing limit 0"
 							ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
-
-
-							Dim Row As DataRow
-
-							For Each Row In DS.Tables("DocumentsToClient").Rows
+							For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
 
 								СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
 								 Row.Item("ClientCode").ToString & _
@@ -753,10 +749,13 @@ endproc:
 								 CType(Row.Item("DocumentType"), ТипДокумента).ToString, _
 								 Row.Item("RowId").ToString & "_*")
 
-								If СписокФайлов.Length = 1 Then
+								'даже если нет документа мы должны подтвердить его, что бы не вытаться его отдавать затем всегда
+								xRow = DS.Tables("ProcessingDocuments").NewRow
+								xRow("Committed") = False
+								xRow.Item("DocumentId") = Row.Item("RowId").ToString
+								DS.Tables("ProcessingDocuments").Rows.Add(xRow)
 
-									xRow = DS.Tables("ProcessingDocuments").NewRow
-									xRow("Committed") = False
+								If СписокФайлов.Length = 1 Then
 
 									startInfo = New ProcessStartInfo(SevenZipExe)
 									startInfo.CreateNoWindow = True
@@ -776,13 +775,10 @@ endproc:
 									startInfo.WorkingDirectory = ПутьКДокументам & _
 									   Row.Item("ClientCode").ToString
 
-									xRow.Item("DocumentId") = Row.Item("RowId").ToString
-
 									Pr = New Process
 									Pr.StartInfo = startInfo
 									Pr = Process.Start(startInfo)
 									Pr.WaitForExit()
-
 
 									Вывод7Z = Pr.StandardOutput.ReadToEnd
 									Ошибка7Z = Pr.StandardError.ReadToEnd
@@ -808,14 +804,8 @@ endproc:
 											  Вывод7Z & _
 											 "-" & _
 											  Ошибка7Z)
-
-
 										End If
-
 									End If
-
-									DS.Tables("ProcessingDocuments").Rows.Add(xRow)
-
 								ElseIf СписокФайлов.Length = 0 Then
 									Addition &= "При подготовке документов в папке: " & _
 									 ПутьКДокументам & _
@@ -825,13 +815,7 @@ endproc:
 									   " не найден документ № " & _
 									   Row.Item("RowId").ToString & _
 									   " ; "
-
-								Else
-
-
 								End If
-
-
 							Next
 
 							If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
@@ -2129,31 +2113,30 @@ PostLog:
 
                     If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
 
-                    With LogCm
+					'если нет новых документов то и подтверждения не будет
+					'а в интерейсе неподтвержденное обновление это тревога
+					'что бы не было тревог
+					Dim commit = False
+					If MessageH = "Новых файлов документов нет." Then
+						commit = True
+					End If
 
-                        .CommandText = "insert into `logs`.`AnalitFUpdates`(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`) values(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition); "
+					With LogCm
+						.CommandText = "insert into `logs`.`AnalitFUpdates`(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit) values(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit); "
                         .CommandText &= "select last_insert_id()"
-
-
                         .Transaction = transaction
                         .Parameters.Add(New MySqlParameter("?UserId", UserId))
-
                         .Parameters.Add(New MySqlParameter("?ClientHost", UserHost))
-
                         If (UpdateType = RequestType.GetData) And LimitedCumulative Then
                             .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
                         Else
                             .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
                         End If
-
                         .Parameters.Add(New MySqlParameter("?EXEVersion", BuildNo))
-
                         .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
-
                         .Parameters.Add(New MySqlParameter("?Addition", Addition))
-
                         .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
-
+						.Parameters.AddWithValue("?Commit", commit)
                     End With
 
                     GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
