@@ -308,7 +308,7 @@ SELECT  c.Id ClientId,
     c.Name as ShortName,
     retclientsset.Spy, 
     retclientsset.SpyAccount,
-    retclientsset.EnableUpdate 
+    u.EnableUpdate 
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,

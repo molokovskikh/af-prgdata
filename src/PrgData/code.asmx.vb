@@ -93,7 +93,7 @@ Public Class PrgDataEx
 	Dim UpdateData As UpdateData
 	Private UserHost, Message, ReclamePath As String
 	Private UncDT As Date
-	Private Active, EnableUpdate, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
+    Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
 	Private NewZip As Boolean = True
 	Dim GUpdateId As UInt32? = 0
 	Private WithEvents DS As System.Data.DataSet
@@ -457,8 +457,7 @@ RestartInsertTrans:
                     End If
                     BaseThread = New Thread(AddressOf MySqlProc)
                 Else
-                    Dim CheckEnableUpdate As Boolean = Convert.ToBoolean(MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadOnlyCn, "select EnableUpdate from retclientsset where clientcode=" & CCode))
-                    If ((BuildNo >= 705) And (BuildNo <= 716)) And CheckEnableUpdate Then
+                    If ((BuildNo >= 705) And (BuildNo <= 716)) And UpdateData.EnableUpdate Then
                         BaseThread = New Thread(AddressOf MySqlProc)
                         'FileCount = 19
                         GED = True
@@ -928,10 +927,7 @@ endproc:
 
 						'Архивирование обновления программы
 						Try
-							ArchCmd.CommandText = "select EnableUpdate from retclientsset where clientcode=" & CCode
-							EnableUpdate = Convert.ToBoolean(ArchCmd.ExecuteScalar)
-
-							If EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\EXE") Then
+                            If UpdateData.EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\EXE") Then
 
 								ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\EXE")
 
@@ -993,7 +989,7 @@ endproc:
 
 						'Архивирование FRF
 						Try
-							If EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\FRF") Then
+                            If UpdateData.EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\FRF") Then
 								ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\FRF")
 								If ef.Length > 0 Then
 									For Each Name In ef
