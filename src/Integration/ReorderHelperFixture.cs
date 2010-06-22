@@ -233,8 +233,6 @@ and WriteTime > now() - interval 2 week"
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
 
-				Console.WriteLine("PostSomeOrders = {0}", result);
-
 				orderHelper = new ReorderHelper(updateData, connection, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
@@ -253,8 +251,6 @@ and WriteTime > now() - interval 2 week"
 				Assert.That(secondServerOrderId, Is.Not.Empty);
 
 				Assert.That(firstServerOrderId, Is.EqualTo(secondServerOrderId), "Заказ не помечен как дублирующийся");
-
-				Console.WriteLine("PostSomeOrders = {0}", result);
 			}
 		}
 
@@ -295,8 +291,6 @@ and WriteTime > now() - interval 2 week"
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказа");
 
-				Console.WriteLine("PostSomeOrders = {0}", result);
-
 				orderHelper = new ReorderHelper(updateData, connection, connection, true, orderedClientId, false);
 
 				ParseSecondOrder(orderHelper);
@@ -317,9 +311,6 @@ and WriteTime > now() - interval 2 week"
 				Assert.That(firstServerOrderId, Is.Not.EqualTo(secondServerOrderId), "Заказ помечен как дублирующийся");
 
 				Assert.That(GetOrderCount(connection, secondServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
-
-
-				Console.WriteLine("PostSomeOrders = {0}", result);
 			}
 		}
 
