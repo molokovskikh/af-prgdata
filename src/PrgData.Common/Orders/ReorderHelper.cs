@@ -189,8 +189,8 @@ namespace PrgData.Common.Orders
 		{
 			var clientServerCoreIdOffers = offers.FindAll(item => { 
 				return 
-					item.PriceList.PriceCode == order.PriceCode &&
-					//Здесь еще должен быть RegionCode
+					order.PriceCode.Equals(Convert.ToUInt64(item.PriceList.Id.Price.PriceCode)) &&
+					order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
 					item.Id.ToString().EndsWith(position.ClientServerCoreID.ToString()); });
 
 			if (clientServerCoreIdOffers.Count == 1)
@@ -201,7 +201,8 @@ namespace PrgData.Common.Orders
 					var filterOffers = offers.FindAll(item => 
 					{ 
 						return
-							item.PriceList.PriceCode == order.PriceCode &&
+							order.PriceCode.Equals(Convert.ToUInt64(item.PriceList.Id.Price.PriceCode)) &&
+							order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
 							item.ProductId == position.ProductID &&
 							item.SynonymCode == position.SynonymCode &&
 							item.SynonymFirmCrCode == position.SynonymFirmCrCode &&
@@ -210,7 +211,7 @@ namespace PrgData.Common.Orders
 							item.Junk == position.Junk &&
 							item.Await == position.Await &&
 							item.RequestRatio == position.RequestRatio &&
-							//item.OrderCost == position.OrderCost &&
+							position.OrderCost.Equals(item.OrderCost.HasValue ? (decimal?)Convert.ToDecimal(item.OrderCost.Value) : (decimal?)null) &&
 							item.MinOrderCount == position.MinOrderCount;						 
 					});
 					if (filterOffers.Count > 0)
