@@ -90,6 +90,8 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="ReorderHelperFixture.cs" />
+    <Compile Include="UpdateHelperFixture.cs" />
     <Compile Include="SmartOrderHelperFixture.cs" />
     <Compile Include="Web References\localhost\Reference.cs">
       <AutoGen>True</AutoGen>
