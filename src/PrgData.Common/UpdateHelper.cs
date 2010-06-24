@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.IO;
 using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
@@ -31,6 +32,7 @@ namespace PrgData.Common
 		public bool SpyAccount;
 
 		public bool EnableUpdate;
+		private readonly bool _updateToTestBuild;
 
 		public bool ClientEnabled;
 		public bool UserEnabled;
@@ -57,12 +59,42 @@ namespace PrgData.Common
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
 			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
+			_updateToTestBuild = Convert.ToBoolean(row["UpdateToTestBuild"]);
 			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
 		}
 
 		public bool Disabled()
 		{
 			return !ClientEnabled || !UserEnabled;
+		}
+
+		public string[] GetUpdateFiles(string result, int build)
+		{
+			return GetUpdateFiles(GetUpdateFilesPath(result, build), "exe");
+		}
+
+		public string[] GetFrfUpdateFiles(string result, int build)
+		{
+			return GetUpdateFiles(GetUpdateFilesPath(result, build), "frf");
+		}
+
+		private string GetUpdateFilesPath(string result, int build)
+		{
+			if (EnableUpdate && _updateToTestBuild)
+			{
+				var testPath = result + @"Updates\test_" + build + @"\";
+				if (Directory.Exists(testPath))
+					return testPath;
+			}
+			return result + @"Updates\Future_" + build + @"\";
+		}
+
+		private string[] GetUpdateFiles(string path, string sufix)
+		{
+			path += sufix;
+			if (Directory.Exists(path))
+				return Directory.GetFiles(path);
+			return new string[0];
 		}
 	}
 
@@ -326,7 +358,8 @@ SELECT  c.Id ClientId,
     retclientsset.SpyAccount,
     u.EnableUpdate,
     c.Status as ClientEnabled,
-    u.Enabled as UserEnabled 
+    u.Enabled as UserEnabled,
+	0 as UpdateToTestBuild
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -360,6 +393,7 @@ SELECT  ouar.clientcode as ClientId,
         retclientsset.Spy, 
         retclientsset.SpyAccount,
         retclientsset.EnableUpdate,
+		retclientsset.UpdateToTestBuild,
         clientsdata.firmstatus as ClientEnabled
 FROM    clientsdata,
         retclientsset,

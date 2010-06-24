@@ -931,20 +931,17 @@ endproc:
 
 						'Архивирование обновления программы
 						Try
-                            If UpdateData.EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\EXE") Then
+							If UpdateData.EnableUpdate Then
 
-								ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\EXE")
-
+								ef = UpdateData.GetUpdateFiles(ResultFileName, BuildNo)
 								If ef.Length > 0 Then
-									'Pr.StartInfo.UserName = Пользователь
-									'Pr.StartInfo.Password = БезопасныйПароль
-									Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & ResultFileName & "Updates\Future_" & BuildNo & "\EXE"" " & SevenZipParam)
+									Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
 
 #If Not Debug Then
-                                try
-                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                catch
-                                End try
+									Try
+										Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+									Catch
+									End Try
 #End If
 
 									Pr.WaitForExit()
@@ -952,15 +949,9 @@ endproc:
 									If Pr.ExitCode <> 0 Then
 										MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
 										Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-										'Try
-										'    If Not pr Is Nothing Then pr.Kill()
-										'    System.Threading.Thread.Sleep(2000)
-										'Catch
-										'End Try
 										MySQLFileDelete(SevenZipTmpArchive)
 									Else
 
-										'Mail("service@analit.net", "Обновление программы с версии " & BuildNo, MailFormat.Text, "Код клиента: " & CCode, "service@analit.net", System.Text.Encoding.UTF8)
 										Addition &= "Обновление включает в себя новую версию программы; "
 									End If
 
@@ -969,14 +960,11 @@ endproc:
 							End If
 
 						Catch ex As ThreadAbortException
-
-							'ErrorFlag = True
 							If Not Pr Is Nothing Then
 								If Not Pr.HasExited Then Pr.Kill()
 								Pr.WaitForExit()
 							End If
 							MySQLFileDelete(SevenZipTmpArchive)
-
 						Catch ex As Exception
 							MailErr("Архивирование Exe", ex.Source & ": " & ex.Message)
 							Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
@@ -993,22 +981,20 @@ endproc:
 
 						'Архивирование FRF
 						Try
-                            If UpdateData.EnableUpdate And Directory.Exists(ResultFileName & "Updates\Future_" & BuildNo & "\FRF") Then
-								ef = Directory.GetFiles(ResultFileName & "Updates\Future_" & BuildNo & "\FRF")
+							If UpdateData.EnableUpdate Then
+								ef = UpdateData.GetFrfUpdateFiles(ResultFileName, BuildNo)
 								If ef.Length > 0 Then
 									For Each Name In ef
 										FileInfo = New FileInfo(Name)
 										If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
-											'Pr.StartInfo.UserName = Пользователь
-											'Pr.StartInfo.Password = БезопасныйПароль
 											Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
 
 
 #If Not Debug Then
-                                        try
-                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                        catch
-                                        End try
+											Try
+												Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+											Catch
+											End Try
 #End If
 
 											Pr.WaitForExit()
@@ -1016,9 +1002,6 @@ endproc:
 											If Pr.ExitCode <> 0 Then
 												MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
 												Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-												'If Not pr Is Nothing Then pr.Kill()
-												'System.Threading.Thread.Sleep(2000)
-
 												MySQLFileDelete(SevenZipTmpArchive)
 											End If
 										End If
