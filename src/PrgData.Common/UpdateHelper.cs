@@ -32,6 +32,9 @@ namespace PrgData.Common
 
 		public bool EnableUpdate;
 
+		public bool ClientEnabled;
+		public bool UserEnabled;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -44,11 +47,22 @@ namespace PrgData.Common
 			if (!(row["UncommitedUpdateDate"] is DBNull))
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
 			if (data.Tables[0].Columns.Contains("Future"))
+			{
 				IsFutureClient = true;
+				UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
+			}
+			else
+				UserEnabled = true;
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
 			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
+			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
+		}
+
+		public bool Disabled()
+		{
+			return !ClientEnabled || !UserEnabled;
 		}
 	}
 
@@ -106,9 +120,9 @@ WHERE UpdateId = {0};", updateId);
 			else
 			{
 				return @"
-update AnalitFDocumentsProcessing A
-set a.Committed = 1
-where updateid = " + updateId;
+update Logs.DocumentSendLogs ds
+set ds.Committed = 1
+where ds.updateid = " + updateId;
 			}
 		}
 
@@ -238,16 +252,18 @@ GROUP BY u.Id, supplier.FirmCode;
 			if (_updateData.IsFutureClient)
 			{
 				return @"
-SELECT r.regioncode,
-r.region
+SELECT 
+  r.regioncode,
+  left(r.region, 25) as region
 FROM future.Clients c
 	join farm.regions r on r.RegionCode & c.maskregion > 0
 where c.Id = ?ClientCode
 ";
 			}
 			var command = @"
-SELECT regions.regioncode,
-region
+SELECT 
+  regions.regioncode,
+  left(regions.region, 25) as region
 FROM farm.regions, clientsdata
 WHERE firmcode = ifnull(?OffersClientCode, ?ClientCode)
 AND (regions.regioncode & maskregion > 0)";
@@ -257,7 +273,7 @@ AND (regions.regioncode & maskregion > 0)";
 				command += @"
 UNION 
 SELECT regions.regioncode,
-       region
+       left(regions.region, 25) as region
 FROM   farm.regions,
        clientsdata
 WHERE firmcode = ?ClientCode
@@ -266,7 +282,7 @@ AND regions.regioncode= clientsdata.regioncode
 UNION
 
 SELECT DISTINCT regions.regioncode,
-                region
+                left(regions.region, 25) as region
 FROM            farm.regions,
                 includeregulation,
                 clientsdata 
@@ -278,7 +294,7 @@ WHERE includeclientcode = ?ClientCode
 UNION
 
 SELECT regions.regioncode,
-       region
+       left(regions.region, 25) as region
 FROM   farm.regions,
        clientsdata ,
        includeregulation 
@@ -308,7 +324,9 @@ SELECT  c.Id ClientId,
     c.Name as ShortName,
     retclientsset.Spy, 
     retclientsset.SpyAccount,
-    retclientsset.EnableUpdate 
+    u.EnableUpdate,
+    c.Status as ClientEnabled,
+    u.Enabled as UserEnabled 
 FROM (future.Clients c,
         retclientsset,
         UserUpdateInfo rui,
@@ -320,7 +338,6 @@ WHERE u.Id = ap.UserId
     AND up.Shortcut = 'AF' 
     AND retclientsset.clientcode = c.Id 
     AND rui.UserId = u.Id 
-    AND c.Status = 1 
     AND u.Login = ?user", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?user", userName);
 
@@ -342,7 +359,8 @@ SELECT  ouar.clientcode as ClientId,
         clientsdata.ShortName,
         retclientsset.Spy, 
         retclientsset.SpyAccount,
-        retclientsset.EnableUpdate
+        retclientsset.EnableUpdate,
+        clientsdata.firmstatus as ClientEnabled
 FROM    clientsdata,
         retclientsset,
         UserUpdateInfo rui,
@@ -357,7 +375,6 @@ WHERE   ouar.clientcode          =clientsdata.firmcode
     AND IF(ir.id                IS NULL, 1, ir.IncludeType IN (1,2,3)) 
     AND retclientsset.clientcode =ouar.clientcode 
     AND rui.UserId               =ouar.RowId 
-    AND firmstatus               =1 
     AND OSUserName = ?user";
 				data = new DataSet();
 				dataAdapter.Fill(data);
@@ -639,20 +656,7 @@ WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode
 
 		public DataTable GetProcessedDocuments(uint updateId)
 		{
-			string command;
-			if (_updateData.IsFutureClient)
-			{
-				command = @"
-SELECT  DocumentId,
-        DocumentType,
-        dl.AddressId as ClientCode
-FROM AnalitFDocumentsProcessing AFDP
-	join logs.document_logs DL on DL.RowId=AFDP.DocumentId
-WHERE AFDP.UpdateId = ?updateId";
-			}
-			else
-			{
-				command = @"
+				var command = @"
 SELECT  DocumentId,
         DocumentType,
         ClientCode 
@@ -660,7 +664,6 @@ FROM    AnalitFDocumentsProcessing AFDP,
         `logs`.document_logs DL
 WHERE   DL.RowId = AFDP.DocumentId
 AND     AFDP.UpdateId = ?updateId";
-			}
 			var dataAdapter = new MySqlDataAdapter(command, _readOnlyConnection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?updateId", updateId);
 			var documents = new DataTable();
@@ -672,26 +675,19 @@ AND     AFDP.UpdateId = ?updateId";
 		{
 			if (_updateData.IsFutureClient)
 			{
+				//начинаем отдавать документы с самых новых что бы 
+				//отдать наиболее актуальные
 				return @"
 select d.AddressId as ClientCode,
 	d.RowId,
 	d.DocumentType
-from future.Users u
-	join future.UserAddresses ua on u.Id = ua.UserId
-		join logs.document_logs d on ua.AddressId = d.AddressId
-where u.Id = ?UserId
-	and d.FirmCode is not null
-	and d.Addition is null
-	and d.UpdateId is null
-and not exists(
-	select *
-	from usersettings.AnalitFDocumentsProcessing afp
-	join logs.AnalitFUpdates afu on afu.UserId = ?UserId and afp.UpdateId = afu.UpdateId
-where Committed = 1 and afp.DocumentId = d.RowId)
+from Logs.DocumentSendLogs ds
+	join Logs.Document_logs d on d.RowId = ds.DocumentId
+where ds.UserId = ?UserId 
+	and ds.Committed = 0
 	and d.LogTime > curdate() - interval 30 day
-	and (d.DocumentType = if(u.SendRejects, 2, 0) or
-		d.DocumentType = if(u.SendWaybills, 1, 0) or
-		d.DocumentType = 3)
+order by d.LogTime desc
+limit 100;
 ";
 			}
 			else
@@ -737,7 +733,7 @@ Order by 3";
 select
   DocumentHeaders.Id,
   DocumentHeaders.DownloadId,
-  date_sub(date_sub(DocumentHeaders.DocumentDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second), interval regions.MoscowBias hour) as WriteTime,
+  DocumentHeaders.DocumentDate as WriteTime,
   DocumentHeaders.FirmCode,
   DocumentHeaders.AddressId as ClientCode,
   DocumentHeaders.DocumentType,
@@ -851,7 +847,7 @@ WHERE RowId =" + _updateData.UserId;
 			{
 				return String.Format(@"
 SELECT a.Id as FirmCode,
-     a.Address as ShortName,
+     right(a.Address, 50) as ShortName,
      ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
      rcs.OverCostPercent,
      rcs.DifferenceCalculation,
@@ -865,7 +861,9 @@ FROM Future.Users u
   join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
   join Future.UserAddresses ua on ua.UserId = u.Id
   join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-WHERE u.Id = ?UserId", 
+WHERE 
+    u.Id = ?UserId
+and a.Enabled = 1", 
 					 isFirebird ? "'', " : "",
 					 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ");
 			}
@@ -922,7 +920,7 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 				return @"
 SELECT 
      c.Id as ClientId,
-     c.Name,
+     left(c.Name, 50) as Name,
      regions.CalculateOnProducerCost,
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
@@ -1515,6 +1513,58 @@ from
   future.ClientToAddressMigrations
 where
     UserId = " + _updateData.UserId;
+		}
+
+		public string GetMinReqRuleCommand()
+		{
+			if (_updateData.IsFutureClient)
+				return @"
+select
+  a.Id as ClientId,
+  i.PriceId as PriceCode,
+  i.RegionId as RegionCode,
+  ai.ControlMinReq,
+  if(ai.MinReq > 0, ai.MinReq, Prices.MinReq) as MinReq 
+from
+  Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join future.Intersection i on i.ClientId = c.Id
+  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+  join Prices on (Prices.PriceCode = i.PriceId) and (Prices.RegionCode = i.RegionId)
+where
+  (u.Id = ?UserId)";
+			else
+				return @"
+select
+  clients.FirmCode as ClientId,
+  Prices.PriceCode,
+  Prices.RegionCode,
+  Prices.ControlMinReq,
+  Prices.MinReq
+from
+  (
+SELECT
+  clientsdata.firmcode
+FROM
+  clientsdata
+WHERE
+  clientsdata.firmcode    = ?ClientCode
+UNION
+SELECT
+  clientsdata.firmcode
+FROM
+     clientsdata         ,
+     IncludeRegulation
+WHERE
+     clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
+ AND clientsdata.firmstatus               = 1
+ AND IncludeRegulation.IncludeType        IN (0,3)
+ AND IncludeRegulation.Primaryclientcode  = ?ClientCode
+ ) clients,
+ Prices
+  ";
 		}
 
 		public void OldCommit(string absentPriceCodes)

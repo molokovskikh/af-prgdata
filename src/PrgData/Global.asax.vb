@@ -1,5 +1,8 @@
 ﻿Imports log4net.Config
 Imports log4net
+Imports PrgData.Common
+
+
 
 
 Public Class Global_asax
@@ -8,9 +11,13 @@ Public Class Global_asax
     Shared Logger As ILog = LogManager.GetLogger(GetType(Global_asax))
 
     Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
-		XmlConfigurator.Configure()
-        'Logger.Debug("Приложение запущено")
-	End Sub
+        XmlConfigurator.Configure()
+		SmartOrderHelper.InitializeIoC()
+#If DEBUG Then
+		ServiceContext.SetupDebugContext()
+#End If
+		'Logger.Debug("Приложение запущено")
+    End Sub
 
 	Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
 		Try

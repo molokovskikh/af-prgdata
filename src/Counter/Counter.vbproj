@@ -155,7 +155,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common.Model.MYSql\Common.MySql\Common.MySql.csproj">
+    <ProjectReference Include="..\Common.MySql\Common.MySql\Common.MySql.csproj">
       <Project>{8A680813-C83B-497A-85E6-E8F07B7D7650}</Project>
       <Name>Common.MySql</Name>
     </ProjectReference>
