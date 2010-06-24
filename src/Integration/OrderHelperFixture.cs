@@ -243,8 +243,8 @@ namespace Integration
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
 
 					var command = new MySqlCommand(@"
-update usersettings.RetClientsSet set OrderRegionMask = 2 where ClientCode = ?clientId ;
-update future.Users set OrderRegionMask = 3 where Id = ?userId ;", connection, trans);
+update usersettings.RetClientsSet set OrderRegionMask = 1 where ClientCode = ?clientId ;
+update future.Users set OrderRegionMask = 2 where Id = ?userId ;", connection, trans);
 					command.Parameters.AddWithValue("?userId", updateData.UserId);
 					command.Parameters.AddWithValue("?clientId", updateData.ClientId);
 					command.ExecuteNonQuery();					

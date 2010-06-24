@@ -74,6 +74,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CostCorrectionFixture.cs" />
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
@@ -86,8 +87,6 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
-    <Compile Include="ReorderHelperFixture.cs" />
-    <Compile Include="UpdateHelperFixture.cs" />
     <Compile Include="Web References\localhost\Reference.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

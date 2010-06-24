@@ -189,7 +189,8 @@
     <Content Include="Web.Release.config">
       <SubType>Designer</SubType>
     </Content>
-    <Content Include="Web.Release.PrgDataTest.config" />
+    <Content Include="Web.Release.PrgData.config" />
+    <Content Include="Web.Release.PrgDataEx.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Common.Model.MYSql\Common.MySql\Common.MySql.csproj">

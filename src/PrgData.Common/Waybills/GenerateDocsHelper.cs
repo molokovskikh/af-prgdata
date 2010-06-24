@@ -34,7 +34,6 @@ namespace PrgData.Common.Orders
 			headerCommand.Parameters.Add("?PriceCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?FirmCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?ClientCode", MySqlDbType.UInt64);
-			headerCommand.Parameters.Add("?AddressId", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?OrderId", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?DocumentType", MySqlDbType.Int32);
 			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
@@ -46,35 +45,32 @@ namespace PrgData.Common.Orders
 				headerCommand.Parameters["?PriceCode"].Value = item.PriceCode;
 				var firmCode = Convert.ToUInt64(headerCommand.ExecuteScalar());
 
-				headerCommand.CommandText = "select cd.ShortName from usersettings.pricesdata pd, usersettings.clientsdata cd where pd.PriceCode = ?PriceCode and cd.FirmCode = pd.FirmCode";
-				var shortFirmName = Convert.ToString(headerCommand.ExecuteScalar());
-
 				//Кол-во генерируемых документов относительно данного заказа
 				var documentCount = random.Next(3) + 1;
 
 				if (documentCount >= 1)
-					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Waybills, shortFirmName);
+					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Waybills);
 
 				if (documentCount >= 2)
-					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Rejects, shortFirmName);
+					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Rejects);
 
 				if (documentCount >= 3)
-					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Docs, shortFirmName);
+					GenerateDoc(firmCode, headerCommand, updateData, item, DocumentType.Docs);
 			});
 		}
 
-		private static void GenerateDoc(ulong firmCode, MySqlCommand headerCommand, UpdateData updateData, ClientOrderHeader order, DocumentType documentType, string shortFirmName)
+		private static void GenerateDoc(ulong firmCode, MySqlCommand headerCommand, UpdateData updateData, ClientOrderHeader order, DocumentType documentType)
 		{
 			headerCommand.CommandText = @"
 insert into logs.document_logs 
-  (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
+  (FirmCode, ClientCode, DocumentType, FileName) 
 values 
-  (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
+  (?FirmCode, ?ClientCode, ?DocumentType, ?FileName);
 set @LastDownloadId = last_insert_id();
 insert into documents.DocumentHeaders 
-  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, ProviderDocumentId, DocumentDate, AddressId)
+  (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, ProviderDocumentId, DocumentDate)
 values
-  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate(), ?AddressId);
+  (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate());
 set @LastDocumentId = last_insert_id();
 ";
 
@@ -83,14 +79,6 @@ set @LastDocumentId = last_insert_id();
 			headerCommand.Parameters["?OrderId"].Value = order.ServerOrderId;
 			headerCommand.Parameters["?DocumentType"].Value = (int)documentType;
 			headerCommand.Parameters["?FileName"].Value = fileNames[(int)documentType] + ".txt";
-			object addressId = 0;
-			if (updateData.IsFutureClient)
-			{
-				headerCommand.Parameters["?AddressId"].Value = MySqlHelper.ExecuteScalar(headerCommand.Connection, "select AddressId from orders.OrdersHead where RowId = " + order.ServerOrderId);
-				addressId = headerCommand.Parameters["?AddressId"].Value;
-			}
-			else
-				headerCommand.Parameters["?AddressId"].Value = null;
 			headerCommand.ExecuteNonQuery();
 
 			headerCommand.CommandText = "select @LastDownloadId";
@@ -105,14 +93,8 @@ set @LastDocumentId = last_insert_id();
 			var createdFileName = 
 				ConfigurationManager.AppSettings["DocumentsPath"] 
 				+ updateData.ClientId.ToString().PadLeft(3, '0') 
-				+ "\\" + documentType.ToString() + "\\"
-				+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
-			if (updateData.IsFutureClient)
-				createdFileName =
-					ConfigurationManager.AppSettings["DocumentsPath"]
-					+ addressId.ToString()
-					+ "\\" + documentType.ToString() + "\\"
-					+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
+				+ "\\" + documentType.ToString() + "\\" 
+				+ lastDownloadId + "_" + fileNames[(int)documentType] + ".txt";
 			using (var stream = new StreamWriter(createdFileName, false, Encoding.GetEncoding(1251)))
 			{
 				stream.WriteLine("Это {0} №{1}", russianNames[(int)documentType], lastDocumentId);
@@ -275,7 +257,6 @@ select last_insert_id()
 
 		private static bool ProcessWaybills(List<uint> ids)
 		{
-#if !DEBUG
 			var binding = new NetTcpBinding();
 			binding.Security.Mode = SecurityMode.None;
 
@@ -294,9 +275,6 @@ select last_insert_id()
 					communicationObject.Abort();
 				throw;
 			}
-#else
-			return true;
-#endif
 		}
 
 		private static string GetCuttedFileName(string fileName)
@@ -326,8 +304,8 @@ select last_insert_id()
 			headerCommand.Parameters.Add("?SendUpdateId", MySqlDbType.UInt64);
 
 			headerCommand.CommandText = @"
-insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId, Ready) 
-values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId, ?SendUpdateId, 1);
+insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId) 
+values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId, ?SendUpdateId);
 
 set @LastDownloadId = last_insert_id();
 ";
@@ -339,10 +317,6 @@ set @LastDownloadId = last_insert_id();
 			{
 				headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
 				headerCommand.Parameters["?AddressId"].Value = addressId;
-				headerCommand.Parameters.AddWithValue("?UserId", updateData.UserId);
-				headerCommand.CommandText += @"
-insert into logs.DocumentSendLogs(UserId, DocumentId)
-values (?UserId, @LastDownloadId);";
 			}
 			else
 				headerCommand.Parameters["?ClientCode"].Value = addressId;

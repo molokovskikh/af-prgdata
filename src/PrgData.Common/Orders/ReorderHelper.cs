@@ -86,11 +86,6 @@ namespace PrgData.Common.Orders
 						//сохраняем сами заявки в базу
 						SaveOrders();
 
-#if DEBUG
-						if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
-							GenerateDocsHelper.GenerateDocs(_readWriteConnection, _data, _orders.FindAll(item => item.SendResult == OrderSendResult.Success));
-#endif
-
 						transaction.Commit();
 					}
 					catch
@@ -680,42 +675,7 @@ AND    RCS.clientcode          = ?ClientCode"
 					continue;
 
 				var existsOrders = new DataTable();
-				MySqlDataAdapter dataAdapter;
-
-				if (_data.IsFutureClient)
-				{
-					dataAdapter = new MySqlDataAdapter(@"
-select ol.*
-from
-  (
-SELECT oh.RowId as OrderId
-FROM   orders.ordershead oh
-WHERE  clientorderid = ?ClientOrderID
-AND    writetime    >ifnull(
-       (SELECT MAX(requesttime)
-       FROM    logs.AnalitFUpdates px
-       WHERE   updatetype =2
-       AND     px.UserId  = ?UserId
-       )
-       , now() - interval 2 week)
-AND    clientcode = ?ClientCode
-AND    UserId = ?UserId
-AND    AddressId = ?AddressId
-order by oh.RowId desc
-limit 1
-  ) DuplicateOrderId,
-  orders.orderslist ol
-where
-  ol.OrderId = DuplicateOrderId.OrderId
-", _connection);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _data.ClientId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?AddressId", _orderedClientCode);
-				}
-				else
-				{
-					dataAdapter = new MySqlDataAdapter(@"
+				var dataAdapter = new MySqlDataAdapter(@"
 select ol.*
 from
   (
@@ -737,10 +697,9 @@ limit 1
 where
   ol.OrderId = DuplicateOrderId.OrderId
 ", _connection);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
-				}
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);				
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
 
 				dataAdapter.Fill(existsOrders);
 
