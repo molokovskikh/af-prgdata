@@ -13,6 +13,7 @@ using Inforoom.Common;
 using Castle.Windsor;
 using Castle.MicroKernel.Registration;
 using Common.Models.Repositories;
+using NHibernate;
 using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
@@ -66,13 +67,18 @@ namespace PrgData.Common
 			if (_smartOrderRule == null)
 				throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста обратитесь в АК \"Инфорум\".", RequestType.Forbidden);
 
-			if (_updateData.IsFutureClient)
+			using(var unitOfWork = new UnitOfWork())
 			{
-				Orderable = IoC.Resolve<IRepository<User>>().Get(_updateData.UserId);
-				Address = new Address() { Id = orderedClientCode };
+				if (_updateData.IsFutureClient)
+				{
+					Orderable = IoC.Resolve<IRepository<User>>().Get(_updateData.UserId);
+					NHibernateUtil.Initialize(((User)Orderable).AvaliableAddresses);
+					Address = IoC.Resolve<IRepository<Address>>().Get(orderedClientCode);
+					NHibernateUtil.Initialize(Address.Users);
+				}
+				else
+					Orderable = IoC.Resolve<IRepository<Client>>().Get(orderedClientCode);
 			}
-			else
-				Orderable = IoC.Resolve<IRepository<Client>>().Get(orderedClientCode);
 
 			_tmpBatchFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName());
 			_tmpBatchArchive = _tmpBatchFolder + @"\batch.7z";
