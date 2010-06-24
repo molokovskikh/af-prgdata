@@ -625,7 +625,7 @@ AND    RCS.clientcode          = ?ClientCode"
 		void CheckArrayCount(int expectedCount, int count, string arrayName)
 		{
 			if (count != expectedCount)
-				throw new OrderException(
+				throw new NotEnoughElementsException(
 					String.Format(
 						"В массиве {0} недостаточное кол-во элементов: текущее значение: {1}, необходимое значение: {2}.",
 						arrayName,

@@ -8,4 +8,12 @@ namespace PrgData.Common.Orders
 			base(message)
 		{ }
 	}
+
+	public class NotEnoughElementsException : OrderException
+	{
+		public NotEnoughElementsException(string message) : base(message)
+		{
+		}
+	}
+
 }

@@ -1952,11 +1952,14 @@ RestartInsertTrans:
 
 			Return helper.PostSomeOrders()
 		Catch ex As UpdateException
-			Return ex.GetAnalitFMessage()
-		Catch ex As Exception
-			'Log.Error("Ошибка при отправке заказа", ex)
-			LogRequestHelper.MailWithRequest("Ошибка при отправке заказа" & vbCrLf & ex.ToString())
-			Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return ex.GetAnalitFMessage()
+        Catch ex As NotEnoughElementsException
+            Log.Warn("Ошибка при отправке заказа", ex)
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+        Catch ex As Exception
+            'Log.Error("Ошибка при отправке заказа", ex)
+            LogRequestHelper.MailWithRequest("Ошибка при отправке заказа" & vbCrLf & ex.ToString())
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
 		Finally
 			ReleaseLock(UserId, "PostOrder")
 			DBDisconnect()
