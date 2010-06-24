@@ -252,16 +252,18 @@ GROUP BY u.Id, supplier.FirmCode;
 			if (_updateData.IsFutureClient)
 			{
 				return @"
-SELECT r.regioncode,
-r.region
+SELECT 
+  r.regioncode,
+  left(r.region, 25) as region
 FROM future.Clients c
 	join farm.regions r on r.RegionCode & c.maskregion > 0
 where c.Id = ?ClientCode
 ";
 			}
 			var command = @"
-SELECT regions.regioncode,
-region
+SELECT 
+  regions.regioncode,
+  left(regions.region, 25) as region
 FROM farm.regions, clientsdata
 WHERE firmcode = ifnull(?OffersClientCode, ?ClientCode)
 AND (regions.regioncode & maskregion > 0)";
@@ -271,7 +273,7 @@ AND (regions.regioncode & maskregion > 0)";
 				command += @"
 UNION 
 SELECT regions.regioncode,
-       region
+       left(regions.region, 25) as region
 FROM   farm.regions,
        clientsdata
 WHERE firmcode = ?ClientCode
@@ -280,7 +282,7 @@ AND regions.regioncode= clientsdata.regioncode
 UNION
 
 SELECT DISTINCT regions.regioncode,
-                region
+                left(regions.region, 25) as region
 FROM            farm.regions,
                 includeregulation,
                 clientsdata 
@@ -292,7 +294,7 @@ WHERE includeclientcode = ?ClientCode
 UNION
 
 SELECT regions.regioncode,
-       region
+       left(regions.region, 25) as region
 FROM   farm.regions,
        clientsdata ,
        includeregulation 
@@ -845,7 +847,7 @@ WHERE RowId =" + _updateData.UserId;
 			{
 				return String.Format(@"
 SELECT a.Id as FirmCode,
-     a.Address as ShortName,
+     right(a.Address, 50) as ShortName,
      ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
      rcs.OverCostPercent,
      rcs.DifferenceCalculation,
@@ -918,7 +920,7 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 				return @"
 SELECT 
      c.Id as ClientId,
-     c.Name,
+     left(c.Name, 50) as Name,
      regions.CalculateOnProducerCost,
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
