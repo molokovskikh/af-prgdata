@@ -1,39 +1,134 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using Castle.ActiveRecord;
+using Common.Models;
+using Common.Models.Repositories;
+using Common.Models.Tests.Repositories;
+using Common.Tools;
+using MySql.Data.MySqlClient;
+using NHibernate;
 using NUnit.Framework;
 using PrgData.Common;
+using Test.Support;
 
 namespace Integration
 {
 	[TestFixture]
 	public class GetUpdateDataFixture
 	{
-		[Test]
-		public void Get_update_data_for_old_client()
+
+		TestClient _client;
+		TestUser _user;
+		TestUser _userWithoutAF;
+
+		TestOldClient _oldClient;
+		TestOldClient _oldClientWithoutAF;
+
+		[TestFixtureSetUp]
+		public void FixtureSetUp()
 		{
-			using(var connection = new MySqlConnection("Database=usersettings;Data Source=testsql.analit.net;Port=3306;User Id=system;Password=newpass;pooling=true;default command timeout=0;Allow user variables=true"))
+			Test.Support.Setup.Initialize();
+			ContainerInitializer.InitializerContainerForTests();
+
+			using (var transaction = new TransactionScope())
 			{
-				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
+				_client = TestClient.CreateSimple();
+				_user = _client.Users[0];
+
+				var permission = TestUserPermission.ByShortcut("AF");
+				_client.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				_user.Update();
+
+				_userWithoutAF = _client.CreateUser();
+
+				_oldClient = TestOldClient.CreateTestClient();
+				_oldClientWithoutAF = TestOldClient.CreateTestClient();
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof (ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+						.SetParameter("permissionid", permission.Id)
+						.SetParameter("userid", _oldClient.Users[0].Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+			}
+		}
+	
+		[Test]
+		public void Get_update_data_for_enabled_old_client()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
 				Assert.That(updateData, Is.Not.Null);
-				Assert.That(updateData.UserId, Is.EqualTo(1289u));
-				Assert.That(updateData.ClientId, Is.EqualTo(1349u));
+				Assert.That(updateData.UserId, Is.EqualTo(_oldClient.Users[0].Id));
+				Assert.That(updateData.ClientId, Is.EqualTo(_oldClient.Id));
 				Assert.That(updateData.ShortName, Is.Not.Null);
 				Assert.That(updateData.ShortName, Is.Not.Empty);
-				Assert.That(updateData.ShortName, Is.EqualTo("ТестерСВоронеж"));
+				Assert.That(updateData.ShortName, Is.EqualTo(_oldClient.ShortName));
+				Assert.IsFalse(updateData.Disabled(), "Пользотель отключен");
 			}
 		}
 
 		[Test]
-		public void Get_update_data_for_future_client()
+		public void Get_update_data_for_disabled_old_client()
 		{
-			using(var connection = new MySqlConnection("Database=usersettings;Data Source=testsql.analit.net;Port=3306;User Id=system;Password=newpass;pooling=true;default command timeout=0;Allow user variables=true"))
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
-				var updateData = UpdateHelper.GetUpdateData(connection, "10081");
+				var updateData = UpdateHelper.GetUpdateData(connection, _oldClientWithoutAF.Users[0].OSUserName);
 				Assert.That(updateData, Is.Not.Null);
-				Assert.That(updateData.UserId, Is.EqualTo(10081u));
-				Assert.That(updateData.ClientId, Is.EqualTo(10005u));
+				Assert.That(updateData.UserId, Is.EqualTo(_oldClientWithoutAF.Users[0].Id));
+				Assert.That(updateData.ClientId, Is.EqualTo(_oldClientWithoutAF.Id));
 				Assert.That(updateData.ShortName, Is.Not.Null);
 				Assert.That(updateData.ShortName, Is.Not.Empty);
-				Assert.That(updateData.ShortName, Is.EqualTo("ТестерСВоронеж Future"));
+				Assert.That(updateData.ShortName, Is.EqualTo(_oldClientWithoutAF.ShortName));
+				Assert.IsTrue(updateData.Disabled(), "Пользотель включен");
+			}
+		}
+
+		[Test]
+		public void Get_update_data_for_enabled_future_client()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				Assert.That(updateData.UserId, Is.EqualTo(_user.Id));
+				Assert.That(updateData.ClientId, Is.EqualTo(_client.Id));
+				Assert.That(updateData.ShortName, Is.Not.Null);
+				Assert.That(updateData.ShortName, Is.Not.Empty);
+				Assert.That(updateData.ShortName, Is.EqualTo(_client.Name));
+				Assert.IsFalse(updateData.Disabled(), "Пользотель отключен");
+			}
+		}
+
+		[Test]
+		public void Get_update_data_for_disabled_future_client()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, _userWithoutAF.Login);
+				Assert.That(updateData, Is.Not.Null);
+				Assert.That(updateData.UserId, Is.EqualTo(_userWithoutAF.Id));
+				Assert.That(updateData.ClientId, Is.EqualTo(_client.Id));
+				Assert.That(updateData.ShortName, Is.Not.Null);
+				Assert.That(updateData.ShortName, Is.Not.Empty);
+				Assert.That(updateData.ShortName, Is.EqualTo(_client.Name));
+				Assert.IsTrue(updateData.Disabled(), "Пользотель включен");
 			}
 		}
 	}

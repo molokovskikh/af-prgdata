@@ -645,7 +645,7 @@ endproc:
             If UpdateData IsNot Nothing Then
                 ProtocolUpdatesThread.Start()
             Else
-                Log.Error(updateException)
+                Log.Warn(updateException)
             End If
             Return updateException.GetAnalitFMessage()
         Catch ex As Exception

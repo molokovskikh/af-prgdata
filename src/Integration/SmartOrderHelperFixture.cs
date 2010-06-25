@@ -41,8 +41,6 @@ namespace Integration
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
-				user.AvaliableAddresses = new List<TestAddress>();
-				user.AvaliableAddresses.Add(address);
 				user.Update();
 			}
 		}

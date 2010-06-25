@@ -49,18 +49,14 @@ namespace PrgData.Common
 			if (!(row["UncommitedUpdateDate"] is DBNull))
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
 			if (data.Tables[0].Columns.Contains("Future"))
-			{
 				IsFutureClient = true;
-				UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
-			}
-			else
-				UserEnabled = true;
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
 			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
 			_updateToTestBuild = Convert.ToBoolean(row["UpdateToTestBuild"]);
 			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
+			UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
 		}
 
 		public bool Disabled()
@@ -346,32 +342,32 @@ WHERE  primaryclientcode = ?ClientCode
 				userName = userName.ToLower().Replace(@"analit\", "");
 
 			var dataAdapter = new MySqlDataAdapter(@"
-SELECT  c.Id ClientId,
+SELECT  
+    c.Id ClientId,
 	u.Id UserId,
 	rui.UpdateDate,
 	rui.UncommitedUpdateDate,
 	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
-	CheckCopyId,
+	retclientsset.CheckCopyId,
 	'' Future,
     c.Name as ShortName,
     retclientsset.Spy, 
     retclientsset.SpyAccount,
     u.EnableUpdate,
     c.Status as ClientEnabled,
-    u.Enabled as UserEnabled,
+    (u.Enabled and ap.UserId is not null) as UserEnabled,
 	0 as UpdateToTestBuild
-FROM (future.Clients c,
-        retclientsset,
-        UserUpdateInfo rui,
-        UserPermissions up,
-        AssignedPermissions ap)
-  join future.users u on c.Id = u.ClientId
-WHERE u.Id = ap.UserId
-    AND up.Id = ap.PermissionId 
-    AND up.Shortcut = 'AF' 
-    AND retclientsset.clientcode = c.Id 
-    AND rui.UserId = u.Id 
-    AND u.Login = ?user", connection);
+FROM  
+  future.users u
+  join future.Clients c                         on c.Id = u.ClientId
+  join usersettings.retclientsset               on retclientsset.clientcode = c.Id
+  join usersettings.UserUpdateInfo rui          on rui.UserId = u.Id 
+  join usersettings.UserPermissions up          on up.Shortcut = 'AF'
+  left join usersettings.AssignedPermissions ap on ap.UserId = u.Id and ap.PermissionId = up.Id
+WHERE 
+   u.Login = ?user"
+				, 
+				connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?user", userName);
 
 			var data = new DataSet();
@@ -388,28 +384,25 @@ SELECT  ouar.clientcode as ClientId,
         rui.UpdateDate,
         rui.UncommitedUpdateDate,
         IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
-        CheckCopyID,
+        retclientsset.CheckCopyID,
         clientsdata.ShortName,
         retclientsset.Spy, 
         retclientsset.SpyAccount,
         retclientsset.EnableUpdate,
 		retclientsset.UpdateToTestBuild,
-        clientsdata.firmstatus as ClientEnabled
-FROM    clientsdata,
-        retclientsset,
-        UserUpdateInfo rui,
-        UserPermissions up,
-        AssignedPermissions ap,
-        osuseraccessright ouar
-	LEFT JOIN IncludeRegulation ir ON IncludeClientCode=ouar.ClientCode
-WHERE   ouar.clientcode          =clientsdata.firmcode 
-    AND ouar.rowid               = ap.userid 
-    AND up.id                    = ap.permissionid 
-    AND up.Shortcut              = 'AF' 
-    AND IF(ir.id                IS NULL, 1, ir.IncludeType IN (1,2,3)) 
-    AND retclientsset.clientcode =ouar.clientcode 
-    AND rui.UserId               =ouar.RowId 
-    AND OSUserName = ?user";
+        clientsdata.firmstatus as ClientEnabled,
+        (ap.UserId is not null and IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3))) as UserEnabled
+FROM    
+  usersettings.osuseraccessright ouar
+  join usersettings.clientsdata                 on clientsdata.firmcode = ouar.clientcode
+  join usersettings.retclientsset               on retclientsset.clientcode = ouar.clientcode 
+  join usersettings.UserUpdateInfo rui          on rui.UserId = ouar.RowId
+  join usersettings.UserPermissions up          on up.Shortcut = 'AF'
+  left join usersettings.AssignedPermissions ap on ap.UserId = ouar.rowid and ap.PermissionId = up.Id
+  left join usersettings.IncludeRegulation ir   on ir.IncludeClientCode = ouar.ClientCode
+WHERE   
+    ouar.OSUserName = ?user
+";
 				data = new DataSet();
 				dataAdapter.Fill(data);
 				if (data.Tables[0].Rows.Count > 0)
