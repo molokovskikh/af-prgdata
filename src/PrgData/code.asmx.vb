@@ -4202,7 +4202,7 @@ RestartTrans2:
         Else
             If FileCount > 0 Then
 
-                GetReclame = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileReclameHandler.ashx;New=" & True
+                GetReclame = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileReclameHandler.ashx;New=" & True
 
             Else
                 GetReclame = ""

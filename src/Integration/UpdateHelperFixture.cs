@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using Castle.ActiveRecord;
+using Common.Models.Tests.Repositories;
+using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
+using Test.Support;
 
 
 namespace Integration
@@ -11,6 +15,51 @@ namespace Integration
 	[TestFixture]
 	public class UpdateHelperFixture
 	{
+		TestClient _client;
+		TestUser _user;
+
+		TestOldClient _oldClient;
+
+		[TestFixtureSetUp]
+		public void FixtureSetUp()
+		{
+			Test.Support.Setup.Initialize();
+			ContainerInitializer.InitializerContainerForTests();
+
+			using (var transaction = new TransactionScope())
+			{
+				_client = TestClient.CreateSimple();
+				_user = _client.Users[0];
+
+				var permission = TestUserPermission.ByShortcut("AF");
+				_client.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				_user.Update();
+
+
+				_oldClient = TestOldClient.CreateTestClient();
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+						.SetParameter("permissionid", permission.Id)
+						.SetParameter("userid", _oldClient.Users[0].Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+			}
+		}
+
 		private MySqlDataAdapter CreateAdapter(MySqlConnection connection, string sqlCommand, UpdateData updateData)
 		{
 			var dataAdapter = new MySqlDataAdapter(sqlCommand, connection);
@@ -78,7 +127,7 @@ namespace Integration
 		{
 			using(var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
-				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
+				var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
 				var helper = new UpdateHelper(updateData, connection, connection);
 				CheckFields(updateData, helper, connection);
 			}
@@ -89,12 +138,11 @@ namespace Integration
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
-				var updateData = UpdateHelper.GetUpdateData(connection, "10081");
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection, connection);
 				CheckFields(updateData, helper, connection);
 			}
 		}
-
 
 	}
 }

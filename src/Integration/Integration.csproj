@@ -80,6 +80,7 @@
   <ItemGroup>
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />
+    <Compile Include="GetReclameFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
