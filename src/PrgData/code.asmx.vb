@@ -643,9 +643,10 @@ endproc:
             Addition += updateException.Addition
             ErrorFlag = True
             If UpdateData IsNot Nothing Then
+                Log.Warn(updateException)
                 ProtocolUpdatesThread.Start()
             Else
-                Log.Warn(updateException)
+                Log.Error(updateException)
             End If
             Return updateException.GetAnalitFMessage()
         Catch ex As Exception
