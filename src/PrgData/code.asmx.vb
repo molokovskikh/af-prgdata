@@ -150,7 +150,7 @@ Public Class PrgDataEx
 
 			Return "Res=OK"
 		Catch ex As Exception
-			Log.Error("Ошибка при отправке письма", ex)
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке письма", ex)
 			Return "Error=Не удалось отправить письмо. Попробуйте позднее."
 		End Try
 	End Function
@@ -209,8 +209,8 @@ Public Class PrgDataEx
 			End Using
 
 		Catch ex As Exception
-			Log.Error("Ошибка при загрузке накладных", ex)
-			Return "Status=1"
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при загрузке накладных", ex)
+            Return "Status=1"
 		End Try
 	End Function
 
@@ -643,21 +643,26 @@ endproc:
             Addition += updateException.Addition
             ErrorFlag = True
             If UpdateData IsNot Nothing Then
+                Log.Warn(updateException)
                 ProtocolUpdatesThread.Start()
             Else
-                Log.Warn(updateException)
+                Log.Error(updateException)
             End If
             Return updateException.GetAnalitFMessage()
         Catch ex As Exception
-            Log.Error("Параметры " & _
-             String.Format("AccessTime = {0}, ", AccessTime) & _
-             String.Format("GetEtalonData = {0}, ", GetEtalonData) & _
-             String.Format("EXEVersion = {0}, ", EXEVersion) & _
-             String.Format("MDBVersion = {0}, ", MDBVersion) & _
-             String.Format("UniqueID = {0}, ", UniqueID) & _
-             String.Format("WINVersion = {0}, ", WINVersion) & _
-             String.Format("WINDesc = {0}, ", WINDesc) & _
-             String.Format("WayBillsOnly = {0}", WayBillsOnly), ex)
+            If LogRequestHelper.NeedLogged() Then
+                LogRequestHelper.MailWithRequest(Log, "Ошибка при подготовке данных", ex)
+            Else
+                Log.Error("Параметры " & _
+                 String.Format("AccessTime = {0}, ", AccessTime) & _
+                 String.Format("GetEtalonData = {0}, ", GetEtalonData) & _
+                 String.Format("EXEVersion = {0}, ", EXEVersion) & _
+                 String.Format("MDBVersion = {0}, ", MDBVersion) & _
+                 String.Format("UniqueID = {0}, ", UniqueID) & _
+                 String.Format("WINVersion = {0}, ", WINVersion) & _
+                 String.Format("WINDesc = {0}, ", WINDesc) & _
+                 String.Format("WayBillsOnly = {0}", WayBillsOnly), ex)
+            End If
             InternalGetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
             If (Not ProcessBatch) Then
@@ -1279,8 +1284,8 @@ StartZipping:
 				End Try
 			ProtocolUpdatesThread.Start()
 		Catch e As Exception
-			Me.Log.Error(String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
-			Return Now().ToUniversalTime
+            LogRequestHelper.MailWithRequest(Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
+            Return Now().ToUniversalTime
 		Finally
 			ReleaseLock(UserId, "MaxSynonymCode")
 			DBDisconnect()
@@ -1351,8 +1356,8 @@ StartZipping:
 			End Try
 			ProtocolUpdatesThread.Start()
 		Catch e As Exception
-			Me.Log.Error("Ошибка при подтверждении обновления", e)
-			CommitExchange = Now().ToUniversalTime
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении обновления", e)
+            CommitExchange = Now().ToUniversalTime
 		Finally
 			DBDisconnect()
 			ReleaseLock(UserId, "CommitExchange")
@@ -1380,8 +1385,8 @@ StartZipping:
 			End Try
 			SendClientLog = "OK"
 		Catch e As Exception
-			Me.Log.Error("Ошибка при сохранении лога клиента", e)
-			SendClientLog = "Error"
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при сохранении лога клиента", e)
+            SendClientLog = "Error"
 		Finally
 			DBDisconnect()
 			ReleaseLock(UserId, "SendClientLog")
@@ -1716,8 +1721,8 @@ RestartInsertTrans:
 		Catch ex As UpdateException
 			Return ex.GetAnalitFMessage()
 		Catch ex As Exception
-			Log.Error("Ошибка при отправке заказа", ex)
-			Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказа", ex)
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
 		Finally
 			ReleaseLock(UserId, "PostOrder")
 			DBDisconnect()
@@ -1940,8 +1945,7 @@ RestartInsertTrans:
             Log.Warn("Ошибка при отправке заказа", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
         Catch ex As Exception
-            'Log.Error("Ошибка при отправке заказа", ex)
-            LogRequestHelper.MailWithRequest("Ошибка при отправке заказа" & vbCrLf & ex.ToString())
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
 		Finally
 			ReleaseLock(UserId, "PostOrder")
@@ -1999,8 +2003,7 @@ RestartInsertTrans:
             ProtocolUpdatesThread.Start()
             Return ex.GetAnalitFMessage()
         Catch ex As Exception
-            'Log.Error("Ошибка при отправке заказа", ex)
-            LogRequestHelper.MailWithRequest("Ошибка при отправке дефектуры" & vbCrLf & ex.ToString())
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке дефектуры", ex)
             Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
         Finally
             ReleaseLock(UserId, "PostOrderBatch")
@@ -3969,7 +3972,7 @@ RestartTrans2:
 
             command.ExecuteNonQuery()
         Catch ex As Exception
-            Log.Error("Ошибка в SendUData", ex)
+            LogRequestHelper.MailWithRequest(Log, "Ошибка в SendUData", ex)
         Finally
             DBDisconnect()
         End Try
@@ -4013,7 +4016,7 @@ RestartTrans2:
                 ErrorFlag = True
             End If
         Catch ex As Exception
-            Me.Log.Error("Ошибка при получении паролей", ex)
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при получении паролей", ex)
             Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста повторите попытку через несколько минут."
         Finally
             DBDisconnect()
@@ -4113,7 +4116,7 @@ RestartTrans2:
             End If
 
         Catch ex As Exception
-            Log.Error("Ошибка при применении обновлений настроек прайс-листов", ex)
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при применении обновлений настроек прайс-листов", ex)
             ErrorFlag = True
         Finally
             DBDisconnect()
@@ -4129,6 +4132,8 @@ RestartTrans2:
         Dim MaxReclameFileDate As Date
         Dim NewZip As Boolean = True
 
+        If Log.IsDebugEnabled Then Log.Debug("Вызвали GetReclame")
+
         Dim FileCount = 0
         Try
             DBConnect()
@@ -4140,13 +4145,16 @@ RestartTrans2:
 
             If Not reclameData.ShowAdvertising Then
                 GetReclame = ""
+                If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (Not reclameData.ShowAdvertising)")
                 Exit Function
             End If
 
             MaxReclameFileDate = reclameData.ReclameDate
+            If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
 
             Reclame = True
             ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
+            If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)
 
             MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
 
@@ -4156,12 +4164,14 @@ RestartTrans2:
             If Not Directory.Exists(ReclamePath) Then Directory.CreateDirectory(ReclamePath)
 
             FileList = Directory.GetFiles(ReclamePath)
+            If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
             For Each FileName In FileList
 
                 FileInfo = New FileInfo(FileName)
 
                 If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
+                    If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
                     FileCount += 1
 
                     SyncLock (FilesForArchive)
@@ -4178,19 +4188,24 @@ RestartTrans2:
 
             If MaxReclameFileDate > Now() Then MaxReclameFileDate = Now()
 
+            If Log.IsDebugEnabled Then Log.DebugFormat("После обработки файлов MaxReclameFileDate {0}", MaxReclameFileDate)
+
             If FileCount > 0 Then
 
                 AddEndOfFiles()
 
                 ZipStream()
 
+                If Log.IsDebugEnabled Then Log.Debug("Успешно завершили архивирование")
+
                 FileInfo = New FileInfo(ResultFileName & "r" & UserId & ".zip")
                 FileInfo.CreationTime = MaxReclameFileDate
 
+                If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
             End If
 
         Catch ex As Exception
-            Log.Error("Ошибка при загрузке рекламы", ex)
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при загрузке рекламы", ex)
             ErrorFlag = True
             Return ""
         Finally
@@ -4199,20 +4214,23 @@ RestartTrans2:
 
         If ErrorFlag Then
             GetReclame = ""
+            If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (ErrorFlag)")
         Else
             If FileCount > 0 Then
 
-                GetReclame = "URL=" & Context.Request.Url.Scheme & Uri.SchemeDelimiter & Context.Request.Url.Authority & Context.Request.ApplicationPath & "/GetFileReclameHandler.ashx;New=" & True
+                GetReclame = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileReclameHandler.ashx;New=" & True
+                If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (URL)")
 
             Else
                 GetReclame = ""
+                If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (FileCount <= 0)")
             End If
         End If
-
     End Function
 
     <WebMethod()> Public Function ReclameComplete() As Boolean
         Dim transaction As MySqlTransaction
+        If Log.IsDebugEnabled Then Log.Debug("Вызвали ReclameComplete")
         Try
             DBConnect()
             GetClientCode()
@@ -4221,6 +4239,8 @@ RestartTrans2:
 
             If FileInfo.Exists Then
 
+                If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
+
                 transaction = ReadWriteCn.BeginTransaction(IsoLevel)
                 Cm.CommandText = "update UserUpdateInfo set ReclameDate=?ReclameDate where UserId=" & UserId
                 Cm.Parameters.AddWithValue("?ReclameDate", FileInfo.CreationTime)
@@ -4228,14 +4248,18 @@ RestartTrans2:
                 Cm.ExecuteNonQuery()
                 transaction.Commit()
 
+                If Log.IsDebugEnabled Then Log.Debug("Дата рекламы успешно установлена")
+            Else
+                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с рекламой не существует {0}", ResultFileName & "r" & UserId & ".zip")
             End If
 
             Reclame = True
             MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
             ReclameComplete = True
+            If Log.IsDebugEnabled Then Log.Debug("Успешно завершили ReclameComplete")
         Catch ex As Exception
             ConnectionHelper.SafeRollback(transaction)
-            Me.Log.Error("Подтверждение рекламы", ex)
+            LogRequestHelper.MailWithRequest(Log, "Подтверждение рекламы", ex)
             ReclameComplete = False
         Finally
             DBDisconnect()
