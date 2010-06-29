@@ -4132,6 +4132,8 @@ RestartTrans2:
         Dim MaxReclameFileDate As Date
         Dim NewZip As Boolean = True
 
+        If Log.IsDebugEnabled Then Log.Debug("Вызвали GetReclame")
+
         Dim FileCount = 0
         Try
             DBConnect()
@@ -4143,13 +4145,16 @@ RestartTrans2:
 
             If Not reclameData.ShowAdvertising Then
                 GetReclame = ""
+                If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (Not reclameData.ShowAdvertising)")
                 Exit Function
             End If
 
             MaxReclameFileDate = reclameData.ReclameDate
+            If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
 
             Reclame = True
             ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
+            If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)
 
             MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
 
@@ -4159,12 +4164,14 @@ RestartTrans2:
             If Not Directory.Exists(ReclamePath) Then Directory.CreateDirectory(ReclamePath)
 
             FileList = Directory.GetFiles(ReclamePath)
+            If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
             For Each FileName In FileList
 
                 FileInfo = New FileInfo(FileName)
 
                 If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
+                    If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
                     FileCount += 1
 
                     SyncLock (FilesForArchive)
@@ -4181,15 +4188,20 @@ RestartTrans2:
 
             If MaxReclameFileDate > Now() Then MaxReclameFileDate = Now()
 
+            If Log.IsDebugEnabled Then Log.DebugFormat("После обработки файлов MaxReclameFileDate {0}", MaxReclameFileDate)
+
             If FileCount > 0 Then
 
                 AddEndOfFiles()
 
                 ZipStream()
 
+                If Log.IsDebugEnabled Then Log.Debug("Успешно завершили архивирование")
+
                 FileInfo = New FileInfo(ResultFileName & "r" & UserId & ".zip")
                 FileInfo.CreationTime = MaxReclameFileDate
 
+                If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
             End If
 
         Catch ex As Exception
@@ -4202,20 +4214,23 @@ RestartTrans2:
 
         If ErrorFlag Then
             GetReclame = ""
+            If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (ErrorFlag)")
         Else
             If FileCount > 0 Then
 
                 GetReclame = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileReclameHandler.ashx;New=" & True
+                If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (URL)")
 
             Else
                 GetReclame = ""
+                If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (FileCount <= 0)")
             End If
         End If
-
     End Function
 
     <WebMethod()> Public Function ReclameComplete() As Boolean
         Dim transaction As MySqlTransaction
+        If Log.IsDebugEnabled Then Log.Debug("Вызвали ReclameComplete")
         Try
             DBConnect()
             GetClientCode()
@@ -4224,6 +4239,8 @@ RestartTrans2:
 
             If FileInfo.Exists Then
 
+                If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
+
                 transaction = ReadWriteCn.BeginTransaction(IsoLevel)
                 Cm.CommandText = "update UserUpdateInfo set ReclameDate=?ReclameDate where UserId=" & UserId
                 Cm.Parameters.AddWithValue("?ReclameDate", FileInfo.CreationTime)
@@ -4231,11 +4248,15 @@ RestartTrans2:
                 Cm.ExecuteNonQuery()
                 transaction.Commit()
 
+                If Log.IsDebugEnabled Then Log.Debug("Дата рекламы успешно установлена")
+            Else
+                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с рекламой не существует {0}", ResultFileName & "r" & UserId & ".zip")
             End If
 
             Reclame = True
             MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
             ReclameComplete = True
+            If Log.IsDebugEnabled Then Log.Debug("Успешно завершили ReclameComplete")
         Catch ex As Exception
             ConnectionHelper.SafeRollback(transaction)
             LogRequestHelper.MailWithRequest(Log, "Подтверждение рекламы", ex)
