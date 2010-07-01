@@ -176,6 +176,72 @@ namespace Integration
 			ShouldNotBeDocuments();
 		}
 
+		[Test]
+		public void Check_empty_UIN_on_send()
+		{
+
+			var response = SendWaybillEx(null);
+			Assert.That(response, Is.StringStarting("Status=0"));
+			Console.WriteLine(response);
+
+			using (new SessionScope())
+			{
+				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == client.Users[0].Id).Max(l => l.Id);
+				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				Assert.That(log.Commit, Is.True);
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
+				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
+				Assert.IsNullOrEmpty(info.AFCopyId, "AFCopyId не корректен");
+			}
+		}
+
+		[Test]
+		public void Check_UIN_on_send()
+		{
+			var uin = "12345678";
+
+			var response = SendWaybillEx(uin);
+			Assert.That(response, Is.StringStarting("Status=0"));
+
+			using (new SessionScope())
+			{
+				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == client.Users[0].Id).Max(l => l.Id);
+				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				Assert.That(log.Commit, Is.True);
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
+				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
+				Assert.That(info.AFCopyId, Is.EqualTo(uin), "Не совпадает AFCopyId");
+			}
+		}
+
+		[Test]
+		public void Check_dictinct_UIN_on_send()
+		{
+			var uin = "12345678";
+
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
+				info.AFCopyId = "87654321";
+				info.Save();
+				transaction.VoteCommit();
+			}
+
+			var response = SendWaybillEx(uin);
+			Assert.That(response, Is.StringStarting("Status=1"));
+
+			using (new SessionScope())
+			{
+				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == client.Users[0].Id).Max(l => l.Id);
+				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				Assert.That(log.Commit, Is.False);
+				Assert.That(log.Addition, Is.StringContaining("Несоответствие UIN").IgnoreCase);
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)), "Не совпадает UpdateType");
+				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
+				Assert.That(info.AFCopyId, Is.Not.EqualTo(uin), "Совпадает AFCopyId");
+			}
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
@@ -195,6 +261,23 @@ namespace Integration
 				new ulong[] {supplierId},
 				new [] {"3687747_Протек-21_3687688_Протек-21_8993929-001__.sst"},
 				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"));
+		}
+
+		private string SendWaybillEx(string uin)
+		{
+			var service = new PrgDataEx();
+			service.ResultFileName = "results";
+			uint supplierId;
+			using (new TransactionScope())
+			{
+				supplierId = client.Users[0].GetActivePrices()[0].FirmCode;
+			}
+
+			return service.SendWaybillsEx(client.Addresses[0].Id,
+				new ulong[] { supplierId },
+				new[] { "3687747_Протек-21_3687688_Протек-21_8993929-001__.sst" },
+				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"),
+				uin);
 		}
 
 		private void CreateUser()
