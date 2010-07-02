@@ -952,7 +952,8 @@ SELECT
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
      rcs.ShowAdvertising,
-     rcs.SendWaybillsFromClient
+     rcs.SendWaybillsFromClient,
+     rcs.EnableSmartOrder
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join farm.regions on regions.RegionCode = c.RegionCode
@@ -969,7 +970,8 @@ SELECT
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
      rcs.ShowAdvertising,
-     rcs.SendWaybillsFromClient
+     rcs.SendWaybillsFromClient,
+     rcs.EnableSmartOrder
 FROM   
      clientsdata 
      join farm.regions on regions.RegionCode = clientsdata.RegionCode
