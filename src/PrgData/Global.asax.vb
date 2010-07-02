@@ -1,6 +1,7 @@
 ﻿Imports log4net.Config
 Imports log4net
 Imports PrgData.Common
+Imports System.IO
 
 
 
@@ -12,20 +13,30 @@ Public Class Global_asax
 
     Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
         XmlConfigurator.Configure()
-		SmartOrderHelper.InitializeIoC()
+        SmartOrderHelper.InitializeIoC()
 #If DEBUG Then
-		ServiceContext.SetupDebugContext()
+        Dim dirs = New String() { _
+            "FtpRoot", _
+            "FtpRoot\1349", "FtpRoot\1349\Docs", "FtpRoot\1349\Orders", "FtpRoot\1349\Rejects", "FtpRoot\1349\Waybills", _
+            "FtpRoot\10068", "FtpRoot\10068\Docs", "FtpRoot\10068\Orders", "FtpRoot\10068\Rejects", "FtpRoot\10068\Waybills", _
+            "FtpRoot\10069", "FtpRoot\10069\Docs", "FtpRoot\10069\Orders", "FtpRoot\10069\Rejects", "FtpRoot\10069\Waybills"}
+
+        For Each dir As String In dirs
+            If Not Directory.Exists(dir) Then Directory.CreateDirectory(dir)
+        Next
+
+        ServiceContext.SetupDebugContext()
 #End If
-		'Logger.Debug("Приложение запущено")
+        'Logger.Debug("Приложение запущено")
     End Sub
 
-	Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
-		Try
-			Counter.Counter.Clear()
-		Catch ex As Exception
-			Logger.Error("Ошибка при очистке таблицы блокировок", ex)
-		End Try
-	End Sub
+    Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
+        Try
+            Counter.Counter.Clear()
+        Catch ex As Exception
+            Logger.Error("Ошибка при очистке таблицы блокировок", ex)
+        End Try
+    End Sub
 
     Sub Application_BeginRequest(ByVal sender As Object, ByVal e As EventArgs)
         ' Fires at the beginning of each request

@@ -1,16 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Castle.ActiveRecord;
+using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Repositories;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
 using PrgData.Common;
+using SmartOrderFactory;
+using SmartOrderFactory.Domain;
+using SmartOrderFactory.Repositories;
 using Test.Support;
 
 
@@ -26,7 +32,13 @@ namespace Integration
 		public void SetUp()
 		{
 			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests();
+			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
+			IoC.Container.Register(
+				Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
+				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
+				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>()
+				);
+
 
 			using (new TransactionScope())
 			{
@@ -70,34 +82,92 @@ namespace Integration
 			Assert.That(orderable.AvaliableAddresses[0].Users.Count, Is.GreaterThan(0), "Пуст список пользователей внутри адреса, взятого из списка адресов клиента");
 		}
 
-		public void SimpleSmart()
+		[Test]
+		[ExpectedException(typeof(UpdateException), ExpectedMessage = "Услуга 'АвтоЗаказ' не предоставляется")]
+		public void Get_UpdateException_on_disabled_EnableSmartOrder()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
-				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
-				var orderHelper = new OrderHelper(updateData, connection, connection);
 
-				//var dsPrice = GetActivePrices(connection, updateData);
-				//var sendPrice = dsPrice.Tables[0].Rows[0];
-				//var orderid = orderHelper.SaveOrder(
-				//    updateData.ClientId,
-				//    Convert.ToUInt32(sendPrice["PriceCode"]),
-				//    Convert.ToUInt64(sendPrice["RegionCode"]),
-				//    Convert.ToDateTime(sendPrice["PriceDate"]).ToUniversalTime(),
-				//    1,
-				//    1,
-				//    null);
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 
-				//CheckOrder(orderid, connection, () =>
-				//{
-				//    var dsOrder = MySqlHelper.ExecuteDataset(connection, "select * from orders.OrdersHead where RowId = " + orderid);
-				//    var drOrder = dsOrder.Tables[0].Rows[0];
-				//    Assert.That(drOrder["PriceDate"], Is.EqualTo(Convert.ToDateTime(sendPrice["PriceDate"])), "не совпадает дата прайс-листа в заказе с датой прайс-листа");
-				//});
+				var smartHelper = new SmartOrderHelper(updateData, connection, connection, address.Id, 1, 1, 1);
+			}
+		}
+
+		[Test]
+		[ExpectedException(typeof(UpdateException), ExpectedMessage = "Не настроены правила для автоматического формирования заказа")]
+		public void Get_UpdateException_on_null_SmartOrderRuleId()
+		{
+			using (new TransactionScope())
+			{
+				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				orderRule.EnableSmartOrder = true;
+				orderRule.Update();
 			}
 
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+
+				var smartHelper = new SmartOrderHelper(updateData, connection, connection, address.Id, 1, 1, 1);
+			}
+		}
+
+		[Test]
+		public void SimpleSmartOrder()
+		{
+			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
+
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+
+				var smartHelper = new SmartOrderHelper(updateData, connection, connection, address.Id, 1, 1, 1);
+
+				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
+				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+
+				var batchFile = Convert.ToBase64String(batchFileBytes);
+
+				try
+				{
+					smartHelper.PrepareBatchFile(batchFile);
+
+					smartHelper.ProcessBatchFile();
+
+					var fileInfo = new FileInfo(smartHelper.BatchOrderFileName);
+					Assert.That(fileInfo.Length, Is.GreaterThan(0), "Файл с заголовками заказов оказался пустым");
+					fileInfo = new FileInfo(smartHelper.BatchOrderItemsFileName);
+					Assert.That(fileInfo.Length, Is.GreaterThan(0), "Файл с содержимым заказов оказался пустым");
+					fileInfo = new FileInfo(smartHelper.BatchReportFileName);
+					Assert.That(fileInfo.Length, Is.GreaterThan(0), "Файл с отчетом АвтоЗаказа оказался пустым");
+				}
+				finally
+				{
+					smartHelper.DeleteTemporaryFiles();
+				}
+			}
 		}
 
 	}

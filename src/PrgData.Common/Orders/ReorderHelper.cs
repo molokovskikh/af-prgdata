@@ -89,6 +89,8 @@ namespace PrgData.Common.Orders
 							GenerateDocsHelper.GenerateDocs(_readWriteConnection, _data, _orders.FindAll(item => item.SendResult == OrderSendResult.Success));
 #endif
 
+						UpdateHelper.InsertAnalitFUpdatesLog(transaction.Connection, _data, RequestType.SendOrders);
+
 						transaction.Commit();
 					}
 					catch

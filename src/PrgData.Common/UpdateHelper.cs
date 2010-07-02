@@ -952,7 +952,8 @@ SELECT
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
      rcs.ShowAdvertising,
-     rcs.SendWaybillsFromClient
+     rcs.SendWaybillsFromClient,
+     rcs.EnableSmartOrder
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join farm.regions on regions.RegionCode = c.RegionCode
@@ -969,7 +970,8 @@ SELECT
      rcs.ParseWaybills,
      rcs.SendRetailMarkup,
      rcs.ShowAdvertising,
-     rcs.SendWaybillsFromClient
+     rcs.SendWaybillsFromClient,
+     rcs.EnableSmartOrder
 FROM   
      clientsdata 
      join farm.regions on regions.RegionCode = clientsdata.RegionCode
@@ -1487,11 +1489,17 @@ WHERE
 
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
-			var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
-			deleteCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
-			deleteCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
-			deleteCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
-			var insertCommand = new MySqlCommand(@"
+			With.DeadlockWraper(() =>
+			{
+				var transaction = _readWriteConnection.BeginTransaction();
+				try
+				{
+
+					var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
+					deleteCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+					deleteCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
+					deleteCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
+					var insertCommand = new MySqlCommand(@"
 insert into Future.UserPrices(UserId, PriceId, RegionId)
 select ?UserId, ?PriceId, ?RegionId
 from (select 1) as c
@@ -1500,20 +1508,32 @@ where not exists (
 	from Future.UserPrices up
 	where up.UserId = ?UserId and up.PriceId = ?PriceId and up.RegionId = ?RegionId
 );", _readWriteConnection);
-			insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
-			insertCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
-			insertCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
-			for(var i = 0; i < injobs.Length; i++)
-			{
-				MySqlCommand command;
-				if (injobs[i])
-					command = insertCommand;
-				else
-					command = deleteCommand;
-				command.Parameters["?PriceId"].Value = priceIds[i];
-				command.Parameters["?RegionId"].Value = regionIds[i];
-				command.ExecuteNonQuery();
-			}
+					insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+					insertCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
+					insertCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
+					for (var i = 0; i < injobs.Length; i++)
+					{
+						MySqlCommand command;
+						if (injobs[i])
+							command = insertCommand;
+						else
+							command = deleteCommand;
+						command.Parameters["?PriceId"].Value = priceIds[i];
+						command.Parameters["?RegionId"].Value = regionIds[i];
+						command.ExecuteNonQuery();
+					}
+
+					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings);
+
+					transaction.Commit();
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			});
+			
 		}
 
 		public bool NeedClientToAddressMigration()
@@ -1763,6 +1783,21 @@ AND    UserId            = {0};
 					throw;
 				}
 			});
+		}
+
+		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
+		{
+			MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
+				connection,
+				@"
+insert into logs.AnalitFUpdates 
+  (RequestTime, UpdateType, UserId, Commit) 
+values 
+  (now(), ?UpdateType, ?UserId, 1);
+"
+				,
+				new MySqlParameter("?UpdateType", (int) request),
+				new MySqlParameter("?UserId", updateData.UserId));
 		}
 	}
 }
