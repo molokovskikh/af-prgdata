@@ -2872,12 +2872,12 @@ RestartTrans2:
                         "   AND IF(?Cumulative, 1, fresh)")
                     Else
                         SelProc.CommandText = "SELECT ''" & _
-                        " INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
+                        " INTO OUTFILE '\\\\adc.analit.net\\Inforoom\\MySQLFiles\\Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
                         SelProc.ExecuteNonQuery()
 
 
                         SelProc.CommandText = "SELECT ''" & _
-                          " INTO OUTFILE 'C:/AFFiles/MinPrices" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
+                          " INTO OUTFILE '\\\\adc.analit.net\\Inforoom\\MySQLFiles\\MinPrices" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
                         SelProc.ExecuteNonQuery()
 
 
@@ -4441,7 +4441,7 @@ RestartMaxCodesSet:
         Dim SQL As String = SQLText
 
 
-        SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY '" & Chr(161) & "'"
+        SQL &= " INTO OUTFILE '\\\\adc.analit.net\\Inforoom\\MySQLFiles\\" & FileName & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY '" & Chr(161) & "'"
         MyCommand.CommandText = SQL
         MyCommand.ExecuteNonQuery()
 
@@ -4469,7 +4469,7 @@ RestartMaxCodesSet:
                 MyCommand.Parameters("?Cumulative").Value = True
             End If
 
-            SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' "
+            SQL &= " INTO OUTFILE '\\\\adc.analit.net\\Inforoom\\MySQLFiles\\" & FileName & UserId & ".txt' "
             MyCommand.CommandText = SQL
             MyCommand.ExecuteNonQuery()
 
