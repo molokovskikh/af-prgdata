@@ -841,15 +841,17 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
 			if (_updateData.IsFutureClient)
 			{
 				return @"
-SELECT a.Id as ClientCode,
+SELECT 
+    a.Id as ClientCode,
 	u.Id as RowId,
 	'',
     (u.InheritPricesFrom is not null) as InheritPrices,
     1 as IsFutureClient
-FROM Future.Users u
+FROM 
+  Future.Users u
   join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  left join Future.UserAddresses ua on ua.UserId = u.Id
+  left join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 WHERE u.Id = " + _updateData.UserId +
 @"
 limit 1";

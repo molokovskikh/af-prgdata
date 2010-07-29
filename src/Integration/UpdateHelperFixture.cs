@@ -144,5 +144,40 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
+		[Test(Description = "Получаем данные для пользователя, которому не назначен ни один адрес доставки")]
+		public void Get_UserInfo_without_addresses()
+		{
+			TestUser userWithoutAddresses;
+			using (var transaction = new TransactionScope())
+			{
+				userWithoutAddresses = _client.CreateUser();
+
+				var permission = TestUserPermission.ByShortcut("AF");
+				userWithoutAddresses.AssignedPermissions.Add(permission);
+				userWithoutAddresses.SendRejects = true;
+				userWithoutAddresses.SendWaybills = true;
+				userWithoutAddresses.Update();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, userWithoutAddresses.Login);
+				var helper = new UpdateHelper(updateData, connection, connection);
+				var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
+				var dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
+				Assert.That(dataTable.Rows[0]["ClientCode"], Is.EqualTo(DBNull.Value), "Столбец ClientCode не содержит значение DBNull, хотя должен, т.к. адреса к пользователю не привязаны");
+				Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(userWithoutAddresses.Id), "Столбец RowId не сопадает с Id пользователя");
+
+				dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", userWithoutAddresses.Id);
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+			}
+		}
+
 	}
 }
