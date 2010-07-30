@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Web;
 using MySql.Data.MySqlClient;
@@ -37,6 +38,10 @@ namespace PrgData.Common
 		public bool ClientEnabled;
 		public bool UserEnabled;
 
+		public uint? BuyingMatrixPriceId;
+		public int BuyingMatrixType;
+		public bool WarningOnBuyingMatrix;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -57,6 +62,11 @@ namespace PrgData.Common
 			_updateToTestBuild = Convert.ToBoolean(row["UpdateToTestBuild"]);
 			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
 			UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
+			BuyingMatrixPriceId = Convert.IsDBNull(row["BuyingMatrixPriceId"])
+			                      	? null
+			                      	: (uint?) Convert.ToUInt32(row["BuyingMatrixPriceId"]);
+			BuyingMatrixType = Convert.ToInt32(row["BuyingMatrixType"]);
+			WarningOnBuyingMatrix = Convert.ToBoolean(row["WarningOnBuyingMatrix"]);
 		}
 
 		public bool Disabled()
@@ -353,6 +363,9 @@ SELECT
     c.Name as ShortName,
     retclientsset.Spy, 
     retclientsset.SpyAccount,
+    retclientsset.BuyingMatrixPriceId,
+    retclientsset.BuyingMatrixType,
+    retclientsset.WarningOnBuyingMatrix,
     u.EnableUpdate,
     c.Status as ClientEnabled,
     (u.Enabled and ap.UserId is not null) as UserEnabled,
@@ -390,6 +403,9 @@ SELECT  ouar.clientcode as ClientId,
         retclientsset.SpyAccount,
         retclientsset.EnableUpdate,
 		retclientsset.UpdateToTestBuild,
+		retclientsset.BuyingMatrixPriceId,
+		retclientsset.BuyingMatrixType,
+		retclientsset.WarningOnBuyingMatrix,
         clientsdata.firmstatus as ClientEnabled,
         (ap.UserId is not null and IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3))) as UserEnabled
 FROM    
@@ -841,15 +857,17 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
 			if (_updateData.IsFutureClient)
 			{
 				return @"
-SELECT a.Id as ClientCode,
+SELECT 
+    a.Id as ClientCode,
 	u.Id as RowId,
 	'',
     (u.InheritPricesFrom is not null) as InheritPrices,
     1 as IsFutureClient
-FROM Future.Users u
+FROM 
+  Future.Users u
   join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  left join Future.UserAddresses ua on ua.UserId = u.Id
+  left join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 WHERE u.Id = " + _updateData.UserId +
 @"
 limit 1";
@@ -1266,8 +1284,22 @@ AND
 ";
 		}
 
-		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup)
+		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix)
 		{
+			string buyingMatrixCondition;
+			if (_updateData.BuyingMatrixPriceId.HasValue)
+			{
+				if (_updateData.BuyingMatrixType == 0)
+					//белый список
+					buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+				else
+					//черный список
+					buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+			}
+			else
+				//разрешено все
+				buyingMatrixCondition = ", 0 as BuyingMatrixType";
+
 			if (exportInforoomPrice)
 				if (!exportSupplierPriceMarkup)
 					return @"
@@ -1333,7 +1365,9 @@ FROM   farm.Synonym S ,
 WHERE  S.PriceCode =2647
 AND    S.ProductId =A.ProductId";
 				else
-					return @"
+					return 
+						String.Format(
+@"
 SELECT 2647                             ,
        ?OffersRegionCode                ,
        A.ProductId                      ,
@@ -1360,9 +1394,14 @@ SELECT 2647                             ,
        null as SupplierPriceMarkup       ,
        null as ProducerCost              ,
        null as NDS
-FROM   farm.Synonym S        ,
+      {0}
+FROM   
+       (
+       farm.Synonym S        ,
        farm.SynonymFirmCr SF ,
        CoreT A
+       )
+      {1}
 WHERE  S.PriceCode            =2647
 AND    SF.PriceCode           =2647
 AND    S.ProductId            =A.ProductId
@@ -1397,10 +1436,27 @@ SELECT 2647                              ,
        null as SupplierPriceMarkup       ,
        null as ProducerCost              ,
        null as NDS
-FROM   farm.Synonym S ,
+       {0}
+FROM   
+       (
+       farm.Synonym S ,
        CoreTP A
+       )
+       {2}
 WHERE  S.PriceCode =2647
-AND    S.ProductId =A.ProductId";
+AND    S.ProductId =A.ProductId
+"
+	,
+		exportBuyingMatrix ? buyingMatrixCondition : "",
+		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
+  left join catalogs.Products on Products.Id = A.ProductId
+  left join catalogs.Assortment on Assortment.CatalogId = Products.CatalogId and Assortment.ProducerId = A.CodeFirmCr
+  left join farm.BuyingMatrix list on list.AssortmentId = Assortment.Id and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
+  left join catalogs.Products on Products.Id = A.ProductId
+  left join catalogs.Assortment on Assortment.CatalogId = Products.CatalogId and Assortment.ProducerId = 1
+  left join farm.BuyingMatrix list on list.AssortmentId = Assortment.Id and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
+	 );
 			else
 				return 
 				String.Format(@"
@@ -1428,9 +1484,14 @@ SELECT CT.PriceCode               ,
        OrderCost                  ,
        MinOrderCount
        {0}
-FROM   Core CT        ,
+       {1}
+FROM   
+       (
+       Core CT        ,
        ActivePrices AT,
        farm.core0 Core
+       )
+       {2}
 WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
@@ -1446,7 +1507,13 @@ if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
    )
 ),
 Core.ProducerCost,
-Core.NDS " : "");
+Core.NDS " : "",
+				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
+				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
+  left join catalogs.Products on Products.Id = CT.ProductId
+  left join catalogs.Assortment on Assortment.CatalogId = Products.CatalogId and Assortment.ProducerId = Core.CodeFirmCr
+  left join farm.BuyingMatrix list on list.AssortmentId = Assortment.Id and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
+);
 		}
 
 		public string GetSynonymFirmCrCommand(bool Cumulative)
@@ -1799,5 +1866,40 @@ values
 				new MySqlParameter("?UpdateType", (int) request),
 				new MySqlParameter("?UserId", updateData.UserId));
 		}
+
+		public void SetForceReplication()
+		{
+			With.DeadlockWraper(() =>
+			{
+				var commandText = @"
+
+UPDATE AnalitFReplicationInfo AFRI 
+SET    ForceReplication    = 1 
+WHERE  
+  AFRI.UserId = ?UserId;
+";
+				var command = new MySqlCommand(commandText, _readWriteConnection);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				command.ExecuteNonQuery();
+			});
+		}
+
+		public bool NeedUpdateToBuyingMatrix(string resultPath, int build)
+		{
+			try
+			{
+				if (_updateData.EnableUpdate && build >= 1183 && build <= 1229)
+				{
+					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath, build), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var info = FileVersionInfo.GetVersionInfo(exeName);
+					return info.FilePrivatePart >= 1249;
+				}
+			}
+			catch 
+			{
+			}
+			return false;
+		}
+
 	}
 }
