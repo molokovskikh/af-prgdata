@@ -93,6 +93,7 @@ Public Class PrgDataEx
 	Private UserHost, Message, ReclamePath As String
 	Private UncDT As Date
     Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
+    Private _needUpdateToBuyingMatrix As Boolean
 	Private NewZip As Boolean = True
 	Dim GUpdateId As UInt32? = 0
 	Private WithEvents DS As System.Data.DataSet
@@ -404,6 +405,7 @@ Public Class PrgDataEx
             End If
 
             Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName, BuildNo)
 
             Cm.Transaction = Nothing
             Cm.CommandText = "" & _
@@ -520,6 +522,8 @@ RestartInsertTrans:
                         Next
                     End If
                     If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
+
+                    If _needUpdateToBuyingMatrix Then helper.SetForceReplication()
                 End If
 
             End If
@@ -3501,7 +3505,8 @@ RestartTrans2:
                          SelProc, _
                          helper.GetCoreCommand( _
                           False, _
-                          (BuildNo > 1027) Or (UpdateData.EnableUpdate And ((BuildNo >= 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
+                          (BuildNo > 1027) Or (UpdateData.EnableUpdate And ((BuildNo >= 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))), _
+                          (BuildNo >= 1249) Or _needUpdateToBuyingMatrix _
                          ), _
                          (BuildNo <= 1027) And UpdateData.EnableUpdate, _
                          True _
@@ -3630,7 +3635,7 @@ RestartTrans2:
                     SelProc.ExecuteNonQuery()
 
                     'Выгрузка данных для ГУП
-                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True))
+                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (BuildNo >= 1249) Or _needUpdateToBuyingMatrix))
                     'выгружаем пустую таблицу MaxProducerCosts
                     GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
                 End If
