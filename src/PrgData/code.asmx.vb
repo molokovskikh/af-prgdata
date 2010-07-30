@@ -62,66 +62,75 @@ Public Class PrgDataEx
 
 	ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
 
-	ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
+    'ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
-	Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
-	Private FileInfo As System.IO.FileInfo
-	Private Запрос, UserName, MessageD, MailMessage As String
-	'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
-	Private AbsentPriceCodes As String
-	Private MessageH As String
-	Private i As Integer
-	Private ErrorFlag, Documents As Boolean
-	Private Addition, ClientLog As String
-	Private Reclame As Boolean
-	Public ResultFileName As String
-	Dim ArhiveStartTime As DateTime
+    Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
+    Private FileInfo As System.IO.FileInfo
+    Private Запрос, UserName, MessageD, MailMessage As String
+    'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
+    Private AbsentPriceCodes As String
+    Private MessageH As String
+    Private i As Integer
+    Private ErrorFlag, Documents As Boolean
+    Private Addition, ClientLog As String
+    Private Reclame As Boolean
+    Public ResultFileName As String
+    Dim ArhiveStartTime As DateTime
 
-	'Потоки
-	Private ThreadZipStream As New Thread(AddressOf ZipStream)
-	Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
-	Private ProtocolUpdatesThread As New Thread(AddressOf ProtocolUpdates)
+    'Потоки
+    Private ThreadZipStream As New Thread(AddressOf ZipStream)
+    Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
+    Private ProtocolUpdatesThread As New Thread(AddressOf ProtocolUpdates)
 
-	Private CurUpdTime, OldUpTime As DateTime
-	Private LimitedCumulative As Boolean
-	Private BuildNo, AllowBuildNo As Integer
-	Private UpdateType As RequestType
-	Private ResultLenght, OrderId As UInt32
-	Dim CCode, UserId As UInt32
-	Private SpyHostsFile, SpyAccount As Boolean
-	Dim UpdateData As UpdateData
-	Private UserHost, Message, ReclamePath As String
-	Private UncDT As Date
+    Private CurUpdTime, OldUpTime As DateTime
+    Private LimitedCumulative As Boolean
+    Private BuildNo, AllowBuildNo As Integer
+    Private UpdateType As RequestType
+    Private ResultLenght, OrderId As UInt32
+    Dim CCode, UserId As UInt32
+    Private SpyHostsFile, SpyAccount As Boolean
+    Dim UpdateData As UpdateData
+    Private UserHost, Message, ReclamePath As String
+    Private UncDT As Date
     Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
     Private _needUpdateToBuyingMatrix As Boolean
-	Private NewZip As Boolean = True
-	Dim GUpdateId As UInt32? = 0
-	Private WithEvents DS As System.Data.DataSet
-	Public WithEvents DataTable1 As System.Data.DataTable
-	Public WithEvents DataColumn1 As System.Data.DataColumn
-	Public WithEvents DataColumn2 As System.Data.DataColumn
-	Public WithEvents DataColumn3 As System.Data.DataColumn
-	Public WithEvents DataTable2 As System.Data.DataTable
-	Public WithEvents DataColumn4 As System.Data.DataColumn
-	Public WithEvents DataColumn5 As System.Data.DataColumn
-	Private WithEvents Cm As MySql.Data.MySqlClient.MySqlCommand
+    Private NewZip As Boolean = True
+    Dim GUpdateId As UInt32? = 0
+    Private WithEvents DS As System.Data.DataSet
+    Public WithEvents DataTable1 As System.Data.DataTable
+    Public WithEvents DataColumn1 As System.Data.DataColumn
+    Public WithEvents DataColumn2 As System.Data.DataColumn
+    Public WithEvents DataColumn3 As System.Data.DataColumn
+    Public WithEvents DataTable2 As System.Data.DataTable
+    Public WithEvents DataColumn4 As System.Data.DataColumn
+    Public WithEvents DataColumn5 As System.Data.DataColumn
+    Private WithEvents Cm As MySql.Data.MySqlClient.MySqlCommand
 
-	Public WithEvents OrdersL As System.Data.DataTable
-	Private WithEvents OrderInsertCm As MySql.Data.MySqlClient.MySqlCommand
-	Private WithEvents OrderInsertDA As MySql.Data.MySqlClient.MySqlDataAdapter
-	Private WithEvents ReadOnlyCn As MySql.Data.MySqlClient.MySqlConnection
-	Private ReadWriteCn As MySql.Data.MySqlClient.MySqlConnection
+    Public WithEvents OrdersL As System.Data.DataTable
+    Private WithEvents OrderInsertCm As MySql.Data.MySqlClient.MySqlCommand
+    Private WithEvents OrderInsertDA As MySql.Data.MySqlClient.MySqlDataAdapter
+    Private WithEvents ReadOnlyCn As MySql.Data.MySqlClient.MySqlConnection
+    Private ReadWriteCn As MySql.Data.MySqlClient.MySqlConnection
 
-	Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
+    Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
 
-	Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
+    Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
 
 
     Private Function MySqlFilePath() As String
-#If Debug Then
+#If DEBUG Then
         Return System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath") & "\"
 #Else
         Return Path.Combine("\\" & Environment.MachineName, System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")) & "\"
+#End If
+    End Function
+
+
+    Private Function MySqlLocalFilePath() As String
+#If DEBUG Then
+        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath") 
+#Else
+        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
 #End If
     End Function
 
@@ -850,12 +859,13 @@ endproc:
                             Next
 
                             If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-                                MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
+                                'Задержка при удалении локальных файлов не нужна
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                                'ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                'ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -869,8 +879,8 @@ endproc:
                                 GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
                                 GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
 
-                                ShareFileHelper.WaitFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                                'ShareFileHelper.WaitFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                                'ShareFileHelper.WaitFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
 
                                 Pr = New Process
 
@@ -880,20 +890,20 @@ endproc:
                                 startInfo.RedirectStandardError = True
                                 startInfo.UseShellExecute = False
                                 startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-                                startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlFilePath & "Document*" & UserId & ".txt", SevenZipParam)
+                                startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlLocalFilePath() & "Document*" & UserId & ".txt", SevenZipParam)
                                 startInfo.FileName = SevenZipExe
 
                                 Pr.StartInfo = startInfo
 
                                 Pr.Start()
-                                If Not Pr.HasExited Then
-#If Not Debug Then
-                                    Try
-                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                    Catch
-                                    End Try
-#End If
-                                End If
+                                '                                If Not Pr.HasExited Then
+                                '#If Not Debug Then
+                                '                                    Try
+                                '                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                '                                    Catch
+                                '                                    End Try
+                                '#End If
+                                '                                End If
 
                                 Вывод7Z = Pr.StandardOutput.ReadToEnd
                                 Ошибка7Z = Pr.StandardError.ReadToEnd
@@ -907,11 +917,11 @@ endproc:
                                 End If
                                 Pr = Nothing
 
-                                MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+                                'ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
+                                'ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
                             End If
 
                         End If
@@ -965,12 +975,12 @@ endproc:
                                 If ef.Length > 0 Then
                                     Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
 
-#If Not Debug Then
-                                    Try
-                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                    Catch
-                                    End Try
-#End If
+                                    '#If Not Debug Then
+                                    '                                    Try
+                                    '                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                    '                                    Catch
+                                    '                                    End Try
+                                    '#End If
 
                                     Pr.WaitForExit()
 
@@ -1018,12 +1028,12 @@ endproc:
                                             Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
 
 
-#If Not Debug Then
-                                            Try
-                                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                            Catch
-                                            End Try
-#End If
+                                            '#If Not Debug Then
+                                            '                                            Try
+                                            '                                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                            '                                            Catch
+                                            '                                            End Try
+                                            '#End If
 
                                             Pr.WaitForExit()
 
@@ -1116,11 +1126,11 @@ StartZipping:
                             If FileForArchive.FileType Then
                                 FileName = FileForArchive.FileName
                             Else
-                                FileName = MySqlFilePath & FileForArchive.FileName & UserId & ".txt"
+                                FileName = MySqlLocalFilePath() & FileForArchive.FileName & UserId & ".txt"
                             End If
 
 
-                            ShareFileHelper.WaitFile(FileName)
+                            'ShareFileHelper.WaitFile(FileName)
                         End If
 
                         Pr = New Process
@@ -1137,14 +1147,14 @@ StartZipping:
                         Pr.StartInfo = startInfo
 
                         Pr.Start()
-                        If Not Pr.HasExited Then
-#If Not Debug Then
-                            Try
-                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                            Catch
-                            End Try
-#End If
-                        End If
+                        '                        If Not Pr.HasExited Then
+                        '#If Not Debug Then
+                        '                            Try
+                        '                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                        '                            Catch
+                        '                            End Try
+                        '#End If
+                        '                        End If
 
                         Вывод7Z = Pr.StandardOutput.ReadToEnd
                         Ошибка7Z = Pr.StandardError.ReadToEnd
@@ -2496,26 +2506,26 @@ PostLog:
 RestartTrans2:
                 If ErrorFlag Then Exit Try
 
-                MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Catalog" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogCurrency" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "ClientsDataN" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogCurrency" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "ClientsDataN" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
 
-                MySQLFileDelete(MySqlFilePath & "PriceAvg" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Section" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Synonym" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogFarmGroups" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PriceAvg" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Section" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Synonym" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogFarmGroups" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -2542,7 +2552,7 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
 
-                MySQLFileDelete(MySqlFilePath & "MinPrices" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MinPrices" & UserId & ".txt")
                 GetMySQLFile("PriceAvg", SelProc, "select ''")
 
                 SQLText = "SELECT P.Id       ," & _
@@ -3136,30 +3146,30 @@ RestartTrans2:
 RestartTrans2:
                 If ErrorFlag Then Exit Try
 
-                MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "User" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Client" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Catalogs" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "DelayOfPayments" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Providers" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Synonyms" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Descriptions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MaxProducerCosts" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Producers" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "UpdateInfo" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "ClientToAddressMigrations" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MinReqRules" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "User" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Client" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Catalogs" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "DelayOfPayments" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Providers" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Synonyms" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MNN" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Descriptions" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MaxProducerCosts" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Producers" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3872,7 +3882,7 @@ RestartTrans2:
             .CommandText &= " insert into orders.orderslist (OrderID, ProductId, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost)" & _
              " select  " & OrderID & ", products.ID, if(Prod.Id is null, sfcr.codefirmcr, Prod.Id) , syn.synonymcode, sfcr.SynonymFirmCrCode, ?Code, ?CodeCr, ?Quantity, ?Junk, ?Await, ?Cost" & _
              " from catalogs.products" & _
-             " left join farm.synonym  syn on syn.synonymcode=?SynonymCode" & _
+             " left join farm.synonymarchive  syn on syn.synonymcode=?SynonymCode" & _
              " left join farm.synonymfirmcr sfcr on sfcr.SynonymFirmCrCode=?SynonymFirmCrCode" & _
              " left join  catalogs.Producers Prod on Prod.Id=?CodeFirmCr" & _
              " where products.ID=?ProductID; "

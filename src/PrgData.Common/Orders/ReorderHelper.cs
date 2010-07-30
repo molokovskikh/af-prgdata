@@ -287,7 +287,7 @@ namespace PrgData.Common.Orders
         ?SupplierPriceMarkup                          ,
         ?RetailMarkup
  FROM   catalogs.products
-        LEFT JOIN farm.synonym syn
+        LEFT JOIN farm.synonymarchive syn
         ON     syn.synonymcode=?SynonymCode
         LEFT JOIN farm.synonymfirmcr sfcr
         ON     sfcr.SynonymFirmCrCode=?SynonymFirmCrCode
