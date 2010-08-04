@@ -864,8 +864,10 @@ endproc:
 
                                 'Задержка при удалении локальных файлов не нужна
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-                                'ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                'ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+#If DEBUG Then
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+#End If
 
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -879,8 +881,10 @@ endproc:
                                 GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
                                 GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
 
-                                'ShareFileHelper.WaitFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                'ShareFileHelper.WaitFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+#If DEBUG Then
+                                ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
+#End If
 
                                 Pr = New Process
 
@@ -920,8 +924,10 @@ endproc:
                                 MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
-                                'ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-                                'ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
+#If DEBUG Then
+                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
+#End If
                             End If
 
                         End If
@@ -1130,7 +1136,9 @@ StartZipping:
                             End If
 
 
-                            'ShareFileHelper.WaitFile(FileName)
+#If DEBUG Then
+                            ShareFileHelper.WaitFile(FileName)
+#End If
                         End If
 
                         Pr = New Process
