@@ -4269,6 +4269,14 @@ RestartTrans2:
                 If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
             End If
 
+        Catch updateException As UpdateException
+            ErrorFlag = True
+            If UpdateData IsNot Nothing Then
+                Log.Warn(updateException)
+            Else
+                Log.Error(updateException)
+            End If
+            Return ""
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при загрузке рекламы", ex)
             ErrorFlag = True
