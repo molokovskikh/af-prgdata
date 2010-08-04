@@ -2,16 +2,63 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Castle.ActiveRecord;
+using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
 using System.Data;
+using Test.Support;
 
 namespace Integration
 {
 	[TestFixture]
 	public class OrderHelperFixture
 	{
+		TestClient _client;
+		TestUser _user;
+
+		TestOldClient _oldClient;
+		TestOldUser _oldUser;
+
+		[SetUp]
+		public void SetUp()
+		{
+			Test.Support.Setup.Initialize();
+
+			using (var transaction = new TransactionScope())
+			{
+				_client = TestClient.CreateSimple();
+				_user = _client.Users[0];
+
+				var permission = TestUserPermission.ByShortcut("AF");
+				_client.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				_user.Update();
+
+
+				_oldClient = TestOldClient.CreateTestClient();
+				_oldUser = _oldClient.Users[0];
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+						.SetParameter("permissionid", permission.Id)
+						.SetParameter("userid", _oldUser.Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+			}
+		}
 
 		private DataSet GetActivePrices(MySqlConnection connection, UpdateData updateData)
 		{
@@ -44,7 +91,7 @@ namespace Integration
 			{
 				connection.Open();
 				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
-				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
+				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
 				var orderHelper = new OrderHelper(updateData, connection, connection);
 				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
@@ -73,7 +120,7 @@ namespace Integration
 			{
 				connection.Open();
 				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
-				var updateData = UpdateHelper.GetUpdateData(connection, "10081");
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var orderHelper = new OrderHelper(updateData, connection, connection);
 				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
@@ -103,7 +150,7 @@ namespace Integration
 			{
 				connection.Open();
 				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
-				var updateData = UpdateHelper.GetUpdateData(connection, "10081");
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var orderHelper = new OrderHelper(updateData, connection, connection);
 				var updateHelper = new UpdateHelper(updateData, connection, connection);
 
@@ -147,7 +194,7 @@ namespace Integration
 			{
 				connection.Open();
 				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
-				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
+				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
 				var orderHelper = new OrderHelper(updateData, connection, connection);
 				var updateHelper = new UpdateHelper(updateData, connection, connection);
 
@@ -232,7 +279,7 @@ namespace Integration
 		public void check_OrderRegions_for_future_client()
 		{
 			//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
-			var userName = "10081";
+			var userName = _user.Login;
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{

@@ -19,6 +19,7 @@ namespace Integration
 		TestUser _user;
 
 		TestOldClient _oldClient;
+		TestOldUser _oldUser;
 
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
@@ -42,6 +43,7 @@ namespace Integration
 
 
 				_oldClient = TestOldClient.CreateTestClient();
+				_oldUser = _oldClient.Users[0];
 
 				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
 				try
@@ -49,7 +51,7 @@ namespace Integration
 					session.CreateSQLQuery(@"
 insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
 						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", _oldClient.Users[0].Id)
+						.SetParameter("userid", _oldUser.Id)
 						.ExecuteUpdate();
 				}
 				finally
