@@ -61,99 +61,112 @@ Public Class PrgDataEx
 	End Sub
 
 	ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
-	ReadOnly MySqlFilePath As String = System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")
 
-	ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
+    'ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
-	Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
-	Private FileInfo As System.IO.FileInfo
-	Private Запрос, UserName, MessageD, MailMessage As String
-	'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
-	Private AbsentPriceCodes As String
-	Private MessageH As String
-	Private i As Integer
-	Private ErrorFlag, Documents As Boolean
-	Private Addition, ClientLog As String
-	Private Reclame As Boolean
-	Public ResultFileName As String
-	Dim ArhiveStartTime As DateTime
+    Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
+    Private FileInfo As System.IO.FileInfo
+    Private Запрос, UserName, MessageD, MailMessage As String
+    'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
+    Private AbsentPriceCodes As String
+    Private MessageH As String
+    Private i As Integer
+    Private ErrorFlag, Documents As Boolean
+    Private Addition, ClientLog As String
+    Private Reclame As Boolean
+    Public ResultFileName As String
+    Dim ArhiveStartTime As DateTime
 
-	'Потоки
-	Private ThreadZipStream As New Thread(AddressOf ZipStream)
-	Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
-	Private ProtocolUpdatesThread As New Thread(AddressOf ProtocolUpdates)
+    'Потоки
+    Private ThreadZipStream As New Thread(AddressOf ZipStream)
+    Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
+    Private ProtocolUpdatesThread As New Thread(AddressOf ProtocolUpdates)
 
-	Private CurUpdTime, OldUpTime As DateTime
-	Private LimitedCumulative As Boolean
-	Private BuildNo, AllowBuildNo As Integer
-	Private UpdateType As RequestType
-	Private ResultLenght, OrderId As UInt32
-	Dim CCode, UserId As UInt32
-	Private SpyHostsFile, SpyAccount As Boolean
-	Dim UpdateData As UpdateData
-	Private UserHost, Message, ReclamePath As String
-	Private UncDT As Date
+    Private CurUpdTime, OldUpTime As DateTime
+    Private LimitedCumulative As Boolean
+    Private BuildNo, AllowBuildNo As Integer
+    Private UpdateType As RequestType
+    Private ResultLenght, OrderId As UInt32
+    Dim CCode, UserId As UInt32
+    Private SpyHostsFile, SpyAccount As Boolean
+    Dim UpdateData As UpdateData
+    Private UserHost, Message, ReclamePath As String
+    Private UncDT As Date
     Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
-	Private NewZip As Boolean = True
-	Dim GUpdateId As UInt32? = 0
-	Private WithEvents DS As System.Data.DataSet
-	Public WithEvents DataTable1 As System.Data.DataTable
-	Public WithEvents DataColumn1 As System.Data.DataColumn
-	Public WithEvents DataColumn2 As System.Data.DataColumn
-	Public WithEvents DataColumn3 As System.Data.DataColumn
-	Public WithEvents DataTable2 As System.Data.DataTable
-	Public WithEvents DataColumn4 As System.Data.DataColumn
-	Public WithEvents DataColumn5 As System.Data.DataColumn
-	Private WithEvents Cm As MySql.Data.MySqlClient.MySqlCommand
+    Private _needUpdateToBuyingMatrix As Boolean
+    Private NewZip As Boolean = True
+    Dim GUpdateId As UInt32? = 0
+    Private WithEvents DS As System.Data.DataSet
+    Public WithEvents DataTable1 As System.Data.DataTable
+    Public WithEvents DataColumn1 As System.Data.DataColumn
+    Public WithEvents DataColumn2 As System.Data.DataColumn
+    Public WithEvents DataColumn3 As System.Data.DataColumn
+    Public WithEvents DataTable2 As System.Data.DataTable
+    Public WithEvents DataColumn4 As System.Data.DataColumn
+    Public WithEvents DataColumn5 As System.Data.DataColumn
+    Private WithEvents Cm As MySql.Data.MySqlClient.MySqlCommand
 
-	Public WithEvents OrdersL As System.Data.DataTable
-	Private WithEvents OrderInsertCm As MySql.Data.MySqlClient.MySqlCommand
-	Private WithEvents OrderInsertDA As MySql.Data.MySqlClient.MySqlDataAdapter
-	Private WithEvents ReadOnlyCn As MySql.Data.MySqlClient.MySqlConnection
-	Private ReadWriteCn As MySql.Data.MySqlClient.MySqlConnection
+    Public WithEvents OrdersL As System.Data.DataTable
+    Private WithEvents OrderInsertCm As MySql.Data.MySqlClient.MySqlCommand
+    Private WithEvents OrderInsertDA As MySql.Data.MySqlClient.MySqlDataAdapter
+    Private WithEvents ReadOnlyCn As MySql.Data.MySqlClient.MySqlConnection
+    Private ReadWriteCn As MySql.Data.MySqlClient.MySqlConnection
 
-	Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
+    Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
 
-	Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
-
-
-
-	'UpdateType: 1 - обычное, 2 - накопительное, 3 - докачка, 4 - заказы, 5 - запрет, 6 - ошибка, 7 - Подтверждение получения, 8 - только документы
+    Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
 
 
-	'Получает письмо и отправляет его
-	<WebMethod()> _
-	Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
-		Try
-			Dim updateData As UpdateData
-			Using connection = ConnectionManager.GetConnection()
-				connection.Open()
-				updateData = UpdateHelper.GetUpdateData(ConnectionManager.GetConnection(), HttpContext.Current.User.Identity.Name)
-			End Using
+    Private Function MySqlFilePath() As String
+#If DEBUG Then
+        Return System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath") & "\"
+#Else
+        Return Path.Combine("\\" & Environment.MachineName, System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")) & "\"
+#End If
+    End Function
 
-			If updateData Is Nothing Then
-				Throw New Exception("Клиент не найден")
-			End If
 
-			Dim mess As MailMessage = New MailMessage( _
-			 New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
-			 New MailAddress("tech@analit.net"))
-			mess.Body = body
-			mess.IsBodyHtml = False
-			mess.BodyEncoding = Encoding.UTF8
-			mess.Subject = " UserId:" & updateData.UserId & ": " & subject
-			If (Not IsNothing(attachment)) Then
-				mess.Attachments.Add(New Attachment(New MemoryStream(attachment), "Attach.7z"))
-			End If
-			Dim sc As SmtpClient = New SmtpClient("box.analit.net")
-			sc.Send(mess)
+    Private Function MySqlLocalFilePath() As String
+#If DEBUG Then
+        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath") 
+#Else
+        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
+#End If
+    End Function
 
-			Return "Res=OK"
-		Catch ex As Exception
+    'Получает письмо и отправляет его
+    <WebMethod()> _
+    Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
+        Try
+            Dim updateData As UpdateData
+            Using connection = ConnectionManager.GetConnection()
+                connection.Open()
+                updateData = UpdateHelper.GetUpdateData(ConnectionManager.GetConnection(), HttpContext.Current.User.Identity.Name)
+            End Using
+
+            If updateData Is Nothing Then
+                Throw New Exception("Клиент не найден")
+            End If
+
+            Dim mess As MailMessage = New MailMessage( _
+             New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
+             New MailAddress("tech@analit.net"))
+            mess.Body = body
+            mess.IsBodyHtml = False
+            mess.BodyEncoding = Encoding.UTF8
+            mess.Subject = " UserId:" & updateData.UserId & ": " & subject
+            If (Not IsNothing(attachment)) Then
+                mess.Attachments.Add(New Attachment(New MemoryStream(attachment), "Attach.7z"))
+            End If
+            Dim sc As SmtpClient = New SmtpClient("box.analit.net")
+            sc.Send(mess)
+
+            Return "Res=OK"
+        Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке письма", ex)
-			Return "Error=Не удалось отправить письмо. Попробуйте позднее."
-		End Try
-	End Function
+            Return "Error=Не удалось отправить письмо. Попробуйте позднее."
+        End Try
+    End Function
 
     'Принимает накладные
     <WebMethod()> _
@@ -238,50 +251,50 @@ Public Class PrgDataEx
     End Function
 
 
-	<WebMethod()> Public Function GetInfo( _
-	ByVal LibraryName() As String, _
-	ByVal LibraryVersion() As String, _
-	ByVal LibraryHash() As String) As String
+    <WebMethod()> Public Function GetInfo( _
+ ByVal LibraryName() As String, _
+ ByVal LibraryVersion() As String, _
+ ByVal LibraryHash() As String) As String
 
-		Dim LibraryNameWOPath As String
+        Dim LibraryNameWOPath As String
 
 
-		'If DBConnect("GetInfo") Then
-		'    GetClientCode()
-		'    Cm.Transaction = Nothing
-		'    Cm.CommandText = "SELECT libraryname, libraryhash, DeleteOnClient FROM usersettings.AnalitF_Library_Hashs ALH where exeversion=" & BuildNo
-		'    DA.Fill(DS, "ALH")
+        'If DBConnect("GetInfo") Then
+        '    GetClientCode()
+        '    Cm.Transaction = Nothing
+        '    Cm.CommandText = "SELECT libraryname, libraryhash, DeleteOnClient FROM usersettings.AnalitF_Library_Hashs ALH where exeversion=" & BuildNo
+        '    DA.Fill(DS, "ALH")
 
-		'    MailMessage = ""
-		'    For i = 0 To LibraryName.Length - 1
+        '    MailMessage = ""
+        '    For i = 0 To LibraryName.Length - 1
 
-		'        If LibraryName(i).IndexOf("\") > 0 Then
-		'            LibraryNameWOPath = LibraryName(i).Substring(LibraryName(i).IndexOf("\") + 1)
-		'        Else
-		'            LibraryNameWOPath = LibraryName(i)
-		'        End If
+        '        If LibraryName(i).IndexOf("\") > 0 Then
+        '            LibraryNameWOPath = LibraryName(i).Substring(LibraryName(i).IndexOf("\") + 1)
+        '        Else
+        '            LibraryNameWOPath = LibraryName(i)
+        '        End If
 
-		'        If DS.Tables("ALH").Select("LibraryName='" & LibraryNameWOPath & "'").Length > 0 Then
+        '        If DS.Tables("ALH").Select("LibraryName='" & LibraryNameWOPath & "'").Length > 0 Then
 
-		'            'If DS.Tables("ALH").Select("LibraryName='" & LibraryName(i) & "'")(0).Item("libraryhash") <> LibraryHash(i) Then
-		'            '    MailMessage &= "Hash библиотеки не совпал: " & LibraryName(i) & ", у клиента: Hash: " & LibraryHash(i) & ", версия: " & LibraryVersion(i) & "; "
-		'            'End If
-		'        Else
-		'            'MailMessage &= "Не описанная на сервере библиотека: " & LibraryName(i) & ", версия: " & LibraryVersion(i) & ", hash: " & LibraryHash(i) & "; "
-		'        End If
+        '            'If DS.Tables("ALH").Select("LibraryName='" & LibraryName(i) & "'")(0).Item("libraryhash") <> LibraryHash(i) Then
+        '            '    MailMessage &= "Hash библиотеки не совпал: " & LibraryName(i) & ", у клиента: Hash: " & LibraryHash(i) & ", версия: " & LibraryVersion(i) & "; "
+        '            'End If
+        '        Else
+        '            'MailMessage &= "Не описанная на сервере библиотека: " & LibraryName(i) & ", версия: " & LibraryVersion(i) & ", hash: " & LibraryHash(i) & "; "
+        '        End If
 
-		'    Next
-		'    If MailMessage.Length > 0 Then
-		'        'Addition &= MailMessage
-		'        'MailErr("Ошибка проверки версий библиотек", MailMessage)
-		'        MailMessage = ""
-		'    End If
-		'    DBDisconnect()
-		'End If
-		Return ""
-	End Function
+        '    Next
+        '    If MailMessage.Length > 0 Then
+        '        'Addition &= MailMessage
+        '        'MailErr("Ошибка проверки версий библиотек", MailMessage)
+        '        MailMessage = ""
+        '    End If
+        '    DBDisconnect()
+        'End If
+        Return ""
+    End Function
 
-	<WebMethod()> Public Function GetUserData( _
+    <WebMethod()> Public Function GetUserData( _
  ByVal AccessTime As Date, _
  ByVal GetEtalonData As Boolean, _
  ByVal EXEVersion As String, _
@@ -291,21 +304,21 @@ Public Class PrgDataEx
  ByVal WINDesc As String, _
  ByVal WayBillsOnly As Boolean) As String
 
-		Return GetUserDataWithPriceCodes( _
-		AccessTime, _
-		GetEtalonData, _
-		EXEVersion, _
-		MDBVersion, _
-		UniqueID, _
-		WINVersion, _
-		WINDesc, _
-		WayBillsOnly, _
-		Nothing, _
-		Nothing)
+        Return GetUserDataWithPriceCodes( _
+        AccessTime, _
+        GetEtalonData, _
+        EXEVersion, _
+        MDBVersion, _
+        UniqueID, _
+        WINVersion, _
+        WINDesc, _
+        WayBillsOnly, _
+        Nothing, _
+        Nothing)
 
-	End Function
+    End Function
 
-	<WebMethod()> Public Function GetUserDataEx( _
+    <WebMethod()> Public Function GetUserDataEx( _
  ByVal AccessTime As Date, _
  ByVal GetEtalonData As Boolean, _
  ByVal EXEVersion As String, _
@@ -316,19 +329,19 @@ Public Class PrgDataEx
  ByVal WayBillsOnly As Boolean, _
  ByVal ClientHFile As String) As String
 
-		Return GetUserDataWithPriceCodes( _
-		AccessTime, _
-		GetEtalonData, _
-		EXEVersion, _
-		MDBVersion, _
-		UniqueID, _
-		WINVersion, _
-		WINDesc, _
-		WayBillsOnly, _
-		Nothing, _
-		Nothing)
+        Return GetUserDataWithPriceCodes( _
+        AccessTime, _
+        GetEtalonData, _
+        EXEVersion, _
+        MDBVersion, _
+        UniqueID, _
+        WINVersion, _
+        WINDesc, _
+        WayBillsOnly, _
+        Nothing, _
+        Nothing)
 
-	End Function
+    End Function
 
     <WebMethod()> Public Function GetUserDataWithPriceCodes( _
  ByVal AccessTime As Date, _
@@ -401,6 +414,7 @@ Public Class PrgDataEx
             End If
 
             Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName, BuildNo)
 
             Cm.Transaction = Nothing
             Cm.CommandText = "" & _
@@ -517,6 +531,8 @@ RestartInsertTrans:
                         Next
                     End If
                     If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
+
+                    If _needUpdateToBuyingMatrix Then helper.SetForceReplication()
                 End If
 
             End If
@@ -691,840 +707,849 @@ endproc:
     End Function
 
 
-	Private Sub MySQLFileDelete(ByVal FileName As String)
-		If MySQLResultFile.Exists(FileName) Then MySQLResultFile.Delete(FileName)
-	End Sub
+    Private Sub MySQLFileDelete(ByVal FileName As String)
+        If MySQLResultFile.Exists(FileName) Then MySQLResultFile.Delete(FileName)
+    End Sub
 
 
-	Enum ТипДокумента As Integer
-		WayBills = 1
-		Rejects = 2
-		Docs = 3
-	End Enum
+    Enum ТипДокумента As Integer
+        WayBills = 1
+        Rejects = 2
+        Docs = 3
+    End Enum
 
 
 
-	Public Sub ZipStream() ' В потоке ThreadZipStream
+    Public Sub ZipStream() ' В потоке ThreadZipStream
 
-		Dim ArchCmd As MySqlCommand = New MySqlCommand()
-		Dim ArchDA As MySqlDataAdapter = New MySqlDataAdapter()
-		Try
-			ThreadContext.Properties("user") = UpdateData.UserName
+        Dim ArchCmd As MySqlCommand = New MySqlCommand()
+        Dim ArchDA As MySqlDataAdapter = New MySqlDataAdapter()
+        Try
+            ThreadContext.Properties("user") = UpdateData.UserName
 
 
-			ArhiveStartTime = Now()
-			Dim SevenZipParam As String = " -mx7 -bd -slp -mmt=6 -w" & Path.GetTempPath
-			Dim SevenZipTmpArchive, Name As String
-			Dim xRow As DataRow
-			Dim FileName, Вывод7Z, Ошибка7Z As String
-			Dim zipfilecount = 0
-			Dim xset As New DataTable
-			Dim ArchTrans As MySqlTransaction
-			Dim ef(), СписокФайлов() As String
+            ArhiveStartTime = Now()
+            Dim SevenZipParam As String = " -mx7 -bd -slp -mmt=6 -w" & Path.GetTempPath
+            Dim SevenZipTmpArchive, Name As String
+            Dim xRow As DataRow
+            Dim FileName, Вывод7Z, Ошибка7Z As String
+            Dim zipfilecount = 0
+            Dim xset As New DataTable
+            Dim ArchTrans As MySqlTransaction
+            Dim ef(), СписокФайлов() As String
 
 
-			Using connection = ConnectionManager.GetConnection()
-				connection.Open()
+            Using connection = ConnectionManager.GetConnection()
+                connection.Open()
 
 
-				Dim Pr As Process
-				Dim startInfo As ProcessStartInfo
+                Dim Pr As Process
+                Dim startInfo As ProcessStartInfo
 
 
 
-				If Reclame Then
-					SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
-					MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
-				Else
-					SevenZipTmpArchive = Path.GetTempPath() & UserId
-					MySQLFileDelete(ResultFileName & UserId & ".zip")
-					Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", ResultFileName & UserId & ".zip")
-				End If
-
-				SevenZipTmpArchive &= "T.zip"
-				MySQLFileDelete(SevenZipTmpArchive)
-
-
-				'Если не реклама
-				Dim helper = New UpdateHelper(UpdateData, Nothing, Nothing)
-				If Not Reclame Then
-
-					Try
-						ArchCmd.Connection = connection
-						ArchCmd.CommandText = helper.GetDocumentsCommand()
-						ArchCmd.Parameters.Clear()
-						ArchCmd.Parameters.AddWithValue("?UserId", UpdateData.UserId)
-						ArchCmd.Parameters.AddWithValue("?ClientCode", UpdateData.ClientId)
-
-						ArchDA.SelectCommand = ArchCmd
-						ArchDA.Fill(DS, "DocumentsToClient")
-
-						If DS.Tables("DocumentsToClient").Rows.Count > 0 Then
-
-							ArchCmd.CommandText = "" & _
-							  "SELECT  * " & _
-							  "FROM    AnalitFDocumentsProcessing limit 0"
-							ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
-							For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
-
-								СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
-								 Row.Item("ClientCode").ToString & _
-								 "\" & _
-								 CType(Row.Item("DocumentType"), ТипДокумента).ToString, _
-								 Row.Item("RowId").ToString & "_*")
-
-								'даже если нет документа мы должны подтвердить его, что бы не вытаться его отдавать затем всегда
-								xRow = DS.Tables("ProcessingDocuments").NewRow
-								xRow("Committed") = False
-								xRow.Item("DocumentId") = Row.Item("RowId").ToString
-								DS.Tables("ProcessingDocuments").Rows.Add(xRow)
-
-								If СписокФайлов.Length = 1 Then
-
-									startInfo = New ProcessStartInfo(SevenZipExe)
-									startInfo.CreateNoWindow = True
-									startInfo.RedirectStandardOutput = True
-									startInfo.RedirectStandardError = True
-									startInfo.UseShellExecute = False
-									startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-
-									startInfo.Arguments = "a """ & _
-									   SevenZipTmpArchive & """ " & _
-									   " -i!""" & _
-									   CType(Row.Item("DocumentType"), ТипДокумента).ToString & "\" & _
-									   Path.GetFileName(СписокФайлов(0)) & _
-									   """ " & _
-									   SevenZipParam
-
-									startInfo.WorkingDirectory = ПутьКДокументам & _
-									   Row.Item("ClientCode").ToString
-
-									Pr = New Process
-									Pr.StartInfo = startInfo
-									Pr = Process.Start(startInfo)
-									Pr.WaitForExit()
-
-									Вывод7Z = Pr.StandardOutput.ReadToEnd
-									Ошибка7Z = Pr.StandardError.ReadToEnd
-
-									If Pr.ExitCode <> 0 Then
-
-										MySQLFileDelete(SevenZipTmpArchive)
-										Addition &= "Архивирование документов, Вышли из 7Z с ошибкой: " & _
-										   Вывод7Z & _
-										   "-" & _
-										   Ошибка7Z & _
-										   "; "
-
-										If Documents Then
-
-											Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
-											 "-" & _
-											 Ошибка7Z))
-
-										Else
-
-											Counter.Utils.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
-											  Вывод7Z & _
-											 "-" & _
-											  Ошибка7Z)
-										End If
-									End If
-								ElseIf СписокФайлов.Length = 0 Then
-									Addition &= "При подготовке документов в папке: " & _
-									 ПутьКДокументам & _
-									   Row.Item("ClientCode").ToString & _
-									   "\" & _
-									   CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
-									   " не найден документ № " & _
-									   Row.Item("RowId").ToString & _
-									   " ; "
-								End If
-							Next
-
-							If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-								MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-								MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
-
-								'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-								ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-								ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
-
-								Dim ids As String = String.Empty
-								For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
-									If String.IsNullOrEmpty(ids) Then
-										ids = documentRow("DocumentId").ToString()
-									Else
-										ids += ", " & documentRow("DocumentId").ToString()
-									End If
-								Next
-
-								GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
-								GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
-
-								ShareFileHelper.WaitFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-								ShareFileHelper.WaitFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
-
-								Pr = New Process
-
-								startInfo = New ProcessStartInfo(SevenZipExe)
-								startInfo.CreateNoWindow = True
-								startInfo.RedirectStandardOutput = True
-								startInfo.RedirectStandardError = True
-								startInfo.UseShellExecute = False
-								startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-								startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlFilePath & "Document*" & UserId & ".txt", SevenZipParam)
-								startInfo.FileName = SevenZipExe
-
-								Pr.StartInfo = startInfo
-
-								Pr.Start()
-								If Not Pr.HasExited Then
-#If Not Debug Then
-                                Try
-                                    Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                Catch
-                                End Try
-#End If
-								End If
-
-								Вывод7Z = Pr.StandardOutput.ReadToEnd
-								Ошибка7Z = Pr.StandardError.ReadToEnd
-
-								Pr.WaitForExit()
-
-								If Pr.ExitCode <> 0 Then
-									Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
-									MySQLFileDelete(SevenZipTmpArchive)
-									Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
-								End If
-								Pr = Nothing
-
-								MySQLFileDelete(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-								MySQLFileDelete(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
-
-								ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentHeaders" & UserId & ".txt")
-								ShareFileHelper.WaitDeleteFile(MySqlFilePath & "DocumentBodies" & UserId & ".txt")
-							End If
-
-						End If
-
-
-					Catch ex As Exception
-						Log.Error("Ошибка при архивировании документов", ex)
-						MailErr("Архивирование документов", ex.Source & ": " & ex.Message)
-						Addition &= "Архивирование документов" & ": " & ex.Message & "; "
-
-						If Documents Then ErrorFlag = True
-
-						MySQLFileDelete(SevenZipTmpArchive)
-
-					End Try
-
-
-					If Documents Then
-						If File.Exists(SevenZipTmpArchive) Then
-
-							File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-							File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.NotContentIndexed)
-							PackFinished = True
-							FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
-							ResultLenght = Convert.ToUInt32(FileInfo.Length)
-							Exit Sub
-
-						Else
-
-							MessageH = "Новых файлов документов нет."
-							Addition &= " Нет новых документов"
-							ErrorFlag = True
-							PackFinished = True
-							Exit Sub
-
-						End If
-
-					End If
-
-
-
-
-					'Если не документы
-					If Not Documents Then
-
-						'Архивирование обновления программы
-						Try
-							If UpdateData.EnableUpdate Then
-
-								ef = UpdateData.GetUpdateFiles(ResultFileName, BuildNo)
-								If ef.Length > 0 Then
-									Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
-
-#If Not Debug Then
-									Try
-										Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-									Catch
-									End Try
+                If Reclame Then
+                    SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
+                    MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+                Else
+                    SevenZipTmpArchive = Path.GetTempPath() & UserId
+                    MySQLFileDelete(ResultFileName & UserId & ".zip")
+                    Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", ResultFileName & UserId & ".zip")
+                End If
+
+                SevenZipTmpArchive &= "T.zip"
+                MySQLFileDelete(SevenZipTmpArchive)
+
+
+                'Если не реклама
+                Dim helper = New UpdateHelper(UpdateData, Nothing, Nothing)
+                If Not Reclame Then
+
+                    Try
+                        ArchCmd.Connection = connection
+                        ArchCmd.CommandText = helper.GetDocumentsCommand()
+                        ArchCmd.Parameters.Clear()
+                        ArchCmd.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+                        ArchCmd.Parameters.AddWithValue("?ClientCode", UpdateData.ClientId)
+
+                        ArchDA.SelectCommand = ArchCmd
+                        ArchDA.Fill(DS, "DocumentsToClient")
+
+                        If DS.Tables("DocumentsToClient").Rows.Count > 0 Then
+
+                            ArchCmd.CommandText = "" & _
+                              "SELECT  * " & _
+                              "FROM    AnalitFDocumentsProcessing limit 0"
+                            ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
+                            For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
+
+                                СписокФайлов = Directory.GetFiles(ПутьКДокументам & _
+                                 Row.Item("ClientCode").ToString & _
+                                 "\" & _
+                                 CType(Row.Item("DocumentType"), ТипДокумента).ToString, _
+                                 Row.Item("RowId").ToString & "_*")
+
+                                'даже если нет документа мы должны подтвердить его, что бы не вытаться его отдавать затем всегда
+                                xRow = DS.Tables("ProcessingDocuments").NewRow
+                                xRow("Committed") = False
+                                xRow.Item("DocumentId") = Row.Item("RowId").ToString
+                                DS.Tables("ProcessingDocuments").Rows.Add(xRow)
+
+                                If СписокФайлов.Length = 1 Then
+
+                                    startInfo = New ProcessStartInfo(SevenZipExe)
+                                    startInfo.CreateNoWindow = True
+                                    startInfo.RedirectStandardOutput = True
+                                    startInfo.RedirectStandardError = True
+                                    startInfo.UseShellExecute = False
+                                    startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+
+                                    startInfo.Arguments = "a """ & _
+                                       SevenZipTmpArchive & """ " & _
+                                       " -i!""" & _
+                                       CType(Row.Item("DocumentType"), ТипДокумента).ToString & "\" & _
+                                       Path.GetFileName(СписокФайлов(0)) & _
+                                       """ " & _
+                                       SevenZipParam
+
+                                    startInfo.WorkingDirectory = ПутьКДокументам & _
+                                       Row.Item("ClientCode").ToString
+
+                                    Pr = New Process
+                                    Pr.StartInfo = startInfo
+                                    Pr = Process.Start(startInfo)
+                                    Pr.WaitForExit()
+
+                                    Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                    Ошибка7Z = Pr.StandardError.ReadToEnd
+
+                                    If Pr.ExitCode <> 0 Then
+
+                                        MySQLFileDelete(SevenZipTmpArchive)
+                                        Addition &= "Архивирование документов, Вышли из 7Z с ошибкой: " & _
+                                           Вывод7Z & _
+                                           "-" & _
+                                           Ошибка7Z & _
+                                           "; "
+
+                                        If Documents Then
+
+                                            Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
+                                             "-" & _
+                                             Ошибка7Z))
+
+                                        Else
+
+                                            Counter.Utils.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
+                                              Вывод7Z & _
+                                             "-" & _
+                                              Ошибка7Z)
+                                        End If
+                                    End If
+                                ElseIf СписокФайлов.Length = 0 Then
+                                    Addition &= "При подготовке документов в папке: " & _
+                                     ПутьКДокументам & _
+                                       Row.Item("ClientCode").ToString & _
+                                       "\" & _
+                                       CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
+                                       " не найден документ № " & _
+                                       Row.Item("RowId").ToString & _
+                                       " ; "
+                                End If
+                            Next
+
+                            If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+
+                                'Задержка при удалении локальных файлов не нужна
+                                'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
+#If DEBUG Then
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 #End If
 
-									Pr.WaitForExit()
+                                Dim ids As String = String.Empty
+                                For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
+                                    If String.IsNullOrEmpty(ids) Then
+                                        ids = documentRow("DocumentId").ToString()
+                                    Else
+                                        ids += ", " & documentRow("DocumentId").ToString()
+                                    End If
+                                Next
 
-									If Pr.ExitCode <> 0 Then
-										MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
-										Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-										MySQLFileDelete(SevenZipTmpArchive)
-									Else
+                                GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
+                                GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
 
-										Addition &= "Обновление включает в себя новую версию программы; "
-									End If
-
-								End If
-
-							End If
-
-						Catch ex As ThreadAbortException
-							If Not Pr Is Nothing Then
-								If Not Pr.HasExited Then Pr.Kill()
-								Pr.WaitForExit()
-							End If
-							MySQLFileDelete(SevenZipTmpArchive)
-						Catch ex As Exception
-							MailErr("Архивирование Exe", ex.Source & ": " & ex.Message)
-							Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
-							If Not Pr Is Nothing Then
-								If Not Pr.HasExited Then Pr.Kill()
-								Pr.WaitForExit()
-							End If
-							MySQLFileDelete(SevenZipTmpArchive)
-						End Try
-
-						ArchTrans = Nothing
-						ArchCmd.Transaction = Nothing
-
-
-						'Архивирование FRF
-						Try
-							If UpdateData.EnableUpdate Then
-								ef = UpdateData.GetFrfUpdateFiles(ResultFileName, BuildNo)
-								If ef.Length > 0 Then
-									For Each Name In ef
-										FileInfo = New FileInfo(Name)
-										If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
-											Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
-
-
-#If Not Debug Then
-											Try
-												Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-											Catch
-											End Try
+#If DEBUG Then
+                                ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
 #End If
 
-											Pr.WaitForExit()
+                                Pr = New Process
 
-											If Pr.ExitCode <> 0 Then
-												MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
-												Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-												MySQLFileDelete(SevenZipTmpArchive)
-											End If
-										End If
-									Next
-								End If
-							End If
+                                startInfo = New ProcessStartInfo(SevenZipExe)
+                                startInfo.CreateNoWindow = True
+                                startInfo.RedirectStandardOutput = True
+                                startInfo.RedirectStandardError = True
+                                startInfo.UseShellExecute = False
+                                startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                                startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlLocalFilePath() & "Document*" & UserId & ".txt", SevenZipParam)
+                                startInfo.FileName = SevenZipExe
 
-						Catch ex As ThreadAbortException
+                                Pr.StartInfo = startInfo
 
-							If Not Pr Is Nothing Then
-								If Not Pr.HasExited Then Pr.Kill()
-								Pr.WaitForExit()
-							End If
-							MySQLFileDelete(SevenZipTmpArchive)
+                                Pr.Start()
+                                '                                If Not Pr.HasExited Then
+                                '#If Not Debug Then
+                                '                                    Try
+                                '                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                '                                    Catch
+                                '                                    End Try
+                                '#End If
+                                '                                End If
 
-						Catch ex As Exception
+                                Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                Ошибка7Z = Pr.StandardError.ReadToEnd
 
-							Addition &= " Архивирование Frf: " & ex.Message & "; "
-							MailErr("Архивирование Frf", ex.Source & ": " & ex.Message)
+                                Pr.WaitForExit()
 
-							If Not Pr Is Nothing Then
-								If Not Pr.HasExited Then Pr.Kill()
-								Pr.WaitForExit()
-							End If
-							MySQLFileDelete(SevenZipTmpArchive)
+                                If Pr.ExitCode <> 0 Then
+                                    Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                                    MySQLFileDelete(SevenZipTmpArchive)
+                                    Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                                End If
+                                Pr = Nothing
 
-						End Try
-					End If
-				End If
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+
+#If DEBUG Then
+                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
+#End If
+                            End If
+
+                        End If
 
 
-				'Архивирование данных, или рекламы
-				Try
-					Dim FileForArchive As FileForArchive
-					If Not Documents Then
+                    Catch ex As Exception
+                        Log.Error("Ошибка при архивировании документов", ex)
+                        MailErr("Архивирование документов", ex.Source & ": " & ex.Message)
+                        Addition &= "Архивирование документов" & ": " & ex.Message & "; "
+
+                        If Documents Then ErrorFlag = True
+
+                        MySQLFileDelete(SevenZipTmpArchive)
+
+                    End Try
+
+
+                    If Documents Then
+                        If File.Exists(SevenZipTmpArchive) Then
+
+                            File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
+                            File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.NotContentIndexed)
+                            PackFinished = True
+                            FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
+                            ResultLenght = Convert.ToUInt32(FileInfo.Length)
+                            Exit Sub
+
+                        Else
+
+                            MessageH = "Новых файлов документов нет."
+                            Addition &= " Нет новых документов"
+                            ErrorFlag = True
+                            PackFinished = True
+                            Exit Sub
+
+                        End If
+
+                    End If
+
+
+
+
+                    'Если не документы
+                    If Not Documents Then
+
+                        'Архивирование обновления программы
+                        Try
+                            If UpdateData.EnableUpdate Then
+
+                                ef = UpdateData.GetUpdateFiles(ResultFileName, BuildNo)
+                                If ef.Length > 0 Then
+                                    Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
+
+                                    '#If Not Debug Then
+                                    '                                    Try
+                                    '                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                    '                                    Catch
+                                    '                                    End Try
+                                    '#End If
+
+                                    Pr.WaitForExit()
+
+                                    If Pr.ExitCode <> 0 Then
+                                        MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                        Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
+                                        MySQLFileDelete(SevenZipTmpArchive)
+                                    Else
+
+                                        Addition &= "Обновление включает в себя новую версию программы; "
+                                    End If
+
+                                End If
+
+                            End If
+
+                        Catch ex As ThreadAbortException
+                            If Not Pr Is Nothing Then
+                                If Not Pr.HasExited Then Pr.Kill()
+                                Pr.WaitForExit()
+                            End If
+                            MySQLFileDelete(SevenZipTmpArchive)
+                        Catch ex As Exception
+                            MailErr("Архивирование Exe", ex.Source & ": " & ex.Message)
+                            Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
+                            If Not Pr Is Nothing Then
+                                If Not Pr.HasExited Then Pr.Kill()
+                                Pr.WaitForExit()
+                            End If
+                            MySQLFileDelete(SevenZipTmpArchive)
+                        End Try
+
+                        ArchTrans = Nothing
+                        ArchCmd.Transaction = Nothing
+
+
+                        'Архивирование FRF
+                        Try
+                            If UpdateData.EnableUpdate Then
+                                ef = UpdateData.GetFrfUpdateFiles(ResultFileName, BuildNo)
+                                If ef.Length > 0 Then
+                                    For Each Name In ef
+                                        FileInfo = New FileInfo(Name)
+                                        If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
+                                            Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
+
+
+                                            '#If Not Debug Then
+                                            '                                            Try
+                                            '                                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                            '                                            Catch
+                                            '                                            End Try
+                                            '#End If
+
+                                            Pr.WaitForExit()
+
+                                            If Pr.ExitCode <> 0 Then
+                                                MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                                Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
+                                                MySQLFileDelete(SevenZipTmpArchive)
+                                            End If
+                                        End If
+                                    Next
+                                End If
+                            End If
+
+                        Catch ex As ThreadAbortException
+
+                            If Not Pr Is Nothing Then
+                                If Not Pr.HasExited Then Pr.Kill()
+                                Pr.WaitForExit()
+                            End If
+                            MySQLFileDelete(SevenZipTmpArchive)
+
+                        Catch ex As Exception
+
+                            Addition &= " Архивирование Frf: " & ex.Message & "; "
+                            MailErr("Архивирование Frf", ex.Source & ": " & ex.Message)
+
+                            If Not Pr Is Nothing Then
+                                If Not Pr.HasExited Then Pr.Kill()
+                                Pr.WaitForExit()
+                            End If
+                            MySQLFileDelete(SevenZipTmpArchive)
+
+                        End Try
+                    End If
+                End If
+
+
+                'Архивирование данных, или рекламы
+                Try
+                    Dim FileForArchive As FileForArchive
+                    If Not Documents Then
 
 StartZipping:
-						If ErrorFlag Then Exit Sub
+                        If ErrorFlag Then Exit Sub
 
-						If FilesForArchive.Count > 0 Then
+                        If FilesForArchive.Count > 0 Then
 
-							SyncLock (FilesForArchive)
-								FileForArchive = FilesForArchive.Dequeue
-							End SyncLock
+                            SyncLock (FilesForArchive)
+                                FileForArchive = FilesForArchive.Dequeue
+                            End SyncLock
 
-						Else
+                        Else
 
-							Thread.Sleep(500)
-							GoTo StartZipping
+                            Thread.Sleep(500)
+                            GoTo StartZipping
 
-						End If
+                        End If
 
 
-						If FileForArchive.FileName.StartsWith("EndOfFiles.txt") Then
-							If Reclame Then
+                        If FileForArchive.FileName.StartsWith("EndOfFiles.txt") Then
+                            If Reclame Then
 
-								'ArchCmd.CommandText &= "1"
-								File.Move(SevenZipTmpArchive, ResultFileName & "r" & UserId & ".zip")
+                                'ArchCmd.CommandText &= "1"
+                                File.Move(SevenZipTmpArchive, ResultFileName & "r" & UserId & ".zip")
 
-							Else
+                            Else
 
-								'ArchCmd.CommandText &= "0"
-								File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-								Log.DebugFormat("Закончено архивирование файла: {0}", ResultFileName & UserId & ".zip")
+                                'ArchCmd.CommandText &= "0"
+                                File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
+                                Log.DebugFormat("Закончено архивирование файла: {0}", ResultFileName & UserId & ".zip")
                                 If (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED)) Then
                                     File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
                                     Log.DebugFormat("Для файла выставлен атрибут Normal: {0}", ResultFileName & UserId & ".zip")
                                 End If
 
-								FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
-								ResultLenght = Convert.ToUInt32(FileInfo.Length)
+                                FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
+                                ResultLenght = Convert.ToUInt32(FileInfo.Length)
 
-							End If
-							'ArchCmd.ExecuteNonQuery()
+                            End If
+                            'ArchCmd.ExecuteNonQuery()
 
-							PackFinished = True
-							Exit Sub
-						End If
+                            PackFinished = True
+                            Exit Sub
+                        End If
 
-						If Reclame Then
-							FileName = ReclamePath & FileForArchive.FileName
+                        If Reclame Then
+                            FileName = ReclamePath & FileForArchive.FileName
                         Else
 
                             If FileForArchive.FileType Then
                                 FileName = FileForArchive.FileName
                             Else
-                                FileName = MySqlFilePath & FileForArchive.FileName & UserId & ".txt"
+                                FileName = MySqlLocalFilePath() & FileForArchive.FileName & UserId & ".txt"
                             End If
 
 
+#If DEBUG Then
                             ShareFileHelper.WaitFile(FileName)
-						End If
-
-						Pr = New Process
-
-						startInfo = New ProcessStartInfo(SevenZipExe)
-						startInfo.CreateNoWindow = True
-						startInfo.RedirectStandardOutput = True
-						startInfo.RedirectStandardError = True
-						startInfo.UseShellExecute = False
-						startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-						startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, FileName, SevenZipParam)
-						startInfo.FileName = SevenZipExe
-
-						Pr.StartInfo = startInfo
-
-						Pr.Start()
-						If Not Pr.HasExited Then
-#If Not Debug Then
-                        Try
-                            Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                        Catch
-                        End Try
 #End If
-						End If
+                        End If
 
-						Вывод7Z = Pr.StandardOutput.ReadToEnd
-						Ошибка7Z = Pr.StandardError.ReadToEnd
+                        Pr = New Process
 
-						Pr.WaitForExit()
+                        startInfo = New ProcessStartInfo(SevenZipExe)
+                        startInfo.CreateNoWindow = True
+                        startInfo.RedirectStandardOutput = True
+                        startInfo.RedirectStandardError = True
+                        startInfo.UseShellExecute = False
+                        startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                        startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, FileName, SevenZipParam)
+                        startInfo.FileName = SevenZipExe
 
-						If Pr.ExitCode <> 0 Then
-							Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
-							MySQLFileDelete(SevenZipTmpArchive)
-							Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
-						End If
-						Pr = Nothing
-						If Not Reclame Then MySQLFileDelete(FileName)
-						zipfilecount += 1
+                        Pr.StartInfo = startInfo
 
-						'If zipfilecount >= FileCount Then
+                        Pr.Start()
+                        '                        If Not Pr.HasExited Then
+                        '#If Not Debug Then
+                        '                            Try
+                        '                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                        '                            Catch
+                        '                            End Try
+                        '#End If
+                        '                        End If
 
-						'    'ArchCmd.CommandText = "delete from ready_client_files where clientcode=" & CCode
-						'    'ArchCmd.CommandText &= " and reclame="
+                        Вывод7Z = Pr.StandardOutput.ReadToEnd
+                        Ошибка7Z = Pr.StandardError.ReadToEnd
 
-						'Else
+                        Pr.WaitForExit()
 
-						'End If
+                        If Pr.ExitCode <> 0 Then
+                            Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                            MySQLFileDelete(SevenZipTmpArchive)
+                            Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                        End If
+                        Pr = Nothing
+                        If Not Reclame Then MySQLFileDelete(FileName)
+                        zipfilecount += 1
 
-						GoTo StartZipping
+                        'If zipfilecount >= FileCount Then
 
-					End If
+                        '    'ArchCmd.CommandText = "delete from ready_client_files where clientcode=" & CCode
+                        '    'ArchCmd.CommandText &= " and reclame="
 
+                        'Else
 
+                        'End If
 
+                        GoTo StartZipping
 
-				Catch ex As ThreadAbortException
-					MySQLFileDelete(SevenZipTmpArchive)
-
-					Try
-
-						Pr.Kill()
-						Pr.WaitForExit()
-
-					Catch
-					End Try
-
-
-				Catch ex As MySqlException
-
-					'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
-					If Not Pr Is Nothing Then
-						If Not Pr.HasExited Then Pr.Kill()
-						Pr.WaitForExit()
-					End If
-					MySQLFileDelete(SevenZipTmpArchive)
-
-					If Not TypeOf ex.InnerException Is ThreadAbortException Then
-						ErrorFlag = True
-						UpdateType = RequestType.Error
-						MailErr("Архивирование", ex.Source & ": " & ex.ToString())
-					End If
-					Addition &= " Архивирование: " & ex.ToString() & "; "
-
-				Catch Unhandled As Exception
-
-					ErrorFlag = True
-					UpdateType = RequestType.Error
-					If Not Pr Is Nothing Then
-						If Not Pr.HasExited Then Pr.Kill()
-						Pr.WaitForExit()
-					End If
-					Addition &= " Архивирование: " & Unhandled.ToString()
-					MySQLFileDelete(SevenZipTmpArchive)
-					MailErr("Архивирование", Unhandled.Source & ": " & Unhandled.ToString())
-					Addition &= " Архивирование: " & Unhandled.ToString() & "; "
-					'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
-				End Try
-			End Using
-
-		Catch tae As ThreadAbortException
-
-		Catch Unhandled As Exception
-			MailErr("Архивирование general", Unhandled.Source & ": " & Unhandled.ToString())
-			ErrorFlag = True
-		End Try
-	End Sub
+                    End If
 
 
 
 
+                Catch ex As ThreadAbortException
+                    MySQLFileDelete(SevenZipTmpArchive)
 
-	<WebMethod()> _
-	Public Function MaxSynonymCode(ByVal Log As String, _
-	ByVal PriceCode As UInt32(), _
-	ByVal UpdateId As UInt32, _
-	ByVal WayBillsOnly As Boolean) As Date
-		Dim UpdateTime As Date
-		Cm.Transaction = Nothing
-		ClientLog = Log
-		GUpdateId = UpdateId
-		Try
+                    Try
 
-			UpdateType = RequestType.CommitExchange
+                        Pr.Kill()
+                        Pr.WaitForExit()
 
-			DBConnect()
-			GetClientCode()
-			Counter.Counter.TryLock(UserId, "MaxSynonymCode")
+                    Catch
+                    End Try
 
-			If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
 
-				AbsentPriceCodes = String.Empty
-				If (PriceCode IsNot Nothing) AndAlso (PriceCode.Length > 0) AndAlso (PriceCode(0) <> 0) Then
-					AbsentPriceCodes = PriceCode(0).ToString
-					Dim I As Integer
-					For I = 1 To PriceCode.Length - 1
-						AbsentPriceCodes &= "," & PriceCode(I)
-					Next
-				End If
+                Catch ex As MySqlException
 
-				ProcessOldCommit(AbsentPriceCodes)
+                    'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
+                    If Not Pr Is Nothing Then
+                        If Not Pr.HasExited Then Pr.Kill()
+                        Pr.WaitForExit()
+                    End If
+                    MySQLFileDelete(SevenZipTmpArchive)
 
-			End If
+                    If Not TypeOf ex.InnerException Is ThreadAbortException Then
+                        ErrorFlag = True
+                        UpdateType = RequestType.Error
+                        MailErr("Архивирование", ex.Source & ": " & ex.ToString())
+                    End If
+                    Addition &= " Архивирование: " & ex.ToString() & "; "
 
-				Try
+                Catch Unhandled As Exception
 
-					If Not WayBillsOnly Then
-						Cm.Connection = ReadOnlyCn
-						Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
-						Cm.CommandText = Запрос
-						Using SQLdr As MySqlDataReader = Cm.ExecuteReader
-							SQLdr.Read()
-							UpdateTime = SQLdr.GetDateTime(0)
-						End Using
+                    ErrorFlag = True
+                    UpdateType = RequestType.Error
+                    If Not Pr Is Nothing Then
+                        If Not Pr.HasExited Then Pr.Kill()
+                        Pr.WaitForExit()
+                    End If
+                    Addition &= " Архивирование: " & Unhandled.ToString()
+                    MySQLFileDelete(SevenZipTmpArchive)
+                    MailErr("Архивирование", Unhandled.Source & ": " & Unhandled.ToString())
+                    Addition &= " Архивирование: " & Unhandled.ToString() & "; "
+                    'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
+                End Try
+            End Using
 
-						Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
-						Me.Log.DebugFormat("MaxSynonymCode: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
-						If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
-							UpdateTime = CType(masterUpdateTime, DateTime)
-							Me.Log.Debug("MaxSynonymCode: дата, выбранная из мастера, больше, чем дата из slave")
-						End If
-					End If
+        Catch tae As ThreadAbortException
 
-				Catch ex As Exception
-					MailErr("Выборка даты обновления ", ex.Message & ex.Source)
-					UpdateTime = Now().ToUniversalTime
-				End Try
+        Catch Unhandled As Exception
+            MailErr("Архивирование general", Unhandled.Source & ": " & Unhandled.ToString())
+            ErrorFlag = True
+        End Try
+    End Sub
 
-				MaxSynonymCode = UpdateTime.ToUniversalTime
 
-				Try
 
-					Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
-					If Convert.ToBoolean(Cm.ExecuteScalar) Then
-						If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
-						File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
-					End If
 
-					MySQLFileDelete(ResultFileName & UserId & ".zip")
-					Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
-					MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
-				Catch ex As Exception
-					Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
-				End Try
-			ProtocolUpdatesThread.Start()
-		Catch e As Exception
+    <WebMethod()> _
+    Public Function MaxSynonymCode(ByVal Log As String, _
+ ByVal PriceCode As UInt32(), _
+ ByVal UpdateId As UInt32, _
+ ByVal WayBillsOnly As Boolean) As Date
+        Dim UpdateTime As Date
+        Cm.Transaction = Nothing
+        ClientLog = Log
+        GUpdateId = UpdateId
+        Try
+
+            UpdateType = RequestType.CommitExchange
+
+            DBConnect()
+            GetClientCode()
+            Counter.Counter.TryLock(UserId, "MaxSynonymCode")
+
+            If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+
+                AbsentPriceCodes = String.Empty
+                If (PriceCode IsNot Nothing) AndAlso (PriceCode.Length > 0) AndAlso (PriceCode(0) <> 0) Then
+                    AbsentPriceCodes = PriceCode(0).ToString
+                    Dim I As Integer
+                    For I = 1 To PriceCode.Length - 1
+                        AbsentPriceCodes &= "," & PriceCode(I)
+                    Next
+                End If
+
+                ProcessOldCommit(AbsentPriceCodes)
+
+            End If
+
+            Try
+
+                If Not WayBillsOnly Then
+                    Cm.Connection = ReadOnlyCn
+                    Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
+                    Cm.CommandText = Запрос
+                    Using SQLdr As MySqlDataReader = Cm.ExecuteReader
+                        SQLdr.Read()
+                        UpdateTime = SQLdr.GetDateTime(0)
+                    End Using
+
+                    Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                    Me.Log.DebugFormat("MaxSynonymCode: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
+                    If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
+                        UpdateTime = CType(masterUpdateTime, DateTime)
+                        Me.Log.Debug("MaxSynonymCode: дата, выбранная из мастера, больше, чем дата из slave")
+                    End If
+                End If
+
+            Catch ex As Exception
+                MailErr("Выборка даты обновления ", ex.Message & ex.Source)
+                UpdateTime = Now().ToUniversalTime
+            End Try
+
+            MaxSynonymCode = UpdateTime.ToUniversalTime
+
+            Try
+
+                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
+                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                    If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
+                    File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
+                End If
+
+                MySQLFileDelete(ResultFileName & UserId & ".zip")
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
+                MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
+
+            Catch ex As Exception
+                Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
+            End Try
+            ProtocolUpdatesThread.Start()
+        Catch e As Exception
             LogRequestHelper.MailWithRequest(Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
             Return Now().ToUniversalTime
-		Finally
-			ReleaseLock(UserId, "MaxSynonymCode")
-			DBDisconnect()
-		End Try
+        Finally
+            ReleaseLock(UserId, "MaxSynonymCode")
+            DBDisconnect()
+        End Try
 
-	End Function
+    End Function
 
-	<WebMethod()> _
-	Public Function CommitExchange( _
-	ByVal UpdateId As UInt32, _
-	ByVal WayBillsOnly As Boolean) As Date
-		Dim UpdateTime As Date
-		Cm.Transaction = Nothing
-		GUpdateId = UpdateId
+    <WebMethod()> _
+    Public Function CommitExchange( _
+ ByVal UpdateId As UInt32, _
+ ByVal WayBillsOnly As Boolean) As Date
+        Dim UpdateTime As Date
+        Cm.Transaction = Nothing
+        GUpdateId = UpdateId
 
-		Try
-			UpdateType = RequestType.CommitExchange
+        Try
+            UpdateType = RequestType.CommitExchange
 
-			DBConnect()
-			GetClientCode()
-			Counter.Counter.TryLock(UserId, "CommitExchange")
+            DBConnect()
+            GetClientCode()
+            Counter.Counter.TryLock(UserId, "CommitExchange")
 
-			If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
-				' Здесь сбрасывались коды прайс-листов
-				ProcessCommitExchange()
-			End If
+            If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+                ' Здесь сбрасывались коды прайс-листов
+                ProcessCommitExchange()
+            End If
 
-			Try
+            Try
 
-				If Not WayBillsOnly Then
-					Cm.Connection = ReadOnlyCn
-					Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
-					Cm.CommandText = Запрос
-					Using SQLdr As MySqlDataReader = Cm.ExecuteReader
-						SQLdr.Read()
-						UpdateTime = SQLdr.GetDateTime(0)
-					End Using
+                If Not WayBillsOnly Then
+                    Cm.Connection = ReadOnlyCn
+                    Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
+                    Cm.CommandText = Запрос
+                    Using SQLdr As MySqlDataReader = Cm.ExecuteReader
+                        SQLdr.Read()
+                        UpdateTime = SQLdr.GetDateTime(0)
+                    End Using
 
-					Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
-					Me.Log.DebugFormat("CommitExchange: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
-					If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
-						UpdateTime = CType(masterUpdateTime, DateTime)
-						Me.Log.Debug("CommitExchange: дата, выбранная из мастера, больше, чем дата из slave")
-					End If
-				End If
+                    Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                    Me.Log.DebugFormat("CommitExchange: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
+                    If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
+                        UpdateTime = CType(masterUpdateTime, DateTime)
+                        Me.Log.Debug("CommitExchange: дата, выбранная из мастера, больше, чем дата из slave")
+                    End If
+                End If
 
-			Catch ex As Exception
-				MailErr("Выборка даты обновления ", ex.Message & ex.Source)
-				UpdateTime = Now().ToUniversalTime
-			End Try
+            Catch ex As Exception
+                MailErr("Выборка даты обновления ", ex.Message & ex.Source)
+                UpdateTime = Now().ToUniversalTime
+            End Try
 
-			CommitExchange = UpdateTime.ToUniversalTime
+            CommitExchange = UpdateTime.ToUniversalTime
 
-			Try
+            Try
 
-				Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
-				If Convert.ToBoolean(Cm.ExecuteScalar) Then
-					If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
-					File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
-				End If
+                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
+                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                    If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
+                    File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
+                End If
 
-				MySQLFileDelete(ResultFileName & UserId & ".zip")
-				Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
-				MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
+                MySQLFileDelete(ResultFileName & UserId & ".zip")
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
+                MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
-			Catch ex As Exception
-				'MailErr("Удаление полученных файлов;", ex.Message)
-			End Try
-			ProtocolUpdatesThread.Start()
-		Catch e As Exception
+            Catch ex As Exception
+                'MailErr("Удаление полученных файлов;", ex.Message)
+            End Try
+            ProtocolUpdatesThread.Start()
+        Catch e As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении обновления", e)
             CommitExchange = Now().ToUniversalTime
-		Finally
-			DBDisconnect()
-			ReleaseLock(UserId, "CommitExchange")
-		End Try
-	End Function
+        Finally
+            DBDisconnect()
+            ReleaseLock(UserId, "CommitExchange")
+        End Try
+    End Function
 
-	<WebMethod()> _
-	Public Function SendClientLog( _
+    <WebMethod()> _
+    Public Function SendClientLog( _
   ByVal UpdateId As UInt32, _
   ByVal Log As String _
   ) As String
 
-		Try
-			DBConnect()
-			GetClientCode()
-			Counter.Counter.TryLock(UserId, "SendClientLog")
-			Try
-				MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery( _
-				 ReadWriteCn, _
-				 "update logs.AnalitFUpdates set Log=?Log  where UpdateId=?UpdateId", _
-				 New MySqlParameter("?Log", Log), _
-				 New MySqlParameter("?UpdateId", UpdateId))
-			Catch ex As Exception
-				Me.Log.Error("Ошибка при сохранении лога клиента", ex)
-			End Try
-			SendClientLog = "OK"
-		Catch e As Exception
+        Try
+            DBConnect()
+            GetClientCode()
+            Counter.Counter.TryLock(UserId, "SendClientLog")
+            Try
+                MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery( _
+                 ReadWriteCn, _
+                 "update logs.AnalitFUpdates set Log=?Log  where UpdateId=?UpdateId", _
+                 New MySqlParameter("?Log", Log), _
+                 New MySqlParameter("?UpdateId", UpdateId))
+            Catch ex As Exception
+                Me.Log.Error("Ошибка при сохранении лога клиента", ex)
+            End Try
+            SendClientLog = "OK"
+        Catch e As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при сохранении лога клиента", e)
             SendClientLog = "Error"
-		Finally
-			DBDisconnect()
-			ReleaseLock(UserId, "SendClientLog")
-		End Try
-	End Function
+        Finally
+            DBDisconnect()
+            ReleaseLock(UserId, "SendClientLog")
+        End Try
+    End Function
 
-	Private Sub GetClientCode()
-		UserName = ServiceContext.GetUserName()
-		ThreadContext.Properties("user") = UserName
-		If Left(UserName, 7) = "ANALIT\" Then
-			UserName = Mid(UserName, 8)
-		End If
-		UpdateData = UpdateHelper.GetUpdateData(ReadOnlyCn, UserName)
+    Private Sub GetClientCode()
+        UserName = ServiceContext.GetUserName()
+        ThreadContext.Properties("user") = UserName
+        If Left(UserName, 7) = "ANALIT\" Then
+            UserName = Mid(UserName, 8)
+        End If
+        UpdateData = UpdateHelper.GetUpdateData(ReadOnlyCn, UserName)
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
-			Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
-		End If
+            Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
+        End If
 
-		CCode = UpdateData.ClientId
-		UserId = UpdateData.UserId
-		CheckID = UpdateData.CheckCopyId
-		Message = UpdateData.Message
-		OldUpTime = UpdateData.OldUpdateTime
-		UncDT = UpdateData.UncommitedUpdateTime
-		SpyHostsFile = UpdateData.Spy
-		SpyAccount = UpdateData.SpyAccount
-		ThreadContext.Properties("user") = UpdateData.UserName
+        CCode = UpdateData.ClientId
+        UserId = UpdateData.UserId
+        CheckID = UpdateData.CheckCopyId
+        Message = UpdateData.Message
+        OldUpTime = UpdateData.OldUpdateTime
+        UncDT = UpdateData.UncommitedUpdateTime
+        SpyHostsFile = UpdateData.Spy
+        SpyAccount = UpdateData.SpyAccount
+        ThreadContext.Properties("user") = UpdateData.UserName
 
-		With Cm
-			.Parameters.Add(New MySqlParameter("?UserName", MySqlDbType.VarString))
-			.Parameters("?UserName").Value = UserName
+        With Cm
+            .Parameters.Add(New MySqlParameter("?UserName", MySqlDbType.VarString))
+            .Parameters("?UserName").Value = UserName
 
-			.Parameters.Add(New MySqlParameter("?ClientCode", MySqlDbType.Int32))
-			.Parameters("?ClientCode").Value = CCode
-		End With
+            .Parameters.Add(New MySqlParameter("?ClientCode", MySqlDbType.Int32))
+            .Parameters("?ClientCode").Value = CCode
+        End With
 
-		Cm.Connection = ReadWriteCn
-		Cm.Transaction = Nothing
-		Cm.CommandText = "" & _
-		 "UPDATE Logs.AuthorizationDates A " & _
-		 "SET     AFTime    =now() " & _
-		 "WHERE   UserId=" & UserId
-		Dim AuthorizationDatesCounter As Integer = Cm.ExecuteNonQuery()
+        Cm.Connection = ReadWriteCn
+        Cm.Transaction = Nothing
+        Cm.CommandText = "" & _
+         "UPDATE Logs.AuthorizationDates A " & _
+         "SET     AFTime    =now() " & _
+         "WHERE   UserId=" & UserId
+        Dim AuthorizationDatesCounter As Integer = Cm.ExecuteNonQuery()
 
-		If AuthorizationDatesCounter <> 1 Then
-			Addition &= "Нет записи в AuthorizationDates (" & UserId & "); "
-		End If
-	End Sub
+        If AuthorizationDatesCounter <> 1 Then
+            Addition &= "Нет записи в AuthorizationDates (" & UserId & "); "
+        End If
+    End Sub
 
-	Private Function DBConnect()
-		UserHost = ServiceContext.GetUserHost()
-		Try
-			ReadOnlyCn = ConnectionManager.GetConnection()
-			ReadOnlyCn.Open()
+    Private Function DBConnect()
+        UserHost = ServiceContext.GetUserHost()
+        Try
+            ReadOnlyCn = ConnectionManager.GetConnection()
+            ReadOnlyCn.Open()
 
-			ReadWriteCn = New MySqlConnection
-			ReadWriteCn.ConnectionString = Settings.ConnectionString()
-			ReadWriteCn.Open()
+            ReadWriteCn = New MySqlConnection
+            ReadWriteCn.ConnectionString = Settings.ConnectionString()
+            ReadWriteCn.Open()
 
-			Return True
-		Catch ex As Exception
-			DBDisconnect()
-			Throw
-		End Try
-	End Function
+            Return True
+        Catch ex As Exception
+            DBDisconnect()
+            Throw
+        End Try
+    End Function
 
-	Private Sub DBDisconnect()
-		Try
-			If Not ReadOnlyCn Is Nothing Then ReadOnlyCn.Dispose()
-		Catch e As Exception
-			Log.Error("Ошибка при закритии соединения", e)
-		End Try
+    Private Sub DBDisconnect()
+        Try
+            If Not ReadOnlyCn Is Nothing Then ReadOnlyCn.Dispose()
+        Catch e As Exception
+            Log.Error("Ошибка при закритии соединения", e)
+        End Try
 
-		Try
-			If Not ReadWriteCn Is Nothing Then ReadWriteCn.Dispose()
-		Catch e As Exception
-			Log.Error("Ошибка при закритии соединения", e)
-		End Try
-	End Sub
+        Try
+            If Not ReadWriteCn Is Nothing Then ReadWriteCn.Dispose()
+        Catch e As Exception
+            Log.Error("Ошибка при закритии соединения", e)
+        End Try
+    End Sub
 
-	<WebMethod()> Public Function GetArchivedOrdersList() As String
-		'If DBConnect("GetArchivedOrdersList") Then
+    <WebMethod()> Public Function GetArchivedOrdersList() As String
+        'If DBConnect("GetArchivedOrdersList") Then
 
-		'    'TODO: Встроить логирование в prgdataex
-		'    Try
-		'        GetClientCode()
+        '    'TODO: Встроить логирование в prgdataex
+        '    Try
+        '        GetClientCode()
 
-		'        'Если смогли получить код клиента
-		'        If CCode > 0 Then
-		'            Dim dsOrderList As DataSet = MySqlHelper.ExecuteDataset(Cm.Connection, "SELECT o.ClientOrderId FROM orders.ordershead o LEFT JOIN orders.orderslist ol ON ol.OrderID=o.RowID where ol.OrderID is null and o.WriteTime between '2007-09-16 20:34:02' and '2007-09-24 11:02:44' and o.ClientCode = ?ClientCode limit 50", New MySqlParameter("?ClientCode", CCode))
-		'            Dim list As List(Of String) = New List(Of String)
-		'            Dim drOrderId As DataRow
+        '        'Если смогли получить код клиента
+        '        If CCode > 0 Then
+        '            Dim dsOrderList As DataSet = MySqlHelper.ExecuteDataset(Cm.Connection, "SELECT o.ClientOrderId FROM orders.ordershead o LEFT JOIN orders.orderslist ol ON ol.OrderID=o.RowID where ol.OrderID is null and o.WriteTime between '2007-09-16 20:34:02' and '2007-09-24 11:02:44' and o.ClientCode = ?ClientCode limit 50", New MySqlParameter("?ClientCode", CCode))
+        '            Dim list As List(Of String) = New List(Of String)
+        '            Dim drOrderId As DataRow
 
-		'            For Each drOrderId In dsOrderList.Tables(0).Rows
-		'                list.Add(drOrderId.Item("ClientOrderId").ToString())
-		'            Next
-		'            'MailErr("Запросили у клиента архивные заказы", list.Count & " шт.")
-		'            Return String.Join(";", list.ToArray())
-		'        Else
-		'            Return String.Empty
-		'        End If
+        '            For Each drOrderId In dsOrderList.Tables(0).Rows
+        '                list.Add(drOrderId.Item("ClientOrderId").ToString())
+        '            Next
+        '            'MailErr("Запросили у клиента архивные заказы", list.Count & " шт.")
+        '            Return String.Join(";", list.ToArray())
+        '        Else
+        '            Return String.Empty
+        '        End If
 
-		'    Catch Exp As Exception
-		'        MailErr("Ошибка при получении списка архивных заказов", Exp.Message & ": " & Exp.StackTrace)
-		'        Addition = Exp.Message
-		'        ErrorFlag = True
-		'        UpdateType = 5
-		'        Return String.Empty
-		'    Finally
-		'        DBDisconnect()
-		'    End Try
-		'Else
-		'    Return String.Empty
-		'End If
-		Return String.Empty
-	End Function
-
-
+        '    Catch Exp As Exception
+        '        MailErr("Ошибка при получении списка архивных заказов", Exp.Message & ": " & Exp.StackTrace)
+        '        Addition = Exp.Message
+        '        ErrorFlag = True
+        '        UpdateType = 5
+        '        Return String.Empty
+        '    Finally
+        '        DBDisconnect()
+        '    End Try
+        'Else
+        '    Return String.Empty
+        'End If
+        Return String.Empty
+    End Function
 
 
-	<WebMethod()> _
-	Public Function PostOrder2(ByVal UniqueID As String, _
+
+
+    <WebMethod()> _
+    Public Function PostOrder2(ByVal UniqueID As String, _
   ByVal ServerOrderId As UInt32, _
   ByVal ClientCode As UInt32, _
   ByVal PriceCode As UInt32, _
@@ -1550,68 +1575,68 @@ StartZipping:
 
 
 
-		Return PostOrder(UniqueID, _
-		   ServerOrderId, _
-		   ClientCode, _
-		   PriceCode, _
-		   RegionCode, _
-		   PriceDate, _
-		   ClientAddition, _
-		   RowCount, _
-		   ProductID, _
-		   ClientOrderID, _
-		   CodeFirmCr, _
-		   SynonymCode, _
-		   SynonymFirmCrCode, _
-		   Code, _
-		   CodeCr, _
-		   Quantity, _
-		   Junk, _
-		   Await, _
-		   Cost, _
-		   MinCost, _
-		   MinPriceCode, _
-		   LeaderMinCost, _
-		   Nothing, _
-		   Nothing, _
-		   Nothing, _
-		   LeaderMinPriceCode)
+        Return PostOrder(UniqueID, _
+           ServerOrderId, _
+           ClientCode, _
+           PriceCode, _
+           RegionCode, _
+           PriceDate, _
+           ClientAddition, _
+           RowCount, _
+           ProductID, _
+           ClientOrderID, _
+           CodeFirmCr, _
+           SynonymCode, _
+           SynonymFirmCrCode, _
+           Code, _
+           CodeCr, _
+           Quantity, _
+           Junk, _
+           Await, _
+           Cost, _
+           MinCost, _
+           MinPriceCode, _
+           LeaderMinCost, _
+           Nothing, _
+           Nothing, _
+           Nothing, _
+           LeaderMinPriceCode)
 
-	End Function
+    End Function
 
-	<WebMethod()> _
-	Public Function PostOrder(ByVal UniqueID As String, _
-	ByVal ServerOrderId As UInt32, _
-	ByVal ClientCode As UInt32, _
-	ByVal PriceCode As UInt32, _
-	ByVal RegionCode As UInt64, _
-	ByVal PriceDate As Date, _
-	ByVal ClientAddition As String, _
-	ByVal RowCount As UInt16, _
-	ByVal ProductID As UInt32(), _
-	ByVal ClientOrderID As UInt32, _
-	ByVal CodeFirmCr As String(), _
-	ByVal SynonymCode As UInt32(), _
-	ByVal SynonymFirmCrCode As String(), _
-	ByVal Code As String(), _
-	ByVal CodeCr As String(), _
-	ByVal Quantity As UInt16(), _
-	ByVal Junk As Boolean(), _
-	ByVal Await As Boolean(), _
-	ByVal Cost As Decimal(), _
-	ByVal MinCost As String(), _
-	ByVal MinPriceCode As String(), _
-	ByVal LeaderMinCost As String(), _
-	ByVal RequestRatio As String(), _
-	ByVal OrderCost As String(), _
-	ByVal MinOrderCount As String(), _
-	ByVal LeaderMinPriceCode As String()) As String
+    <WebMethod()> _
+    Public Function PostOrder(ByVal UniqueID As String, _
+ ByVal ServerOrderId As UInt32, _
+ ByVal ClientCode As UInt32, _
+ ByVal PriceCode As UInt32, _
+ ByVal RegionCode As UInt64, _
+ ByVal PriceDate As Date, _
+ ByVal ClientAddition As String, _
+ ByVal RowCount As UInt16, _
+ ByVal ProductID As UInt32(), _
+ ByVal ClientOrderID As UInt32, _
+ ByVal CodeFirmCr As String(), _
+ ByVal SynonymCode As UInt32(), _
+ ByVal SynonymFirmCrCode As String(), _
+ ByVal Code As String(), _
+ ByVal CodeCr As String(), _
+ ByVal Quantity As UInt16(), _
+ ByVal Junk As Boolean(), _
+ ByVal Await As Boolean(), _
+ ByVal Cost As Decimal(), _
+ ByVal MinCost As String(), _
+ ByVal MinPriceCode As String(), _
+ ByVal LeaderMinCost As String(), _
+ ByVal RequestRatio As String(), _
+ ByVal OrderCost As String(), _
+ ByVal MinOrderCount As String(), _
+ ByVal LeaderMinPriceCode As String()) As String
 
-		Dim ResStr As String
-		Dim OID As UInt64
-		Dim LockCount As Integer
-		Dim SumOrder, WeeklySumOrder As UInt32
-		Dim it As Integer
+        Dim ResStr As String
+        Dim OID As UInt64
+        Dim LockCount As Integer
+        Dim SumOrder, WeeklySumOrder As UInt32
+        Dim it As Integer
 
         Try
             UpdateType = RequestType.SendOrder
@@ -1759,11 +1784,11 @@ RestartInsertTrans:
             PostOrder = "OrderID=" & OID
         End If
 
-	End Function
+    End Function
 
-	'Отправляем несколько заказов скопом и по ним все формируем ответ
-	<WebMethod()> _
-	Public Function PostSomeOrders( _
+    'Отправляем несколько заказов скопом и по ним все формируем ответ
+    <WebMethod()> _
+    Public Function PostSomeOrders( _
   ByVal UniqueID As String, _
   ByVal ForceSend As Boolean, _
   ByVal UseCorrectOrders As Boolean, _
@@ -1795,73 +1820,73 @@ RestartInsertTrans:
   ByVal LeaderMinCost As String(), _
   ByVal LeaderMinPriceCode As String()) As String
 
-		'генерируем массив наценок поставщика размером с общее кол-во позиций в заказах, значения в массиве - пустые строчки ("")
-		Dim SupplierPriceMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim DelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
+        'генерируем массив наценок поставщика размером с общее кол-во позиций в заказах, значения в массиве - пустые строчки ("")
+        Dim SupplierPriceMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim DelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
 
-		Dim CoreQuantity As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim Unit As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim Volume As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim Note As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim Period As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim Doc As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim RegistryCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim VitallyImportant As IEnumerable(Of Boolean) = Enumerable.Repeat(False, New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim RetailMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim ProducerCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
-		Dim NDS As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim CoreQuantity As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Unit As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Volume As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Note As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Period As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim Doc As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim RegistryCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim VitallyImportant As IEnumerable(Of Boolean) = Enumerable.Repeat(False, New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim RetailMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim ProducerCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim NDS As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
 
-		Return _
-		 PostSomeOrdersFull( _
-		  UniqueID, _
-		  ForceSend, _
-		  UseCorrectOrders, _
-		  ClientCode, _
-		  OrderCount, _
-		  ClientOrderID, _
-		  PriceCode, _
-		  RegionCode, _
-		  PriceDate, _
-		  ClientAddition, _
-		  RowCount, _
-		  DelayOfPayment.ToArray(), _
-		  ClientPositionID, _
-		  ClientServerCoreID, _
-		  ProductID, _
-		  CodeFirmCr, _
-		  SynonymCode, _
-		  SynonymFirmCrCode, _
-		  Code, _
-		  CodeCr, _
-		  Junk, _
-		  Await, _
-		  RequestRatio, _
-		  OrderCost, _
-		  MinOrderCount, _
-		  Quantity, _
-		  Cost, _
-		  MinCost, _
-		  MinPriceCode, _
-		  LeaderMinCost, _
-		  LeaderMinPriceCode, _
-		  SupplierPriceMarkup.ToArray(), _
-		  CoreQuantity.ToArray(), _
-		  Unit.ToArray(), _
-		  Volume.ToArray(), _
-		  Note.ToArray(), _
-		  Period.ToArray(), _
-		  Doc.ToArray(), _
-		  RegistryCost.ToArray(), _
-		  VitallyImportant.ToArray(), _
-		  RetailMarkup.ToArray(), _
-		  ProducerCost.ToArray(), _
-		  NDS.ToArray() _
-		  )
-	End Function
+        Return _
+         PostSomeOrdersFull( _
+          UniqueID, _
+          ForceSend, _
+          UseCorrectOrders, _
+          ClientCode, _
+          OrderCount, _
+          ClientOrderID, _
+          PriceCode, _
+          RegionCode, _
+          PriceDate, _
+          ClientAddition, _
+          RowCount, _
+          DelayOfPayment.ToArray(), _
+          ClientPositionID, _
+          ClientServerCoreID, _
+          ProductID, _
+          CodeFirmCr, _
+          SynonymCode, _
+          SynonymFirmCrCode, _
+          Code, _
+          CodeCr, _
+          Junk, _
+          Await, _
+          RequestRatio, _
+          OrderCost, _
+          MinOrderCount, _
+          Quantity, _
+          Cost, _
+          MinCost, _
+          MinPriceCode, _
+          LeaderMinCost, _
+          LeaderMinPriceCode, _
+          SupplierPriceMarkup.ToArray(), _
+          CoreQuantity.ToArray(), _
+          Unit.ToArray(), _
+          Volume.ToArray(), _
+          Note.ToArray(), _
+          Period.ToArray(), _
+          Doc.ToArray(), _
+          RegistryCost.ToArray(), _
+          VitallyImportant.ToArray(), _
+          RetailMarkup.ToArray(), _
+          ProducerCost.ToArray(), _
+          NDS.ToArray() _
+          )
+    End Function
 
-	'Отправляем несколько заказов скопом и по ним все формируем ответ
-	<WebMethod()> _
-	Public Function PostSomeOrdersFull( _
+    'Отправляем несколько заказов скопом и по ним все формируем ответ
+    <WebMethod()> _
+    Public Function PostSomeOrdersFull( _
   ByVal UniqueID As String, _
   ByVal ForceSend As Boolean, _
   ByVal UseCorrectOrders As Boolean, _
@@ -1906,7 +1931,7 @@ RestartInsertTrans:
   ByVal ProducerCost As String(), _
   ByVal NDS As String()) As String
 
-		Dim ResStr As String = String.Empty
+        Dim ResStr As String = String.Empty
 
         Try
             UpdateType = RequestType.SendOrders
@@ -2214,7 +2239,7 @@ PostLog:
                     GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
                     If GUpdateId < 1 Then
                         GUpdateId = Nothing
-                    else
+                    Else
                         LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Addition=if(instr(ifnull(?Addition, ''), Addition) = 1, ifnull(?Addition, ''), concat(Addition, ifnull(?Addition, '')))   where UpdateId=" & GUpdateId
                         LogCm.Parameters.Add(New MySqlParameter("?Addition", MySqlDbType.VarString))
                         LogCm.Parameters("?Addition").Value = Addition
@@ -2489,26 +2514,26 @@ PostLog:
 RestartTrans2:
                 If ErrorFlag Then Exit Try
 
-                MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Catalog" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogCurrency" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "ClientsDataN" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogCurrency" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "ClientsDataN" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
 
-                MySQLFileDelete(MySqlFilePath & "PriceAvg" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Section" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Synonym" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogFarmGroups" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatFarmGroupsDel" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PriceAvg" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Section" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Synonym" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogFarmGroups" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -2535,7 +2560,7 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
 
-                MySQLFileDelete(MySqlFilePath & "MinPrices" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MinPrices" & UserId & ".txt")
                 GetMySQLFile("PriceAvg", SelProc, "select ''")
 
                 SQLText = "SELECT P.Id       ," & _
@@ -2872,12 +2897,12 @@ RestartTrans2:
                         "   AND IF(?Cumulative, 1, fresh)")
                     Else
                         SelProc.CommandText = "SELECT ''" & _
-                        " INTO OUTFILE 'C:/AFFiles/Core" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
+                        " INTO OUTFILE '" & GetFileNameForMySql("Core" & UserId & ".txt") & "' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
                         SelProc.ExecuteNonQuery()
 
 
                         SelProc.CommandText = "SELECT ''" & _
-                          " INTO OUTFILE 'C:/AFFiles/MinPrices" & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
+                          " INTO OUTFILE '" & GetFileNameForMySql("MinPrices" & UserId & ".txt") & "' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY ''"
                         SelProc.ExecuteNonQuery()
 
 
@@ -3129,30 +3154,30 @@ RestartTrans2:
 RestartTrans2:
                 If ErrorFlag Then Exit Try
 
-                MySQLFileDelete(MySqlFilePath & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "User" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Client" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Catalogs" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "DelayOfPayments" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Providers" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Core" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Synonyms" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MNN" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Descriptions" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MaxProducerCosts" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "Producers" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "UpdateInfo" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "ClientToAddressMigrations" & UserId & ".txt")
-                MySQLFileDelete(MySqlFilePath & "MinReqRules" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "User" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Client" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Catalogs" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "DelayOfPayments" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Providers" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Synonyms" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MNN" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Descriptions" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MaxProducerCosts" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "Producers" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
+                MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3498,7 +3523,8 @@ RestartTrans2:
                          SelProc, _
                          helper.GetCoreCommand( _
                           False, _
-                          (BuildNo > 1027) Or (UpdateData.EnableUpdate And ((BuildNo >= 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
+                          (BuildNo > 1027) Or (UpdateData.EnableUpdate And ((BuildNo >= 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))), _
+                          (BuildNo >= 1249) Or _needUpdateToBuyingMatrix _
                          ), _
                          (BuildNo <= 1027) And UpdateData.EnableUpdate, _
                          True _
@@ -3627,7 +3653,7 @@ RestartTrans2:
                     SelProc.ExecuteNonQuery()
 
                     'Выгрузка данных для ГУП
-                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True))
+                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (BuildNo >= 1249) Or _needUpdateToBuyingMatrix))
                     'выгружаем пустую таблицу MaxProducerCosts
                     GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
                 End If
@@ -3864,7 +3890,7 @@ RestartTrans2:
             .CommandText &= " insert into orders.orderslist (OrderID, ProductId, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost)" & _
              " select  " & OrderID & ", products.ID, if(Prod.Id is null, sfcr.codefirmcr, Prod.Id) , syn.synonymcode, sfcr.SynonymFirmCrCode, ?Code, ?CodeCr, ?Quantity, ?Junk, ?Await, ?Cost" & _
              " from catalogs.products" & _
-             " left join farm.synonym  syn on syn.synonymcode=?SynonymCode" & _
+             " left join farm.synonymarchive  syn on syn.synonymcode=?SynonymCode" & _
              " left join farm.synonymfirmcr sfcr on sfcr.SynonymFirmCrCode=?SynonymFirmCrCode" & _
              " left join  catalogs.Producers Prod on Prod.Id=?CodeFirmCr" & _
              " where products.ID=?ProductID; "
@@ -4251,6 +4277,14 @@ RestartTrans2:
                 If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
             End If
 
+        Catch updateException As UpdateException
+            ErrorFlag = True
+            If UpdateData IsNot Nothing Then
+                Log.Warn(updateException)
+            Else
+                Log.Error(updateException)
+            End If
+            Return ""
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при загрузке рекламы", ex)
             ErrorFlag = True
@@ -4437,11 +4471,17 @@ RestartMaxCodesSet:
         End SyncLock
     End Sub
 
+    Private Function GetFileNameForMySql(ByVal outFileName As String) As String
+        Dim fullName = Path.Combine(MySqlFilePath(), outFileName)
+        Return MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName)
+    End Function
+
+
     Private Sub GetMySQLFile(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
         Dim SQL As String = SQLText
 
 
-        SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY '" & Chr(161) & "'"
+        SQL &= " INTO OUTFILE '" & GetFileNameForMySql(FileName & UserId & ".txt") & "' FIELDS TERMINATED BY '" & Chr(159) & "' OPTIONALLY ENCLOSED BY '' ESCAPED BY '' LINES TERMINATED BY '" & Chr(161) & "'"
         MyCommand.CommandText = SQL
         MyCommand.ExecuteNonQuery()
 
@@ -4469,7 +4509,7 @@ RestartMaxCodesSet:
                 MyCommand.Parameters("?Cumulative").Value = True
             End If
 
-            SQL &= " INTO OUTFILE 'C:/AFFiles/" & FileName & UserId & ".txt' "
+            SQL &= " INTO OUTFILE '" & GetFileNameForMySql(FileName & UserId & ".txt") & "' "
             MyCommand.CommandText = SQL
             MyCommand.ExecuteNonQuery()
 

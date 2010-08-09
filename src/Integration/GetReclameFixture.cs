@@ -4,6 +4,9 @@ using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
+using log4net.Appender;
+using log4net.Config;
+using log4net.Core;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
@@ -21,6 +24,9 @@ namespace Integration
 		TestOldClient _oldClient;
 
 		private string resultsDir = "results\\";
+
+		private TestClient _disabledClient;
+		private TestUser _disabledUser;
 
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
@@ -45,6 +51,8 @@ namespace Integration
 				});
 				_user.Update();
 
+				_disabledClient = TestClient.CreateSimple();
+				_disabledUser = _disabledClient.Users[0];
 
 				_oldClient = TestOldClient.CreateTestClient();
 				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
@@ -137,6 +145,20 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
+		private void GetReclameForErrorUser(string login)
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				var helper = new UpdateHelper(updateData, connection, connection);
+
+				SetCurrentUser(login);
+				var response = GetReclame();
+				Assert.IsNullOrEmpty(response, "ќтвет от сервера должен быть пустым");
+			}
+		}
+
 		[Test]
 		public void Get_reclame_for_old_client()
 		{
@@ -149,5 +171,30 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			GetReclameForUser(_user.Login, _user.Id);
 		}
 
+		[Test(Description = "пытаемс€ получить рекламу дл€ пользовател€, который не прив€зан к системе")]
+		public void Get_reclame_for_non_exists_user()
+		{
+			var memoryAppender = new MemoryAppender();
+			BasicConfigurator.Configure(memoryAppender);
+			GetReclameForErrorUser("dsdsdsdsdsds");
+			var events = memoryAppender.GetEvents();
+			var lastEvent = events[events.Length - 1];
+			Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
+			Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+			Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("ƒоступ закрыт."));
+		}
+
+		[Test(Description = "пытаемс€ получить рекламу дл€ отключенного пользовател€")]
+		public void Get_reclame_for_disabled_user()
+		{
+			var memoryAppender = new MemoryAppender();
+			BasicConfigurator.Configure(memoryAppender);
+			GetReclameForErrorUser(_disabledUser.Login);
+			var events = memoryAppender.GetEvents();
+			var lastEvent = events[events.Length - 1];
+			Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
+			Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+			Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("ƒоступ закрыт."));
+		}
 	}
 }
