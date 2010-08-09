@@ -2612,26 +2612,6 @@ RestartTrans2:
 
                 helper.SelectPrices()
 
-                If UpdateData.ShowJunkOffers Then
-
-                    SelProc.CommandText = "" & _
-                    "      CREATE TEMPORARY TABLE PricesTMP " & _
-                    "      SELECT * " & _
-                    "      FROM   Prices " & _
-                    "      WHERE  PriceCode=2647; " & _
-                    "       " & _
-                    "      CALL GetPrices2(?OffersClientCode); " & _
-                    "      INSERT " & _
-                    "      INTO   Prices " & _
-                    "      SELECT * " & _
-                    "      FROM   PricesTMP; " & _
-                    "       " & _
-                    "      DROP TEMPORARY TABLE PricesTMP;"
-
-                    SelProc.ExecuteNonQuery()
-
-                End If
-
                 GetMySQLFile("ClientsDataN", SelProc, _
                 "SELECT firm.FirmCode, " & _
                 "       firm.FullName, " & _
@@ -3326,27 +3306,6 @@ RestartTrans2:
                 GetMySQLFileWithDefault("Regions", SelProc, helper.GetRegionsCommand())
 
                 helper.SelectPrices()
-
-                If UpdateData.ShowJunkOffers Then
-
-                    SelProc.CommandText = "" & _
-                    "      CREATE TEMPORARY TABLE PricesTMP " & _
-                    "      SELECT * " & _
-                    "      FROM   Prices " & _
-                    "      WHERE  PriceCode=2647; " & _
-                    "       " & _
-                    "      CALL GetPrices2(?OffersClientCode); " & _
-                    "      INSERT " & _
-                    "      INTO   Prices " & _
-                    "      SELECT * " & _
-                    "      FROM   PricesTMP; " & _
-                    "       " & _
-                    "      DROP TEMPORARY TABLE PricesTMP;"
-
-                    SelProc.ExecuteNonQuery()
-
-                End If
-
 
                 'Подготовка временной таблицы с контактами
                 SelProc.CommandText = "" & _
