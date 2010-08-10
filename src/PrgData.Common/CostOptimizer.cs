@@ -166,35 +166,26 @@ drop temporary table CoreCopy;
 
 			var begin = 0;
 
-			var transaction = _readWriteConnection.BeginTransaction();
-			try
+			while (begin < logs.Count)
 			{
-				while (begin < logs.Count)
+				var commandText = new StringBuilder();
+				commandText.Append(header);
+
+				for (var i = 0; i < 100; i++)
 				{
-					var commandText = new StringBuilder();
-					commandText.Append(header);
+					if (begin + i >= logs.Count)
+						break;
 
-					for(var i = 0; i < 100; i++)
-					{
-						if (begin + i >= logs.Count)
-							break;
-
-						var log = logs[begin + i];
-						commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, _supplierId));
-						if (i < 99 && begin + i < logs.Count - 1)
-							commandText.AppendLine(", ");
-					}
-					logCommand.CommandText = commandText.ToString();
-					logCommand.ExecuteNonQuery();
-					begin += 100;
+					var log = logs[begin + i];
+					commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, _supplierId));
+					if (i < 99 && begin + i < logs.Count - 1)
+						commandText.AppendLine(", ");
 				}
-				transaction.Commit();
+				logCommand.CommandText = commandText.ToString();
+				logCommand.ExecuteNonQuery();
+				begin += 100;
 			}
-			catch (Exception)
-			{
-				transaction.Rollback();
-				throw;
-			}
+
 			if (_log.IsDebugEnabled)
 				_log.DebugFormat("Оптимизация цен завершена, поставщик {0}", _supplierId);
 		}
