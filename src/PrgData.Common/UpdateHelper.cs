@@ -120,19 +120,17 @@ namespace PrgData.Common
 	{
 		private UpdateData _updateData;
 		private MySqlConnection _readWriteConnection;
-		private MySqlConnection _readOnlyConnection;
 
 		//Код поставщика 7664
 		public uint MaxProducerCostsPriceId { get; private set; }
 		private uint maxProducerCostsCostId;
 
-		public UpdateHelper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
+		public UpdateHelper(UpdateData updateData, MySqlConnection readWriteConnection)
 		{
 			MaxProducerCostsPriceId = 4863;
 			maxProducerCostsCostId = 8317;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
-			_readOnlyConnection = readOnlyConnection;
 		}
 
 		public static Func<string> GetDownloadUrl =
@@ -166,7 +164,7 @@ where ds.updateid = " + updateId;
 
 		public bool DefineMaxProducerCostsCostId()
 		{
-			var costId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readOnlyConnection, @"
+			var costId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 select CostCode 
 from 
   usersettings.PricesCosts,
@@ -184,7 +182,7 @@ and (PricesCosts.CostCode = ?CostCode)
 
 		public bool MaxProducerCostIsFresh()
 		{
-			var fresh = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readOnlyConnection, @"
+			var fresh = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 select Id 
 from 
   usersettings.PricesCosts,
@@ -461,13 +459,13 @@ WHERE r.clientcode = ?ClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readOnlyConnection);
+				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
 			else
 			{
-				var command = new MySqlCommand("call AFGetActivePricesByUserId(?UserId);", _readOnlyConnection);
+				var command = new MySqlCommand("call AFGetActivePricesByUserId(?UserId);", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
@@ -493,13 +491,13 @@ WHERE r.clientcode = ?ClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readOnlyConnection);
+				var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
 			else
 			{
-				var command = new MySqlCommand("CALL GetPrices2(?ClientCode)", _readOnlyConnection);
+				var command = new MySqlCommand("CALL GetPrices2(?ClientCode)", _readWriteConnection);
 				command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
 				command.ExecuteNonQuery();
 			}
@@ -509,13 +507,13 @@ WHERE r.clientcode = ?ClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				var command = new MySqlCommand("call future.GetOffers(?UserId)", _readOnlyConnection);
+				var command = new MySqlCommand("call future.GetOffers(?UserId)", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
 			else
 			{
-				var command = new MySqlCommand("call GetOffers(?ClientCode, 0)", _readOnlyConnection);
+				var command = new MySqlCommand("call GetOffers(?ClientCode, 0)", _readWriteConnection);
 				command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
 				command.ExecuteNonQuery();
 			}
@@ -535,7 +533,7 @@ FROM Future.Clients c
     join usersettings.RetClientsSet rcs on rcs.ClientCode = u.Clientid
 	join farm.regions r on r.RegionCode = c.RegionCode
 	join UserUpdateInfo uui on u.Id = uui.UserId
-WHERE u.Id = ?UserId", _readOnlyConnection);
+WHERE u.Id = ?UserId", _readWriteConnection);
 			}
 			else
 			{
@@ -552,7 +550,7 @@ WHERE  r.regioncode = cd.regioncode
    and rcs.ClientCode = cd.FirmCode
    AND OUAR.RowId = ?UserId
    AND OUAR.Rowid =UUI.UserId
-   AND OUAR.ClientCode = cd.firmcode", _readOnlyConnection);
+   AND OUAR.ClientCode = cd.firmcode", _readWriteConnection);
 			}
 			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			using (var reader = command.ExecuteReader())
@@ -707,7 +705,7 @@ FROM    AnalitFDocumentsProcessing AFDP,
         `logs`.document_logs DL
 WHERE   DL.RowId = AFDP.DocumentId
 AND     AFDP.UpdateId = ?updateId";
-			var dataAdapter = new MySqlDataAdapter(command, _readOnlyConnection);
+			var dataAdapter = new MySqlDataAdapter(command, _readWriteConnection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?updateId", updateId);
 			var documents = new DataTable();
 			dataAdapter.Fill(documents);
@@ -1602,7 +1600,7 @@ where not exists (
 
 		public bool NeedClientToAddressMigration()
 		{
-			var userId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readOnlyConnection, @"
+			var userId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 select UserId 
 from 
   future.ClientToAddressMigrations

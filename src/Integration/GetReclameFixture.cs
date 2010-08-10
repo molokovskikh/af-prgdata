@@ -119,7 +119,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 					"update usersettings.UserUpdateInfo uui set uui.ReclameDate = null where uui.UserId = ?UserId",
 					new MySqlParameter("?UserId", userId));
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				var helper = new UpdateHelper(updateData, connection, connection);
+				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 				Assert.IsTrue(reclame.ShowAdvertising, "Реклама не включена");
 				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
@@ -151,7 +151,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				var helper = new UpdateHelper(updateData, connection, connection);
+				var helper = new UpdateHelper(updateData, connection);
 
 				SetCurrentUser(login);
 				var response = GetReclame();

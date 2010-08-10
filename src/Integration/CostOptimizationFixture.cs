@@ -56,7 +56,7 @@ limit 0, 50", conn);
 				command.ExecuteNonQuery();
 				command.CommandType = CommandType.Text;
 
-				var optimizer = new CostOptimizer(conn, conn, _clientId);
+				var optimizer = new CostOptimizer(conn, _clientId);
 				optimizer.Oprimize();
 
 				command.CommandText = "select * from logs.CostOptimizationLogs where LoggedOn > ?startTime and ClientId = ?clientId";

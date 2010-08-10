@@ -18,13 +18,11 @@ namespace PrgData.Common
 	public class OrderHelper
 	{
 		protected UpdateData _data;
-		protected MySqlConnection _connection;
 		protected MySqlConnection _readWriteConnection;
 
-		public OrderHelper(UpdateData data, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection)
+		public OrderHelper(UpdateData data, MySqlConnection readWriteConnection)
 		{
 			_data = data;
-			_connection = readOnlyConnection;
 			_readWriteConnection = readWriteConnection;
 		}
 
@@ -46,8 +44,8 @@ where
   and (prd.RegionCode = ?RegionCode)
   and (ai.AddressId = ?AddressId)
 "
-					, 
-					_connection);
+					,
+					_readWriteConnection);
 				command.Parameters.AddWithValue("?ClientCode", _data.ClientId);
 				command.Parameters.AddWithValue("?RegionCode", regionCode);
 				command.Parameters.AddWithValue("?PriceCode", priceCode);
@@ -65,7 +63,7 @@ where
 SELECT i.ControlMinReq, if(ifnull(i.MinReq, 0) > 0, i.MinReq, prd.MinReq)
 FROM usersettings.intersection i
 join usersettings.pricesregionaldata prd on prd.pricecode = i.priceCode and prd.RegionCode = i.regionCode
-where i.ClientCode = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCode = ?RegionCode", _connection);
+where i.ClientCode = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCode = ?RegionCode", _readWriteConnection);
 				command.Parameters.AddWithValue("?ClientCode", clientCode);
 				command.Parameters.AddWithValue("?RegionCode", regionCode);
 				command.Parameters.AddWithValue("?PriceCode", priceCode);
@@ -87,7 +85,7 @@ where i.ClientCode = ?ClientCode and prd.PriceCode = ?PriceCode and prd.RegionCo
 select if(ua.UserId is null, 0, 1)
 from Future.Users u
 	join Future.UserAddresses ua on ua.UserId = u.Id and ua.AddressId = ?AddressId
-where u.Id = ?UserId", _connection);
+where u.Id = ?UserId", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _data.UserId);
 				command.Parameters.AddWithValue("?AddressId", clientCode);
 				canPostOrder = Convert.ToBoolean(command.ExecuteScalar());
@@ -98,7 +96,7 @@ where u.Id = ?UserId", _connection);
 select ifnull(Max(IncludeClientCode=?ClientCode or ClientCode=?ClientCode), 0) as A 
 from osuseraccessright
 left join includeregulation on PrimaryClientCode=ClientCode and IncludeType in (0,3)
-where osuseraccessright.RowId = ?UserId", _connection);
+where osuseraccessright.RowId = ?UserId", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _data.UserId);
 				command.Parameters.AddWithValue("?clientcode", clientCode);
 				canPostOrder = Convert.ToBoolean(command.ExecuteScalar());

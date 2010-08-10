@@ -92,7 +92,7 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, connection, connection, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
 			}
 		}
 
@@ -113,7 +113,7 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, connection, connection, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
 			}
 		}
 
@@ -143,7 +143,7 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, connection, connection, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");

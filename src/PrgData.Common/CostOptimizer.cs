@@ -22,7 +22,6 @@ namespace PrgData.Common
 	{
 		private readonly ILog _log = LogManager.GetLogger(typeof (CostOptimizer));
 
-		private readonly MySqlConnection _readOnlyConnection;
 		private readonly MySqlConnection _readWriteConnection;
 
 		private readonly uint _clientId;
@@ -30,17 +29,16 @@ namespace PrgData.Common
 		private readonly uint _ruleId;
 		private readonly ulong _homeRegionCode;
 
-		public static void OptimizeCostIfNeeded(MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection, uint clientCode)
+		public static void OptimizeCostIfNeeded(MySqlConnection readWriteConnection, uint clientCode)
 		{
-			var optimizer = new CostOptimizer(readOnlyConnection, readWriteConnection, clientCode);
+			var optimizer = new CostOptimizer(readWriteConnection, clientCode);
 			if (optimizer.IsCostOptimizationNeeded())
 				optimizer.Oprimize();
 		}
 
-		public CostOptimizer(MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection, uint clientCode)
+		public CostOptimizer(MySqlConnection readWriteConnection, uint clientCode)
 		{
 			_clientId = clientCode;
-			_readOnlyConnection = readOnlyConnection;
 			_readWriteConnection = readWriteConnection;
 
 			var command = new MySqlCommand(@"
@@ -48,7 +46,7 @@ select cor.Id, cor.SupplierId
 from usersettings.CostOptimizationClients coc 
 	join usersettings.CostOptimizationRules cor on coc.RuleId = cor.Id
 where coc.ClientId = ?ClientId
-limit 1", _readOnlyConnection);
+limit 1", _readWriteConnection);
 			command.Parameters.AddWithValue("?ClientId", clientCode);
 			using (var reader = command.ExecuteReader())
 			{
@@ -73,7 +71,7 @@ where firmcode = ?ClientId";
 			var command = new MySqlCommand(@"
 select count(*)
 from usersettings.ActivePrices
-where firmcode = ?firmCode", _readOnlyConnection);
+where firmcode = ?firmCode", _readWriteConnection);
 			command.Parameters.AddWithValue("?firmCode", _supplierId);
 			return Convert.ToUInt32(command.ExecuteScalar()) > 0;
 		}
@@ -87,7 +85,7 @@ where firmcode = ?firmCode", _readOnlyConnection);
 			var command = new MySqlCommand(@"
 select coc.SupplierId
 from Usersettings.CostOptimizationConcurrents coc
-where coc.RuleId = ?Id", _readOnlyConnection);
+where coc.RuleId = ?Id", _readWriteConnection);
 			command.Parameters.AddWithValue("?Id", _ruleId);
 			using(var reader = command.ExecuteReader())
 				while (reader.Read())
@@ -137,7 +135,7 @@ where c.Cost <> copy.Cost and c.RegionCode = ?HomeRegionCode and copy.RegionCode
 
 drop temporary table ConcurentCosts;
 drop temporary table CoreCopy;
-", String.Join(", ", concurents.Select(f => f.ToString()).ToArray())), _readOnlyConnection);
+", String.Join(", ", concurents.Select(f => f.ToString()).ToArray())), _readWriteConnection);
 			optimizeCommand.Parameters.AddWithValue("?FirmCode", _supplierId);
 			optimizeCommand.Parameters.AddWithValue("?HomeRegionCode", _homeRegionCode);
 
@@ -216,14 +214,14 @@ drop temporary table CoreCopy;
 select exists(
 select *
 from activeprices
-where firmcode in ({0}) and fresh = 1)", String.Join(", ", concurents.Select(c => c.ToString()).ToArray())), _readOnlyConnection);
+where firmcode in ({0}) and fresh = 1)", String.Join(", ", concurents.Select(c => c.ToString()).ToArray())), _readWriteConnection);
 			var isConcurentUpdated = Convert.ToBoolean(command.ExecuteScalar());
 			if (isConcurentUpdated)
 			{
 				var updateCommand = new MySqlCommand(@"
 update usersettings.ActivePrices ap
 set fresh = 1
-where ap.FirmCode = ?FirmCode and ap.RegionCode = ?HomeRegion", _readOnlyConnection);
+where ap.FirmCode = ?FirmCode and ap.RegionCode = ?HomeRegion", _readWriteConnection);
 				updateCommand.Parameters.AddWithValue("?HomeRegion", _homeRegionCode);
 				updateCommand.Parameters.AddWithValue("?FirmCode", _supplierId);
 				updateCommand.ExecuteNonQuery();

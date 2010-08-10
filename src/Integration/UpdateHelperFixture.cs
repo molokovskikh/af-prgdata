@@ -130,7 +130,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using(var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
-				var helper = new UpdateHelper(updateData, connection, connection);
+				var helper = new UpdateHelper(updateData, connection);
 				CheckFields(updateData, helper, connection);
 			}
 		}
@@ -141,7 +141,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection, connection);
+				var helper = new UpdateHelper(updateData, connection);
 				CheckFields(updateData, helper, connection);
 			}
 		}
@@ -164,7 +164,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, userWithoutAddresses.Login);
-				var helper = new UpdateHelper(updateData, connection, connection);
+				var helper = new UpdateHelper(updateData, connection);
 				var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
 				var dataTable = new DataTable();
 				dataAdapter.Fill(dataTable);

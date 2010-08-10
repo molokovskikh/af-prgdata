@@ -32,35 +32,35 @@ Public Class PrgDataEx
 		InitializeComponent()
 
 		Try
-			ConnectionManager = New Global.Common.MySql.ConnectionManager()
-			ArchiveHelper.SevenZipExePath = SevenZipExe
-			ResultFileName = ServiceContext.GetResultPath()
-		Catch ex As Exception
-			Log.Error("Ошибка при инициализации приложения", ex)
-		End Try
+            _simpleConnectionManager = New Global.Common.MySql.SimpleConnectionManager()
+            ArchiveHelper.SevenZipExePath = SevenZipExe
+            ResultFileName = ServiceContext.GetResultPath()
+        Catch ex As Exception
+            Log.Error("Ошибка при инициализации приложения", ex)
+        End Try
 
-	End Sub
+    End Sub
 
-	Private ConnectionManager As Global.Common.MySql.ConnectionManager
-	Private WithEvents SelProc As MySql.Data.MySqlClient.MySqlCommand
-	Private WithEvents dataTable4 As System.Data.DataTable
-	Private WithEvents DA As MySql.Data.MySqlClient.MySqlDataAdapter
-	Friend WithEvents DataTable3 As System.Data.DataTable
-	Friend WithEvents DataTable5 As System.Data.DataTable
-	Friend WithEvents DataTable6 As System.Data.DataTable
+    Private _simpleConnectionManager As Global.Common.MySql.SimpleConnectionManager
+    Private WithEvents SelProc As MySql.Data.MySqlClient.MySqlCommand
+    Private WithEvents dataTable4 As System.Data.DataTable
+    Private WithEvents DA As MySql.Data.MySqlClient.MySqlDataAdapter
+    Friend WithEvents DataTable3 As System.Data.DataTable
+    Friend WithEvents DataTable5 As System.Data.DataTable
+    Friend WithEvents DataTable6 As System.Data.DataTable
 
-	Private components As System.ComponentModel.IContainer
+    Private components As System.ComponentModel.IContainer
 
-	Protected Overloads Overrides Sub Dispose(ByVal disposing As Boolean)
-		If disposing Then
-			If Not (components Is Nothing) Then
-				components.Dispose()
-			End If
-		End If
-		MyBase.Dispose(disposing)
-	End Sub
+    Protected Overloads Overrides Sub Dispose(ByVal disposing As Boolean)
+        If disposing Then
+            If Not (components Is Nothing) Then
+                components.Dispose()
+            End If
+        End If
+        MyBase.Dispose(disposing)
+    End Sub
 
-	ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
+    ReadOnly ПутьКДокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
 
     'ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
@@ -109,8 +109,7 @@ Public Class PrgDataEx
     Public WithEvents OrdersL As System.Data.DataTable
     Private WithEvents OrderInsertCm As MySql.Data.MySqlClient.MySqlCommand
     Private WithEvents OrderInsertDA As MySql.Data.MySqlClient.MySqlDataAdapter
-    Private WithEvents ReadOnlyCn As MySql.Data.MySqlClient.MySqlConnection
-    Private ReadWriteCn As MySql.Data.MySqlClient.MySqlConnection
+    Private readWriteConnection As MySql.Data.MySqlClient.MySqlConnection
 
     Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
 
@@ -128,7 +127,7 @@ Public Class PrgDataEx
 
     Private Function MySqlLocalFilePath() As String
 #If DEBUG Then
-        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath") 
+        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
 #Else
         Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
 #End If
@@ -139,27 +138,28 @@ Public Class PrgDataEx
     Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
         Try
             Dim updateData As UpdateData
-            Using connection = ConnectionManager.GetConnection()
+            Using connection = _simpleConnectionManager.GetConnection()
                 connection.Open()
-                updateData = UpdateHelper.GetUpdateData(ConnectionManager.GetConnection(), HttpContext.Current.User.Identity.Name)
+                updateData = UpdateHelper.GetUpdateData(connection, HttpContext.Current.User.Identity.Name)
+
+                If updateData Is Nothing Then
+                    Throw New Exception("Клиент не найден")
+                End If
+
+                Dim mess As MailMessage = New MailMessage( _
+                 New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
+                 New MailAddress("tech@analit.net"))
+                mess.Body = body
+                mess.IsBodyHtml = False
+                mess.BodyEncoding = Encoding.UTF8
+                mess.Subject = " UserId:" & updateData.UserId & ": " & subject
+                If (Not IsNothing(attachment)) Then
+                    mess.Attachments.Add(New Attachment(New MemoryStream(attachment), "Attach.7z"))
+                End If
+                Dim sc As SmtpClient = New SmtpClient("box.analit.net")
+                sc.Send(mess)
+
             End Using
-
-            If updateData Is Nothing Then
-                Throw New Exception("Клиент не найден")
-            End If
-
-            Dim mess As MailMessage = New MailMessage( _
-             New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
-             New MailAddress("tech@analit.net"))
-            mess.Body = body
-            mess.IsBodyHtml = False
-            mess.BodyEncoding = Encoding.UTF8
-            mess.Subject = " UserId:" & updateData.UserId & ": " & subject
-            If (Not IsNothing(attachment)) Then
-                mess.Attachments.Add(New Attachment(New MemoryStream(attachment), "Attach.7z"))
-            End If
-            Dim sc As SmtpClient = New SmtpClient("box.analit.net")
-            sc.Send(mess)
 
             Return "Res=OK"
         Catch ex As Exception
@@ -222,7 +222,7 @@ Public Class PrgDataEx
                     Throw New Exception("Полученный архив поврежден.")
                 End If
 
-                If GenerateDocsHelper.ParseWaybils(ReadWriteCn, UpdateData, ClientId, ProviderIds, FileNames, tmpWaybillArchive) Then
+                If GenerateDocsHelper.ParseWaybils(readWriteConnection, UpdateData, ClientId, ProviderIds, FileNames, tmpWaybillArchive) Then
                     Return "Status=0"
                 Else
                     Return "Status=2"
@@ -413,7 +413,7 @@ Public Class PrgDataEx
                 FnCheckID(UniqueID)
             End If
 
-            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName, BuildNo)
 
             Cm.Transaction = Nothing
@@ -436,13 +436,13 @@ Public Class PrgDataEx
             If Not Documents Then
 
                 If AllowBuildNo < BuildNo Then
-                    Cm.Connection = ReadWriteCn
+                    Cm.Connection = readWriteConnection
                     Cm.CommandText = "update usersettings.UserUpdateInfo set AFAppVersion=" & BuildNo & " where UserId=" & UserId
                     Dim transaction As MySqlTransaction
 RestartInsertTrans:
                     Try
 
-                        transaction = ReadWriteCn.BeginTransaction(IsoLevel)
+                        transaction = readWriteConnection.BeginTransaction(IsoLevel)
                         Cm.Transaction = transaction
                         Cm.ExecuteNonQuery()
                         transaction.Commit()
@@ -508,9 +508,9 @@ RestartInsertTrans:
                 If GED Then
 
                     If (Not ProcessBatch) Then UpdateType = RequestType.GetCumulative
-                    Cm.Connection = ReadWriteCn
+                    Cm.Connection = readWriteConnection
                     Cm.CommandText = "update UserUpdateInfo set ReclameDate = NULL where UserId=" & UserId & "; "
-                    Dim transaction = ReadWriteCn.BeginTransaction(IsoLevel)
+                    Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
                     Try
                         Cm.Transaction = transaction
                         Cm.ExecuteNonQuery()
@@ -739,7 +739,7 @@ endproc:
             Dim ef(), СписокФайлов() As String
 
 
-            Using connection = ConnectionManager.GetConnection()
+            Using connection = _simpleConnectionManager.GetConnection()
                 connection.Open()
 
 
@@ -762,7 +762,7 @@ endproc:
 
 
                 'Если не реклама
-                Dim helper = New UpdateHelper(UpdateData, Nothing, Nothing)
+                Dim helper = New UpdateHelper(UpdateData, Nothing)
                 If Not Reclame Then
 
                     Try
@@ -1285,7 +1285,7 @@ StartZipping:
             Try
 
                 If Not WayBillsOnly Then
-                    Cm.Connection = ReadOnlyCn
+                    Cm.Connection = readWriteConnection
                     Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
                     Cm.CommandText = Запрос
                     Using SQLdr As MySqlDataReader = Cm.ExecuteReader
@@ -1293,7 +1293,7 @@ StartZipping:
                         UpdateTime = SQLdr.GetDateTime(0)
                     End Using
 
-                    Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                    Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(readWriteConnection, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
                     Me.Log.DebugFormat("MaxSynonymCode: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
                     If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
                         UpdateTime = CType(masterUpdateTime, DateTime)
@@ -1357,7 +1357,7 @@ StartZipping:
             Try
 
                 If Not WayBillsOnly Then
-                    Cm.Connection = ReadOnlyCn
+                    Cm.Connection = readWriteConnection
                     Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
                     Cm.CommandText = Запрос
                     Using SQLdr As MySqlDataReader = Cm.ExecuteReader
@@ -1365,7 +1365,7 @@ StartZipping:
                         UpdateTime = SQLdr.GetDateTime(0)
                     End Using
 
-                    Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(ReadWriteCn, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
+                    Dim masterUpdateTime As Object = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(readWriteConnection, "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; ")
                     Me.Log.DebugFormat("CommitExchange: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
                     If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
                         UpdateTime = CType(masterUpdateTime, DateTime)
@@ -1417,7 +1417,7 @@ StartZipping:
             Counter.Counter.TryLock(UserId, "SendClientLog")
             Try
                 MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery( _
-                 ReadWriteCn, _
+                 readWriteConnection, _
                  "update logs.AnalitFUpdates set Log=?Log  where UpdateId=?UpdateId", _
                  New MySqlParameter("?Log", Log), _
                  New MySqlParameter("?UpdateId", UpdateId))
@@ -1440,7 +1440,7 @@ StartZipping:
         If Left(UserName, 7) = "ANALIT\" Then
             UserName = Mid(UserName, 8)
         End If
-        UpdateData = UpdateHelper.GetUpdateData(ReadOnlyCn, UserName)
+        UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
             Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
@@ -1464,7 +1464,7 @@ StartZipping:
             .Parameters("?ClientCode").Value = CCode
         End With
 
-        Cm.Connection = ReadWriteCn
+        Cm.Connection = readWriteConnection
         Cm.Transaction = Nothing
         Cm.CommandText = "" & _
          "UPDATE Logs.AuthorizationDates A " & _
@@ -1480,12 +1480,9 @@ StartZipping:
     Private Function DBConnect()
         UserHost = ServiceContext.GetUserHost()
         Try
-            ReadOnlyCn = ConnectionManager.GetConnection()
-            ReadOnlyCn.Open()
 
-            ReadWriteCn = New MySqlConnection
-            ReadWriteCn.ConnectionString = Settings.ConnectionString()
-            ReadWriteCn.Open()
+            readWriteConnection = _simpleConnectionManager.GetConnection()
+            readWriteConnection.Open()
 
             Return True
         Catch ex As Exception
@@ -1496,13 +1493,7 @@ StartZipping:
 
     Private Sub DBDisconnect()
         Try
-            If Not ReadOnlyCn Is Nothing Then ReadOnlyCn.Dispose()
-        Catch e As Exception
-            Log.Error("Ошибка при закритии соединения", e)
-        End Try
-
-        Try
-            If Not ReadWriteCn Is Nothing Then ReadWriteCn.Dispose()
+            If Not readWriteConnection Is Nothing Then readWriteConnection.Dispose()
         Catch e As Exception
             Log.Error("Ошибка при закритии соединения", e)
         End Try
@@ -1645,14 +1636,14 @@ StartZipping:
             GetClientCode()
             Counter.Counter.TryLock(UserId, "PostOrder")
 
-            Dim helper = New OrderHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper = New OrderHelper(UpdateData, readWriteConnection)
 
             If ServerOrderId = 0 Then
 
                 FnCheckID(UniqueID, UpdateType)
 
                 With Cm
-                    .Connection = ReadOnlyCn
+                    .Connection = readWriteConnection
                     .Transaction = Nothing
                 End With
 
@@ -1691,7 +1682,7 @@ StartZipping:
 
                 With Cm
 
-                    .Connection = ReadWriteCn
+                    .Connection = readWriteConnection
 
                     ResStr = String.Empty
                     Try
@@ -1709,7 +1700,7 @@ RestartInsertTrans:
             Dim transaction As MySqlTransaction
             Try
 
-                transaction = ReadWriteCn.BeginTransaction(IsoLevel)
+                transaction = readWriteConnection.BeginTransaction(IsoLevel)
 
                 If ServerOrderId = 0 Then
                     OID = helper.SaveOrder(ClientCode, PriceCode, RegionCode, PriceDate, RowCount, ClientOrderID, ResStr)
@@ -1722,7 +1713,7 @@ RestartInsertTrans:
                     'MailErr("Приняли архивный заказ", "Заказ №" & ServerOrderId)
 
                 End If
-                OrderInsertCm.Connection = ReadWriteCn
+                OrderInsertCm.Connection = readWriteConnection
                 OrderInsertCm.CommandText = "SELECT " & _
                  "        `MinCost`          , " & _
                  "        `LeaderMinCost`    , " & _
@@ -1940,7 +1931,7 @@ RestartInsertTrans:
             Counter.Counter.TryLock(UserId, "PostOrder")
             FnCheckID(UniqueID, UpdateType)
 
-            Dim helper = New ReorderHelper(UpdateData, ReadOnlyCn, ReadWriteCn, ForceSend, ClientCode, UseCorrectOrders)
+            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders)
 
             helper.ParseOrders( _
              OrderCount, _
@@ -2026,7 +2017,7 @@ RestartInsertTrans:
             FnCheckID(UniqueID, UpdateType)
 
 
-            Dim helper = New SmartOrderHelper(UpdateData, ReadOnlyCn, ReadWriteCn, ClientId, MaxOrderId, MaxOrderListId, MaxBatchId)
+            Dim helper = New SmartOrderHelper(UpdateData, ClientId, MaxOrderId, MaxOrderListId, MaxBatchId)
 
             Try
                 helper.PrepareBatchFile(BatchFile)
@@ -2071,10 +2062,10 @@ RestartInsertTrans:
 RePost:
         Dim knownUin As String
         Dim command = New MySqlCommand()
-        Dim transaction = ReadWriteCn.BeginTransaction(IsoLevel)
+        Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
         Try
             command.Transaction = transaction
-            command.Connection = ReadWriteCn
+            command.Connection = readWriteConnection
 
             command.CommandText = "select AFCopyId from UserUpdateInfo where UserId=" & UserId
             Using SQLdr As MySqlDataReader = command.ExecuteReader
@@ -2265,7 +2256,7 @@ PostLog:
 
                         LogCm.ExecuteNonQuery()
 
-                        Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                        Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
 
                         LogCm.CommandText = "delete from future.ClientToAddressMigrations where UserId = " & UpdateData.UserId
                         LogCm.ExecuteNonQuery()
@@ -2321,7 +2312,7 @@ PostLog:
         Me.DataTable5 = New System.Data.DataTable
         Me.DataTable6 = New System.Data.DataTable
         Me.Cm = New MySql.Data.MySqlClient.MySqlCommand
-        Me.ReadOnlyCn = New MySql.Data.MySqlClient.MySqlConnection
+        Me.readWriteConnection = New MySql.Data.MySqlClient.MySqlConnection
         Me.OrderInsertCm = New MySql.Data.MySqlClient.MySqlCommand
         Me.OrderInsertDA = New MySql.Data.MySqlClient.MySqlDataAdapter
         Me.SelProc = New MySql.Data.MySqlClient.MySqlCommand
@@ -2402,16 +2393,16 @@ PostLog:
         '
         'Cm
         '
-        Me.Cm.Connection = Me.ReadOnlyCn
+        Me.Cm.Connection = Me.readWriteConnection
         Me.Cm.Transaction = Nothing
         '
         'ReadOnlyCn
         '
-        Me.ReadOnlyCn.ConnectionString = Nothing
+        Me.readWriteConnection.ConnectionString = Nothing
         '
         'OrderInsertCm
         '
-        Me.OrderInsertCm.Connection = Me.ReadOnlyCn
+        Me.OrderInsertCm.Connection = Me.readWriteConnection
         Me.OrderInsertCm.Transaction = Nothing
         '
         'OrderInsertDA
@@ -2423,7 +2414,7 @@ PostLog:
         '
         'SelProc
         '
-        Me.SelProc.Connection = Me.ReadOnlyCn
+        Me.SelProc.Connection = Me.readWriteConnection
         Me.SelProc.Transaction = Nothing
 
         Me.DA.DeleteCommand = Nothing
@@ -2444,7 +2435,7 @@ PostLog:
     Private Function CkeckZipTimeAndExist(ByVal GetEtalonData As Boolean) As Boolean
 
         'Todo KO
-        Cm.Connection = ReadOnlyCn
+        Cm.Connection = readWriteConnection
         Cm.Transaction = Nothing
         Cm.CommandText = "" & _
            "SELECT  count(UpdateId) " & _
@@ -2509,7 +2500,7 @@ PostLog:
         Try
             ThreadContext.Properties("user") = UpdateData.UserName
             Dim transaction As MySqlTransaction
-            Dim helper As UpdateHelper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper As UpdateHelper = New UpdateHelper(UpdateData, readWriteConnection)
             Try
 RestartTrans2:
                 If ErrorFlag Then Exit Try
@@ -2542,19 +2533,19 @@ RestartTrans2:
                 End If
 
                 SelProc = New MySqlCommand
-                SelProc.Connection = ReadOnlyCn
+                SelProc.Connection = readWriteConnection
                 SelProc.Parameters.AddWithValue("?ClientCode", CCode)
                 SelProc.Parameters.AddWithValue("?Cumulative", GED)
                 SelProc.Parameters.AddWithValue("?UserId", UserId)
                 SelProc.Parameters.AddWithValue("?UpdateTime", OldUpTime)
 
                 Cm = New MySqlCommand
-                Cm.Connection = ReadWriteCn
+                Cm.Connection = readWriteConnection
                 Cm.Parameters.AddWithValue("?UpdateTime", OldUpTime)
 
                 Cm.Parameters.AddWithValue("?OfferRegionCode", UpdateData.OffersRegionCode)
 
-                transaction = ReadOnlyCn.BeginTransaction(IsoLevel)
+                transaction = readWriteConnection.BeginTransaction(IsoLevel)
                 SelProc.Transaction = transaction
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
@@ -2820,7 +2811,7 @@ RestartTrans2:
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
                         helper.SelectOffers()
-                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
+                        CostOptimizer.OptimizeCostIfNeeded(readWriteConnection, CCode)
 
                         SelProc.CommandText = "" & _
                         "UPDATE ActivePrices Prices, " & _
@@ -3128,7 +3119,7 @@ RestartTrans2:
         Dim transaction As MySqlTransaction
         Try
             ThreadContext.Properties("user") = UpdateData.UserName
-            Dim helper As UpdateHelper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper As UpdateHelper = New UpdateHelper(UpdateData, readWriteConnection)
             Try
 
 RestartTrans2:
@@ -3166,7 +3157,7 @@ RestartTrans2:
                 End If
 
                 SelProc = New MySqlCommand
-                SelProc.Connection = ReadOnlyCn
+                SelProc.Connection = readWriteConnection
                 SelProc.Parameters.AddWithValue("?ClientCode", CCode)
                 SelProc.Parameters.AddWithValue("?Cumulative", GED)
                 SelProc.Parameters.AddWithValue("?UserId", UserId)
@@ -3175,7 +3166,7 @@ RestartTrans2:
 
 
 
-                transaction = ReadOnlyCn.BeginTransaction(IsoLevel)
+                transaction = readWriteConnection.BeginTransaction(IsoLevel)
                 SelProc.Transaction = transaction
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
@@ -3475,7 +3466,7 @@ RestartTrans2:
                         '"WHERE  LENGTH(CryptCost)>0 " & _
                         '"   AND Core.PriceCode!=2647;"
 
-                        CostOptimizer.OptimizeCostIfNeeded(ReadOnlyCn, ReadWriteCn, CCode)
+                        CostOptimizer.OptimizeCostIfNeeded(readWriteConnection, CCode)
 
                         GetMySQLFileWithDefaultEx( _
                          "Core", _
@@ -3972,7 +3963,7 @@ RestartTrans2:
               "DNSChangedState, RASEntry, DefaultGateway, IsDynamicDnsEnabled, ConnectionSettingId, PrimaryDNS, AlternateDNS, RostaUIN) " & _
              "values (?UserId, ?Login, ?Password, ?OriginalPassword, ?SerialNumber, ?MaxWriteTime, ?MaxWriteFileName, ?OrderWriteTime, ?ClientTimeZoneBias, " & _
               "?DNSChangedState, ?RASEntry, ?DefaultGateway, ?IsDynamicDnsEnabled, ?ConnectionSettingId, ?PrimaryDNS, ?AlternateDNS, ?RostaUIN);", _
-             ReadWriteCn)
+             readWriteConnection)
 
             command.Parameters.AddWithValue("?UserId", UserId)
             command.Parameters.AddWithValue("?Login", Login)
@@ -4066,7 +4057,7 @@ RestartTrans2:
             FnCheckID(UniqueID, UpdateType)
 
             If UpdateData.IsFutureClient Then
-                Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+                Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
                 helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
                 Return ""
             End If
@@ -4075,14 +4066,14 @@ RestartTrans2:
             If ((PriceCodes.Length > 0) And (PriceCodes.Length = INJobs.Length) And (RegionCodes.Length = PriceCodes.Length)) Then
                 Dim dtIntersection As DataTable = New DataTable
                 'Команда на выборку данных из Intersection
-                Dim cmdSel As MySqlCommand = New MySqlCommand("SELECT i.Id, i.RegionCode, i.PriceCode, i.DisabledByClient FROM usersettings.intersection i where ClientCode = ?ClientCode", ReadWriteCn)
+                Dim cmdSel As MySqlCommand = New MySqlCommand("SELECT i.Id, i.RegionCode, i.PriceCode, i.DisabledByClient FROM usersettings.intersection i where ClientCode = ?ClientCode", readWriteConnection)
                 cmdSel.Parameters.AddWithValue("?ClientCode", CCode)
                 Dim daSel As MySqlDataAdapter = New MySqlDataAdapter(cmdSel)
                 Dim cmdUp As MySqlCommand = New MySqlCommand
 
                 'Заполняем команду на обновление
                 daSel.UpdateCommand = cmdUp
-                cmdUp.Connection = ReadWriteCn
+                cmdUp.Connection = readWriteConnection
                 cmdUp.CommandText = String.Empty
                 'cmdUp.CommandText &= "set @INUser = ?OperatorName; set @INHost = ?OperatorHost; "
                 cmdUp.CommandText &= "update intersection i set " & _
@@ -4117,7 +4108,7 @@ RestartTrans2:
                 If Not (dtChanges Is Nothing) Then
                     Do
                         Try
-                            transaction = ReadWriteCn.BeginTransaction()
+                            transaction = readWriteConnection.BeginTransaction()
                             cmdSel.Transaction = transaction
                             cmdUp.Transaction = transaction
 
@@ -4171,7 +4162,7 @@ RestartTrans2:
             DBConnect()
             GetClientCode()
 
-            Dim updateHelpe = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim updateHelpe = New UpdateHelper(UpdateData, readWriteConnection)
 
             Dim reclameData = updateHelpe.GetReclame()
 
@@ -4281,10 +4272,10 @@ RestartTrans2:
 
                 If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
 
-                transaction = ReadWriteCn.BeginTransaction(IsoLevel)
+                transaction = readWriteConnection.BeginTransaction(IsoLevel)
                 Cm.CommandText = "update UserUpdateInfo set ReclameDate=?ReclameDate where UserId=" & UserId
                 Cm.Parameters.AddWithValue("?ReclameDate", FileInfo.CreationTime)
-                Cm.Connection = ReadWriteCn
+                Cm.Connection = readWriteConnection
                 Cm.ExecuteNonQuery()
                 transaction.Commit()
 
@@ -4309,7 +4300,7 @@ RestartTrans2:
     Private Sub SetCodesProc()
         Dim transaction As MySqlTransaction
         Try
-            SelProc.Connection = ReadWriteCn
+            SelProc.Connection = readWriteConnection
 
             SelProc.CommandText = "" & _
             "UPDATE AnalitFReplicationInfo " & _
@@ -4357,7 +4348,7 @@ RestartTrans2:
 
 RestartMaxCodesSet:
 
-            transaction = ReadWriteCn.BeginTransaction(IsoLevel)
+            transaction = readWriteConnection.BeginTransaction(IsoLevel)
             SelProc.Transaction = transaction
 
             SelProc.ExecuteNonQuery()
@@ -4381,7 +4372,7 @@ RestartMaxCodesSet:
 
     Private Sub ProcessCommitExchange()
         Try
-            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             helper.CommitExchange()
         Catch err As Exception
             MailErr("Присвоение значений максимальных синонимов", err.Message)
@@ -4393,7 +4384,7 @@ RestartMaxCodesSet:
 
     Private Sub ProcessOldCommit(ByVal AbsentPriceCodes As String)
         Try
-            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             helper.OldCommit(AbsentPriceCodes)
             Addition &= "!!! " & AbsentPriceCodes
         Catch err As Exception
@@ -4406,7 +4397,7 @@ RestartMaxCodesSet:
 
     Private Sub ProcessResetAbsentPriceCodes(ByVal AbsentPriceCodes As String)
         Try
-            Dim helper = New UpdateHelper(UpdateData, ReadOnlyCn, ReadWriteCn)
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             helper.ResetAbsentPriceCodes(AbsentPriceCodes)
             Addition &= "!!! " & AbsentPriceCodes
         Catch err As Exception

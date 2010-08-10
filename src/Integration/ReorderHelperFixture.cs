@@ -214,7 +214,7 @@ and WriteTime > now() - interval 2 week"
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, connection, true, orderedClientId, false);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
 
@@ -233,7 +233,7 @@ and WriteTime > now() - interval 2 week"
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
 
-				orderHelper = new ReorderHelper(updateData, connection, connection, true, orderedClientId, false);
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
 
@@ -272,7 +272,7 @@ and WriteTime > now() - interval 2 week"
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, connection, true, orderedClientId, false);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseFirstOrder(orderHelper);
 
@@ -291,7 +291,7 @@ and WriteTime > now() - interval 2 week"
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказа");
 
-				orderHelper = new ReorderHelper(updateData, connection, connection, true, orderedClientId, false);
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSecondOrder(orderHelper);
 
