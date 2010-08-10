@@ -2771,6 +2771,8 @@ RestartTrans2:
 
                 helper.SelectActivePrices()
 
+                helper.SelectReplicationInfo()
+
                 SelProc.CommandText = "" & _
                 "CREATE TEMPORARY TABLE ParentCodes ENGINE=memory " & _
                 "SELECT   PriceSynonymCode PriceCode, " & _
@@ -2898,7 +2900,10 @@ RestartTrans2:
                      "       i.costcode                                     , " & _
                      "       i.RegionCode                                   , " & _
                      "       1 UpCost, " & _
-                     "       pricesdata.CostType " & _
+                     "       pricesdata.CostType, " & _
+                     "       ifnull(pricesdata.ParentSynonym, pricesdata.pricecode) PriceSynonymCode, " & _
+                     "       AFRI.MaxSynonymCode, " & _
+                     "       AFRI.MaxSynonymFirmCrCode " &
                      "FROM   usersettings.intersection i " & _
                      "       JOIN usersettings.pricesdata " & _
                      "       ON     pricesdata.pricecode = i.pricecode " & _
@@ -2921,6 +2926,8 @@ RestartTrans2:
                      "          AND clientsdata.firmsegment = AClientsData.firmsegment " & _
                      "       JOIN usersettings.retclientsset r " & _
                      "       ON     r.clientcode    = AClientsData.FirmCode " & _
+                     "       JOIN usersettings.AnalitFReplicationInfo AFRI " & _
+                     "       ON     AFRI.FirmCode = pricesdata.FirmCode and AFRI.UserId = ?UserId " & _
                      "WHERE  i.DisabledByAgency     = 0 " & _
                      "   AND clientsdata.firmstatus = 1 " & _
                      "   AND clientsdata.firmtype   = 0 " & _
@@ -3075,10 +3082,16 @@ RestartTrans2:
                 End If
 
                 AddEndOfFiles()
-                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
-                SelProc.ExecuteNonQuery()
+
+                helper.UpdateReplicationInfo()
 
                 transaction.Commit()
+
+                TS = Now().Subtract(StartTime)
+                If Math.Round(TS.TotalSeconds, 0) > 30 Then
+                    Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
+                End If
+
             Catch ex As Exception
                 ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
@@ -3086,19 +3099,6 @@ RestartTrans2:
                     GoTo RestartTrans2
                 End If
                 Throw
-            End Try
-
-            Try
-                helper.UpdateReplicationInfo()
-                TS = Now().Subtract(StartTime)
-                If Math.Round(TS.TotalSeconds, 0) > 30 Then
-                    Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
-                End If
-            Catch ex As Exception
-                If Not ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-                    Throw
-                End If
-                Addition &= "Не удалось сохранить информацию об подготовленных данных из-за блокировок в базе данных, в следующем обновлении отдадим больше данных"
             End Try
 
         Catch ex As Exception
@@ -3433,6 +3433,8 @@ RestartTrans2:
 
                 helper.SelectActivePrices()
 
+                helper.SelectReplicationInfo()
+
                 SelProc.CommandText = "" & _
                 "CREATE TEMPORARY TABLE ParentCodes ENGINE=memory " & _
                 "SELECT   PriceSynonymCode PriceCode, " & _
@@ -3513,7 +3515,10 @@ RestartTrans2:
                      "       i.costcode                                     , " & _
                      "       i.RegionCode                                   , " & _
                      "       1 UpCost, " & _
-                     "       pricesdata.CostType " & _
+                     "       pricesdata.CostType, " & _
+                     "       ifnull(pricesdata.ParentSynonym, pricesdata.pricecode) PriceSynonymCode, " & _
+                     "       AFRI.MaxSynonymCode, " & _
+                     "       AFRI.MaxSynonymFirmCrCode " &
                      "FROM   usersettings.intersection i " & _
                      "       JOIN usersettings.pricesdata " & _
                      "       ON     pricesdata.pricecode = i.pricecode " & _
@@ -3536,6 +3541,8 @@ RestartTrans2:
                      "          AND clientsdata.firmsegment = AClientsData.firmsegment " & _
                      "       JOIN usersettings.retclientsset r " & _
                      "       ON     r.clientcode    = AClientsData.FirmCode " & _
+                     "       JOIN usersettings.AnalitFReplicationInfo AFRI " & _
+                     "       ON     AFRI.FirmCode = pricesdata.FirmCode and AFRI.UserId = ?UserId " & _
                      "WHERE  i.DisabledByAgency     = 0 " & _
                      "   AND clientsdata.firmstatus = 1 " & _
                      "   AND clientsdata.firmtype   = 0 " & _
@@ -3610,9 +3617,15 @@ RestartTrans2:
 
                 AddEndOfFiles()
 
-                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
-                SelProc.ExecuteNonQuery()
+                helper.UpdateReplicationInfo()
+
                 transaction.Commit()
+
+                TS = Now().Subtract(StartTime)
+                If Math.Round(TS.TotalSeconds, 0) > 30 Then
+                    Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
+                End If
+
             Catch ex As Exception
                 ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
@@ -3620,19 +3633,6 @@ RestartTrans2:
                     GoTo RestartTrans2
                 End If
                 Throw
-            End Try
-
-            Try
-                helper.UpdateReplicationInfo()
-                TS = Now().Subtract(StartTime)
-                If Math.Round(TS.TotalSeconds, 0) > 30 Then
-                    Addition &= "Sel: " & Math.Round(TS.TotalSeconds, 0) & "; "
-                End If
-            Catch ex As Exception
-                If Not ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-                    Throw
-                End If
-                Addition &= "Не удалось сохранить информацию об подготовленных данных из-за блокировок в базе данных, в следующем обновлении отдадим больше данных"
             End Try
 
         Catch ex As Exception

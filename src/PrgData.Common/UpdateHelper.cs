@@ -572,21 +572,42 @@ WHERE  r.regioncode = cd.regioncode
 			command.ExecuteNonQuery();
 		}
 
+		public void SelectReplicationInfo()
+		{
+			var commandText = @"
+drop temporary table IF EXISTS CurrentReplicationInfo;
+
+CREATE TEMPORARY TABLE CurrentReplicationInfo engine=MEMORY
+SELECT   
+  Prices.FirmCode, 
+  MAX(AFRI.ForceReplicationUpdate) CurrentForceReplicationUpdate 
+FROM     
+  ActivePrices Prices       , 
+  AnalitFReplicationInfo AFRI
+WHERE    
+    AFRI.UserId                =  ?UserId
+and Prices.FirmCode = AFRI.FirmCode
+and AFRI.ForceReplication = 1
+GROUP BY 1;";
+			var command = new MySqlCommand(commandText, _readWriteConnection);
+			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			command.ExecuteNonQuery();
+		}
+
 		public void UpdateReplicationInfo()
 		{
-			With.DeadlockWraper(() => {
-				Cleanup();
+			//Cleanup();
+			var commandclear = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MaxCodesSyn;", _readWriteConnection);
+			commandclear.ExecuteNonQuery();
 
-				SelectActivePricesInMaster();
-
-				var commandText = @"
+			var commandText = @"
 CREATE TEMPORARY TABLE MaxCodesSyn engine=MEMORY
 SELECT   Prices.FirmCode, 
        MAX(synonym.synonymcode) SynonymCode 
 FROM     ActivePrices Prices       , 
        farm.synonym                
-WHERE    synonym.pricecode  = PriceSynonymCode 
-   AND synonym.synonymcode>MaxSynonymCode 
+WHERE    synonym.pricecode  = Prices.PriceSynonymCode 
+   AND synonym.synonymcode > Prices.MaxSynonymCode 
 GROUP BY 1;
 
 CREATE TEMPORARY TABLE MaxCodesSynFirmCr engine=MEMORY 
@@ -594,9 +615,18 @@ SELECT   Prices.FirmCode,
          MAX(synonymfirmcr.synonymfirmcrcode) SynonymCode 
 FROM     ActivePrices Prices       , 
          farm.synonymfirmcr          
-WHERE    synonymfirmcr.pricecode        =PriceSynonymCode 
-     AND synonymfirmcr.synonymfirmcrcode>MaxSynonymfirmcrCode 
+WHERE    synonymfirmcr.pricecode        = Prices.PriceSynonymCode 
+     AND synonymfirmcr.synonymfirmcrcode > Prices.MaxSynonymfirmcrCode 
 GROUP BY 1;
+
+UPDATE 
+  AnalitFReplicationInfo AFRI,
+  CurrentReplicationInfo 
+SET    AFRI.ForceReplication    = 2 
+WHERE  AFRI.ForceReplication    = 1 
+ AND AFRI.UserId = ?UserId
+and CurrentReplicationInfo.FirmCode = AFRI.FirmCode
+and CurrentReplicationInfo.CurrentForceReplicationUpdate = AFRI.ForceReplicationUpdate;
 
 UPDATE AnalitFReplicationInfo AFRI 
 SET    UncMaxSynonymFirmCrCode    = 0, 
@@ -609,22 +639,18 @@ SET    UncMaxSynonymFirmCrCode    = MaxCodesSynFirmCr.synonymcode
 WHERE  MaxCodesSynFirmCr.FirmCode = AFRI.FirmCode 
    AND AFRI.UserId = ?UserId;
 
-UPDATE AnalitFReplicationInfo AFRI 
-SET    ForceReplication    = 2 
-WHERE  ForceReplication    = 1 
- AND AFRI.UserId = ?UserId;
-
 UPDATE AnalitFReplicationInfo AFRI, 
        maxcodessyn                  
 SET    UncMaxSynonymCode     = maxcodessyn.synonymcode 
 WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
-   AND AFRI.UserId = ?UserId;";
-				var command = new MySqlCommand(commandText, _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-				command.ExecuteNonQuery();
+   AND AFRI.UserId = ?UserId;
 
-				Cleanup();
-			});
+drop temporary table IF EXISTS CurrentReplicationInfo;";
+			var command = new MySqlCommand(commandText, _readWriteConnection);
+			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			command.ExecuteNonQuery();
+
+			Cleanup();
 		}
 
 		public void PrepareLimitedCumulative(DateTime oldUpdateTime)
