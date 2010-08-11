@@ -284,7 +284,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				var trans = connection.BeginTransaction();
+				var trans = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);

@@ -1579,7 +1579,7 @@ WHERE
 		{
 			With.DeadlockWraper(() =>
 			{
-				var transaction = _readWriteConnection.BeginTransaction();
+				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
 
@@ -1827,7 +1827,7 @@ AND    UserId            = {0};
 		public DateTime GetCurrentUpdateDate(RequestType updateType)
 		{
 			return With.DeadlockWraper(() => {
-				var transaction = _readWriteConnection.BeginTransaction();
+				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
 					var command = new MySqlCommand("", _readWriteConnection);
@@ -1859,7 +1859,7 @@ AND    UserId            = {0};
 		private void ProcessCommitCommand(string commitCommand)
 		{
 			With.DeadlockWraper(() => {
-				var transaction = _readWriteConnection.BeginTransaction();
+				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
 					MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);

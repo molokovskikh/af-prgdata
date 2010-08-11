@@ -69,7 +69,7 @@ namespace PrgData.Common.Orders
 			if (!_useCorrectOrders || AllOrdersIsSuccess())
 				global::Common.MySql.With.DeadlockWraper(() =>
 				{
-					var transaction = _readWriteConnection.BeginTransaction();
+					var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 					try
 					{
 						//Сбрасываем ServerOrderId перед заказом только у заказов, 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Net.Security;
 using System.ServiceModel;
@@ -228,7 +229,7 @@ values
 
 			global::Common.MySql.With.DeadlockWraper(() =>
 			{
-				var transaction = connection.BeginTransaction();
+				var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
 					var updateId = Convert.ToUInt64(MySqlHelper.ExecuteScalar(
