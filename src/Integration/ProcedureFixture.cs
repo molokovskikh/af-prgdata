@@ -1,5 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
@@ -7,6 +12,7 @@ using Common.Models.Tests.Repositories;
 using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
+using PrgData.Common;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using Test.Support;
@@ -22,6 +28,8 @@ namespace Integration
 		private Client client;
 		private User futureUser;
 		private Address futureAddress;
+
+		private static bool StopThreads;
 
 		[SetUp]
 		public void SetUp()
@@ -65,13 +73,27 @@ namespace Integration
 			futureUser.AvaliableAddresses = new List<Address> {futureAddress};
 		}
 
-		public void Execute(string commnad)
+		public static void Execute(string commnad)
 		{
-			using(var connection = new MySqlConnection("Database=usersettings;Data Source=testsql.analit.net;User Id=system;Password=newpass;pooling=true;default command timeout=0;Allow user variables=true"))
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				var command = new MySqlCommand(commnad, connection);
-				command.ExecuteNonQuery();
+				var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+				try
+				{
+
+					var command = new MySqlCommand(commnad, connection);
+					command.ExecuteNonQuery();
+
+					transaction.Commit();
+				}
+				catch (Exception)
+				{
+					if (transaction != null)
+						try { transaction.Rollback(); }
+						catch { }
+					throw;
+				}
 			}
 		}
 
@@ -157,6 +179,165 @@ call usersettings.GetOffers(1349, 2);");
 				FindAllReducedForSmartOrder();
 				FutureFindAllReducedForSmartOrder();
 			}
+		}
+
+		public static void DoWork(object clientId)
+		{
+			Console.WriteLine("Запущена нитка: {0}", clientId);
+
+			try
+			{
+				while (!StopThreads)
+				{
+					Execute(string.Format(@"
+DROP TEMPORARY TABLE IF EXISTS usersettings.Core;
+DROP TEMPORARY TABLE IF EXISTS usersettings.MinCosts;
+DROP TEMPORARY TABLE IF EXISTS usersettings.Prices;
+DROP TEMPORARY TABLE IF EXISTS usersettings.ActivePrices;
+
+#drop temporary table if exists Usersettings.Prices;
+#drop temporary table if exists Usersettings.ActivePrices;
+call usersettings.GetOffers({0}, 0);", clientId));
+
+					Thread.Sleep(5 * 1000);
+				}
+
+			}
+			catch (Exception exception)
+			{
+				Console.WriteLine("Error for client {0} : {1}", clientId, exception);
+			}
+
+			Console.WriteLine("Остановлена нитка: {0}", clientId);
+		}
+
+		public static void DoWorkFactory(object clientId)
+		{
+			Console.WriteLine("Запущена нитка с factory: {0}", clientId);
+			var _repository = IoC.Resolve<ISmartOfferRepository>();
+			var _client = new Client {FirmCode = Convert.ToUInt32(clientId)};
+			long elapsedMili = 0;
+			long count = 0;
+
+			try
+			{
+				while (!StopThreads)
+				{
+					var loadWithHiber = Stopwatch.StartNew();
+					var reducedOffers = _repository.FindAllReducedForSmartOrder(_client, null, new SmartOrderRule(), new OrderRules()).ToList();
+					//Assert.That(reducedOffers.Count, Is.GreaterThan(0), "Нулевое кол-во предложений");
+					loadWithHiber.Stop();
+					elapsedMili += loadWithHiber.ElapsedMilliseconds;
+					count++;
+
+					Thread.Sleep(5 * 1000);
+				}
+
+			}
+			catch (Exception exception)
+			{
+				Console.WriteLine("Error for client {0} с factory: {1}", clientId, exception);
+				if (count > 0)
+					Console.WriteLine("Статистика для клиента {0} : {1}", clientId, elapsedMili / count);
+			}
+
+			Console.WriteLine("Остановлена нитка с factory: {0}", clientId);
+			if (count > 0)
+				Console.WriteLine("Статистика для клиента {0} : {1}", clientId, elapsedMili / count);
+		}
+
+		public static void DoWorkLogLockWaits()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				try
+				{
+					while (!StopThreads)
+					{
+						var lockCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(connection, "select count(*) from information_schema.INNODB_LOCK_WAITS"));
+						if (lockCount > 0)
+						{
+							var dataDump = MySqlHelper.ExecuteDataset(connection, @"
+SELECT * FROM information_schema.INNODB_TRX;
+SELECT * FROM information_schema.INNODB_LOCKS;
+SELECT * FROM information_schema.INNODB_LOCK_WAITS;
+show full processlist;
+");
+							var writer = new StringWriter();
+							dataDump.WriteXml(writer);
+							Console.WriteLine("InnoDB dump:\r\n{0}", writer);
+						}
+
+						Thread.Sleep(5 * 1000);
+					}
+
+				}
+				catch (Exception exception)
+				{
+					Console.WriteLine("Error on log thread", exception);
+				}
+			}
+		}
+
+		[Test, Ignore("Используется для получения ситуации с lock wait")]
+		public void Get_deadlock_with_threads()
+		{
+			StopThreads = false;
+			Console.WriteLine("Запуск теста");
+
+			var dataSet = MySqlHelper.ExecuteDataset(Settings.ConnectionString(),
+			                           @"
+select
+#*
+ou.RowId as UserId,
+rcs.ClientCode
+from
+  usersettings.OSUserAccessRight ou,
+  usersettings.RetClientsSet rcs,
+  usersettings.clientsdata cd
+where
+    rcs.ClientCode = ou.ClientCode
+and rcs.ServiceClient = 1
+and cd.FirmCode = rcs.ClientCode
+and cd.FirmStatus = 1
+and cd.BillingStatus = 1
+and cd.BillingCode = 921
+limit 6;");
+
+			var dataTable = dataSet.Tables[0];
+			var threadList = new List<Thread>();
+
+			foreach (DataRow row in dataTable.Rows)
+			{
+				threadList.Add(new Thread(DoWork));
+				threadList[threadList.Count-1].Start(row["ClientCode"]);
+			}
+
+			//foreach (DataRow row in dataTable.Rows)
+			//{
+			//    threadList.Add(new Thread(DoWork));
+			//    threadList[threadList.Count - 1].Start(row["ClientCode"]);
+			//}
+
+			foreach (DataRow row in dataTable.Rows)
+			{
+				threadList.Add(new Thread(DoWorkFactory));
+				threadList[threadList.Count - 1].Start(row["ClientCode"]);
+			}
+
+			//Нитка с дампом
+			threadList.Add(new Thread(DoWorkLogLockWaits));
+			threadList[threadList.Count - 1].Start();
+
+			Console.WriteLine("Запуск ожидания теста");
+			Thread.Sleep(5 * 60 * 1000);
+
+			StopThreads = true;
+			Console.WriteLine("Попытка останова ниток");
+			threadList.ForEach(item => item.Join());
+
+			Console.WriteLine("Останов теста");
 		}
 
 	}
