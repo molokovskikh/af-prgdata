@@ -92,7 +92,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				connection.Open();
 				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
 				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
-				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var orderHelper = new OrderHelper(updateData, connection);
 				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
 				var orderid = orderHelper.SaveOrder(
@@ -121,7 +121,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				connection.Open();
 				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var orderHelper = new OrderHelper(updateData, connection, connection);
+				var orderHelper = new OrderHelper(updateData, connection);
 				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
 				var orderid = orderHelper.SaveOrder(
@@ -151,8 +151,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				connection.Open();
 				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var orderHelper = new OrderHelper(updateData, connection, connection);
-				var updateHelper = new UpdateHelper(updateData, connection, connection);
+				var orderHelper = new OrderHelper(updateData, connection);
+				var updateHelper = new UpdateHelper(updateData, connection);
 
 				var clients = MySqlHelper.ExecuteDataset(
 					connection, 
@@ -195,8 +195,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				connection.Open();
 				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
 				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
-				var orderHelper = new OrderHelper(updateData, connection, connection);
-				var updateHelper = new UpdateHelper(updateData, connection, connection);
+				var orderHelper = new OrderHelper(updateData, connection);
+				var updateHelper = new UpdateHelper(updateData, connection);
 
 				var clients = MySqlHelper.ExecuteDataset(
 					connection,
@@ -239,8 +239,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				connection.Open();
 				//Пользователь "melehina" - это клиент с кодом 1725, он должен быть старым и у него должны быть клиенты в базовом подчинении
 				var updateData = UpdateHelper.GetUpdateData(connection, "melehina");
-				var orderHelper = new OrderHelper(updateData, connection, connection);
-				var updateHelper = new UpdateHelper(updateData, connection, connection);
+				var orderHelper = new OrderHelper(updateData, connection);
+				var updateHelper = new UpdateHelper(updateData, connection);
 
 				var clients = MySqlHelper.ExecuteDataset(
 					connection,
@@ -284,7 +284,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				var trans = connection.BeginTransaction();
+				var trans = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -296,7 +296,7 @@ update future.Users set OrderRegionMask = 3 where Id = ?userId ;", connection, t
 					command.Parameters.AddWithValue("?clientId", updateData.ClientId);
 					command.ExecuteNonQuery();					
 
-					var updateHelper = new UpdateHelper(updateData, connection, connection);
+					var updateHelper = new UpdateHelper(updateData, connection);
 
 					var clients = MySqlHelper.ExecuteDataset(
 						connection,

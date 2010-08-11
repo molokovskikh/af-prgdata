@@ -26,8 +26,6 @@ namespace PrgData.Common
 	public class SmartOrderHelper
 	{
 		private UpdateData _updateData;
-		private MySqlConnection _readWriteConnection;
-		private MySqlConnection _readOnlyConnection;
 
 		public uint OrderedClientCode { get; private set; }
 		public IOrderable Orderable { get; private set; }
@@ -53,11 +51,9 @@ namespace PrgData.Common
 		private uint _maxBatchId;
 
 
-		public SmartOrderHelper(UpdateData updateData, MySqlConnection readOnlyConnection, MySqlConnection readWriteConnection, uint orderedClientCode, uint maxOrderId, uint maxOrderListId, uint maxBatchId)
+		public SmartOrderHelper(UpdateData updateData, uint orderedClientCode, uint maxOrderId, uint maxOrderListId, uint maxBatchId)
 		{
 			_updateData = updateData;
-			_readOnlyConnection = readOnlyConnection;
-			_readWriteConnection = readWriteConnection;
 			OrderedClientCode = orderedClientCode;
 			_maxOrderId = maxOrderId;
 			_maxOrderListId = maxOrderListId;

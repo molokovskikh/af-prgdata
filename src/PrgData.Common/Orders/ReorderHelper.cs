@@ -26,12 +26,11 @@ namespace PrgData.Common.Orders
 
 		public ReorderHelper(
 			UpdateData data, 
-			MySqlConnection readOnlyConnection, 
 			MySqlConnection readWriteConnection, 
 			bool forceSend,
 			uint orderedClientCode,
 			bool useCorrectOrders) :
-			base(data, readOnlyConnection, readWriteConnection)
+			base(data, readWriteConnection)
 		{
 			_forceSend = forceSend;
 			_orderedClientCode = orderedClientCode;
@@ -70,7 +69,7 @@ namespace PrgData.Common.Orders
 			if (!_useCorrectOrders || AllOrdersIsSuccess())
 				global::Common.MySql.With.DeadlockWraper(() =>
 				{
-					var transaction = _readWriteConnection.BeginTransaction();
+					var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 					try
 					{
 						//Сбрасываем ServerOrderId перед заказом только у заказов, 
@@ -373,7 +372,7 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 
 		private bool GetCalculateLeaders()
 		{
-			var command = new MySqlCommand("select CalculateLeader from retclientsset where clientcode=?ClientId", _connection);
+			var command = new MySqlCommand("select CalculateLeader from retclientsset where clientcode=?ClientId", _readWriteConnection);
 			command.Parameters.AddWithValue("?ClientId", _data.ClientId);
 			return Convert.ToBoolean(command.ExecuteScalar());
 		}
@@ -408,7 +407,7 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 		{
 			var WeeklySumOrder = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper
 				.ExecuteScalar(
-				_connection, @"
+				_readWriteConnection, @"
 SELECT ROUND(IF(SUM(cost            *quantity)>RCS.MaxWeeklyOrdersSum
 AND    CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0)
 FROM   orders.OrdersHead Oh,
@@ -702,7 +701,7 @@ limit 1
   orders.orderslist ol
 where
   ol.OrderId = DuplicateOrderId.OrderId
-", _connection);
+", _readWriteConnection);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _data.ClientId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
@@ -731,7 +730,7 @@ limit 1
   orders.orderslist ol
 where
   ol.OrderId = DuplicateOrderId.OrderId
-", _connection);
+", _readWriteConnection);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ClientOrderId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);

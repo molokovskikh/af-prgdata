@@ -75,7 +75,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			string userId = null;
 			try
 			{
-				using (var connection = new Common.MySql.ConnectionManager().GetConnection())
+				using (var connection = new Common.MySql.SimpleConnectionManager().GetConnection())
 				{
 					var command = new MySqlCommand(@"SELECT ouar.RowId
 FROM clientsdata cd
