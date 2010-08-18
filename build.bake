@@ -6,18 +6,17 @@ import file from Lib.bake
 import file from Test.bake
 
 Global(
-	project : "PrgData",
+	Project : "PrgData",
 	humanReadableName : "Служба подготовки данных",
 	deployTo : """\\ACDCSERV.ADC.ANALIT.NET\WebApps\PrgDataService\PrgData\""",
-	platform : "x64",
-	frameworkVersion : "4.0.30319"
+	Platform : "x64",
 )
 
 Task @default, [@buildWebService]
 
-Task @deploy, [@buildWebService, @Migrate, @DeployWebService, @SendDeployNotification]
+Task @deploy, [@buildWebService, @Production, @Migrate, @DeployWebService, @SendDeployNotification]
 
-Task @deployTest, [@buildWebService, @Migrate]:
+Task @deployTest, [@buildWebService, @Production, @Migrate]:
 	Cp("src/${Globals.project}/Web.release.PrgDataTest.config", "${Path.GetFullPath('build')}/Web.config", true)
 	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\Test\\PrgDataSmart\\"
 	Engine.Execute("DeployWebService")
