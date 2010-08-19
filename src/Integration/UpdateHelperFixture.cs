@@ -75,6 +75,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		private void CheckFieldLength(MySqlConnection connection, string sqlCommand, UpdateData updateData, KeyValuePair<string, int>[] columns)
 		{
 			var dataAdapter = CreateAdapter(connection, sqlCommand, updateData);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
 			var table = new DataTable();
 			dataAdapter.FillSchema(table, SchemaType.Source);
 			foreach (var column in columns)
@@ -88,7 +89,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void CheckFields(UpdateData updateData, UpdateHelper helper, MySqlConnection connection)
 		{
-			updateData.ShowJunkOffers = true;
 			CheckFieldLength(
 				connection,
 				helper.GetClientCommand(),
@@ -121,6 +121,15 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				new KeyValuePair<string, int>[]
 						{
 							new KeyValuePair<string, int>("Region", 25)
+						});
+			CheckFieldLength(
+				connection,
+				helper.GetRejectsCommand(false),
+				updateData,
+				new KeyValuePair<string, int>[]
+						{
+							new KeyValuePair<string, int>("FullName", 254),
+							new KeyValuePair<string, int>("FirmCr", 150)
 						});
 		}
 

@@ -8,6 +8,7 @@ using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
 using log4net;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace PrgData.Common
 {
@@ -24,8 +25,8 @@ namespace PrgData.Common
 
 		public uint? OffersClientCode;
 		public ulong? OffersRegionCode;
-		public bool ShowAvgCosts;
-		public bool ShowJunkOffers;
+		public bool EnableImpersonalPrice;
+		public uint ImpersonalPriceId = 2647;
 
 		public bool IsFutureClient;
 
@@ -67,6 +68,7 @@ namespace PrgData.Common
 			                      	: (uint?) Convert.ToUInt32(row["BuyingMatrixPriceId"]);
 			BuyingMatrixType = Convert.ToInt32(row["BuyingMatrixType"]);
 			WarningOnBuyingMatrix = Convert.ToBoolean(row["WarningOnBuyingMatrix"]);
+			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
 		}
 
 		public bool Disabled()
@@ -235,7 +237,55 @@ and (s.SynonymCode = c.SynonymCode)
 			var command = new MySqlCommand();
 
 			command.Connection = _readWriteConnection;
-			command.CommandText = @"
+
+			if (_updateData.EnableImpersonalPrice)
+			{
+				command.CommandText = @"
+INSERT
+INTO   Usersettings.AnalitFReplicationInfo 
+       (
+              UserId,
+              FirmCode,
+              ForceReplication
+       )
+SELECT ouar.RowId,
+       supplier.FirmCode,
+       1
+FROM usersettings.clientsdata AS drugstore
+	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
+	JOIN clientsdata supplier ON supplier.firmsegment = drugstore.firmsegment
+	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.FirmCode
+WHERE ari.UserId IS NULL 
+	AND supplier.firmtype = 0
+	AND drugstore.FirmCode = ?ClientCode
+	AND drugstore.firmtype = 1
+	AND supplier.maskregion & ?OffersRegionCode > 0
+GROUP BY ouar.RowId, supplier.FirmCode;
+
+INSERT
+INTO   Usersettings.AnalitFReplicationInfo 
+       (
+              UserId,
+              FirmCode,
+              ForceReplication
+       )
+SELECT u.Id,
+       supplier.FirmCode,
+       1
+FROM Future.Clients drugstore
+	JOIN Future.Users u ON u.ClientId = drugstore.Id
+	JOIN clientsdata supplier ON supplier.maskregion & ?OffersRegionCode > 0
+	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.FirmCode
+WHERE ari.UserId IS NULL 
+	AND supplier.firmtype = 0
+	AND drugstore.Id = ?ClientCode
+	AND supplier.firmsegment = 0
+GROUP BY u.Id, supplier.FirmCode;";
+
+				command.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
+			}
+			else
+				command.CommandText = @"
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
        (
@@ -285,6 +335,16 @@ GROUP BY u.Id, supplier.FirmCode;
 
 		public string GetRegionsCommand()
 		{
+			if (_updateData.EnableImpersonalPrice)
+				return @"
+SELECT 
+  r.regioncode,
+  left(r.region, 25) as region
+FROM 
+   farm.regions r
+where r.RegionCode = ?OffersRegionCode
+";
+			else
 			if (_updateData.IsFutureClient)
 			{
 				return @"
@@ -304,9 +364,7 @@ FROM farm.regions, clientsdata
 WHERE firmcode = ifnull(?OffersClientCode, ?ClientCode)
 AND (regions.regioncode & maskregion > 0)";
 
-			if (!_updateData.ShowJunkOffers)
-			{
-				command += @"
+			command += @"
 UNION 
 SELECT regions.regioncode,
        left(regions.region, 25) as region
@@ -339,7 +397,7 @@ WHERE  primaryclientcode = ?ClientCode
    AND firmstatus        = 1 
    AND includetype       = 0 
    AND regions.regioncode= clientsdata.regioncode";
-			}
+
 			return command;
 		}
 
@@ -364,6 +422,7 @@ SELECT
     retclientsset.BuyingMatrixPriceId,
     retclientsset.BuyingMatrixType,
     retclientsset.WarningOnBuyingMatrix,
+    retclientsset.EnableImpersonalPrice,
     u.EnableUpdate,
     c.Status as ClientEnabled,
     (u.Enabled and ap.UserId is not null) as UserEnabled,
@@ -404,6 +463,7 @@ SELECT  ouar.clientcode as ClientId,
 		retclientsset.BuyingMatrixPriceId,
 		retclientsset.BuyingMatrixType,
 		retclientsset.WarningOnBuyingMatrix,
+        retclientsset.EnableImpersonalPrice,
         clientsdata.firmstatus as ClientEnabled,
         (ap.UserId is not null and IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3))) as UserEnabled
 FROM    
@@ -427,10 +487,9 @@ WHERE
 				return null;
 
 			dataAdapter = new MySqlDataAdapter(@"
-SELECT s.OffersClientCode,
-    s.ShowAvgCosts,
-    s.ShowJunkOffers,
-	ifnull(cd.RegionCode, c.RegionCode) as OfferRegionCode
+SELECT 
+  s.OffersClientCode,
+  ifnull(cd.RegionCode, c.RegionCode) as OfferRegionCode
 FROM retclientsset r
 	join OrderSendRules.smart_order_rules s
 		left join Usersettings.ClientsData cd on cd.FirmCode = s.OffersClientCode
@@ -446,8 +505,6 @@ WHERE r.clientcode = ?ClientCode
 			{
 				var row = smartOrderData.Tables[0].Rows[0];
 				updateData.OffersClientCode = Convert.ToUInt32(row["OffersClientCode"]);
-				updateData.ShowAvgCosts = Convert.ToBoolean(row["ShowAvgCosts"]);
-				updateData.ShowJunkOffers = Convert.ToBoolean(row["ShowJunkOffers"]);
 				if (!(row["OfferRegionCode"] is DBNull))
 					updateData.OffersRegionCode = Convert.ToUInt64(row["OfferRegionCode"]);
 			}
@@ -457,18 +514,30 @@ WHERE r.clientcode = ?ClientCode
 
 		public void SelectActivePrices()
 		{
-			if (_updateData.IsFutureClient)
+			if (_updateData.EnableImpersonalPrice)
 			{
-				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				var command = new MySqlCommand(@"
+DROP TEMPORARY TABLE IF EXISTS ActivePrices;
+create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
+"
+					,
+					_readWriteConnection);
+				command.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 				command.ExecuteNonQuery();
 			}
 			else
-			{
-				var command = new MySqlCommand("call AFGetActivePricesByUserId(?UserId);", _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-				command.ExecuteNonQuery();
-			}
+				if (_updateData.IsFutureClient)
+				{
+					var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
+					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+					command.ExecuteNonQuery();
+				}
+				else
+				{
+					var command = new MySqlCommand("call AFGetActivePricesByUserId(?UserId);", _readWriteConnection);
+					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+					command.ExecuteNonQuery();
+				}
 		}
 
 		public void SelectActivePricesInMaster()
@@ -489,18 +558,25 @@ WHERE r.clientcode = ?ClientCode
 
 		public void SelectPrices()
 		{
-			if (_updateData.IsFutureClient)
+			if (_updateData.EnableImpersonalPrice)
 			{
-				var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				var command = new MySqlCommand("CALL usersettings.GetPrices2(?OffersClientCode)", _readWriteConnection);
+				command.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 				command.ExecuteNonQuery();
 			}
 			else
-			{
-				var command = new MySqlCommand("CALL GetPrices2(?ClientCode)", _readWriteConnection);
-				command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
-				command.ExecuteNonQuery();
-			}
+				if (_updateData.IsFutureClient)
+				{
+					var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readWriteConnection);
+					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+					command.ExecuteNonQuery();
+				}
+				else
+				{
+					var command = new MySqlCommand("CALL GetPrices2(?ClientCode)", _readWriteConnection);
+					command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
+					command.ExecuteNonQuery();
+				}
 		}
 
 		public void SelectOffers()
@@ -589,6 +665,16 @@ WHERE
 and Prices.FirmCode = AFRI.FirmCode
 and AFRI.ForceReplication = 1
 GROUP BY 1;";
+
+			if (!_updateData.EnableImpersonalPrice)
+				commandText += @"
+CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
+        SELECT   PriceSynonymCode PriceCode,
+                 MaxSynonymCode            ,
+                 MaxSynonymFirmCrCode
+        FROM     ActivePrices Prices
+        GROUP BY 1;";
+
 			var command = new MySqlCommand(commandText, _readWriteConnection);
 			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			command.ExecuteNonQuery();
@@ -597,10 +683,15 @@ GROUP BY 1;";
 		public void UpdateReplicationInfo()
 		{
 			//Cleanup();
-			var commandclear = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MaxCodesSyn;", _readWriteConnection);
+			var commandclear = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MaxCodesSyn;",
+												_readWriteConnection);
 			commandclear.ExecuteNonQuery();
 
-			var commandText = @"
+			var commandText = String.Empty;
+
+			if (!_updateData.EnableImpersonalPrice)
+				commandText +=
+					@"
 CREATE TEMPORARY TABLE MaxCodesSyn engine=MEMORY
 SELECT   Prices.FirmCode, 
        MAX(synonym.synonymcode) SynonymCode 
@@ -617,8 +708,10 @@ FROM     ActivePrices Prices       ,
          farm.synonymfirmcr          
 WHERE    synonymfirmcr.pricecode        = Prices.PriceSynonymCode 
      AND synonymfirmcr.synonymfirmcrcode > Prices.MaxSynonymfirmcrCode 
-GROUP BY 1;
+GROUP BY 1;";
 
+			commandText +=
+				@"
 UPDATE 
   AnalitFReplicationInfo AFRI,
   CurrentReplicationInfo 
@@ -631,8 +724,11 @@ and CurrentReplicationInfo.CurrentForceReplicationUpdate = AFRI.ForceReplication
 UPDATE AnalitFReplicationInfo AFRI 
 SET    UncMaxSynonymFirmCrCode    = 0, 
      UncMaxSynonymCode          = 0 
-WHERE  AFRI.UserId                =  ?UserId;
+WHERE  AFRI.UserId                =  ?UserId;";
 
+			if (!_updateData.EnableImpersonalPrice)
+				commandText +=
+				@"
 UPDATE AnalitFReplicationInfo AFRI, 
        MaxCodesSynFirmCr            
 SET    UncMaxSynonymFirmCrCode    = MaxCodesSynFirmCr.synonymcode 
@@ -643,9 +739,12 @@ UPDATE AnalitFReplicationInfo AFRI,
        maxcodessyn                  
 SET    UncMaxSynonymCode     = maxcodessyn.synonymcode 
 WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
-   AND AFRI.UserId = ?UserId;
+   AND AFRI.UserId = ?UserId;";
 
+			commandText +=
+				@"
 drop temporary table IF EXISTS CurrentReplicationInfo;";
+
 			var command = new MySqlCommand(commandText, _readWriteConnection);
 			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			command.ExecuteNonQuery();
@@ -1024,6 +1123,9 @@ WHERE  clientsdata.firmcode    = ?ClientCode";
 
 		public string GetDelayOfPaymentsCommand()
 		{
+			if (_updateData.EnableImpersonalPrice)
+				return "select null from usersettings.clientsdata limit 0";
+			else
 			if (_updateData.IsFutureClient)
 			{
 				return @"
@@ -1032,14 +1134,8 @@ select
        si.DelayOfPayment
 from
        Future.Users u
-       join
-              future.Clients c
-       on
-              u.ClientId = c.Id
-       join
-              Usersettings.SupplierIntersection si
-       on
-              si.ClientId = c.Id
+       join future.Clients c on u.ClientId = c.Id
+       join Usersettings.SupplierIntersection si on si.ClientId = c.Id
 where
        u.Id = ?UserId";
 			}
@@ -1050,7 +1146,7 @@ select
        si.SupplierId,
        si.DelayOfPayment
 from
-       Usersettings.SupplierIntersection si
+       Usersettings.SupplierIntersection si 
 where
        si.ClientId = ?ClientCode";
 			}
@@ -1327,12 +1423,13 @@ AND
 			if (exportInforoomPrice)
 				if (!exportSupplierPriceMarkup)
 					return @"
-SELECT 2647                             ,
+SELECT 
+       ?ImpersonalPriceId               ,
        ?OffersRegionCode                ,
        A.ProductId                      ,
        A.CodeFirmCr                     ,
-       S.SynonymCode                    ,
-       SF.SynonymFirmCrCode             ,
+       A.ProductId as SynonymCode       ,
+       A.CodeFirmCr as SynonymFirmCrCode,
        ''                               ,
        ''                               ,
        ''                               ,
@@ -1346,26 +1443,23 @@ SELECT 2647                             ,
        ''                               ,
        0                                ,
        ''                               ,
-       IF(?ShowAvgCosts, a.Cost, '') ,
+       '' as Cost                       ,
        @RowId := @RowId + 1             ,
        ''                               ,
        ''
-FROM   farm.Synonym S        ,
-       farm.SynonymFirmCr SF ,
-       CoreT A
-WHERE  S.PriceCode            =2647
-AND    SF.PriceCode           =2647
-AND    S.ProductId            =A.ProductId
-AND    SF.CodeFirmCr          =A.CodeFirmCr
-AND    A.CodeFirmCr IS NOT NULL
+FROM   
+       CoreAssortment A
+WHERE  
+   A.CodeFirmCr IS NOT NULL
 
 UNION
 
-SELECT 2647                              ,
+SELECT 
+       ?ImpersonalPriceId                ,
        ?OffersRegionCode                 ,
        A.ProductId                       ,
        1                                 ,
-       S.SynonymCode                     ,
+       A.ProductId as SynonymCode        ,
        0                                 ,
        ''                                ,
        ''                                ,
@@ -1380,24 +1474,24 @@ SELECT 2647                              ,
        ''                                ,
        0                                 ,
        ''                                ,
-       IF(?ShowAvgCosts, A.Cost, ''),
+       '' as Cost                        ,
        @RowId := @RowId + 1              ,
        ''                                ,
        ''
-FROM   farm.Synonym S ,
-       CoreTP A
-WHERE  S.PriceCode =2647
-AND    S.ProductId =A.ProductId";
+FROM   
+       CoreProducts A
+";
 				else
 					return 
 						String.Format(
 @"
-SELECT 2647                             ,
+SELECT 
+       ?ImpersonalPriceId               ,
        ?OffersRegionCode                ,
        A.ProductId                      ,
        A.CodeFirmCr                     ,
-       S.SynonymCode                    ,
-       SF.SynonymFirmCrCode             ,
+       A.ProductId as SynonymCode       ,
+       A.CodeFirmCr as SynonymFirmCrCode,
        ''                               ,
        ''                               ,
        ''                               ,
@@ -1411,7 +1505,7 @@ SELECT 2647                             ,
        null as RegistryCost              ,
        0 as VitallyImportant             ,
        null as RequestRatio              ,
-       IF(?ShowAvgCosts, a.Cost, '') ,
+       '' as Cost                       ,
        @RowId := @RowId + 1             ,
        null as OrderCost                 ,
        null as MinOrderCount             ,
@@ -1421,24 +1515,20 @@ SELECT 2647                             ,
       {0}
 FROM   
        (
-       farm.Synonym S        ,
-       farm.SynonymFirmCr SF ,
-       CoreT A
+       CoreAssortment A
        )
       {1}
-WHERE  S.PriceCode            =2647
-AND    SF.PriceCode           =2647
-AND    S.ProductId            =A.ProductId
-AND    SF.CodeFirmCr          =A.CodeFirmCr
-AND    A.CodeFirmCr IS NOT NULL
+WHERE
+    A.CodeFirmCr IS NOT NULL
 
 UNION
 
-SELECT 2647                              ,
+SELECT 
+       ?ImpersonalPriceId                ,
        ?OffersRegionCode                 ,
        A.ProductId                       ,
        1                                 ,
-       S.SynonymCode                     ,
+       A.ProductId as SynonymCode        ,
        1                                 ,
        ''                                ,
        ''                                ,
@@ -1453,7 +1543,7 @@ SELECT 2647                              ,
        null as RegistryCost              ,
        0 as VitallyImportant             ,
        null as RequestRatio              ,
-       IF(?ShowAvgCosts, A.Cost, ''),
+       '' as Cost                        ,
        @RowId := @RowId + 1              ,
        null as OrderCost                 ,
        null as MinOrderCount             ,
@@ -1463,12 +1553,10 @@ SELECT 2647                              ,
        {0}
 FROM   
        (
-       farm.Synonym S ,
-       CoreTP A
+       CoreProducts A
        )
        {2}
-WHERE  S.PriceCode =2647
-AND    S.ProductId =A.ProductId
+
 "
 	,
 		exportBuyingMatrix ? buyingMatrixCondition : "",
@@ -1539,14 +1627,33 @@ Core.NDS " : "",
 
 		public string GetSynonymFirmCrCommand(bool Cumulative)
 		{ 
-			var sql = @"
+			var sql = String.Empty;
+
+			if (_updateData.EnableImpersonalPrice)
+			{
+				sql = @"
+select
+	Producers.Id as synonymfirmcrcode,
+	LEFT(Producers.Name, 250) as Synonym
+from
+	catalogs.Producers
+where
+	(Producers.Id > 1)";
+				if (!Cumulative)
+					sql += " and Producers.UpdateTime > ?UpdateTime ";
+			}
+			else
+			{
+				sql = @"
 SELECT synonymfirmcr.synonymfirmcrcode,
        LEFT(SYNONYM, 250)
 FROM   farm.synonymfirmcr,
        ParentCodes
 WHERE  synonymfirmcr.pricecode = ParentCodes.PriceCode";
-			if (!Cumulative)
-				sql += " AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode ";
+				if (!Cumulative)
+					sql += " AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode ";
+			}
+
 			sql += @"
 UNION
 
@@ -1559,7 +1666,34 @@ SELECT 1,
 
 		public string GetSynonymCommand(bool Cumulative)
 		{
-			var sql = @"
+			var sql = String.Empty;
+
+			if (_updateData.EnableImpersonalPrice)
+			{
+				sql = @"
+
+select 
+  p.Id As SynonymCode,
+  LEFT( concat(c.Name, ' ', cast(GROUP_CONCAT(ifnull(PropertyValues.Value, '') order by Properties.PropertyName, PropertyValues.Value SEPARATOR ', ') as char)) , 250) as Synonym
+from 
+  catalogs.products p
+  join catalogs.catalog c on c.Id = p.CatalogId
+  left join catalogs.ProductProperties on ProductProperties.ProductId = p.Id
+  left join catalogs.PropertyValues on PropertyValues.Id = ProductProperties.PropertyValueId
+  left join catalogs.Properties on Properties.Id = PropertyValues.PropertyId
+where 
+       C.hidden = 0
+   and p.hidden = 0
+";
+
+				if (!Cumulative)
+					sql += @" and ( IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)  OR  IF(NOT ?Cumulative, p.UpdateTime > ?UpdateTime, 1) ) ";
+
+				sql += "group by p.id";
+			}
+			else
+			{
+				sql = @"
 SELECT 
   synonym.synonymcode, 
   LEFT(synonym.synonym, 250) 
@@ -1569,8 +1703,9 @@ FROM
 WHERE  
   synonym.pricecode = ParentCodes.PriceCode ";
 
-			if (!Cumulative)
-				sql += " AND synonym.synonymcode > MaxSynonymCode ";
+				if (!Cumulative)
+					sql += " AND synonym.synonymcode > MaxSynonymCode ";
+			}
 
 			return sql;
 		}
@@ -1653,7 +1788,26 @@ where
 		public string GetMinReqRuleCommand()
 		{
 			if (_updateData.IsFutureClient)
-				return @"
+			{
+				if (_updateData.EnableImpersonalPrice)
+					return
+						@"
+select
+  a.Id as ClientId,
+  ?ImpersonalPriceId as PriceCode,
+  ?OffersRegionCode as RegionCode,
+  0 as ControlMinReq,
+  null as MinReq 
+from
+  Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+where
+  (u.Id = ?UserId)";
+				else
+					return
+						@"
 select
   a.Id as ClientId,
   i.PriceId as PriceCode,
@@ -1670,8 +1824,42 @@ from
   join Prices on (Prices.PriceCode = i.PriceId) and (Prices.RegionCode = i.RegionId)
 where
   (u.Id = ?UserId)";
+			}
 			else
-				return @"
+			{
+				if (_updateData.EnableImpersonalPrice)
+					return
+						@"
+select
+  clients.FirmCode as ClientId,
+  ?ImpersonalPriceId as PriceCode,
+  ?OffersRegionCode as RegionCode,
+  0 as ControlMinReq,
+  null as MinReq 
+from
+  (
+SELECT
+  clientsdata.firmcode
+FROM
+  clientsdata
+WHERE
+  clientsdata.firmcode    = ?ClientCode
+UNION
+SELECT
+  clientsdata.firmcode
+FROM
+     clientsdata         ,
+     IncludeRegulation
+WHERE
+     clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
+ AND clientsdata.firmstatus               = 1
+ AND IncludeRegulation.IncludeType        IN (0,3)
+ AND IncludeRegulation.Primaryclientcode  = ?ClientCode
+ ) clients
+";
+				else
+					return
+					@"
 select
   clients.FirmCode as ClientId,
   Prices.PriceCode,
@@ -1700,6 +1888,7 @@ WHERE
  ) clients,
  Prices
   ";
+			}
 		}
 
 		public void OldCommit(string absentPriceCodes)
@@ -1920,6 +2109,304 @@ WHERE
 			{
 			}
 			return false;
+		}
+
+		public void SetUpdateParameters(MySqlCommand selectComand, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime)
+		{
+			selectComand.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);
+			selectComand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			selectComand.Parameters.AddWithValue("?Cumulative", cumulative);
+			selectComand.Parameters.AddWithValue("?UpdateTime", oldUpdateTime);
+			selectComand.Parameters.AddWithValue("?LastUpdateTime", currentUpdateTime);
+			selectComand.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
+			selectComand.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
+			selectComand.Parameters.AddWithValue("?ImpersonalPriceId", _updateData.ImpersonalPriceId);
+			selectComand.Parameters.AddWithValue("?ImpersonalPriceDate", DateTime.Now);
+			selectComand.Parameters.AddWithValue("?ImpersonalPriceFresh", 0);
+		}
+
+		public void PrepareImpersonalOffres(MySqlCommand selectCommand)
+		{
+			selectCommand.CommandText = @"
+DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
+CALL usersettings.GetActivePrices2(?OffersClientCode);
+CALL usersettings.GetOffers(?OffersClientCode, 0);";
+			selectCommand.ExecuteNonQuery();
+
+			selectCommand.CommandText = @"
+DROP TEMPORARY TABLE IF EXISTS CoreAssortment, CoreProducts;
+CREATE TEMPORARY TABLE CoreAssortment (ProductId       INT unsigned, CodeFirmCr INT unsigned, UNIQUE MultiK(ProductId, CodeFirmCr)) engine=MEMORY;
+CREATE TEMPORARY TABLE CoreProducts (ProductId INT unsigned, UNIQUE MultiK(ProductId)) engine=MEMORY;
+
+INSERT
+INTO   CoreAssortment
+        (
+                ProductId ,
+                CodeFirmCr
+        )
+SELECT   core0.ProductId ,
+            core0.codefirmcr
+FROM     farm.core0,
+            Core
+WHERE    core0.id=Core.id
+GROUP BY ProductId,
+            CodeFirmCr;
+                        
+INSERT
+INTO   CoreProducts
+        (
+                ProductId
+        )
+SELECT   ProductId
+FROM     CoreAssortment
+GROUP BY ProductId;
+                        
+SET @RowId :=1;";
+			selectCommand.ExecuteNonQuery();
+		}
+
+		public string GetRejectsCommand(bool Cumulative)
+		{
+			var sql = @"
+SELECT 
+       rejects.RowId         ,
+       rejects.FullName      ,
+       rejects.FirmCr        ,
+       rejects.CountryCr     ,
+       rejects.Series        ,
+       rejects.LetterNo      ,
+       rejects.LetterDate    ,
+       rejects.LaboratoryName,
+       rejects.CauseRejects
+FROM   addition.rejects,
+       retclientsset rcs
+WHERE  rcs.clientcode = ?ClientCode
+AND    alowrejection  = 1 ";
+
+			if (!Cumulative)
+				sql += "   AND accessTime > ?UpdateTime";
+
+			return sql;
+		}
+
+		public string GetPricesRegionalDataCommand()
+		{
+			if (_updateData.EnableImpersonalPrice)
+				return @"
+SELECT 
+       ?ImpersonalPriceId as PriceCode  ,
+       ?OffersRegionCode as RegionCode,
+       0 as STORAGE                   ,
+       null as MinReq                 ,
+       1 as MainFirm                  ,
+       1 as InJob                     ,
+       0 as ControlMinReq
+FROM   
+   UserSettings.PricesData
+where
+  PricesData.PriceCode = ?ImpersonalPriceId
+limit 1";
+			else
+				return @"
+SELECT 
+       PriceCode           ,
+       RegionCode          ,
+       STORAGE             ,
+       MinReq              ,
+       MainFirm            ,
+       NOT disabledbyclient,
+       ControlMinReq
+FROM   Prices";
+		}
+
+		public string GetRegionalDataCommand()
+		{
+			if (_updateData.EnableImpersonalPrice)
+				return @"
+SELECT 
+       PricesData.FirmCode            ,
+       ?OffersRegionCode as RegionCode,
+       '4732-606000' as supportphone  ,
+       null as ContactInfo            ,
+       null as OperativeInfo          
+FROM   
+   UserSettings.PricesData
+where
+  PricesData.PriceCode = ?ImpersonalPriceId
+limit 1";
+			else
+				return @"
+SELECT DISTINCT 
+                regionaldata.FirmCode  ,
+                regionaldata.RegionCode,
+                supportphone           ,
+                ContactInfo            ,
+                OperativeInfo
+FROM            
+                regionaldata,
+                Prices
+WHERE           regionaldata.firmcode  = Prices.firmcode
+AND             regionaldata.regioncode= Prices.regioncode";
+		}
+
+		public void PrepareProviderContacts(MySqlCommand selectCommand)
+		{
+			if (!_updateData.EnableImpersonalPrice)
+			{
+				selectCommand.CommandText = @"
+DROP TEMPORARY TABLE IF EXISTS ProviderContacts;
+
+CREATE TEMPORARY TABLE ProviderContacts engine=MEMORY
+AS
+SELECT DISTINCT c.contactText,
+                cd.FirmCode
+FROM            usersettings.clientsdata cd
+                JOIN contacts.contact_groups cg
+                ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
+                JOIN contacts.contacts c
+                ON              cg.Id = c.ContactOwnerId
+WHERE           firmcode IN
+                                (SELECT DISTINCT FirmCode
+                                FROM             Prices
+                                )
+AND             cg.Type = 1
+AND             c.Type  = 0;
+                
+INSERT
+INTO   ProviderContacts
+SELECT DISTINCT c.contactText,
+                cd.FirmCode
+FROM            usersettings.clientsdata cd
+                JOIN contacts.contact_groups cg
+                ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
+                JOIN contacts.persons p
+                ON              cg.id = p.ContactGroupId
+                JOIN contacts.contacts c
+                ON              p.Id = c.ContactOwnerId
+WHERE           firmcode IN
+                                (SELECT DISTINCT FirmCode
+                                FROM             Prices
+                                )
+AND             cg.Type = 1
+AND             c.Type  = 0;
+";
+				selectCommand.ExecuteNonQuery();
+			}
+		}
+
+		public void ClearProviderContacts(MySqlCommand selectCommand)
+		{
+			selectCommand.CommandText = "drop TEMPORARY TABLE IF EXISTS ProviderContacts";
+			selectCommand.ExecuteNonQuery();
+		}
+
+		public string GetProvidersCommand()
+		{
+			if (_updateData.EnableImpersonalPrice)
+				return @"
+SELECT   
+         firm.FirmCode                                                             ,
+         firm.FullName                                                             ,
+         firm.Fax                                                                  ,
+         null as ContactText                                                       ,
+         firm.ShortName
+FROM     
+         usersettings.PricesData pd
+         inner join clientsdata AS firm on firm.FirmCode = pd.FirmCode
+WHERE    
+         pd.PriceCode = ?ImpersonalPriceId";
+			else
+				return @"
+SELECT   
+         firm.FirmCode                                                             ,
+         firm.FullName                                                             ,
+         firm.Fax                                                                  ,
+         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
+         firm.ShortName
+FROM     clientsdata AS firm
+         LEFT JOIN ProviderContacts
+         ON       ProviderContacts.FirmCode = firm.FirmCode
+WHERE    firm.firmcode IN
+                           (SELECT DISTINCT FirmCode
+                           FROM             Prices
+                           )
+GROUP BY firm.firmcode";
+		}
+
+		public string GetPricesDataCommand()
+		{
+			if (_updateData.EnableImpersonalPrice)
+				return @"
+SELECT   
+         pd.FirmCode ,
+         pd.pricecode,
+         firm.shortname                                                                                                 as PriceName,
+         ''                                                                                                             as PRICEINFO,
+         date_sub(?ImpersonalPriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
+         ?ImpersonalPriceFresh                                                                                          as Fresh
+FROM     
+         usersettings.pricesdata pd
+         join clientsdata AS firm on firm.FirmCode = pd.FirmCode
+WHERE    
+   pd.PriceCode = ?ImpersonalPriceId
+";
+			else 
+				return @"
+SELECT   
+         Prices.FirmCode ,
+         Prices.pricecode,
+         concat(firm.shortname, IF(PriceCount> 1 OR ShowPriceName = 1, concat(' (', pricename, ')'), ''))    as PriceName,
+         ''                                                                                                  as PRICEINFO,
+         date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
+         IF(?OffersClientCode IS NULL, ((ForceReplication != 0) OR (actual = 0) OR ?Cumulative), 1)          as Fresh
+FROM     
+         clientsdata AS firm,
+         tmpprd             ,
+         Prices             ,
+         AnalitFReplicationInfo ARI
+WHERE    tmpprd.firmcode = firm.firmcode
+AND      firm.firmcode   = Prices.FirmCode
+AND      ARI.FirmCode    = Prices.FirmCode
+AND      ARI.UserId      = ?UserId
+GROUP BY Prices.FirmCode,
+         Prices.pricecode";
+		}
+
+		public void PreparePricesData(MySqlCommand selectCommand)
+		{
+			if (_updateData.EnableImpersonalPrice)
+			{
+				selectCommand.CommandText = "select max(PriceDate) from Prices";
+				var priceDate = Convert.ToDateTime(selectCommand.ExecuteScalar());
+				selectCommand.Parameters["?ImpersonalPriceDate"].Value = priceDate;
+
+				selectCommand.CommandText = @"
+select 
+  ifnull(sum((ARI.ForceReplication != 0) OR ((Prices.actual = 0) and (?UpdateTime < Prices.PriceDate + interval f.maxold day)) OR ?Cumulative), 0) as Fresh
+from 
+  Prices
+  inner join AnalitFReplicationInfo ARI on ARI.FirmCode = Prices.FirmCode
+  inner JOIN usersettings.PricesCosts pc on pc.CostCode = Prices.CostCode
+  inner JOIN usersettings.PriceItems pi on pi.Id = pc.PriceItemId
+  inner JOIN farm.formrules f on f.Id = pi.FormRuleId
+where
+  ARI.UserId = ?UserId";
+				var priceFresh = Convert.ToInt32(selectCommand.ExecuteScalar());
+				selectCommand.Parameters["?ImpersonalPriceFresh"].Value = priceFresh > 0 ? 1 : 0;
+			}
+			else
+			{
+				selectCommand.CommandText = @"
+CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY;
+        INSERT
+        INTO   tmpprd
+        SELECT   firmcode,
+                 COUNT(pricecode)
+        FROM     Prices
+        GROUP BY FirmCode,
+                 RegionCode;";
+				selectCommand.ExecuteNonQuery();
+			}
 		}
 
 	}
