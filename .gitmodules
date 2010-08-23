@@ -1,0 +1,15 @@
+[submodule "src/Common.MySql"]
+	path = src/Common.MySql
+	url = ssh://kvasov@git.analit.net/var/www/git/Common.MySql.git
+[submodule "src/Common.Models"]
+	path = src/Common.Models
+	url = ssh://kvasov@git.analit.net/var/www/git/Common.Models.git
+[submodule "src/Common.Tools"]
+	path = src/Common.Tools
+	url = ssh://kvasov@git.analit.net/var/www/git/Common.Tools.git
+[submodule "src/SmartOrderFactory"]
+	path = src/SmartOrderFactory
+	url = ssh://kvasov@git.analit.net/var/www/git/SmartOrderFactory.git
+[submodule "src/Test.Support"]
+	path = src/Test.Support
+	url = ssh://kvasov@git.analit.net/var/www/git/Test.Support.git
