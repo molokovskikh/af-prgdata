@@ -3178,10 +3178,15 @@ RestartTrans2:
                     End If
                 Else
 
-                    helper.PrepareImpersonalOffres(SelProc)
+                    If Convert.ToInt32(SelProc.Parameters("?ImpersonalPriceFresh").Value) = 1 Then
+                        helper.PrepareImpersonalOffres(SelProc)
 
-                    'Выгрузка данных для обезличенного прайс-листа
-                    GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (BuildNo >= 1249) Or _needUpdateToBuyingMatrix))
+                        'Выгрузка данных для обезличенного прайс-листа
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (BuildNo >= 1249) Or _needUpdateToBuyingMatrix))
+                    Else
+                        'выгружаем пустую таблицу Core
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+                    End If
                     'выгружаем пустую таблицу MaxProducerCosts
                     GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
                 End If
