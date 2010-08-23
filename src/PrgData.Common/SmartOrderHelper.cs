@@ -61,12 +61,12 @@ namespace PrgData.Common
 
 			_orderRule = IoC.Resolve<IRepository<OrderRules>>().Get(updateData.ClientId);
 			if (!_orderRule.EnableSmartOrder)
-				throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
+				throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
 
 			_smartOrderRule = IoC.Resolve<ISmartOrderFactoryRepository>().GetSmartOrderRule(updateData.ClientId);
 
 			if (_smartOrderRule == null)
-				throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста обратитесь в АК \"Инфорум\".", "Не настроены правила для автоматического формирования заказа; ", RequestType.Forbidden);
+				throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Не настроены правила для автоматического формирования заказа; ", RequestType.Forbidden);
 
 			using(var unitOfWork = new UnitOfWork())
 			{

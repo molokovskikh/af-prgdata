@@ -103,7 +103,7 @@ where osuseraccessright.RowId = ?UserId", _readWriteConnection);
 			}
 
 			if (!canPostOrder)
-				throw new UpdateException("Отправка заказов запрещена", "Пожалуйста обратитесь в АК \"Инфорум\".", RequestType.Forbidden);
+				throw new UpdateException("Отправка заказов запрещена", "Пожалуйста, обратитесь в АК \"Инфорум\".", RequestType.Forbidden);
 		}
 
 		public ulong SaveOrder(uint clientId, uint priceId, ulong regionId, DateTime priceDate, uint rowCount, uint clientOrderId, string clientAddition)

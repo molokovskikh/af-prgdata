@@ -1753,7 +1753,7 @@ RestartInsertTrans:
             Return ProcessUpdateException(updateException)
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказа", ex)
-            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
             ReleaseLock(UserId, "PostOrder")
             DBDisconnect()
@@ -1975,10 +1975,10 @@ RestartInsertTrans:
             Return ProcessUpdateException(updateException)
         Catch ex As NotEnoughElementsException
             Log.Warn("Ошибка при отправке заказа", ex)
-            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
-            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
             ReleaseLock(UserId, "PostOrder")
             DBDisconnect()
@@ -2035,7 +2035,7 @@ RestartInsertTrans:
             Return ProcessUpdateException(updateException)
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке дефектуры", ex)
-            Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
             ReleaseLock(UserId, "PostOrderBatch")
             DBDisconnect()
@@ -3608,13 +3608,13 @@ RestartTrans2:
             End If
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при получении паролей", ex)
-            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
             DBDisconnect()
         End Try
 
         If ErrorFlag Then
-            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         End If
     End Function
 
@@ -3719,7 +3719,7 @@ RestartTrans2:
         End Try
 
         If ErrorFlag Then
-            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста повторите попытку через несколько минут."
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         End If
     End Function
 
