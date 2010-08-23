@@ -12,6 +12,7 @@ using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
 using Test.Support;
+using System.Text.RegularExpressions;
 
 namespace Integration
 {
@@ -195,6 +196,58 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
 			Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
 			Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("Доступ закрыт."));
+		}
+
+		[Test(Description = "Проверям, что поле ReclameDate имеет значение null после ограниченного кумулятивного обновления")]
+		public void Check_ReclameDate_is_null_after_LimitedCumulative()
+		{
+			SetCurrentUser(_user.Login);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				"update usersettings.UserUpdateInfo uui set uui.ReclameDate = now() where uui.UserId = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
+
+			ProcessGetUserData(true, DateTime.Now);
+
+			var reclameDate = MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
+
+			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "После КО столбец ReclameDate не равен DBNull");
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				"update usersettings.UserUpdateInfo uui set uui.ReclameDate = now() where uui.UserId = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
+
+			ProcessGetUserData(false, DateTime.Now.AddHours(-1));
+
+			reclameDate = MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
+
+			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "После ограниченнго КО столбец ReclameDate не равен DBNull");
+		}
+
+		private void ProcessGetUserData(bool cumulative, DateTime updateTime)
+		{
+			var service = new PrgDataEx();
+			service.ResultFileName = "results";
+			var responce = service.GetUserData(updateTime, cumulative, "6.0.0.1183", 50, "123", "", "", false);
+
+			var match = Regex.Match(responce, @"\d+").Value;
+			if (match.Length > 0)
+			{
+				var lastUpdateId = Convert.ToUInt32(match);
+				service = new PrgDataEx();
+				service.ResultFileName = "results";
+				service.CommitExchange(lastUpdateId, false);
+			}
+			else
+				Assert.Fail("Некорректный ответ от сервера при получении данных: {0}", responce);
 		}
 	}
 }

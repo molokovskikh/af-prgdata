@@ -508,18 +508,12 @@ RestartInsertTrans:
                 If GED Then
 
                     If (Not ProcessBatch) Then UpdateType = RequestType.GetCumulative
-                    Cm.Connection = readWriteConnection
-                    Cm.CommandText = "update UserUpdateInfo set ReclameDate = NULL where UserId=" & UserId & "; "
-                    Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
-                    Try
-                        Cm.Transaction = transaction
-                        Cm.ExecuteNonQuery()
-                        transaction.Commit()
-                    Catch ex As Exception
-                        ConnectionHelper.SafeRollback(transaction)
-                        Throw
-                    End Try
+
+                    helper.ResetReclameDate()
+
                 Else
+
+                    If LimitedCumulative Then helper.ResetReclameDate()
 
                     'Сбрасываем коды прайс-листов, у которых нехватает синонимов
                     AbsentPriceCodes = String.Empty
@@ -533,6 +527,7 @@ RestartInsertTrans:
                     If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
 
                     If _needUpdateToBuyingMatrix Then helper.SetForceReplication()
+
                 End If
 
             End If

@@ -2409,5 +2409,23 @@ CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsi
 			}
 		}
 
+		public void ResetReclameDate()
+		{
+			var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+			try
+			{
+				var resetCommand = new MySqlCommand("update usersettings.UserUpdateInfo set ReclameDate = NULL where UserId= ?UserId;", _readWriteConnection, transaction);
+				resetCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				resetCommand.ExecuteNonQuery();
+
+				transaction.Commit();
+			}
+			catch
+			{
+				ConnectionHelper.SafeRollback(transaction);
+				throw;
+			}
+		}
+
 	}
 }
