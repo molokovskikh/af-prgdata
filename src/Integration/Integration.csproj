@@ -98,6 +98,7 @@
     <Compile Include="GenerateDocsHelperFixture.cs" />
     <Compile Include="GetReclameFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
+    <Compile Include="ImpersonalPriceFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
     <Compile Include="PostSomeOrdersFixture.cs" />
