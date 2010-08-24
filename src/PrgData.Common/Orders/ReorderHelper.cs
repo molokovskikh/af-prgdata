@@ -108,7 +108,7 @@ namespace PrgData.Common.Orders
 				});
 		}
 
-		private List<Offer> GetOffers()
+		private List<Offer> GetOffers(List<uint> productIds)
 		{
 			var offersRepository = IoC.Resolve<ISmartOfferRepository>();
 			IOrderable Orderable;
@@ -119,6 +119,11 @@ namespace PrgData.Common.Orders
 			else
 				Orderable = IoC.Resolve<IRepository<Client>>().Get(_data.ClientId);
 
+			return offersRepository.GetByProductIds(Orderable, productIds).ToList();
+		}
+
+		private List<uint> GetSearchedProductIds()
+		{
 			var productIds = new List<uint>();
 			foreach (var order in _orders)
 			{
@@ -129,29 +134,34 @@ namespace PrgData.Common.Orders
 				}
 			}
 
-			return offersRepository.GetByProductIds(Orderable, productIds).ToList();
+			return productIds;
 		}
 
 		private void CheckWithExistsPrices()
 		{
-			var offers = GetOffers();
+			var productIds = GetSearchedProductIds();
 
-			foreach (var order in _orders)
+			if (productIds.Count > 0)
 			{
-				foreach (var position in order.Positions)
-				{
-					if (!position.Duplicated)
-					{
-						var offer = GetDataRowByPosition(offers, order, position);
-						if (offer == null)
-							position.SendResult = PositionSendResult.NotExists;
-						else
-							CheckExistsCorePosition(offer, position);
-					}
-				}
+				var offers = GetOffers(productIds);
 
-				if (order.Positions.Any((item) => { return item.SendResult != PositionSendResult.Success; }))
-					order.SendResult = OrderSendResult.NeedCorrect;
+				foreach (var order in _orders)
+				{
+					foreach (var position in order.Positions)
+					{
+						if (!position.Duplicated)
+						{
+							var offer = GetDataRowByPosition(offers, order, position);
+							if (offer == null)
+								position.SendResult = PositionSendResult.NotExists;
+							else
+								CheckExistsCorePosition(offer, position);
+						}
+					}
+
+					if (order.Positions.Any((item) => { return item.SendResult != PositionSendResult.Success; }))
+						order.SendResult = OrderSendResult.NeedCorrect;
+				}
 			}
 		}
 
