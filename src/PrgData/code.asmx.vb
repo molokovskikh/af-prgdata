@@ -1665,7 +1665,7 @@ StartZipping:
                 'начинаем проверять минимальный заказ
                 Dim minReq = helper.GetMinReq(ClientCode, RegionCode, PriceCode)
 
-                If Not minReq Is Nothing And minReq.ControlMinReq And minReq.MinReq > 0 Then
+                If Not minReq Is Nothing AndAlso minReq.ControlMinReq AndAlso minReq.MinReq > 0 Then
                     SumOrder = 0
                     For it = 0 To Cost.Length - 1
                         SumOrder += Convert.ToUInt32(Math.Round(Quantity(it) * Cost(it), 0))
@@ -3665,7 +3665,7 @@ RestartTrans2:
 
                 For I As Integer = 0 To PriceCodes.Length - 1
                     drs = dtIntersection.Select("PriceCode = " & PriceCodes(I) & " and RegionCode = " & RegionCodes(I))
-                    If ((Not (drs Is Nothing)) And (drs.Length > 0)) Then
+                    If ((Not (drs Is Nothing)) AndAlso (drs.Length > 0)) Then
 
                         If (CByte(drs(0)("DisabledByClient")) <> CByte(IIf(Not INJobs(I), 1, 0))) Then
                             drs(0)("DisabledByClient") = IIf(Not INJobs(I), 1, 0)
