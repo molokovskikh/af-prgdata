@@ -189,6 +189,131 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
 			}
 		}
+		
+
+		class CheckedState
+		{
+			public uint CoreID { get; set; }
+			public float? ProducerCost { get; set; }
+			public float Cost { get; set; }
+			public float? NDS { get; set; }
+			public float? SupplierPriceMarkup { get; set; }
+		}
+
+		private string GetStringRight(string value, int right)
+		{
+			if (String.IsNullOrEmpty(value))
+				return value;
+			if (value.Length <= right)
+				return value;
+			return value.Substring(value.Length - right, right);
+		}
+
+		[Test]
+		public void Check_core_command_with_NDS()
+		{
+			var states = new List<CheckedState>()
+			             	{
+			             		new CheckedState {ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null},
+			             		new CheckedState {ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null},
+			             		new CheckedState
+			             			{ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30/(10*1.1f) - 1)*100},
+			             		new CheckedState {ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f/10f - 1)*100},
+			             		new CheckedState
+			             			{ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30/(10*(1 + 10f/100f)) - 1)*100},
+			             		new CheckedState
+			             			{ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30/(10*(1 + 18f/100f)) - 1)*100},
+			             	};
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var ids = MySqlHelper.ExecuteDataset(connection,
+													 @"
+select
+  Core.Id
+from
+  Core
+  inner join ActivePrices on ActivePrices.PriceCode = Core.PriceCode and ActivePrices.RegionCode = Core.RegionCode and ActivePrices.Fresh = 1
+  inner join farm.Core0 c on c.Id = Core.Id
+limit "
+													 + states.Count);
+				for (var i = 0; i < states.Count; i++)
+					states[i].CoreID = Convert.ToUInt32(ids.Tables[0].Rows[i]["Id"]);
+
+				var updateCommand = new MySqlCommand(@"
+update Core set Cost = ?Cost where Id = ?Id;
+update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
+", connection);
+				updateCommand.Parameters.Add("?Id", MySqlDbType.UInt32);
+				updateCommand.Parameters.Add("?Cost", MySqlDbType.Float);
+				updateCommand.Parameters.Add("?ProducerCost", MySqlDbType.Float);
+				updateCommand.Parameters.Add("?NDS", MySqlDbType.Float);
+
+				states.ForEach(item =>
+				{
+				    updateCommand.Parameters["?Id"].Value = item.CoreID;
+					updateCommand.Parameters["?Cost"].Value = item.Cost;
+					updateCommand.Parameters["?ProducerCost"].Value = item.ProducerCost;
+					updateCommand.Parameters["?NDS"].Value = item.NDS;
+				    updateCommand.ExecuteNonQuery();
+				});
+
+				states.ForEach(item =>
+				{
+					var filledCore = MySqlHelper.ExecuteDataset(
+						connection,
+						helper.GetCoreCommand(false, true, false) + " and Core.Id = " + item.CoreID,
+						new MySqlParameter("?Cumulative", 0));
+
+
+					var rows = filledCore.Tables[0];
+					if (rows.Rows.Count == 0)
+						Assert.Fail("Не найдено предложение с Id = {0}", item.CoreID);
+					else
+						if (rows.Rows.Count > 1)
+							Assert.Fail("Больше одного предложения с Id = {0}", item.CoreID);
+						else
+						{
+							var calculatedSupplierPriceMarkup = Convert.IsDBNull(rows.Rows[0]["SupplierPriceMarkup"])
+							                                    	? null
+							                                    	: (float?) Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
+							if (!item.SupplierPriceMarkup.HasValue)
+								Assert.IsNull(calculatedSupplierPriceMarkup, 
+									"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}",
+									item.ProducerCost,
+									item.Cost,
+									item.NDS);
+							else
+								if (item.SupplierPriceMarkup.HasValue && !calculatedSupplierPriceMarkup.HasValue)
+									Assert.Fail(
+										"Неправильно расчитана наценка поставщика для параметров (наценка = null): ProducerCost = {0}; Cost = {1}; NDS = {2}",
+										item.ProducerCost,
+										item.Cost,
+										item.NDS);
+								else
+									Assert.IsTrue(Math.Abs(item.SupplierPriceMarkup.Value - calculatedSupplierPriceMarkup.Value) < 0.0001f,
+										"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}; calculated = {3}; needed = {4}",
+										item.ProducerCost,
+										item.Cost,
+										item.NDS,
+										calculatedSupplierPriceMarkup,
+										item.SupplierPriceMarkup);
+						}
+				});
+			}
+		}
 
 	}
 }

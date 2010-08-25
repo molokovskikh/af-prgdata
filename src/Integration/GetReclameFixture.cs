@@ -13,6 +13,7 @@ using PrgData;
 using PrgData.Common;
 using Test.Support;
 using System.Text.RegularExpressions;
+using log4net;
 
 namespace Integration
 {
@@ -175,27 +176,41 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		[Test(Description = "пытаемс€ получить рекламу дл€ пользовател€, который не прив€зан к системе")]
 		public void Get_reclame_for_non_exists_user()
 		{
-			var memoryAppender = new MemoryAppender();
-			BasicConfigurator.Configure(memoryAppender);
-			GetReclameForErrorUser("dsdsdsdsdsds");
-			var events = memoryAppender.GetEvents();
-			var lastEvent = events[events.Length - 1];
-			Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
-			Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
-			Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("ƒоступ закрыт."));
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+				GetReclameForErrorUser("dsdsdsdsdsds");
+				var events = memoryAppender.GetEvents();
+				var lastEvent = events[events.Length - 1];
+				Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
+				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+				Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("ƒоступ закрыт."));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();			
+			}
 		}
 
 		[Test(Description = "пытаемс€ получить рекламу дл€ отключенного пользовател€")]
 		public void Get_reclame_for_disabled_user()
 		{
-			var memoryAppender = new MemoryAppender();
-			BasicConfigurator.Configure(memoryAppender);
-			GetReclameForErrorUser(_disabledUser.Login);
-			var events = memoryAppender.GetEvents();
-			var lastEvent = events[events.Length - 1];
-			Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
-			Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
-			Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("ƒоступ закрыт."));
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+				GetReclameForErrorUser(_disabledUser.Login);
+				var events = memoryAppender.GetEvents();
+				var lastEvent = events[events.Length - 1];
+				Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
+				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+				Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("ƒоступ закрыт."));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
 		}
 
 		[Test(Description = "ѕровер€м, что поле ReclameDate имеет значение null после ограниченного кумул€тивного обновлени€")]

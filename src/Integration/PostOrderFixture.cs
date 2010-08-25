@@ -69,6 +69,7 @@ namespace Integration
 				MySqlHelper.ExecuteNonQuery(
 					connection,
 					@"
+drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
 call usersettings.GetOffers(?ClientCode, 0);
 drop temporary table if exists SelectedActivePrices;
 create temporary table SelectedActivePrices engine=memory as select * from ActivePrices limit 3;

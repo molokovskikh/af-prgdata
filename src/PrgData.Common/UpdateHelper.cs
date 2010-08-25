@@ -1590,7 +1590,7 @@ SELECT CT.PriceCode               ,
        Core.VitallyImportant      ,
        Core.RequestRatio          ,
        CT.Cost                    ,
-       RIGHT(CT.ID, 9)            ,
+       RIGHT(CT.ID, 9) as CoreID  ,
        OrderCost                  ,
        MinOrderCount
        {0}
@@ -1611,11 +1611,14 @@ AND    IF(?Cumulative, 1, fresh)"
 , 
 if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
    null, 
-   if((Core.NDS is null) or (Core.NDS <= 0), 
+   if((Core.NDS is null) or (Core.NDS < 0), 
      (CT.Cost/(Core.ProducerCost*1.1)-1)*100,
-     (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
+     if(Core.NDS = 0,
+       (CT.Cost/Core.ProducerCost-1)*100,
+       (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
+     )     
    )
-),
+) as SupplierPriceMarkup,
 Core.ProducerCost,
 Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",

@@ -80,7 +80,9 @@ and WriteTime > now() - interval 2 week"
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"call usersettings.GetOffers(?ClientCode, 0)",
+					@"
+drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
+call usersettings.GetOffers(?ClientCode, 0)",
 					new MySqlParameter("?ClientCode", oldClientId));
 
 				activePrice = ExecuteDataRow(
