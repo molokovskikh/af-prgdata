@@ -84,7 +84,7 @@ Public Class PrgDataEx
 
     Private CurUpdTime, OldUpTime As DateTime
     Private LimitedCumulative As Boolean
-    Private BuildNo, AllowBuildNo As Integer
+    Private BuildNo As Integer
     Private UpdateType As RequestType
     Private ResultLenght, OrderId As UInt32
     Dim CCode, UserId As UInt32
@@ -176,7 +176,7 @@ Public Class PrgDataEx
  ByVal FileNames As String(), _
  ByVal Waybills() As Byte) As String
 
-        Return InternalSendWaybills(ClientId, ProviderIds, FileNames, Waybills, Nothing, False)
+        Return InternalSendWaybills(ClientId, ProviderIds, FileNames, Waybills, Nothing, Nothing, False)
 
     End Function
 
@@ -186,25 +186,30 @@ Public Class PrgDataEx
  ByVal ProviderIds As UInt64(), _
  ByVal FileNames As String(), _
  ByVal Waybills() As Byte, _
- ByVal UniqueID As String) As String
+ ByVal UniqueID As String, _
+ ByVal EXEVersion As String) As String
 
-        Return InternalSendWaybills(ClientId, ProviderIds, FileNames, Waybills, UniqueID, True)
+        Return InternalSendWaybills(ClientId, ProviderIds, FileNames, Waybills, UniqueID, EXEVersion, True)
 
     End Function
 
-    <WebMethod()> _
-    Public Function InternalSendWaybills( _
+    Private Function InternalSendWaybills( _
  ByVal ClientId As UInt32, _
  ByVal ProviderIds As UInt64(), _
  ByVal FileNames As String(), _
  ByVal Waybills() As Byte, _
  ByVal UniqueID As String, _
+ ByVal EXEVersion As String, _
  ByVal CheckUIN As Boolean) As String
         Try
             UpdateType = RequestType.SendWaybills
             DBConnect()
             GetClientCode()
             If CheckUIN Then FnCheckID(UniqueID, UpdateType)
+            If CheckUIN Then
+                BuildNo = GetBuildNo(EXEVersion)
+                CheckBuildNo(BuildNo)
+            End If
 
             Dim tmpWaybillFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName())
             Dim tmpWaybillArchive = tmpWaybillFolder + "\waybills.7z"
@@ -397,11 +402,7 @@ Public Class PrgDataEx
             Documents = WayBillsOnly
 
             'Присваиваем версии приложения и базы
-            GED = GetEtalonData
-            For i = 2 To 4
-                If Left(Right(EXEVersion, i), 1) = "." Then Exit For
-            Next
-            BuildNo = CInt(Right(EXEVersion, i - 1))
+            BuildNo = GetBuildNo(EXEVersion)
 
 
             'Получаем код и параметры клиента клиента
@@ -416,21 +417,7 @@ Public Class PrgDataEx
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName, BuildNo)
 
-            Cm.Transaction = Nothing
-            Cm.CommandText = "" & _
-            "SELECT AFAppVersion " & _
-            "FROM   UserUpdateInfo " & _
-            "WHERE  UserId=" & UserId
-            AllowBuildNo = CType(Cm.ExecuteScalar, Int16)
-
-            If BuildNo < AllowBuildNo Then
-                MessageH = "Доступ закрыт."
-                MessageD = "Используемая версия программы не актуальна, необходимо обновление до версии №" & AllowBuildNo & ".[5]"
-                Addition &= "Попытка обновить устаревшую версию; IP:" & UserHost & "; "
-                UpdateType = RequestType.Forbidden
-                ErrorFlag = True
-                GoTo endproc
-            End If
+            Dim AllowBuildNo = CheckBuildNo(BuildNo)
 
             'Если с момента последнего обновления менее установленного времени
             If Not Documents Then
@@ -1870,10 +1857,105 @@ RestartInsertTrans:
           )
     End Function
 
-    'Отправляем несколько заказов скопом и по ним все формируем ответ
     <WebMethod()> _
     Public Function PostSomeOrdersFull( _
   ByVal UniqueID As String, _
+  ByVal ForceSend As Boolean, _
+  ByVal UseCorrectOrders As Boolean, _
+  ByVal ClientCode As UInt32, _
+  ByVal OrderCount As UInt16, _
+  ByVal ClientOrderID As UInt64(), _
+  ByVal PriceCode As UInt64(), _
+  ByVal RegionCode As UInt64(), _
+  ByVal PriceDate As Date(), _
+  ByVal ClientAddition As String(), _
+  ByVal RowCount As UInt16(), _
+  ByVal DelayOfPayment As String(), _
+  ByVal ClientPositionID As UInt64(), _
+  ByVal ClientServerCoreID As UInt64(), _
+  ByVal ProductID As UInt64(), _
+  ByVal CodeFirmCr As String(), _
+  ByVal SynonymCode As UInt64(), _
+  ByVal SynonymFirmCrCode As String(), _
+  ByVal Code As String(), _
+  ByVal CodeCr As String(), _
+  ByVal Junk As Boolean(), _
+  ByVal Await As Boolean(), _
+  ByVal RequestRatio As String(), _
+  ByVal OrderCost As String(), _
+  ByVal MinOrderCount As String(), _
+  ByVal Quantity As UInt16(), _
+  ByVal Cost As Decimal(), _
+  ByVal MinCost As String(), _
+  ByVal MinPriceCode As String(), _
+  ByVal LeaderMinCost As String(), _
+  ByVal LeaderMinPriceCode As String(), _
+  ByVal SupplierPriceMarkup As String(), _
+  ByVal CoreQuantity As String(), _
+  ByVal Unit As String(), _
+  ByVal Volume As String(), _
+  ByVal Note As String(), _
+  ByVal Period As String(), _
+  ByVal Doc As String(), _
+  ByVal RegistryCost As String(), _
+  ByVal VitallyImportant As Boolean(), _
+  ByVal RetailMarkup As String(), _
+  ByVal ProducerCost As String(), _
+  ByVal NDS As String()) As String
+        Return _
+         PostSomeOrdersFullEx( _
+          UniqueID, _
+          Nothing, _
+          ForceSend, _
+          UseCorrectOrders, _
+          ClientCode, _
+          OrderCount, _
+          ClientOrderID, _
+          PriceCode, _
+          RegionCode, _
+          PriceDate, _
+          ClientAddition, _
+          RowCount, _
+          DelayOfPayment.ToArray(), _
+          ClientPositionID, _
+          ClientServerCoreID, _
+          ProductID, _
+          CodeFirmCr, _
+          SynonymCode, _
+          SynonymFirmCrCode, _
+          Code, _
+          CodeCr, _
+          Junk, _
+          Await, _
+          RequestRatio, _
+          OrderCost, _
+          MinOrderCount, _
+          Quantity, _
+          Cost, _
+          MinCost, _
+          MinPriceCode, _
+          LeaderMinCost, _
+          LeaderMinPriceCode, _
+          SupplierPriceMarkup, _
+          CoreQuantity, _
+          Unit, _
+          Volume, _
+          Note, _
+          Period, _
+          Doc, _
+          RegistryCost, _
+          VitallyImportant, _
+          RetailMarkup, _
+          ProducerCost, _
+          NDS _
+          )
+    End Function
+
+    'Отправляем несколько заказов скопом и по ним все формируем ответ
+    <WebMethod()> _
+    Public Function PostSomeOrdersFullEx( _
+  ByVal UniqueID As String, _
+  ByVal EXEVersion As String, _
   ByVal ForceSend As Boolean, _
   ByVal UseCorrectOrders As Boolean, _
   ByVal ClientCode As UInt32, _
@@ -1925,8 +2007,14 @@ RestartInsertTrans:
             GetClientCode()
             Counter.Counter.TryLock(UserId, "PostOrder")
             FnCheckID(UniqueID, UpdateType)
+            Dim currentBuildNo As Integer? = Nothing
+            If Not String.IsNullOrEmpty(EXEVersion) Then
+                BuildNo = GetBuildNo(EXEVersion)
+                CheckBuildNo(BuildNo)
+                currentBuildNo = BuildNo
+            End If
 
-            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders)
+            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders, currentBuildNo)
 
             helper.ParseOrders( _
              OrderCount, _
@@ -2010,6 +2098,8 @@ RestartInsertTrans:
             GetClientCode()
             Counter.Counter.TryLock(UserId, "PostOrderBatch")
             FnCheckID(UniqueID, UpdateType)
+            BuildNo = GetBuildNo(EXEVersion)
+            CheckBuildNo(BuildNo)
 
 
             Dim helper = New SmartOrderHelper(UpdateData, ClientId, MaxOrderId, MaxOrderListId, MaxBatchId)
@@ -3569,9 +3659,13 @@ RestartTrans2:
         End Try
     End Sub
 
-
     <WebMethod()> _
     Public Function GetPasswords(ByVal UniqueID As String) As String
+        Return GetPasswordsEx(UniqueID, Nothing)
+    End Function
+
+    <WebMethod()> _
+    Public Function GetPasswordsEx(ByVal UniqueID As String, ByVal EXEVersion As String) As String
         Dim ErrorFlag As Boolean = False
         Dim BasecostPassword As String
 
@@ -3579,6 +3673,10 @@ RestartTrans2:
             DBConnect()
             GetClientCode()
             FnCheckID(UniqueID)
+            If Not String.IsNullOrEmpty(EXEVersion) Then
+                BuildNo = GetBuildNo(EXEVersion)
+                CheckBuildNo(BuildNo)
+            End If
 
             Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
             Using SQLdr As MySqlDataReader = Cm.ExecuteReader
@@ -3619,6 +3717,12 @@ RestartTrans2:
     End Function
 
     <WebMethod()> Public Function PostPriceDataSettings(ByVal UniqueID As String, ByVal PriceCodes As Int32(), ByVal RegionCodes As Int64(), ByVal INJobs As Boolean()) As String
+
+        Return PostPriceDataSettingsEx(UniqueID, Nothing, PriceCodes, RegionCodes, INJobs)
+
+    End Function
+
+    <WebMethod()> Public Function PostPriceDataSettingsEx(ByVal UniqueID As String, ByVal EXEVersion As String, ByVal PriceCodes As Int32(), ByVal RegionCodes As Int64(), ByVal INJobs As Boolean()) As String
         Dim ErrorFlag As Boolean = False
         Dim transaction As MySqlTransaction = Nothing
 
@@ -3627,9 +3731,15 @@ RestartTrans2:
             DBConnect()
             GetClientCode()
             FnCheckID(UniqueID, UpdateType)
+            Dim currentBuildNo As Integer? = Nothing
+            If Not String.IsNullOrEmpty(EXEVersion) Then
+                BuildNo = GetBuildNo(EXEVersion)
+                CheckBuildNo(BuildNo)
+                currentBuildNo = BuildNo
+            End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
-            helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
+            helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs, currentBuildNo)
             Return "Res=OK"
 
         Catch updateException As UpdateException
@@ -3985,6 +4095,33 @@ RestartMaxCodesSet:
             Log.Error(updateException)
         End If
         Return updateException.GetAnalitFMessage()
+    End Function
+
+    Private Function GetBuildNo(ByVal EXEVersion As String) As Integer
+        For i = 2 To 4
+            If Left(Right(EXEVersion, i), 1) = "." Then Exit For
+        Next
+        Return CInt(Right(EXEVersion, i - 1))
+    End Function
+
+    Private Function CheckBuildNo(ByVal buildNo As Integer) As Integer
+        Dim checkCommand = New MySqlCommand()
+        checkCommand.Connection = readWriteConnection
+
+        checkCommand.CommandText = "" & _
+        "SELECT AFAppVersion " & _
+        "FROM   UserUpdateInfo " & _
+        "WHERE  UserId=" & UserId
+        Dim internalAllowBuildNo = CType(Cm.ExecuteScalar, Int32)
+
+        If buildNo < internalAllowBuildNo Then
+            Throw New UpdateException("Доступ закрыт.",
+               "Используемая версия программы не актуальна, необходимо обновление до версии №" & internalAllowBuildNo & ".[5]",
+               "Попытка обновить устаревшую версию; IP:" & UserHost & "; ",
+               RequestType.Forbidden)
+        End If
+
+        Return internalAllowBuildNo
     End Function
 
 End Class

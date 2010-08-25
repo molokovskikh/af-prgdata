@@ -1711,7 +1711,7 @@ WHERE
 			return sql;
 		}
 
-		private void InternalUpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
+		private void InternalUpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs, int? appVersion)
 		{
 			With.DeadlockWraper(() =>
 			{
@@ -1797,7 +1797,7 @@ and i.RegionCode = ?RegionId;",
 						command.ExecuteNonQuery();
 					}
 
-					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()));
+					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()), appVersion);
 
 					transaction.Commit();
 				}
@@ -1810,11 +1810,11 @@ and i.RegionCode = ?RegionId;",
 
 		}
 
-		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
+		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs, int? appVersion)
 		{
 			if (priceIds.Length > 0 && priceIds.Length == regionIds.Length && regionIds.Length == injobs.Length)
 			{
-				InternalUpdatePriceSettings(priceIds, regionIds, injobs);
+				InternalUpdatePriceSettings(priceIds, regionIds, injobs, appVersion);
 			}
 			else
 				throw new Exception("Не совпадают длины полученных массивов");
@@ -2125,23 +2125,24 @@ AND    UserId            = {0};
 
 		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
 		{
-			InsertAnalitFUpdatesLog(connection, updateData, request, null);
+			InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
 		}
 
-		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition)
+		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, int? appVersion)
 		{
 			MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
 				connection,
 				@"
 insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit, Addition) 
+  (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion) 
 values 
-  (now(), ?UpdateType, ?UserId, 1, ?Addition);
+  (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion);
 "
 				,
 				new MySqlParameter("?UpdateType", (int)request),
 				new MySqlParameter("?UserId", updateData.UserId),
-				new MySqlParameter("?Addition", addition));
+				new MySqlParameter("?Addition", addition),
+				new MySqlParameter("?AppVersion", appVersion));
 		}
 
 		public void SetForceReplication()

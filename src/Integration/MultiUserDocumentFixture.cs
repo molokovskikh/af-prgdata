@@ -277,7 +277,8 @@ namespace Integration
 				new ulong[] { supplierId },
 				new[] { "3687747_Протек-21_3687688_Протек-21_8993929-001__.sst" },
 				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"),
-				uin);
+				uin,
+				"6.0.0.1183");
 		}
 
 		private void CreateUser()
