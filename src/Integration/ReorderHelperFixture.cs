@@ -39,6 +39,7 @@ namespace Integration
 		public void Setup()
 		{
 			Test.Support.Setup.Initialize();
+			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
 			IoC.Container.Register(
 				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()

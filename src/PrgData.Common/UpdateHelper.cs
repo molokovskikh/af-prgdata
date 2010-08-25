@@ -2134,15 +2134,16 @@ AND    UserId            = {0};
 				connection,
 				@"
 insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion) 
+  (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion, ClientHost) 
 values 
-  (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion);
+  (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion, ?ClientHost);
 "
 				,
 				new MySqlParameter("?UpdateType", (int)request),
 				new MySqlParameter("?UserId", updateData.UserId),
 				new MySqlParameter("?Addition", addition),
-				new MySqlParameter("?AppVersion", appVersion));
+				new MySqlParameter("?AppVersion", appVersion),
+				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()));
 		}
 
 		public void SetForceReplication()

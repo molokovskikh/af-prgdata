@@ -2241,11 +2241,14 @@ PostLog:
                     End If
 
                     With LogCm
-                        .CommandText = "insert into `logs`.`AnalitFUpdates`(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit) values(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit); "
+                        .CommandText = _
+                            "insert into `logs`.`AnalitFUpdates` " _
+                            & "(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit, ClientHost) " _
+                            & " values " _
+                            & "(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit, ?ClientHost); "
                         .CommandText &= "select last_insert_id()"
                         .Transaction = transaction
                         .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
-                        .Parameters.Add(New MySqlParameter("?ClientHost", UserHost))
                         If (UpdateType = RequestType.GetData) And LimitedCumulative Then
                             .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
                         Else
@@ -2256,6 +2259,7 @@ PostLog:
                         .Parameters.Add(New MySqlParameter("?Addition", Addition))
                         .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
                         .Parameters.AddWithValue("?Commit", commit)
+                        .Parameters.AddWithValue("?ClientHost", UserHost)
                     End With
 
                     GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
