@@ -3628,86 +3628,9 @@ RestartTrans2:
             GetClientCode()
             FnCheckID(UniqueID, UpdateType)
 
-            If UpdateData.IsFutureClient Then
-                Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
-                helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
-                Return ""
-            End If
-
-            'Проверяем длины массивов
-            If ((PriceCodes.Length > 0) And (PriceCodes.Length = INJobs.Length) And (RegionCodes.Length = PriceCodes.Length)) Then
-                Dim dtIntersection As DataTable = New DataTable
-                'Команда на выборку данных из Intersection
-                Dim cmdSel As MySqlCommand = New MySqlCommand("SELECT i.Id, i.RegionCode, i.PriceCode, i.DisabledByClient FROM usersettings.intersection i where ClientCode = ?ClientCode", readWriteConnection)
-                cmdSel.Parameters.AddWithValue("?ClientCode", CCode)
-                Dim daSel As MySqlDataAdapter = New MySqlDataAdapter(cmdSel)
-                Dim cmdUp As MySqlCommand = New MySqlCommand
-
-                'Заполняем команду на обновление
-                daSel.UpdateCommand = cmdUp
-                cmdUp.Connection = readWriteConnection
-                cmdUp.CommandText = String.Empty
-                'cmdUp.CommandText &= "set @INUser = ?OperatorName; set @INHost = ?OperatorHost; "
-                cmdUp.CommandText &= "update intersection i set " & _
-                  "i.DisabledByClient=?DisabledByClient " & _
-                " where i.id = ?Id;"
-                cmdUp.Parameters.AddWithValue("?OperatorName", UserName & "[AF]")
-                cmdUp.Parameters.AddWithValue("?OperatorHost", UserHost)
-                cmdUp.Parameters.AddWithValue("?INUser", UserName & "[AF]")
-                cmdUp.Parameters.AddWithValue("?INHost", UserHost)
-                cmdUp.Parameters.Add("?ID", MySqlDbType.Int64, 0, "ID")
-                cmdUp.Parameters.Add("?DisabledByClient", MySqlDbType.Bit, 0, "DisabledByClient")
-
-                'Заполнили таблицу пересечений
-                daSel.Fill(dtIntersection)
-
-                Dim drs() As DataRow
-
-                For I As Integer = 0 To PriceCodes.Length - 1
-                    drs = dtIntersection.Select("PriceCode = " & PriceCodes(I) & " and RegionCode = " & RegionCodes(I))
-                    If ((Not (drs Is Nothing)) AndAlso (drs.Length > 0)) Then
-
-                        If (CByte(drs(0)("DisabledByClient")) <> CByte(IIf(Not INJobs(I), 1, 0))) Then
-                            drs(0)("DisabledByClient") = IIf(Not INJobs(I), 1, 0)
-                        End If
-                    End If
-                Next
-
-                Dim Quit As Boolean = False
-                Dim ErrCount As Integer = 0
-                Dim dtChanges As DataTable = dtIntersection.GetChanges()
-
-                If Not (dtChanges Is Nothing) Then
-                    Do
-                        Try
-                            transaction = readWriteConnection.BeginTransaction()
-                            cmdSel.Transaction = transaction
-                            cmdUp.Transaction = transaction
-
-
-                            daSel.Update(dtChanges)
-
-                            UpdateHelper.InsertAnalitFUpdatesLog(transaction.Connection, UpdateData, UpdateType)
-
-                            transaction.Commit()
-                            Quit = True
-                            Return "Res=OK"
-                        Catch ex As Exception
-                            ConnectionHelper.SafeRollback(transaction)
-                            If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) And ErrCount > 10 Then
-                                ErrCount += 1
-                                Thread.Sleep(300)
-                            Else
-                                Throw
-                            End If
-                        End Try
-                    Loop Until Quit
-                End If
-
-            Else
-                MailErr("Ошибка при обновлении настроек прайс-листов", "Не совпадают длины полученных массивов")
-                ErrorFlag = True
-            End If
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
+            helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
+            Return "Res=OK"
 
         Catch updateException As UpdateException
             Return ProcessUpdateException(updateException)
