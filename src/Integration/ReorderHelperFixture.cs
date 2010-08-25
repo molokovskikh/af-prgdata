@@ -39,6 +39,7 @@ namespace Integration
 		public void Setup()
 		{
 			Test.Support.Setup.Initialize();
+			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
 			IoC.Container.Register(
 				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
@@ -424,7 +425,7 @@ limit 1
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
 
 				ParseSimpleOrder(orderHelper);
 
@@ -443,7 +444,7 @@ limit 1
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
 
-				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
 
 				ParseSimpleOrder(orderHelper);
 
@@ -482,7 +483,7 @@ limit 1
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
 
 				ParseFirstOrder(orderHelper);
 
@@ -501,7 +502,7 @@ limit 1
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказа");
 
-				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
 
 				ParseSecondOrder(orderHelper);
 
@@ -542,7 +543,7 @@ limit 1
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true);
+				var orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true, 1183);
 
 				ParseSimpleOrder(orderHelper);
 
@@ -561,7 +562,7 @@ limit 1
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
 
-				orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true);
+				orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true, 1183);
 
 				ParseSimpleOrder(orderHelper);
 

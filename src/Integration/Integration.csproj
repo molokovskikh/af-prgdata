@@ -102,6 +102,7 @@
     <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
     <Compile Include="PostOrderFixture.cs" />
+    <Compile Include="PostPriceSettingsFixture.cs" />
     <Compile Include="PostSomeOrdersFixture.cs" />
     <Compile Include="ProcedureFixture.cs" />
     <Compile Include="Properties\Settings.Designer.cs">

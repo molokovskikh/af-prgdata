@@ -23,18 +23,21 @@ namespace PrgData.Common.Orders
 		private List<ClientOrderHeader> _orders = new List<ClientOrderHeader>();
 
 		private bool _calculateLeaders;
+		private int? _appVersion;
 
 		public ReorderHelper(
 			UpdateData data, 
 			MySqlConnection readWriteConnection, 
 			bool forceSend,
 			uint orderedClientCode,
-			bool useCorrectOrders) :
+			bool useCorrectOrders,
+			int? appVersion) :
 			base(data, readWriteConnection)
 		{
 			_forceSend = forceSend;
 			_orderedClientCode = orderedClientCode;
 			_useCorrectOrders = useCorrectOrders;
+			_appVersion = appVersion;
 		}
 
 		public string PostSomeOrders()
@@ -88,7 +91,7 @@ namespace PrgData.Common.Orders
 							GenerateDocsHelper.GenerateDocs(_readWriteConnection, _data, _orders.FindAll(item => item.SendResult == OrderSendResult.Success));
 #endif
 
-						UpdateHelper.InsertAnalitFUpdatesLog(transaction.Connection, _data, RequestType.SendOrders);
+						UpdateHelper.InsertAnalitFUpdatesLog(transaction.Connection, _data, RequestType.SendOrders, null, _appVersion);
 
 						transaction.Commit();
 					}

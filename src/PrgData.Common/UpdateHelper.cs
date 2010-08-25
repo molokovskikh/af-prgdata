@@ -9,6 +9,7 @@ using System.Threading;
 using Common.MySql;
 using log4net;
 using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
+using System.Collections.Generic;
 
 namespace PrgData.Common
 {
@@ -1713,13 +1714,38 @@ WHERE
 			return sql;
 		}
 
-		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
+		private void InternalUpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs, int? appVersion)
 		{
 			With.DeadlockWraper(() =>
 			{
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
+					MySqlHelper.ExecuteNonQuery(
+						_readWriteConnection, 
+						"set @INHost = ?INHost;set @INUser = ?INUser;",
+						new MySqlParameter("?INHost", ServiceContext.GetUserHost()),
+						new MySqlParameter("?INUser", _updateData.UserName));
+					MySqlHelper.ExecuteNonQuery(_readWriteConnection, "DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;");
+					SelectPrices();
+
+					var pricesSet = MySqlHelper.ExecuteDataset(_readWriteConnection, @"
+alter table Prices add column FirmName varchar(100);
+update 
+  Prices, usersettings.clientsdata, farm.regions 
+set 
+  FirmName = concat(clientsdata.ShortName, ' (', Prices.PriceName, ') ', regions.Region)
+where 
+    prices.FirmCode = clientsdata.FirmCode 
+and regions.RegionCode = prices.RegionCode;
+select 
+  * 
+from 
+  Prices
+  ");
+					var prices = pricesSet.Tables[0];
+
+					var addition = new List<string>();
 
 					var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
 					deleteCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
@@ -1737,19 +1763,44 @@ where not exists (
 					insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 					insertCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
 					insertCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
+					var updateIntersectionCommand = new MySqlCommand(@"
+update 
+  intersection i 
+set 
+  i.DisabledByClient=?DisabledByClient 
+where 
+    i.ClientCode = ?ClientId
+and i.PriceCode = ?PriceId
+and i.RegionCode = ?RegionId;",
+							  _readWriteConnection);
+					updateIntersectionCommand.Parameters.AddWithValue("?ClientId", _updateData.ClientId);
+					updateIntersectionCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
+					updateIntersectionCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
+					updateIntersectionCommand.Parameters.Add("?DisabledByClient", MySqlDbType.Byte);
 					for (var i = 0; i < injobs.Length; i++)
 					{
+						var row = prices.Select("PriceCode = " + priceIds[i] + " and RegionCode = " + regionIds[i]);
+						if (row.Length > 0)
+							addition.Add(String.Format("{0} - {1}", row[0]["FirmName"], injobs[i] ? "вкл" : "выкл"));
+
 						MySqlCommand command;
-						if (injobs[i])
-							command = insertCommand;
+						if (!_updateData.IsFutureClient)
+						{
+							command = updateIntersectionCommand;
+							command.Parameters["?DisabledByClient"].Value = injobs[i] ? 0 : 1;
+						}
 						else
-							command = deleteCommand;
+							if (injobs[i])
+								command = insertCommand;
+							else
+								command = deleteCommand;
+
 						command.Parameters["?PriceId"].Value = priceIds[i];
 						command.Parameters["?RegionId"].Value = regionIds[i];
 						command.ExecuteNonQuery();
 					}
 
-					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings);
+					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()), appVersion);
 
 					transaction.Commit();
 				}
@@ -1759,7 +1810,17 @@ where not exists (
 					throw;
 				}
 			});
-			
+
+		}
+
+		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs, int? appVersion)
+		{
+			if (priceIds.Length > 0 && priceIds.Length == regionIds.Length && regionIds.Length == injobs.Length)
+			{
+				InternalUpdatePriceSettings(priceIds, regionIds, injobs, appVersion);
+			}
+			else
+				throw new Exception("Не совпадают длины полученных массивов");
 		}
 
 		public bool NeedClientToAddressMigration()
@@ -2067,17 +2128,25 @@ AND    UserId            = {0};
 
 		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
 		{
+			InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
+		}
+
+		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, int? appVersion)
+		{
 			MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
 				connection,
 				@"
 insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit) 
+  (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion, ClientHost) 
 values 
-  (now(), ?UpdateType, ?UserId, 1);
+  (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion, ?ClientHost);
 "
 				,
-				new MySqlParameter("?UpdateType", (int) request),
-				new MySqlParameter("?UserId", updateData.UserId));
+				new MySqlParameter("?UpdateType", (int)request),
+				new MySqlParameter("?UserId", updateData.UserId),
+				new MySqlParameter("?Addition", addition),
+				new MySqlParameter("?AppVersion", appVersion),
+				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()));
 		}
 
 		public void SetForceReplication()
