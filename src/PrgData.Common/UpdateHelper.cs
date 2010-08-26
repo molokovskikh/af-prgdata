@@ -1730,18 +1730,13 @@ WHERE
 					SelectPrices();
 
 					var pricesSet = MySqlHelper.ExecuteDataset(_readWriteConnection, @"
-alter table Prices add column FirmName varchar(100);
-update 
-  Prices, usersettings.clientsdata, farm.regions 
-set 
-  FirmName = concat(clientsdata.ShortName, ' (', Prices.PriceName, ') ', regions.Region)
-where 
-    prices.FirmCode = clientsdata.FirmCode 
-and regions.RegionCode = prices.RegionCode;
 select 
-  * 
+  Prices.*,
+  concat(cd.ShortName, ' (', Prices.PriceName, ') ', r.Region) as FirmName 
 from 
   Prices
+  inner join usersettings.clientsdata cd on cd.FirmCode = Prices.FirmCode
+  inner join farm.regions r on r.RegionCode = Prices.RegionCode
   ");
 					var prices = pricesSet.Tables[0];
 
