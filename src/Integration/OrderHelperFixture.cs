@@ -65,7 +65,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.Prices");
 			MySqlHelper.ExecuteNonQuery(connection, "drop temporary table if exists Usersettings.ActivePrices");
 			if (updateData.IsFutureClient)
-				MySqlHelper.ExecuteNonQuery(connection, "call future.GetActivePrices(" + updateData.ClientId + ")");
+				MySqlHelper.ExecuteNonQuery(connection, "call future.GetActivePrices(" + updateData.UserId + ")");
 			else
 				MySqlHelper.ExecuteNonQuery(connection, "call usersettings.GetActivePrices(" + updateData.ClientId + ")");
 			return MySqlHelper.ExecuteDataset(connection, "select * from usersettings.ActivePrices limit 1");
@@ -90,7 +90,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
 				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
 				var orderHelper = new OrderHelper(updateData, connection);
 				var dsPrice = GetActivePrices(connection, updateData);
@@ -119,13 +118,12 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var orderHelper = new OrderHelper(updateData, connection);
 				var dsPrice = GetActivePrices(connection, updateData);
 				var sendPrice = dsPrice.Tables[0].Rows[0];
 				var orderid = orderHelper.SaveOrder(
-					updateData.ClientId,
+					_client.Addresses[0].Id,
 					Convert.ToUInt32(sendPrice["PriceCode"]),
 					Convert.ToUInt64(sendPrice["RegionCode"]),
 					Convert.ToDateTime(sendPrice["PriceDate"]).ToUniversalTime(),
@@ -149,7 +147,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var orderHelper = new OrderHelper(updateData, connection);
 				var updateHelper = new UpdateHelper(updateData, connection);
@@ -193,7 +190,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
 				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
 				var orderHelper = new OrderHelper(updateData, connection);
 				var updateHelper = new UpdateHelper(updateData, connection);
@@ -278,7 +274,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		[Test(Description = "проверяем, что маска регионов загружается из future.Users")]
 		public void check_OrderRegions_for_future_client()
 		{
-			//Пользователь "10081" - это пользователь, привязанный к клиенту с кодом 10005, который должен быть клиентом из "Новой реальности"
 			var userName = _user.Login;
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
