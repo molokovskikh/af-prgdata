@@ -3297,8 +3297,7 @@ RestartTrans2:
                     Thread.Sleep(500)
                     GoTo RestartTrans2
                 End If
-                Throw New Exception("Ошибка при подготовке", ex)
-                'Throw
+                Throw
             End Try
 
         Catch ex As Exception
