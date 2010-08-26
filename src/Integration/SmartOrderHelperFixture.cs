@@ -22,6 +22,7 @@ using Test.Support;
 
 namespace Integration
 {
+	[TestFixture]
 	public class SmartOrderHelperFixture
 	{
 		TestClient client;
