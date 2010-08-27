@@ -129,13 +129,13 @@ where c.Status = 1
 				_userHost = context.Request.UserHostAddress;
 
 				if (String.IsNullOrEmpty(SUserId) || !UInt32.TryParse(SUserId, out UserId))
-					throw new Exception("Не удалось идентифицировать клиента. (2)");
+					throw new Exception("Не удалось идентифицировать клиента.");
 
 				var fn = ServiceContext.GetResultPath() + UserId + ".zip";
 				if (!File.Exists(fn))
 				{
 					_log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
-					throw new Exception("Не удалось идентифицировать клиента. (1)");
+					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
 				}
 
 				if (!String.IsNullOrEmpty(context.Request.QueryString["Id"]))
