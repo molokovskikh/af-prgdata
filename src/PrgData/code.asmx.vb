@@ -401,6 +401,9 @@ Public Class PrgDataEx
             'Только накладные
             Documents = WayBillsOnly
 
+            'От клиента пришел запрос на КО
+            GED = GetEtalonData
+
             'Присваиваем версии приложения и базы
             BuildNo = GetBuildNo(EXEVersion)
 
