@@ -450,7 +450,7 @@ RestartInsertTrans:
                 End If
 
                 'Если несовпадает время последнего обновления на клиете и сервере
-                If OldUpTime <> AccessTime.ToLocalTime Then
+                If Not GED AndAlso (OldUpTime <> AccessTime.ToLocalTime) Then
                     If (BuildNo > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) Then
                         Try
                             Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
