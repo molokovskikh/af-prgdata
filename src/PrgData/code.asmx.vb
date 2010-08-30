@@ -94,6 +94,7 @@ Public Class PrgDataEx
     Private UncDT As Date
     Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
     Private _needUpdateToBuyingMatrix As Boolean
+    Private _needUpdateToNewMNN As Boolean
     Private NewZip As Boolean = True
     Dim GUpdateId As UInt32? = 0
     Private WithEvents DS As System.Data.DataSet
@@ -419,6 +420,7 @@ Public Class PrgDataEx
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName, BuildNo)
+            _needUpdateToNewMNN = helper.NeedUpdateToNewMNN(ResultFileName, BuildNo)
 
             Dim AllowBuildNo = CheckBuildNo(BuildNo)
 
@@ -3090,10 +3092,14 @@ RestartTrans2:
                          ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
                          True)
 
+                        'Обновляем на новую структуру MNN без RussianMNN = (BuildNo > 1263) Or _needUpdateToNewMNN)
                         GetMySQLFileWithDefaultEx( _
                          "MNN", _
                          SelProc, _
-                         helper.GetMNNCommand(False, GED), _
+                         helper.GetMNNCommand( _
+                             False, _
+                             GED, _
+                             (BuildNo > 1263) Or _needUpdateToNewMNN), _
                          ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
                          True)
 
@@ -3132,7 +3138,7 @@ RestartTrans2:
                         GetMySQLFileWithDefaultEx( _
                          "MNN", _
                          SelProc, _
-                         helper.GetMNNCommand(True, GED), _
+                         helper.GetMNNCommand(True, GED, False), _
                          ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
                          True)
 

@@ -1153,7 +1153,7 @@ where
 			}
 		}
 
-		public string GetMNNCommand(bool before1150, bool Cumulative)
+		public string GetMNNCommand(bool before1150, bool Cumulative, bool after1263)
 		{
 			if (before1150)
 			{
@@ -1168,8 +1168,42 @@ where
   if(not ?Cumulative, Mnn.UpdateTime > ?UpdateTime, 1)";
 			}
 			else
-				if (Cumulative)
-				return @"
+				if (after1263)
+				{
+					if (Cumulative)
+						return @"
+select
+  Mnn.Id,
+  Mnn.Mnn,
+  0 as Hidden
+from
+  catalogs.Mnn";
+					else
+						return @"
+select
+  Mnn.Id,
+  Mnn.Mnn,
+  0 as Hidden
+from
+  catalogs.Mnn
+where
+  Mnn.UpdateTime > ?UpdateTime
+union
+select
+  MnnLogs.MnnId,
+  MnnLogs.Mnn,
+  1 as Hidden
+from
+  logs.MnnLogs
+where
+    (MnnLogs.LogTime >= ?UpdateTime) 
+and (MnnLogs.Operation = 2)
+";
+				}
+				else
+				{
+					if (Cumulative)
+						return @"
 select
   Mnn.Id,
   Mnn.Mnn,
@@ -1177,8 +1211,8 @@ select
   0 as Hidden
 from
   catalogs.Mnn";
-			else
-				return @"
+					else
+						return @"
 select
   Mnn.Id,
   Mnn.Mnn,
@@ -1200,6 +1234,7 @@ where
     (MnnLogs.LogTime >= ?UpdateTime) 
 and (MnnLogs.Operation = 2)
 ";
+				}
 		}
 
 		public string GetDescriptionCommand(bool before1150, bool Cumulative)
@@ -2173,6 +2208,23 @@ WHERE
 				}
 			}
 			catch 
+			{
+			}
+			return false;
+		}
+
+		public bool NeedUpdateToNewMNN(string resultPath, int build)
+		{
+			try
+			{
+				if (_updateData.EnableUpdate && build >= 1183 && build <= 1263)
+				{
+					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath, build), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var info = FileVersionInfo.GetVersionInfo(exeName);
+					return info.FilePrivatePart > 1263;
+				}
+			}
+			catch
 			{
 			}
 			return false;

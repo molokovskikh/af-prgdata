@@ -176,6 +176,16 @@ values
 				if (documentType == DocumentType.Waybills)
 				{
 
+					if (random.Next(3) == 1)
+					{
+						detailCommand.Parameters["?SupplierPriceMarkup"].Value = null;
+						detailCommand.Parameters["?ProducerCost"].Value = null;
+
+						detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = null;
+						detailCommand.Parameters["?NDS"].Value = 18;
+						detailCommand.Parameters["?VitallyImportant"].Value = null;
+					}
+					else
 					if (position.SupplierPriceMarkup.HasValue)
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
