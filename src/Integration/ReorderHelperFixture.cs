@@ -442,7 +442,7 @@ limit 1
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
-				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 
 				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
 
@@ -500,7 +500,7 @@ limit 1
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
-				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказа");
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе");
 
 				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
 
@@ -521,7 +521,7 @@ limit 1
 
 				Assert.That(firstServerOrderId, Is.Not.EqualTo(secondServerOrderId), "Заказ помечен как дублирующийся");
 
-				Assert.That(GetOrderCount(connection, secondServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
+				Assert.That(GetOrderCount(connection, secondServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 			}
 		}
 
@@ -560,7 +560,7 @@ limit 1
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
-				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказа");
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 
 				orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true, 1183);
 
@@ -588,5 +588,49 @@ limit 1
 		{
 			Check_simple_double_order_with_correctorders(oldUserName, oldClientId);
 		}
+
+		public void Check_order_with_ImpersonalPrice(string userName, uint orderedClientId)
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+
+				updateData.EnableImpersonalPrice = true;
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
+
+				ParseFirstOrder(orderHelper);
+
+				var result = orderHelper.PostSomeOrders();
+
+				var serverParams = result.Split(';');
+				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
+				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
+				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
+				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
+				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+
+				var firstServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе");
+
+				var countWithSynonymNull = MySqlHelper
+					.ExecuteScalar(
+						connection,
+						"select count(*) from orders.OrdersList ol where ol.OrderId = ?OrderId and ol.SynonymCode is null and ol.SynonymFirmCrCode is null",
+						new MySqlParameter("?OrderId", firstServerOrderId));
+				Assert.That(countWithSynonymNull, Is.EqualTo(2), "Не совпадает кол-во позиций в заказе, у которых поля SynonymCode SynonymFirmCr в null");
+			}
+		}
+
+		[Test]
+		public void Check_order_with_ImpersonalPrice_for_old_client()
+		{
+			Check_order_with_ImpersonalPrice(oldUserName, oldClientId);
+		}
+
 	}
 }

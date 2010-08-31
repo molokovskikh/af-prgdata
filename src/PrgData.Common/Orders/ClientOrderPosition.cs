@@ -21,7 +21,7 @@ namespace PrgData.Common.Orders
 		public ulong ClientServerCoreID { get; set; }
 		public ulong ProductID { get; set; }
 		public ulong? CodeFirmCr { get; set; }
-		public ulong SynonymCode { get; set; }
+		public ulong? SynonymCode { get; set; }
 		public ulong? SynonymFirmCrCode { get; set; }
 		public string Code { get; set; }
 		public string CodeCr { get; set; }
@@ -83,14 +83,14 @@ namespace PrgData.Common.Orders
 		{
 			return String.Format(@"
 (ProductId = {0})
-and (SynonymCode = {1})
+and (SynonymCode {1})
 and (SynonymFirmCrCode {2})
 and (Code = '{3}')
 and (CodeCr = '{4}')
 and (Junk = {5})
 and (Await = {6})",
 				  ProductID,
-				  SynonymCode,
+				  SynonymCode.HasValue ? " = " + SynonymCode.ToString() : "is Null",
 				  SynonymFirmCrCode.HasValue ? " = " + SynonymFirmCrCode.ToString() : "is Null",
 				  Code,
 				  CodeCr,

@@ -46,9 +46,22 @@ namespace PrgData.Common.Orders
 
 			CheckWeeklySumOrder();
 
+			CheckImpersonalPrice();
+
 			InternalSendOrders();
 
 			return GetOrdersResult();
+		}
+
+		private void CheckImpersonalPrice()
+		{
+			if (_data.EnableImpersonalPrice)
+				_orders.ForEach(order =>
+					order.Positions.ForEach(position =>
+					{
+						position.SynonymCode = null;
+						position.SynonymFirmCrCode = null;
+					}));
 		}
 
 		private void InternalSendOrders()
