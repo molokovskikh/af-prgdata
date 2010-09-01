@@ -13,7 +13,7 @@ namespace PrgData.Common
 		}
 
 		public UpdateException(string description, string error, RequestType requestType)
-			: this(description, error, "", requestType)
+			: this(description, error, description, requestType)
 		{}
 
 		public RequestType UpdateType { get; private set; }

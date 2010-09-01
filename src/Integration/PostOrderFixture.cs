@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Configuration;
 using System.Data;
 using System.Text.RegularExpressions;
@@ -12,6 +13,7 @@ using Test.Support;
 using PrgData;
 using MySql.Data.MySqlClient;
 using NHibernate.Criterion;
+using Test.Support.Logs;
 
 namespace Integration
 {
@@ -136,5 +138,59 @@ from
 
 			Assert.That(response, Is.StringStarting("OrderID=").IgnoreCase, "Отправка заказа завершилась ошибкой.");
 		}
+
+		[Test(Description = "Проверяем текст ошибки при нарушении MinReq")]
+		public void Check_error_on_MinReq()
+		{
+			var offer = offers.Rows[0];
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				"update usersettings.Intersection set ControlMinReq = 1, MinReq = 10000 where ClientCode = ?ClientCode and PriceCode = ?PriceCode and RegionCode = ?RegionCode",
+				new MySqlParameter("?ClientCode", oldClient.Id),
+				new MySqlParameter("?PriceCode", offer["PriceCode"]),
+				new MySqlParameter("?RegionCode", offer["RegionCode"]));
+
+			var service = new PrgDataEx();
+			var response = service.PostOrder(
+				UniqueId,
+				0,
+				oldClient.Id,
+				Convert.ToUInt32(offer["PriceCode"]),
+				Convert.ToUInt64(offer["RegionCode"]),
+				DateTime.Now,
+				"",
+				1,
+				new uint[] { Convert.ToUInt32(offer["ProductId"]) },
+				1,
+				new string[] { offer["CodeFirmCr"].ToString() },
+				new uint[] { Convert.ToUInt32(offer["SynonymCode"]) },
+				new string[] { offer["SynonymFirmCrCode"].ToString() },
+				new string[] { offer["Code"].ToString() },
+				new string[] { offer["CodeCr"].ToString() },
+				new ushort[] { 1 }, //Quantity
+				new bool[] { false }, //Junk
+				new bool[] { false }, //Await
+				new decimal[] { Convert.ToDecimal(offer["Cost"]) },
+				new string[] { "" }, //MinCost
+				new string[] { "" }, //MinPriceCode
+				new string[] { "" }, //LeaderMinCost
+				new string[] { "" }, //RequestRatio
+				new string[] { "" }, //OrderCost
+				new string[] { "" }, //MinOrderCount
+				new string[] { "" } //LeaderMinPriceCode
+				);
+
+			Assert.That(response, Is.StringContaining("Desc=Сумма заказа меньше минимально допустимой").IgnoreCase, "Неожидаемая ошибка при отправке заказа.");
+
+			using (new SessionScope())
+			{
+				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == oldUser.Id).Max(l => l.Id);
+				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)));
+				Assert.That(log.Addition, Is.StringStarting("Сумма заказа меньше минимально допустимой").IgnoreCase, "Неожидаемый Addtion в логе.");
+			}
+		}
+
 	}
 }
