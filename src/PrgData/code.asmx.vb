@@ -3036,6 +3036,7 @@ RestartTrans2:
                 MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
                 MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
                 MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
+                'MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3238,6 +3239,40 @@ RestartTrans2:
                         '"   AND Core.PriceCode != ?ImpersonalPriceId;"
 
                         CostOptimizer.OptimizeCostIfNeeded(readWriteConnection, CCode)
+
+                        'SelProc.CommandText = _
+                        '    "UPDATE ActivePrices Prices, " & _
+                        '    "       Core " & _
+                        '    "SET    CryptCost       = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)), CHAR(37), '%25'), CHAR(32), '%20'), CHAR(159), '%9F'), CHAR(161), '%A1'), CHAR(0), '%00') " & _
+                        '    "WHERE  Prices.PriceCode= Core.PriceCode " & _
+                        '    "   AND IF(?Cumulative, 1, Fresh) " & _
+                        '    "   AND Core.PriceCode != ?ImpersonalPriceId ; "
+                        'SelProc.ExecuteNonQuery()
+
+                        'SelProc.CommandText = _
+                        '    "UPDATE ActivePrices Prices, " & _
+                        '    "       Core " & _
+                        '    "SET    CryptCost       = AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)) " & _
+                        '    "WHERE  Prices.PriceCode= Core.PriceCode " & _
+                        '    "   AND IF(?Cumulative, 1, Fresh) " & _
+                        '    "   AND Core.PriceCode != ?ImpersonalPriceId ; "
+                        'SelProc.ExecuteNonQuery()
+
+                        'GetMySQLFileWithDefaultEx( _
+                        ' "CoreTest", _
+                        ' SelProc, _
+                        ' " select " & _
+                        ' "   Core.Id, Core.CryptCost " & _
+                        ' " from " & _
+                        ' "   ActivePrices Prices, " & _
+                        ' "   Core " & _
+                        ' " where " & _
+                        ' "       Prices.PriceCode = Core.PriceCode " & _
+                        ' "   AND IF(?Cumulative, 1, Fresh) " & _
+                        ' "   AND Core.PriceCode != ?ImpersonalPriceId ", _
+                        ' False, _
+                        ' True _
+                        ')
 
                         GetMySQLFileWithDefaultEx( _
                          "Core", _
