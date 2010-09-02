@@ -4159,7 +4159,7 @@ RestartMaxCodesSet:
         "SELECT AFAppVersion " & _
         "FROM   UserUpdateInfo " & _
         "WHERE  UserId=" & UserId
-        Dim internalAllowBuildNo = CType(Cm.ExecuteScalar, Int32)
+        Dim internalAllowBuildNo = CType(checkCommand.ExecuteScalar, Int32)
 
         If buildNo < internalAllowBuildNo Then
             Throw New UpdateException("Доступ закрыт.",

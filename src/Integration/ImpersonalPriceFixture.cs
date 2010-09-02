@@ -315,6 +315,19 @@ and afi.ForceReplication > 0",
 				offersClient.RegionCode);
 		}
 
+		[Test(Description = "Проверка на используемую версию программы AnalitF")]
+		public void CheckBuildNo()
+		{
+			CheckGetUserData(user.Login);
+
+			var updateTime = CommitExchange();
+
+			var serviceResult = LoadData(false, updateTime, "6.0.7.100");
+
+			Assert.That(serviceResult, Is.StringStarting("Error=Используемая версия программы не актуальна").IgnoreCase, "Неожидаемый ответ от сервера");
+			Assert.That(serviceResult, Is.StringContaining("Desc=Доступ закрыт").IgnoreCase, "Неожидаемый ответ от сервера");
+		}
+
 		private void CheckGetUserData(string login)
 		{
 			SetCurrentUser(login);
@@ -331,14 +344,14 @@ and afi.ForceReplication > 0",
 
 		private string SimpleLoadData()
 		{
-			return LoadData(false, DateTime.Now);
+			return LoadData(false, DateTime.Now, "6.0.7.1183");
 		}
 
-		private string LoadData(bool getEtalonData, DateTime accessTime)
+		private string LoadData(bool getEtalonData, DateTime accessTime, string appVersion)
 		{
 			var service = new PrgDataEx();
 			service.ResultFileName = "results";
-			responce = service.GetUserData(accessTime, getEtalonData, "6.0.7.1183", 50, UniqueId, "", "", false);
+			responce = service.GetUserData(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false);
 
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)
