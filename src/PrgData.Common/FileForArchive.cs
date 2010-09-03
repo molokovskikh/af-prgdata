@@ -1,8 +1,14 @@
-﻿Public Class FileForArchive
-    Public FileName As String
-    Public FileType As Boolean
-    Public Sub New(ByVal _FileName As String, ByVal _FileType As Boolean)
-        FileName = _FileName
-        FileType = _FileType
-    End Sub
-End Class
+﻿namespace PrgData.Common
+{
+	public class FileForArchive
+	{
+		public string FileName;
+		public bool FileType;
+
+		public FileForArchive(string fileName, bool fileType)
+		{
+			FileName = fileName;
+			FileType = fileType;
+		}
+	}
+}

@@ -126,6 +126,7 @@
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
@@ -143,6 +144,9 @@
     <Compile Include="ConnectionHelper.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="CostOptimizer.cs" />
+    <Compile Include="Counters\Counter.cs" />
+    <Compile Include="Counters\Utils.cs" />
+    <Compile Include="FileForArchive.cs" />
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="MailHelper.cs" />
     <Compile Include="OrderHelper.cs" />

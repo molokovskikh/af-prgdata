@@ -1,145 +1,184 @@
-﻿
-Imports System.Runtime.Serialization
-Imports System.Configuration
-Imports PrgData.Common
-Imports log4net
-Imports log4net.Config
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Configuration;
+using PrgData.Common;
+using log4net;
+using log4net.Config;
 
-<DataContract()> _
-Public Class ClientStatus
+namespace PrgData.Common.Counters
+{
+	[DataContract]
+	public class ClientStatus
+	{
 
-    <DataMember()> _
-    Public _UserId As UInt32
-	<DataMember()> _
-	Public _MethodName As String
-	<DataMember()> _
-	Public _StartTime As DateTime
+		[DataMember]
+		public uint _UserId;
+		[DataMember]
+		public string _MethodName;
+		[DataMember]
+		public DateTime _StartTime;
 
-	Public Id As Integer
+		public int Id;
 
-    Public Sub New(ByVal UserId As UInt32, ByVal MethodName As String, ByVal StartTime As DateTime)
-        _UserId = UserId
-        _MethodName = MethodName
-        _StartTime = StartTime
-    End Sub
+		public ClientStatus(uint UserId, string MethodName, DateTime StartTime)
+		{
+			_UserId = UserId;
+			_MethodName = MethodName;
+			_StartTime = StartTime;
+		}
 
-    Public Sub New(ByVal id As Integer, ByVal UserId As UInt32, ByVal MethodName As String, ByVal StartTime As DateTime)
-        _UserId = UserId
-        _MethodName = MethodName
-        _StartTime = StartTime
-        Me.Id = id
-    End Sub
+		public ClientStatus(int id, uint UserId, string MethodName, DateTime StartTime)
+		{
+			_UserId = UserId;
+			_MethodName = MethodName;
+			_StartTime = StartTime;
+			Id = id;
+		}
 
-	Public Function IsWaitToLong() As Boolean
-		Return Now.Subtract(_StartTime).TotalMinutes > 30
-	End Function
+		public bool IsWaitToLong()
+		{
+			return DateTime.Now.Subtract(_StartTime).TotalMinutes > 30;
+		}
 
-End Class
+	}
 
-Public Class Counter
+	public class Counter
+	{
 
-	Private Shared ReadOnly MaxSessionCount As Integer = Convert.ToInt32(ConfigurationManager.AppSettings("MaxGetUserDataSession"))
-	Private Shared ReadOnly Log As ILog = LogManager.GetLogger(GetType(Counter))
+		private static readonly int MaxSessionCount = Convert.ToInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
+		private static readonly ILog Log = LogManager.GetLogger(typeof(Counter));
 
-	Public Shared Function GetClients() As ClientStatus()
-		Return FindAll().ToArray()
-	End Function
+		public static ClientStatus[] GetClients()
+		{
+			return FindAll().ToArray();
+		}
 
-    Public Shared Function TryLock(ByVal UserId As UInt32, ByVal Method As String) As Boolean
+		public Counter()
+		{
+			XmlConfigurator.Configure();
+		}
 
-        If Method = "GetUserData" Then
-			If TotalUpdatingClientCount() > MaxSessionCount Then
-				Throw New UpdateException("Обновление данных в настоящее время невозможно.",
-				  "Пожалуйста, повторите попытку через несколько минут.[6]",
-				  "Перегрузка; ",
-				  RequestType.Forbidden)
-			End If
-        End If
+		public static bool TryLock(uint UserId, string Method)
+		{
 
-        If Not (Method = "ReclameFileHandler" Or Method = "FileHandler") Then
-            Dim ClientItems = FindLocks(UserId, Method)
-			If Not CanLock(ClientItems) Then
-				Dim messageHeader = "Обновление данных в настоящее время невозможно."
+			if (Method == "GetUserData")
+			{
+				if (TotalUpdatingClientCount() > MaxSessionCount)
+				{
+					throw new UpdateException("Обновление данных в настоящее время невозможно.",
+					  "Пожалуйста, повторите попытку через несколько минут.[6]",
+					  "Перегрузка; ",
+					  RequestType.Forbidden);
+				}
+			}
 
-				If Method = "PostOrder" Then
-					messageHeader = "Отправка заказов в настоящее время невозможна."
-				End If
+			if (!(Method == "ReclameFileHandler" || Method == "FileHandler"))
+			{
+				var ClientItems = FindLocks(UserId, Method);
+				if (!CanLock(ClientItems.ToList()))
+				{
+					var messageHeader = "Обновление данных в настоящее время невозможно.";
 
-				Throw New UpdateException(messageHeader,
-				 "Пожалуйста, повторите попытку через несколько минут.[6]",
-				 "Перегрузка; ",
-				 RequestType.Forbidden)
-			End If
-		End If
+					if (Method == "PostOrder")
+					{
+						messageHeader = "Отправка заказов в настоящее время невозможна.";
+					}
 
-		Save(New ClientStatus(UserId, Method, Now()))
-		Return True
-    End Function
+					throw new UpdateException(messageHeader,
+					 "Пожалуйста, повторите попытку через несколько минут.[6]",
+					 "Перегрузка; ",
+					 RequestType.Forbidden);
+				}
+			}
 
-	Public Shared Sub Clear()
-		Utils.Execute("delete from Logs.PrgDataLogs")
-	End Sub
+			Save(new ClientStatus(UserId, Method, DateTime.Now));
+			return true;
+		}
 
-    Public Shared Sub ReleaseLock(ByVal UserId As UInt32, ByVal Method As String)
-        Try
-            Remove(UserId, Method)
-        Catch ex As Exception
-            Log.Error("Ошибка снятия блокировки", ex)
-        End Try
-    End Sub
+		public static void Clear()
+		{
+			Utils.Execute("delete from Logs.PrgDataLogs");
+		}
 
-	Private Shared Function CanLock(ByRef ClientItems As List(Of ClientStatus)) As Boolean
-		Dim IsClientInProcess = False
-        Dim UserId As Integer
-		For Each Client In ClientItems
-			If Client.IsWaitToLong() Then
-				Remove(Client)
-			Else
-                UserId = Client._UserId
-				IsClientInProcess = True
-			End If
-		Next
-        Return Not IsClientInProcess
-	End Function
+		public static void ReleaseLock(uint UserId, string Method)
+		{
+			try
+			{
+				Remove(UserId, Method);
+			}
+			catch (Exception ex)
+			{
+				Log.Error("Ошибка снятия блокировки", ex);
+			}
+		}
 
-    Private Shared Sub Remove(ByVal UserId As UInteger, ByVal Method As String)
-        Utils.Execute("delete from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method", _
-   New With {.UserId = UserId, .Method = Method})
-    End Sub
+		private static bool CanLock(List<ClientStatus> ClientItems)
+		{
+			var IsClientInProcess = false;
+			uint UserId;
+			foreach (var Client in ClientItems)
+			{
+				if (Client.IsWaitToLong())
+					Remove(Client);
+				else
+				{
+					UserId = Client._UserId;
+					IsClientInProcess = true;
+				}
+			}
+			return !IsClientInProcess;
+		}
 
-	Private Shared Sub Remove(ByRef Status As ClientStatus)
-		Utils.Execute("delete from Logs.PrgDataLogs where Id = ?Id", _
-		   New With {.Id = Status.Id})
-	End Sub
 
-	Public Shared Function TotalUpdatingClientCount() As Integer
-		Return Utils.RequestScalar(Of Integer)("select count(*) from Logs.PrgDataLogs where MethodName = 'GetUserData'")
-	End Function
+		private static void Remove(uint UserId, string Method)
+		{
+			Utils.Execute(
+			"delete from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method",
+			new { UserId = UserId, Method = Method });
+		}
 
-    Private Shared Function FindLocks(ByVal UserId As UInteger, ByVal Method As String) As IList(Of ClientStatus)
-        If Method = "GetUserData" Then
-            Return FindUpdateLocks(UserId)
-        End If
-        Return Utils.Request("select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method", _
-         New With {.UserId = UserId, .Method = Method})
-    End Function
+		private static void Remove(ClientStatus Status)
+		{
+			Utils.Execute("delete from Logs.PrgDataLogs where Id = ?Id",
+			   new { Id = Status.Id });
+		}
 
-    Private Shared Function FindUpdateLocks(ByVal UserId As UInteger) As IList(Of ClientStatus)
-        Return Utils.Request("select * from Logs.PrgDataLogs where UserId = ?UserId and (MethodName = 'MaxSynonymCode' or MethodName = 'GetUserData')", _
-         New With {.UserId = UserId})
-    End Function
+		public static int TotalUpdatingClientCount()
+		{
+			return Utils.RequestScalar<int>("select count(*) from Logs.PrgDataLogs where MethodName = 'GetUserData'");
+		}
 
-	Private Shared Function FindAll() As IList(Of ClientStatus)
-		Return Utils.Request("select * from Logs.PrgDataLogs")
-	End Function
 
-	Private Shared Sub Save(ByRef Status As ClientStatus)
-        Utils.Execute("insert into Logs.PrgDataLogs(UserId, MethodName, StartTime) Values(?UserId, ?MethodName, now())", _
-   New With {.UserId = Status._UserId, .MethodName = Status._MethodName, .StartTime = Status._StartTime})
-	End Sub
+		private static IList<ClientStatus> FindLocks(uint UserId, string Method)
+		{
+			if (Method == "GetUserData")
+				return FindUpdateLocks(UserId);
+			return Utils.Request(
+			"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method",
+				new { UserId = UserId, Method = Method });
+		}
 
-	Public Sub New()
-		XmlConfigurator.Configure()
-	End Sub
+		private static IList<ClientStatus> FindUpdateLocks(uint UserId)
+		{
+			return Utils.Request(
+		"select * from Logs.PrgDataLogs where UserId = ?UserId and (MethodName = 'MaxSynonymCode' or MethodName = 'GetUserData')",
+			 new { UserId = UserId });
+		}
 
-End Class
+		private static IList<ClientStatus> FindAll()
+		{
+			return Utils.Request("select * from Logs.PrgDataLogs");
+		}
+
+		private static void Save(ClientStatus Status)
+		{
+			Utils.Execute(
+			"insert into Logs.PrgDataLogs(UserId, MethodName, StartTime) Values(?UserId, ?MethodName, now())",
+		new { UserId = Status._UserId, MethodName = Status._MethodName, StartTime = Status._StartTime });
+		}
+
+
+	}
+}

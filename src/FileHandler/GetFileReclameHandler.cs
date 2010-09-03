@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Web;
-using Counter;
 using PrgData.Common;
+using PrgData.Common.Counters;
 
 namespace FileHandler
 {
@@ -51,7 +51,7 @@ namespace FileHandler
 				UInt32 UserId;
 				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
-					Counter.Counter.TryLock(UserId, "ReclameFileHandler");
+					Counter.TryLock(UserId, "ReclameFileHandler");
 					var fn = context.Server.MapPath(@"/Results") + @"\r" + UserId + ".zip";
 					if (File.Exists(fn))
 					{
@@ -93,7 +93,7 @@ namespace FileHandler
 			}
 			finally
 			{
-				Counter.Counter.ReleaseLock(Convert.ToUInt32(SUserId), "ReclameFileHandler");
+				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "ReclameFileHandler");
 			}
 		}
 

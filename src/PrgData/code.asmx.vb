@@ -8,7 +8,6 @@ Imports log4net
 Imports Common.MySql
 Imports MySql.Data.MySqlClient
 Imports MySQLResultFile = System.IO.File
-Imports Counter.Counter
 Imports PrgData.Common
 Imports System.Net.Mail
 Imports log4net.Core
@@ -19,6 +18,7 @@ Imports Inforoom.Common
 Imports SmartOrderFactory
 Imports SmartOrderFactory.Domain
 Imports Common.Models
+Imports PrgData.Common.Counters
 
 <WebService(Namespace:="IOS.Service")> _
 Public Class PrgDataEx
@@ -414,7 +414,7 @@ Public Class PrgDataEx
                 CCode = 0
                 DBConnect()
                 GetClientCode()
-                Counter.Counter.TryLock(UserId, "GetUserData")
+                Counter.TryLock(UserId, "GetUserData")
                 FnCheckID(UniqueID)
             End If
 
@@ -686,7 +686,7 @@ endproc:
         Finally
             If (Not ProcessBatch) Then
                 DBDisconnect()
-                ReleaseLock(UserId, "GetUserData")
+                Counter.ReleaseLock(UserId, "GetUserData")
             End If
         End Try
 
@@ -1252,7 +1252,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.Counter.TryLock(UserId, "MaxSynonymCode")
+            Counter.TryLock(UserId, "MaxSynonymCode")
 
             If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
 
@@ -1315,7 +1315,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
             Return Now().ToUniversalTime
         Finally
-            ReleaseLock(UserId, "MaxSynonymCode")
+            Counter.ReleaseLock(UserId, "MaxSynonymCode")
             DBDisconnect()
         End Try
 
@@ -1334,7 +1334,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.Counter.TryLock(UserId, "CommitExchange")
+            Counter.TryLock(UserId, "CommitExchange")
 
             If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
                 ' Здесь сбрасывались коды прайс-листов
@@ -1388,7 +1388,7 @@ StartZipping:
             CommitExchange = Now().ToUniversalTime
         Finally
             DBDisconnect()
-            ReleaseLock(UserId, "CommitExchange")
+            Counter.ReleaseLock(UserId, "CommitExchange")
         End Try
     End Function
 
@@ -1401,7 +1401,7 @@ StartZipping:
         Try
             DBConnect()
             GetClientCode()
-            Counter.Counter.TryLock(UserId, "SendClientLog")
+            Counter.TryLock(UserId, "SendClientLog")
             Try
                 MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery( _
                  readWriteConnection, _
@@ -1417,7 +1417,7 @@ StartZipping:
             SendClientLog = "Error"
         Finally
             DBDisconnect()
-            ReleaseLock(UserId, "SendClientLog")
+            Counter.ReleaseLock(UserId, "SendClientLog")
         End Try
     End Function
 
@@ -1621,7 +1621,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.Counter.TryLock(UserId, "PostOrder")
+            Counter.TryLock(UserId, "PostOrder")
 
             Dim helper = New OrderHelper(UpdateData, readWriteConnection)
 
@@ -1747,7 +1747,7 @@ RestartInsertTrans:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказа", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            ReleaseLock(UserId, "PostOrder")
+            Counter.ReleaseLock(UserId, "PostOrder")
             DBDisconnect()
         End Try
 
@@ -2010,7 +2010,7 @@ RestartInsertTrans:
             UpdateType = RequestType.SendOrders
             DBConnect()
             GetClientCode()
-            Counter.Counter.TryLock(UserId, "PostOrder")
+            Counter.TryLock(UserId, "PostOrder")
             FnCheckID(UniqueID, UpdateType)
             Dim currentBuildNo As Integer? = Nothing
             If Not String.IsNullOrEmpty(EXEVersion) Then
@@ -2073,7 +2073,7 @@ RestartInsertTrans:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            ReleaseLock(UserId, "PostOrder")
+            Counter.ReleaseLock(UserId, "PostOrder")
             DBDisconnect()
         End Try
 
@@ -2101,7 +2101,7 @@ RestartInsertTrans:
 
             DBConnect()
             GetClientCode()
-            Counter.Counter.TryLock(UserId, "PostOrderBatch")
+            Counter.TryLock(UserId, "PostOrderBatch")
             FnCheckID(UniqueID, UpdateType)
             BuildNo = GetBuildNo(EXEVersion)
             CheckBuildNo(BuildNo)
@@ -2132,7 +2132,7 @@ RestartInsertTrans:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке дефектуры", ex)
             Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            ReleaseLock(UserId, "PostOrderBatch")
+            Counter.ReleaseLock(UserId, "PostOrderBatch")
             DBDisconnect()
         End Try
     End Function

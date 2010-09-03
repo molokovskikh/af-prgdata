@@ -232,10 +232,6 @@
       <Project>{72AFCFE8-C9E9-45FA-9698-BEE896A517A3}</Project>
       <Name>Common.Tools</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Counter\Counter.vbproj">
-      <Project>{1F803C8E-DD78-47C2-941A-B3D3D753B37E}</Project>
-      <Name>Counter</Name>
-    </ProjectReference>
     <ProjectReference Include="..\FileHandler\PrgDataFileHandlers.csproj">
       <Project>{6654E9BD-24C9-470D-AB8B-F2AD939AEF74}</Project>
       <Name>PrgDataFileHandlers</Name>

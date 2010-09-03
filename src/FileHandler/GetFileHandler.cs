@@ -6,6 +6,7 @@ using System.Web;
 using log4net;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
+using PrgData.Common.Counters;
 
 namespace FileHandler
 {
@@ -145,7 +146,7 @@ where c.Status = 1
 					Int64.TryParse(context.Request.QueryString["RangeStart"], out _fromByte);
 
 
-				Counter.Counter.TryLock(UserId, "FileHandler");
+				Counter.TryLock(UserId, "FileHandler");
 
 				context.Response.ContentType = "application/octet-stream";
 				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -201,7 +202,7 @@ where c.Status = 1
 			}
 			finally
 			{
-				Counter.Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler");
+				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler");
 			}
 		}
 

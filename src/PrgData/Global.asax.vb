@@ -1,6 +1,7 @@
 ﻿Imports log4net.Config
 Imports log4net
 Imports PrgData.Common
+Imports PrgData.Common.Counters
 Imports System.IO
 
 
@@ -32,7 +33,7 @@ Public Class Global_asax
 
     Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
         Try
-            Counter.Counter.Clear()
+            Counter.Clear()
         Catch ex As Exception
             Logger.Error("Ошибка при очистке таблицы блокировок", ex)
         End Try
