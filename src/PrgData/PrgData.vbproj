@@ -163,7 +163,6 @@
       <DependentUpon>code.asmx</DependentUpon>
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="FileForArchive.vb" />
     <Compile Include="Global.asax.vb">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
