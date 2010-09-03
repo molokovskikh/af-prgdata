@@ -35,6 +35,12 @@ namespace PrgData.Common
 		public int BuyingMatrixType;
 		public bool WarningOnBuyingMatrix;
 
+		public int? BuildNumber;
+		public int? KnownBuildNumber;
+
+		public string UniqueID;
+		public string KnownUniqueID;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -61,6 +67,8 @@ namespace PrgData.Common
 			BuyingMatrixType = Convert.ToInt32(row["BuyingMatrixType"]);
 			WarningOnBuyingMatrix = Convert.ToBoolean(row["WarningOnBuyingMatrix"]);
 			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
+			KnownUniqueID = row["KnownUniqueID"].ToString();
+			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (int?)Convert.ToInt32(row["KnownBuildNumber"]);
 		}
 
 		public bool Disabled()
@@ -68,25 +76,25 @@ namespace PrgData.Common
 			return !ClientEnabled || !UserEnabled;
 		}
 
-		public string[] GetUpdateFiles(string result, int build)
+		public string[] GetUpdateFiles(string result)
 		{
-			return GetUpdateFiles(GetUpdateFilesPath(result, build), "exe");
+			return GetUpdateFiles(GetUpdateFilesPath(result), "exe");
 		}
 
-		public string[] GetFrfUpdateFiles(string result, int build)
+		public string[] GetFrfUpdateFiles(string result)
 		{
-			return GetUpdateFiles(GetUpdateFilesPath(result, build), "frf");
+			return GetUpdateFiles(GetUpdateFilesPath(result), "frf");
 		}
 
-		private string GetUpdateFilesPath(string result, int build)
+		private string GetUpdateFilesPath(string result)
 		{
-			if (EnableUpdate && _updateToTestBuild)
+			if (EnableUpdate && _updateToTestBuild && BuildNumber.HasValue)
 			{
-				var testPath = result + @"Updates\test_" + build + @"\";
+				var testPath = result + @"Updates\test_" + BuildNumber + @"\";
 				if (Directory.Exists(testPath))
 					return testPath;
 			}
-			return result + @"Updates\Future_" + build + @"\";
+			return result + @"Updates\Future_" + (BuildNumber.HasValue ? BuildNumber.ToString() : "null") + @"\";
 		}
 
 		private string[] GetUpdateFiles(string path, string sufix)
@@ -95,6 +103,34 @@ namespace PrgData.Common
 			if (Directory.Exists(path))
 				return Directory.GetFiles(path);
 			return new string[0];
+		}
+
+		public void ParseBuildNumber(string exeVersion)
+		{
+			var numbers = exeVersion.Split('.');
+			if (numbers.Length > 0 && !String.IsNullOrEmpty(numbers[numbers.Length-1]))
+			{
+				int buildNumber;
+				if (int.TryParse(numbers[numbers.Length - 1], out buildNumber))
+				{
+					BuildNumber = buildNumber;
+					CheckBuildNumber();
+				}
+			}
+		}
+
+		private void CheckBuildNumber()
+		{
+			if (KnownBuildNumber.HasValue && BuildNumber < KnownBuildNumber)
+				throw new UpdateException("Доступ закрыт.",
+										  "Используемая версия программы не актуальна, необходимо обновление до версии №" + KnownBuildNumber + ".[5]",
+										  "Попытка обновить устаревшую версию; IP:" + ServiceContext.GetUserHost() + "; ",
+										  RequestType.Forbidden);
+		}
+
+		public bool NeedUpdateTo945()
+		{
+			return (BuildNumber == 945 || (BuildNumber >= 829 && BuildNumber <= 837)) && EnableUpdate;
 		}
 	}
 }

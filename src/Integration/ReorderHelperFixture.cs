@@ -15,20 +15,24 @@ using Common.Models;
 using Castle.MicroKernel.Registration;
 using SmartOrderFactory.Repositories;
 using SmartOrderFactory.Domain;
+using Test.Support;
+using Common.Tools;
+using Castle.ActiveRecord;
 
 namespace Integration
 {
 	[TestFixture]
 	public class ReorderHelperFixture
 	{
-		//Пользователь "sergei" - это клиент с кодом 1349, он должен быть старым
-		private uint oldClientId = 1349;
-		private string oldUserName = "sergei";
-		//Пользователь "10081" - это клиент с кодом 10005, он должен быть новым
-		private uint futureClientId = 10005;
-		private uint futureAddressId = 10068;
-		private string futureUserName = "10081";
+		private TestClient client;
+		private TestUser user;
+		private TestAddress address;
 
+		private TestOldClient oldClient;
+		private TestOldUser oldUser;
+
+
+		private bool getOffers;
 		private DataRow activePrice;
 		private DataRow firstOffer;
 		private DataRow secondOffer;
@@ -49,9 +53,47 @@ namespace Integration
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 
+			using (var transaction = new TransactionScope())
+			{
+
+				var permission = TestUserPermission.ByShortcut("AF");
+
+
+				client = TestClient.CreateSimple();
+				user = client.Users[0];
+
+				client.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				user.Update();
+
+				address = user.AvaliableAddresses[0];
+
+				oldClient = TestOldClient.CreateTestClient();
+				oldUser = oldClient.Users[0];
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+						.SetParameter("permissionid", permission.Id)
+						.SetParameter("userid", oldUser.Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+			}
+
+
 			Directory.CreateDirectory("FtpRoot");
-			CreateFolders(oldClientId.ToString());
-			CreateFolders(futureAddressId.ToString());
+			CreateFolders(oldClient.Id.ToString());
+			CreateFolders(address.Id.ToString());
 
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
@@ -60,7 +102,7 @@ where
     ClientCode = ?ClientCode 
 and WriteTime > now() - interval 2 week"
 				,
-				new MySqlParameter("?ClientCode", oldClientId));
+				new MySqlParameter("?ClientCode", oldClient.Id));
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
 from orders.OrdersHead 
@@ -68,13 +110,14 @@ where
     ClientCode = ?ClientCode 
 and WriteTime > now() - interval 2 week"
 				,
-				new MySqlParameter("?ClientCode", futureClientId));
+				new MySqlParameter("?ClientCode", client.Id));
 
 			GetOffers();
 		}
 
 		private void GetOffers()
 		{
+			if (!getOffers)
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
@@ -84,7 +127,7 @@ and WriteTime > now() - interval 2 week"
 					@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
 call usersettings.GetOffers(?ClientCode, 0)",
-					new MySqlParameter("?ClientCode", oldClientId));
+					new MySqlParameter("?ClientCode", oldClient.Id));
 
 				activePrice = ExecuteDataRow(
 					connection, @"
@@ -243,6 +286,7 @@ limit 1
 					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
 					new MySqlParameter("?ProductId", thirdProductId));
 				Assert.IsNotNull(fourOffer, "Не найдено предложение");
+				getOffers = true;
 			}
 		}
 
@@ -425,39 +469,27 @@ limit 1
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
 
 				var result = orderHelper.PostSomeOrders();
 
-				var serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+				var firstServerOrderId = CheckServiceResponse(result);
 
-				var firstServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 
-				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
 
 				result = orderHelper.PostSomeOrders();
 
-				serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+				var secondServerOrderId = CheckServiceResponse(result);
 
-				var secondServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
 				Assert.That(secondServerOrderId, Is.Not.Null);
 				Assert.That(secondServerOrderId, Is.Not.Empty);
 
@@ -468,13 +500,13 @@ limit 1
 		[Test]
 		public void Check_double_order_for_old_client()
 		{
-			Check_simple_double_order(oldUserName, oldClientId);
+			Check_simple_double_order(oldUser.OSUserName, oldClient.Id);
 		}
 
 		[Test]
 		public void Check_double_order_for_future_client()
 		{
-			Check_simple_double_order(futureUserName, futureAddressId);
+			Check_simple_double_order(user.Login, address.Id);
 		}
 
 		public void Check_double_order_without_FullDuplicated(string userName, uint orderedClientId)
@@ -483,39 +515,25 @@ limit 1
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseFirstOrder(orderHelper);
 
 				var result = orderHelper.PostSomeOrders();
 
-				var serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
-
-				var firstServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				var firstServerOrderId = CheckServiceResponse(result);
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе");
 
-				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSecondOrder(orderHelper);
 
 				result = orderHelper.PostSomeOrders();
 
-				serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
-
-				var secondServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				var secondServerOrderId = CheckServiceResponse(result);
 				Assert.That(secondServerOrderId, Is.Not.Null);
 				Assert.That(secondServerOrderId, Is.Not.Empty);
 
@@ -528,13 +546,13 @@ limit 1
 		[Test]
 		public void Check_double_order_without_FullDuplicated_for_old_client()
 		{
-			Check_double_order_without_FullDuplicated(oldUserName, oldClientId);
+			Check_double_order_without_FullDuplicated(oldUser.OSUserName, oldClient.Id);
 		}
 
 		[Test]
 		public void Check_double_order_without_FullDuplicated_for_future_client()
 		{
-			Check_double_order_without_FullDuplicated(futureUserName, futureAddressId);
+			Check_double_order_without_FullDuplicated(user.Login, address.Id);
 		}
 
 		public void Check_simple_double_order_with_correctorders(string userName, uint orderedClientId)
@@ -543,39 +561,25 @@ limit 1
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
-				var orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true, 1183);
+				var orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true);
 
 				ParseSimpleOrder(orderHelper);
 
 				var result = orderHelper.PostSomeOrders();
 
-				var serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
-
-				var firstServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				var firstServerOrderId = CheckServiceResponse(result);
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 
-				orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true, 1183);
+				orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true);
 
 				ParseSimpleOrder(orderHelper);
 
 				result = orderHelper.PostSomeOrders();
 
-				serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
-
-				var secondServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				var secondServerOrderId = CheckServiceResponse(result);
 				Assert.That(secondServerOrderId, Is.Not.Null);
 				Assert.That(secondServerOrderId, Is.Not.Empty);
 
@@ -586,7 +590,7 @@ limit 1
 		[Test]
 		public void Check_duplicate_order_and_useCorrectOrders()
 		{
-			Check_simple_double_order_with_correctorders(oldUserName, oldClientId);
+			Check_simple_double_order_with_correctorders(oldUser.OSUserName, oldClient.Id);
 		}
 
 		public void Check_order_with_ImpersonalPrice(string userName, uint orderedClientId)
@@ -598,20 +602,13 @@ limit 1
 
 				updateData.EnableImpersonalPrice = true;
 
-				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false, 1183);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseFirstOrder(orderHelper);
 
 				var result = orderHelper.PostSomeOrders();
 
-				var serverParams = result.Split(';');
-				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
-				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
-				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
-				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
-				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
-
-				var firstServerOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				var firstServerOrderId = CheckServiceResponse(result);
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
@@ -629,7 +626,20 @@ limit 1
 		[Test]
 		public void Check_order_with_ImpersonalPrice_for_old_client()
 		{
-			Check_order_with_ImpersonalPrice(oldUserName, oldClientId);
+			Check_order_with_ImpersonalPrice(oldUser.OSUserName, oldClient.Id);
+		}
+
+		private string CheckServiceResponse(string response)
+		{
+			var serverParams = response.Split(';');
+			Assert.That(serverParams.Length, Is.EqualTo(5), "Неожидаемое кол-во секций в ответе сервера");
+			Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
+			Assert.That(serverParams[1], Is.EqualTo("PostResult=0").IgnoreCase, "Возникла ошибка при отправке заказа");
+			Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
+			Assert.That(serverParams[3], Is.EqualTo("ErrorReason=").IgnoreCase, "Возникла ошибка при отправке заказа");
+			Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+
+			return serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
 		}
 
 	}

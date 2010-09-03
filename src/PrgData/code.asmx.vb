@@ -84,15 +84,14 @@ Public Class PrgDataEx
 
     Private CurUpdTime, OldUpTime As DateTime
     Private LimitedCumulative As Boolean
-    Private BuildNo As Integer
     Private UpdateType As RequestType
     Private ResultLenght, OrderId As UInt32
     Dim CCode, UserId As UInt32
     Private SpyHostsFile, SpyAccount As Boolean
     Dim UpdateData As UpdateData
-    Private UserHost, Message, ReclamePath As String
+    Private Message, ReclamePath As String
     Private UncDT As Date
-    Private Active, CheckID, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
+    Private Active, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
     Private _needUpdateToBuyingMatrix As Boolean
     Private _needUpdateToNewMNN As Boolean
     Private NewZip As Boolean = True
@@ -206,11 +205,8 @@ Public Class PrgDataEx
             UpdateType = RequestType.SendWaybills
             DBConnect()
             GetClientCode()
-            If CheckUIN Then FnCheckID(UniqueID, UpdateType)
-            If CheckUIN Then
-                BuildNo = GetBuildNo(EXEVersion)
-                CheckBuildNo(BuildNo)
-            End If
+            If CheckUIN Then UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            If CheckUIN Then UpdateData.ParseBuildNumber(EXEVersion)
 
             Dim tmpWaybillFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName())
             Dim tmpWaybillArchive = tmpWaybillFolder + "\waybills.7z"
@@ -268,7 +264,7 @@ Public Class PrgDataEx
         'If DBConnect("GetInfo") Then
         '    GetClientCode()
         '    Cm.Transaction = Nothing
-        '    Cm.CommandText = "SELECT libraryname, libraryhash, DeleteOnClient FROM usersettings.AnalitF_Library_Hashs ALH where exeversion=" & BuildNo
+        '    Cm.CommandText = "SELECT libraryname, libraryhash, DeleteOnClient FROM usersettings.AnalitF_Library_Hashs ALH where exeversion=" & UpdateData.BuildNumber
         '    DA.Fill(DS, "ALH")
 
         '    MailMessage = ""
@@ -405,55 +401,29 @@ Public Class PrgDataEx
             'От клиента пришел запрос на КО
             GED = GetEtalonData
 
-            'Присваиваем версии приложения и базы
-            BuildNo = GetBuildNo(EXEVersion)
-
-
             'Получаем код и параметры клиента клиента
             If (Not ProcessBatch) Then
                 CCode = 0
                 DBConnect()
                 GetClientCode()
                 Counter.TryLock(UserId, "GetUserData")
-                FnCheckID(UniqueID)
+                UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
+                'Присваиваем версии приложения и базы
+                UpdateData.ParseBuildNumber(EXEVersion)
             End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
-            _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName, BuildNo)
-            _needUpdateToNewMNN = helper.NeedUpdateToNewMNN(ResultFileName, BuildNo)
-
-            Dim AllowBuildNo = CheckBuildNo(BuildNo)
+            _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName)
+            _needUpdateToNewMNN = helper.NeedUpdateToNewMNN(ResultFileName)
 
             'Если с момента последнего обновления менее установленного времени
             If Not Documents Then
 
-                If AllowBuildNo < BuildNo Then
-                    Cm.Connection = readWriteConnection
-                    Cm.CommandText = "update usersettings.UserUpdateInfo set AFAppVersion=" & BuildNo & " where UserId=" & UserId
-                    Dim transaction As MySqlTransaction
-RestartInsertTrans:
-                    Try
-
-                        transaction = readWriteConnection.BeginTransaction(IsoLevel)
-                        Cm.Transaction = transaction
-                        Cm.ExecuteNonQuery()
-                        transaction.Commit()
-
-                    Catch MySQLErr As MySqlException
-                        ConnectionHelper.SafeRollback(transaction)
-                        If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(MySQLErr) Then
-                            System.Threading.Thread.Sleep(500)
-                            GoTo RestartInsertTrans
-                        End If
-                        Me.Log.Error("Обновление номера версии", MySQLErr)
-                    End Try
-
-
-                End If
+                helper.UpdateBuildNumber()
 
                 'Если несовпадает время последнего обновления на клиете и сервере
                 If Not GED AndAlso (OldUpTime <> AccessTime.ToLocalTime) Then
-                    If (BuildNo > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) Then
+                    If (UpdateData.BuildNumber > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) Then
                         Try
                             Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
                             LimitedCumulative = True
@@ -474,11 +444,11 @@ RestartInsertTrans:
 
 
                 'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
-                If BuildNo > 716 Then
+                If UpdateData.BuildNumber > 716 Then
                     'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
-                    If ((BuildNo = 945) And UpdateData.EnableUpdate) Or (BuildNo > 945) Then
+                    If ((UpdateData.BuildNumber = 945) And UpdateData.EnableUpdate) Or (UpdateData.BuildNumber > 945) Then
                     Else
-                        If (BuildNo >= 829) And (BuildNo <= 837) And UpdateData.EnableUpdate Then
+                        If (UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837) And UpdateData.EnableUpdate Then
                             Addition &= "Производится обновление программы с 800-х версий на MySql; "
                         Else
                             'FileCount = 16
@@ -486,7 +456,7 @@ RestartInsertTrans:
                     End If
                     BaseThread = New Thread(AddressOf MySqlProc)
                 Else
-                    If ((BuildNo >= 705) And (BuildNo <= 716)) And UpdateData.EnableUpdate Then
+                    If ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) And UpdateData.EnableUpdate Then
                         BaseThread = New Thread(AddressOf MySqlProc)
                         'FileCount = 19
                         GED = True
@@ -653,7 +623,7 @@ endproc:
 
                 'Если параметр ClientHFile имеет значение Nothing, то произошел вызов метода GetUserData и в этом случае работать с файлом hosts не надо
                 'производим подмену DNS, если версия программы старше 960
-                If (ClientHFile IsNot Nothing) And (BuildNo > 960) Then
+                If (ClientHFile IsNot Nothing) And (UpdateData.BuildNumber > 960) Then
                     Try
                         ResStr &= HostsFileHelper.ProcessDNS(SpyHostsFile)
                     Catch HostsException As Exception
@@ -840,7 +810,7 @@ endproc:
                                 End If
                             Next
 
-                            If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+                            If UpdateData.BuildNumber >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
@@ -959,7 +929,7 @@ endproc:
                         Try
                             If UpdateData.EnableUpdate Then
 
-                                ef = UpdateData.GetUpdateFiles(ResultFileName, BuildNo)
+                                ef = UpdateData.GetUpdateFiles(ResultFileName)
                                 If ef.Length > 0 Then
                                     Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
 
@@ -1008,7 +978,7 @@ endproc:
                         'Архивирование FRF
                         Try
                             If UpdateData.EnableUpdate Then
-                                ef = UpdateData.GetFrfUpdateFiles(ResultFileName, BuildNo)
+                                ef = UpdateData.GetFrfUpdateFiles(ResultFileName)
                                 If ef.Length > 0 Then
                                     For Each Name In ef
                                         FileInfo = New FileInfo(Name)
@@ -1430,7 +1400,6 @@ StartZipping:
 
         CCode = UpdateData.ClientId
         UserId = UpdateData.UserId
-        CheckID = UpdateData.CheckCopyId
         Message = UpdateData.Message
         OldUpTime = UpdateData.OldUpdateTime
         UncDT = UpdateData.UncommitedUpdateTime
@@ -1460,7 +1429,6 @@ StartZipping:
     End Sub
 
     Private Function DBConnect()
-        UserHost = ServiceContext.GetUserHost()
         Try
 
             readWriteConnection = _simpleConnectionManager.GetConnection()
@@ -1622,7 +1590,7 @@ StartZipping:
 
             If ServerOrderId = 0 Then
 
-                FnCheckID(UniqueID, UpdateType)
+                UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
 
                 With Cm
                     .Connection = readWriteConnection
@@ -2006,15 +1974,10 @@ RestartInsertTrans:
             DBConnect()
             GetClientCode()
             Counter.TryLock(UserId, "PostOrder")
-            FnCheckID(UniqueID, UpdateType)
-            Dim currentBuildNo As Integer? = Nothing
-            If Not String.IsNullOrEmpty(EXEVersion) Then
-                BuildNo = GetBuildNo(EXEVersion)
-                CheckBuildNo(BuildNo)
-                currentBuildNo = BuildNo
-            End If
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            If Not String.IsNullOrEmpty(EXEVersion) Then UpdateData.ParseBuildNumber(EXEVersion)
 
-            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders, currentBuildNo)
+            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders)
 
             helper.ParseOrders( _
              OrderCount, _
@@ -2097,9 +2060,8 @@ RestartInsertTrans:
             DBConnect()
             GetClientCode()
             Counter.TryLock(UserId, "PostOrderBatch")
-            FnCheckID(UniqueID, UpdateType)
-            BuildNo = GetBuildNo(EXEVersion)
-            CheckBuildNo(BuildNo)
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            UpdateData.ParseBuildNumber(EXEVersion)
 
 
             Dim helper = New SmartOrderHelper(UpdateData, ClientId, MaxOrderId, MaxOrderListId, MaxBatchId)
@@ -2131,62 +2093,6 @@ RestartInsertTrans:
             DBDisconnect()
         End Try
     End Function
-
-    Private Sub FnCheckID(ByVal uin As String)
-        FnCheckID(uin, RequestType.GetData)
-    End Sub
-
-    Private Sub FnCheckID(ByVal uin As String, ByVal request As RequestType)
-RePost:
-        Dim knownUin As String
-        Dim command = New MySqlCommand()
-        Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
-        Try
-            command.Transaction = transaction
-            command.Connection = readWriteConnection
-
-            command.CommandText = "select AFCopyId from UserUpdateInfo where UserId=" & UserId
-            Using SQLdr As MySqlDataReader = command.ExecuteReader
-                SQLdr.Read()
-                knownUin = SQLdr.GetString(0)
-                SQLdr.Close()
-            End Using
-
-            If knownUin.Length < 1 Then
-                command.CommandText = "update UserUpdateInfo set AFCopyId='" & uin & "' where UserId=" & UserId
-
-                command.ExecuteNonQuery()
-            ElseIf knownUin <> uin Then
-                Dim description As String
-                Select Case request
-                    Case RequestType.SendWaybills
-                        description = "Отправка накладных на данном компьютере запрещена."
-                    Case RequestType.PostOrderBatch
-                        description = "Отправка дефектуры на данном компьютере запрещена."
-                    Case RequestType.SendOrder, RequestType.SendOrders
-                        description = "Отправка заказов на данном компьютере запрещена."
-                    Case RequestType.PostPriceDataSettings
-                        description = "Изменение настроек прайс-листов на данном компьютере запрещено."
-                    Case Else
-                        description = "Обновление программы на данном компьютере запрещено."
-                End Select
-
-                Throw New UpdateException(description,
-                   "Пожалуйста, обратитесь в АК «Инфорум».[2]",
-                   "Несоответствие UIN.",
-                   RequestType.Forbidden)
-            End If
-
-            transaction.Commit()
-        Catch ex As Exception
-            ConnectionHelper.SafeRollback(transaction)
-            If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-                Thread.Sleep(500)
-                GoTo RePost
-            End If
-            Throw
-        End Try
-    End Sub
 
     Private Sub ProtocolUpdates()
         Dim transaction As MySqlTransaction
@@ -2247,12 +2153,12 @@ PostLog:
                         Else
                             .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
                         End If
-                        .Parameters.Add(New MySqlParameter("?EXEVersion", BuildNo))
+                        .Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
                         .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
                         .Parameters.Add(New MySqlParameter("?Addition", Addition))
                         .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
                         .Parameters.AddWithValue("?Commit", commit)
-                        .Parameters.AddWithValue("?ClientHost", UserHost)
+                        .Parameters.AddWithValue("?ClientHost", ServiceContext.GetUserHost())
                     End With
 
                     GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
@@ -3069,50 +2975,50 @@ RestartTrans2:
                 ThreadZipStream = New Thread(AddressOf ZipStream)
                 ThreadZipStream.Start()
 
-                If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) _
+                If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) _
                 Then
 
-                    If (BuildNo >= 1150) Or (UpdateData.EnableUpdate And ((BuildNo >= 1079) And (BuildNo < 1150))) Then
+                    If (UpdateData.BuildNumber >= 1150) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
                         'Подготовка данных для версии программы >= 1150 или обновление на нее
                         GetMySQLFileWithDefaultEx( _
                          "Catalogs", _
                          SelProc, _
                          helper.GetCatalogCommand(False, GED), _
-                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                         UpdateData.NeedUpdateTo945(), _
                          True)
 
-                        'Обновляем на новую структуру MNN без RussianMNN = (BuildNo > 1263) Or _needUpdateToNewMNN)
+                        'Обновляем на новую структуру MNN без RussianMNN = (UpdateData.BuildNumber > 1263) Or _needUpdateToNewMNN)
                         GetMySQLFileWithDefaultEx( _
                          "MNN", _
                          SelProc, _
                          helper.GetMNNCommand( _
                              False, _
                              GED, _
-                             (BuildNo > 1263) Or _needUpdateToNewMNN), _
-                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
+                             (UpdateData.BuildNumber > 1263) Or _needUpdateToNewMNN), _
+                         ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate, _
                          True)
 
                         GetMySQLFileWithDefaultEx( _
                          "Descriptions", _
                          SelProc, _
                          helper.GetDescriptionCommand(False, GED), _
-                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                         UpdateData.NeedUpdateTo945(), _
                          True)
 
-                        If (UpdateData.EnableUpdate And ((BuildNo >= 1079) And (BuildNo < 1150))) Then
+                        If (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
                             'Если производим обновление на версию 1159 и выше, то надо полностью отдать каталог производителей
                             GetMySQLFileWithDefaultEx( _
                              "Producers", _
                              SelProc, _
                              helper.GetProducerCommand(True), _
-                             ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                             UpdateData.NeedUpdateTo945(), _
                              True)
                         Else
                             GetMySQLFileWithDefaultEx( _
                              "Producers", _
                              SelProc, _
                              helper.GetProducerCommand(GED), _
-                             ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                             UpdateData.NeedUpdateTo945(), _
                              True)
                         End If
 
@@ -3121,21 +3027,21 @@ RestartTrans2:
                          "Catalogs", _
                          SelProc, _
                          helper.GetCatalogCommand(True, GED), _
-                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                         UpdateData.NeedUpdateTo945(), _
                          True)
 
                         GetMySQLFileWithDefaultEx( _
                          "MNN", _
                          SelProc, _
                          helper.GetMNNCommand(True, GED, False), _
-                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837)) Or (BuildNo <= 1035)) And UpdateData.EnableUpdate, _
+                         ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate, _
                          True)
 
                         GetMySQLFileWithDefaultEx( _
                          "Descriptions", _
                          SelProc, _
                          helper.GetDescriptionCommand(True, GED), _
-                         ((BuildNo = 945) Or ((BuildNo >= 829) And (BuildNo <= 837))) And UpdateData.EnableUpdate, _
+                         UpdateData.NeedUpdateTo945(), _
                          True)
                     End If
                 Else
@@ -3267,10 +3173,10 @@ RestartTrans2:
                          SelProc, _
                          helper.GetCoreCommand( _
                           False, _
-                          (BuildNo > 1027) Or (UpdateData.EnableUpdate And ((BuildNo >= 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))), _
-                          (BuildNo >= 1249) Or _needUpdateToBuyingMatrix _
+                          (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
+                          (UpdateData.BuildNumber >= 1249) Or _needUpdateToBuyingMatrix _
                          ), _
-                         (BuildNo <= 1027) And UpdateData.EnableUpdate, _
+                         (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
                          True _
                         )
                     Else
@@ -3279,10 +3185,10 @@ RestartTrans2:
                         GetMySQLFileWithDefault("Core", SelProc, "SELECT * from ActivePrices limit 0")
                     End If
 
-                    If (BuildNo > 945) Or (UpdateData.EnableUpdate And ((BuildNo = 945) Or ((BuildNo >= 705) And (BuildNo <= 716)) Or ((BuildNo >= 829) And (BuildNo <= 837)))) Then
+                    If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) Then
                         If helper.DefineMaxProducerCostsCostId() Then
                             If GED _
-                             Or (UpdateData.EnableUpdate And ((BuildNo < 1049) Or ((BuildNo >= 1079) And (BuildNo < 1150)))) _
+                             Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber < 1049) Or ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150)))) _
                              Or helper.MaxProducerCostIsFresh() _
                             Then
                                 GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand())
@@ -3303,7 +3209,7 @@ RestartTrans2:
                         helper.PrepareImpersonalOffres(SelProc)
 
                         'Выгрузка данных для обезличенного прайс-листа
-                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (BuildNo >= 1249) Or _needUpdateToBuyingMatrix))
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or _needUpdateToBuyingMatrix))
                     Else
                         'выгружаем пустую таблицу Core
                         GetMySQLFileWithDefault("Core", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
@@ -3707,10 +3613,9 @@ RestartTrans2:
         Try
             DBConnect()
             GetClientCode()
-            FnCheckID(UniqueID)
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
             If Not String.IsNullOrEmpty(EXEVersion) Then
-                BuildNo = GetBuildNo(EXEVersion)
-                CheckBuildNo(BuildNo)
+                UpdateData.ParseBuildNumber(EXEVersion)
             End If
 
             Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
@@ -3765,16 +3670,11 @@ RestartTrans2:
             UpdateType = RequestType.PostPriceDataSettings
             DBConnect()
             GetClientCode()
-            FnCheckID(UniqueID, UpdateType)
-            Dim currentBuildNo As Integer? = Nothing
-            If Not String.IsNullOrEmpty(EXEVersion) Then
-                BuildNo = GetBuildNo(EXEVersion)
-                CheckBuildNo(BuildNo)
-                currentBuildNo = BuildNo
-            End If
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            If Not String.IsNullOrEmpty(EXEVersion) Then UpdateData.ParseBuildNumber(EXEVersion)
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
-            helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs, currentBuildNo)
+            helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
             Return "Res=OK"
 
         Catch updateException As UpdateException
@@ -4121,7 +4021,7 @@ RestartMaxCodesSet:
 
     Private Function ProcessUpdateException(ByVal updateException As UpdateException) As String
         UpdateType = updateException.UpdateType
-        Addition += updateException.Addition & "; IP:" & UserHost & "; "
+        Addition += updateException.Addition & "; IP:" & ServiceContext.GetUserHost() & "; "
         ErrorFlag = True
         If UpdateData IsNot Nothing Then
             Log.Warn(updateException)
@@ -4130,33 +4030,6 @@ RestartMaxCodesSet:
             Log.Error(updateException)
         End If
         Return updateException.GetAnalitFMessage()
-    End Function
-
-    Private Function GetBuildNo(ByVal EXEVersion As String) As Integer
-        For i = 2 To 4
-            If Left(Right(EXEVersion, i), 1) = "." Then Exit For
-        Next
-        Return CInt(Right(EXEVersion, i - 1))
-    End Function
-
-    Private Function CheckBuildNo(ByVal buildNo As Integer) As Integer
-        Dim checkCommand = New MySqlCommand()
-        checkCommand.Connection = readWriteConnection
-
-        checkCommand.CommandText = "" & _
-        "SELECT AFAppVersion " & _
-        "FROM   UserUpdateInfo " & _
-        "WHERE  UserId=" & UserId
-        Dim internalAllowBuildNo = CType(checkCommand.ExecuteScalar, Int32)
-
-        If buildNo < internalAllowBuildNo Then
-            Throw New UpdateException("Доступ закрыт.",
-               "Используемая версия программы не актуальна, необходимо обновление до версии №" & internalAllowBuildNo & ".[5]",
-               "Попытка обновить устаревшую версию; IP:" & UserHost & "; ",
-               RequestType.Forbidden)
-        End If
-
-        Return internalAllowBuildNo
     End Function
 
 End Class

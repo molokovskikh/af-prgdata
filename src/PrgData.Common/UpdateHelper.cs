@@ -322,6 +322,8 @@ SELECT
 	u.Id UserId,
 	rui.UpdateDate,
 	rui.UncommitedUpdateDate,
+	rui.AFAppVersion as KnownBuildNumber,
+	rui.AFCopyId as KnownUniqueID,
 	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
 	retclientsset.CheckCopyId,
 	'' Future,
@@ -362,6 +364,8 @@ SELECT  ouar.clientcode as ClientId,
         ouar.RowId UserId,
         rui.UpdateDate,
         rui.UncommitedUpdateDate,
+		rui.AFAppVersion as KnownBuildNumber,
+		rui.AFCopyId as KnownUniqueID,
         IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
         retclientsset.CheckCopyID,
         clientsdata.ShortName,
@@ -1657,7 +1661,7 @@ WHERE
 			return sql;
 		}
 
-		private void InternalUpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs, int? appVersion)
+		private void InternalUpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
 			With.DeadlockWraper(() =>
 			{
@@ -1738,7 +1742,7 @@ and i.RegionCode = ?RegionId;",
 						command.ExecuteNonQuery();
 					}
 
-					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()), appVersion);
+					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()), _updateData.BuildNumber);
 
 					transaction.Commit();
 				}
@@ -1751,11 +1755,11 @@ and i.RegionCode = ?RegionId;",
 
 		}
 
-		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs, int? appVersion)
+		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
 			if (priceIds.Length > 0 && priceIds.Length == regionIds.Length && regionIds.Length == injobs.Length)
 			{
-				InternalUpdatePriceSettings(priceIds, regionIds, injobs, appVersion);
+				InternalUpdatePriceSettings(priceIds, regionIds, injobs);
 			}
 			else
 				throw new Exception("Не совпадают длины полученных массивов");
@@ -2104,13 +2108,13 @@ WHERE
 			});
 		}
 
-		public bool NeedUpdateToBuyingMatrix(string resultPath, int build)
+		public bool NeedUpdateToBuyingMatrix(string resultPath)
 		{
 			try
 			{
-				if (_updateData.EnableUpdate && build >= 1183 && build <= 1229)
+				if (_updateData.EnableUpdate && _updateData.BuildNumber >= 1183 && _updateData.BuildNumber <= 1229)
 				{
-					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath, build), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
 					var info = FileVersionInfo.GetVersionInfo(exeName);
 					return info.FilePrivatePart >= 1249;
 				}
@@ -2121,13 +2125,13 @@ WHERE
 			return false;
 		}
 
-		public bool NeedUpdateToNewMNN(string resultPath, int build)
+		public bool NeedUpdateToNewMNN(string resultPath)
 		{
 			try
 			{
-				if (_updateData.EnableUpdate && build >= 1183 && build <= 1263)
+				if (_updateData.EnableUpdate && _updateData.BuildNumber >= 1183 && _updateData.BuildNumber <= 1263)
 				{
-					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath, build), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
 					var info = FileVersionInfo.GetVersionInfo(exeName);
 					return info.FilePrivatePart > 1263;
 				}
@@ -2452,6 +2456,91 @@ CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsi
 				ConnectionHelper.SafeRollback(transaction);
 				throw;
 			}
+		}
+
+		public void UpdateBuildNumber()
+		{
+			if (!_updateData.KnownBuildNumber.HasValue || _updateData.KnownBuildNumber < _updateData.BuildNumber)
+				With.DeadlockWraper(() =>
+				{
+					var command = new MySqlCommand("update usersettings.UserUpdateInfo set AFAppVersion = ?BuildNumber where UserId = ?UserId", _readWriteConnection);
+					command.Parameters.AddWithValue("?BuildNumber", _updateData.BuildNumber);
+					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+					var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+					try
+					{
+						command.Transaction = transaction;
+						command.ExecuteNonQuery();
+
+						transaction.Commit();
+					}
+					catch
+					{
+						ConnectionHelper.SafeRollback(transaction);
+						throw;
+					}
+				});
+		}
+
+		public static void CheckUniqueId(MySqlConnection readWriteConnection, UpdateData updateData, string uniqueId)
+		{
+			CheckUniqueId(readWriteConnection, updateData, uniqueId, RequestType.GetData);
+		}
+
+		public static void CheckUniqueId(MySqlConnection readWriteConnection, UpdateData updateData, string uniqueId, RequestType request)
+		{
+			With.DeadlockWraper(() =>
+			{
+				updateData.UniqueID = uniqueId;
+
+				var command = new MySqlCommand("update UserUpdateInfo set AFCopyId= ?UniqueId where UserId = ?UserId", readWriteConnection);
+				command.Parameters.AddWithValue("?UniqueId", updateData.UniqueID);
+				command.Parameters.AddWithValue("?UserId", updateData.UserId);
+
+				var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+				try
+				{
+					command.Transaction = transaction;
+					if (String.IsNullOrEmpty(updateData.KnownUniqueID))
+						command.ExecuteNonQuery();
+					else
+						if (updateData.KnownUniqueID != uniqueId)
+						{
+							string description;
+							switch (request)
+							{
+								case RequestType.SendWaybills:
+									description = "Отправка накладных на данном компьютере запрещена.";
+									break;
+								case RequestType.PostOrderBatch:
+									description = "Отправка дефектуры на данном компьютере запрещена.";
+									break;
+								case RequestType.SendOrder:
+								case RequestType.SendOrders:
+									description = "Отправка заказов на данном компьютере запрещена.";
+									break;
+								case RequestType.PostPriceDataSettings:
+									description = "Изменение настроек прайс-листов на данном компьютере запрещено.";
+									break;
+								default:
+									description = "Обновление программы на данном компьютере запрещено.";
+									break;
+							}
+
+							throw new UpdateException(description,
+							   "Пожалуйста, обратитесь в АК «Инфорум».[2]",
+							   "Несоответствие UIN.",
+							   RequestType.Forbidden);
+						}
+
+					transaction.Commit();
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			});
 		}
 
 	}
