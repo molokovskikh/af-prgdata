@@ -66,7 +66,7 @@ Public Class PrgDataEx
 
     Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
     Private FileInfo As System.IO.FileInfo
-    Private Запрос, UserName, MessageD, MailMessage As String
+    Private UserName, MessageD As String
     'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
     Private AbsentPriceCodes As String
     Private MessageH As String
@@ -89,9 +89,9 @@ Public Class PrgDataEx
     Dim CCode, UserId As UInt32
     Private SpyHostsFile, SpyAccount As Boolean
     Dim UpdateData As UpdateData
-    Private Message, ReclamePath As String
+    Private ReclamePath As String
     Private UncDT As Date
-    Private Active, NotUpdActive, GED, PackFinished, CalculateLeader As Boolean
+    Private GED, PackFinished, CalculateLeader As Boolean
     Private _needUpdateToBuyingMatrix As Boolean
     Private _needUpdateToNewMNN As Boolean
     Private NewZip As Boolean = True
@@ -619,7 +619,7 @@ endproc:
 
                 ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED))
 
-                If Message.Length > 0 Then ResStr &= ";Addition=" & Message
+                If Not String.IsNullOrEmpty(UpdateData.Message) Then ResStr &= ";Addition=" & UpdateData.Message
 
                 'Если параметр ClientHFile имеет значение Nothing, то произошел вызов метода GetUserData и в этом случае работать с файлом hosts не надо
                 'производим подмену DNS, если версия программы старше 960
@@ -1238,8 +1238,7 @@ StartZipping:
 
                 If Not WayBillsOnly Then
                     Cm.Connection = readWriteConnection
-                    Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
-                    Cm.CommandText = Запрос
+                    Cm.CommandText = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
                     Using SQLdr As MySqlDataReader = Cm.ExecuteReader
                         SQLdr.Read()
                         UpdateTime = SQLdr.GetDateTime(0)
@@ -1310,8 +1309,7 @@ StartZipping:
 
                 If Not WayBillsOnly Then
                     Cm.Connection = readWriteConnection
-                    Запрос = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
-                    Cm.CommandText = Запрос
+                    Cm.CommandText = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
                     Using SQLdr As MySqlDataReader = Cm.ExecuteReader
                         SQLdr.Read()
                         UpdateTime = SQLdr.GetDateTime(0)
@@ -1400,7 +1398,6 @@ StartZipping:
 
         CCode = UpdateData.ClientId
         UserId = UpdateData.UserId
-        Message = UpdateData.Message
         OldUpTime = UpdateData.OldUpdateTime
         UncDT = UpdateData.UncommitedUpdateTime
         SpyHostsFile = UpdateData.Spy
