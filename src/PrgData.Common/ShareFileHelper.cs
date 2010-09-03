@@ -29,5 +29,11 @@ namespace PrgData.Common
 				Thread.Sleep(500);
 			}
 		}
+
+		public static void MySQLFileDelete(string FileName)
+		{
+			if (File.Exists(FileName))
+				File.Delete(FileName);
+		}
 	}
 }

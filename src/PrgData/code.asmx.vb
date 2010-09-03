@@ -530,7 +530,7 @@ RestartInsertTrans:
 
                 UpdateType = RequestType.GetDocs
                 Try
-                    MySQLFileDelete(ResultFileName & UserId & ".zip")
+                    ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
                     Log.DebugFormat("При подготовке документов удален предыдущий файл: {0}", ResultFileName & UserId & ".zip")
                 Catch ex As Exception
                     Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
@@ -563,7 +563,7 @@ RestartInsertTrans:
 
                     Try
 
-                        MySQLFileDelete(ResultFileName & UserId & ".zip")
+                        ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
                         Log.DebugFormat("Удалили предыдущие подготовленные данные: {0}", ResultFileName & UserId & ".zip")
 
                     Catch ex As Exception
@@ -694,11 +694,6 @@ endproc:
     End Function
 
 
-    Private Sub MySQLFileDelete(ByVal FileName As String)
-        If MySQLResultFile.Exists(FileName) Then MySQLResultFile.Delete(FileName)
-    End Sub
-
-
     Enum ТипДокумента As Integer
         WayBills = 1
         Rejects = 2
@@ -737,15 +732,15 @@ endproc:
 
                 If Reclame Then
                     SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
-                    MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+                    ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
                 Else
                     SevenZipTmpArchive = Path.GetTempPath() & UserId
-                    MySQLFileDelete(ResultFileName & UserId & ".zip")
+                    ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
                     Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", ResultFileName & UserId & ".zip")
                 End If
 
                 SevenZipTmpArchive &= "T.zip"
-                MySQLFileDelete(SevenZipTmpArchive)
+                ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
 
                 'Если не реклама
@@ -812,7 +807,7 @@ endproc:
 
                                     If Pr.ExitCode <> 0 Then
 
-                                        MySQLFileDelete(SevenZipTmpArchive)
+                                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                         Addition &= "Архивирование документов, Вышли из 7Z с ошибкой: " & _
                                            Вывод7Z & _
                                            "-" & _
@@ -846,8 +841,8 @@ endproc:
                             Next
 
                             If BuildNo >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
                                 'Задержка при удалении локальных файлов не нужна
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
@@ -903,13 +898,13 @@ endproc:
 
                                 If Pr.ExitCode <> 0 Then
                                     Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
-                                    MySQLFileDelete(SevenZipTmpArchive)
+                                    ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                     Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
                                 End If
                                 Pr = Nothing
 
-                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
 #If DEBUG Then
                                 ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
@@ -927,7 +922,7 @@ endproc:
 
                         If Documents Then ErrorFlag = True
 
-                        MySQLFileDelete(SevenZipTmpArchive)
+                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
                     End Try
 
@@ -980,7 +975,7 @@ endproc:
                                     If Pr.ExitCode <> 0 Then
                                         MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
                                         Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-                                        MySQLFileDelete(SevenZipTmpArchive)
+                                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                     Else
 
                                         Addition &= "Обновление включает в себя новую версию программы; "
@@ -995,7 +990,7 @@ endproc:
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
                             End If
-                            MySQLFileDelete(SevenZipTmpArchive)
+                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                         Catch ex As Exception
                             MailErr("Архивирование Exe", ex.Source & ": " & ex.Message)
                             Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
@@ -1003,7 +998,7 @@ endproc:
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
                             End If
-                            MySQLFileDelete(SevenZipTmpArchive)
+                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                         End Try
 
                         ArchTrans = Nothing
@@ -1033,7 +1028,7 @@ endproc:
                                             If Pr.ExitCode <> 0 Then
                                                 MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
                                                 Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-                                                MySQLFileDelete(SevenZipTmpArchive)
+                                                ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                             End If
                                         End If
                                     Next
@@ -1046,7 +1041,7 @@ endproc:
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
                             End If
-                            MySQLFileDelete(SevenZipTmpArchive)
+                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
                         Catch ex As Exception
 
@@ -1057,7 +1052,7 @@ endproc:
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
                             End If
-                            MySQLFileDelete(SevenZipTmpArchive)
+                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
                         End Try
                     End If
@@ -1158,11 +1153,11 @@ StartZipping:
 
                         If Pr.ExitCode <> 0 Then
                             Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
-                            MySQLFileDelete(SevenZipTmpArchive)
+                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                             Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
                         End If
                         Pr = Nothing
-                        If Not Reclame Then MySQLFileDelete(FileName)
+                        If Not Reclame Then ShareFileHelper.MySQLFileDelete(FileName)
                         zipfilecount += 1
 
                         'If zipfilecount >= FileCount Then
@@ -1182,7 +1177,7 @@ StartZipping:
 
 
                 Catch ex As ThreadAbortException
-                    MySQLFileDelete(SevenZipTmpArchive)
+                    ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
                     Try
 
@@ -1200,7 +1195,7 @@ StartZipping:
                         If Not Pr.HasExited Then Pr.Kill()
                         Pr.WaitForExit()
                     End If
-                    MySQLFileDelete(SevenZipTmpArchive)
+                    ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
                     If Not TypeOf ex.InnerException Is ThreadAbortException Then
                         ErrorFlag = True
@@ -1218,7 +1213,7 @@ StartZipping:
                         Pr.WaitForExit()
                     End If
                     Addition &= " Архивирование: " & Unhandled.ToString()
-                    MySQLFileDelete(SevenZipTmpArchive)
+                    ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                     MailErr("Архивирование", Unhandled.Source & ": " & Unhandled.ToString())
                     Addition &= " Архивирование: " & Unhandled.ToString() & "; "
                     'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
@@ -1303,9 +1298,9 @@ StartZipping:
                     File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
 
-                MySQLFileDelete(ResultFileName & UserId & ".zip")
+                ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
                 Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
-                MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
+                ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
             Catch ex As Exception
                 Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
@@ -1375,9 +1370,9 @@ StartZipping:
                     File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
 
-                MySQLFileDelete(ResultFileName & UserId & ".zip")
+                ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
                 Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
-                MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
+                ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
             Catch ex As Exception
                 'MailErr("Удаление полученных файлов;", ex.Message)
@@ -2599,26 +2594,26 @@ PostLog:
 RestartTrans2:
                 If ErrorFlag Then Exit Try
 
-                MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatalogCurrency" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "ClientsDataN" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogCurrency" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientsDataN" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
 
-                MySQLFileDelete(MySqlLocalFilePath() & "PriceAvg" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Section" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Synonym" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatalogFarmGroups" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PriceAvg" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Section" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Synonym" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogFarmGroups" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -2642,7 +2637,7 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
 
-                MySQLFileDelete(MySqlLocalFilePath() & "MinPrices" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinPrices" & UserId & ".txt")
                 GetMySQLFile("PriceAvg", SelProc, "select ''")
 
                 SQLText = "SELECT P.Id       ," & _
@@ -3012,31 +3007,31 @@ RestartTrans2:
 RestartTrans2:
                 If ErrorFlag Then Exit Try
 
-                MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "User" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Client" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Catalogs" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "DelayOfPayments" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Providers" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Synonyms" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "MNN" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Descriptions" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "MaxProducerCosts" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "Producers" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
-                MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
-                'MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "User" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Client" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Catalogs" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DelayOfPayments" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Providers" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Synonyms" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MNN" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Descriptions" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MaxProducerCosts" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Producers" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
+                'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3831,7 +3826,7 @@ RestartTrans2:
             ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
             If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)
 
-            MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+            ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
 
             Dim FileList As String()
             Dim FileName As String
@@ -3937,7 +3932,7 @@ RestartTrans2:
             End If
 
             Reclame = True
-            MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+            ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
             ReclameComplete = True
             If Log.IsDebugEnabled Then Log.Debug("Успешно завершили ReclameComplete")
         Catch ex As Exception
