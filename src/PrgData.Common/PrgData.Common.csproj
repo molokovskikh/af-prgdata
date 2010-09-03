@@ -154,6 +154,7 @@
     <Compile Include="RequestType.cs" />
     <Compile Include="ShareFileHelper.cs" />
     <Compile Include="SmartOrderHelper.cs" />
+    <Compile Include="UpdateData.cs" />
     <Compile Include="UpdateException.cs" />
     <Compile Include="Waybills\GenerateDocsHelper.cs" />
     <Compile Include="Orders\OrderException.cs" />
