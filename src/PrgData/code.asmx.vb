@@ -292,7 +292,7 @@ Public Class PrgDataEx
         '    Next
         '    If MailMessage.Length > 0 Then
         '        'Addition &= MailMessage
-        '        'MailErr("Ошибка проверки версий библиотек", MailMessage)
+        '        'MailHelper.MailErr(CCode, "Ошибка проверки версий библиотек", MailMessage)
         '        MailMessage = ""
         '    End If
         '    DBDisconnect()
@@ -460,7 +460,7 @@ RestartInsertTrans:
                             OldUpTime = AccessTime.ToLocalTime()
                             helper.PrepareLimitedCumulative(OldUpTime)
                         Catch err As Exception
-                            MailErr("Подготовка к частичному КО", err.ToString())
+                            MailHelper.MailErr(CCode, "Подготовка к частичному КО", err.ToString())
                             Addition = err.Message
                             UpdateType = RequestType.Error
                             ErrorFlag = True
@@ -657,7 +657,7 @@ endproc:
                     Try
                         ResStr &= HostsFileHelper.ProcessDNS(SpyHostsFile)
                     Catch HostsException As Exception
-                        MailErr("Ошибка во время обработки DNS", HostsException.ToString())
+                        MailHelper.MailErr(CCode, "Ошибка во время обработки DNS", HostsException.ToString())
                     End Try
                 End If
 
@@ -917,7 +917,7 @@ endproc:
 
                     Catch ex As Exception
                         Log.Error("Ошибка при архивировании документов", ex)
-                        MailErr("Архивирование документов", ex.Source & ": " & ex.Message)
+                        MailHelper.MailErr(CCode, "Архивирование документов", ex.Source & ": " & ex.Message)
                         Addition &= "Архивирование документов" & ": " & ex.Message & "; "
 
                         If Documents Then ErrorFlag = True
@@ -973,7 +973,7 @@ endproc:
                                     Pr.WaitForExit()
 
                                     If Pr.ExitCode <> 0 Then
-                                        MailErr("Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                        MailHelper.MailErr(CCode, "Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
                                         Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
                                         ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                     Else
@@ -992,7 +992,7 @@ endproc:
                             End If
                             ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                         Catch ex As Exception
-                            MailErr("Архивирование Exe", ex.Source & ": " & ex.Message)
+                            MailHelper.MailErr(CCode, "Архивирование Exe", ex.Source & ": " & ex.Message)
                             Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
                             If Not Pr Is Nothing Then
                                 If Not Pr.HasExited Then Pr.Kill()
@@ -1026,7 +1026,7 @@ endproc:
                                             Pr.WaitForExit()
 
                                             If Pr.ExitCode <> 0 Then
-                                                MailErr("Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                                MailHelper.MailErr(CCode, "Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
                                                 Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
                                                 ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                             End If
@@ -1046,7 +1046,7 @@ endproc:
                         Catch ex As Exception
 
                             Addition &= " Архивирование Frf: " & ex.Message & "; "
-                            MailErr("Архивирование Frf", ex.Source & ": " & ex.Message)
+                            MailHelper.MailErr(CCode, "Архивирование Frf", ex.Source & ": " & ex.Message)
 
                             If Not Pr Is Nothing Then
                                 If Not Pr.HasExited Then Pr.Kill()
@@ -1200,7 +1200,7 @@ StartZipping:
                     If Not TypeOf ex.InnerException Is ThreadAbortException Then
                         ErrorFlag = True
                         UpdateType = RequestType.Error
-                        MailErr("Архивирование", ex.Source & ": " & ex.ToString())
+                        MailHelper.MailErr(CCode, "Архивирование", ex.Source & ": " & ex.ToString())
                     End If
                     Addition &= " Архивирование: " & ex.ToString() & "; "
 
@@ -1214,7 +1214,7 @@ StartZipping:
                     End If
                     Addition &= " Архивирование: " & Unhandled.ToString()
                     ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-                    MailErr("Архивирование", Unhandled.Source & ": " & Unhandled.ToString())
+                    MailHelper.MailErr(CCode, "Архивирование", Unhandled.Source & ": " & Unhandled.ToString())
                     Addition &= " Архивирование: " & Unhandled.ToString() & "; "
                     'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
                 End Try
@@ -1223,7 +1223,7 @@ StartZipping:
         Catch tae As ThreadAbortException
 
         Catch Unhandled As Exception
-            MailErr("Архивирование general", Unhandled.Source & ": " & Unhandled.ToString())
+            MailHelper.MailErr(CCode, "Архивирование general", Unhandled.Source & ": " & Unhandled.ToString())
             ErrorFlag = True
         End Try
     End Sub
@@ -1284,7 +1284,7 @@ StartZipping:
                 End If
 
             Catch ex As Exception
-                MailErr("Выборка даты обновления ", ex.Message & ex.Source)
+                MailHelper.MailErr(CCode, "Выборка даты обновления ", ex.Message & ex.Source)
                 UpdateTime = Now().ToUniversalTime
             End Try
 
@@ -1356,7 +1356,7 @@ StartZipping:
                 End If
 
             Catch ex As Exception
-                MailErr("Выборка даты обновления ", ex.Message & ex.Source)
+                MailHelper.MailErr(CCode, "Выборка даты обновления ", ex.Message & ex.Source)
                 UpdateTime = Now().ToUniversalTime
             End Try
 
@@ -1375,7 +1375,7 @@ StartZipping:
                 ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
 
             Catch ex As Exception
-                'MailErr("Удаление полученных файлов;", ex.Message)
+                'MailHelper.MailErr(CCode, "Удаление полученных файлов;", ex.Message)
             End Try
             ProtocolUpdatesThread.Start()
         Catch e As Exception
@@ -1497,14 +1497,14 @@ StartZipping:
         '            For Each drOrderId In dsOrderList.Tables(0).Rows
         '                list.Add(drOrderId.Item("ClientOrderId").ToString())
         '            Next
-        '            'MailErr("Запросили у клиента архивные заказы", list.Count & " шт.")
+        '            'MailHelper.MailErr(CCode, "Запросили у клиента архивные заказы", list.Count & " шт.")
         '            Return String.Join(";", list.ToArray())
         '        Else
         '            Return String.Empty
         '        End If
 
         '    Catch Exp As Exception
-        '        MailErr("Ошибка при получении списка архивных заказов", Exp.Message & ": " & Exp.StackTrace)
+        '        MailHelper.MailErr(CCode, "Ошибка при получении списка архивных заказов", Exp.Message & ": " & Exp.StackTrace)
         '        Addition = Exp.Message
         '        ErrorFlag = True
         '        UpdateType = 5
@@ -1672,7 +1672,7 @@ StartZipping:
                             ResStr &= Chr(Convert.ToInt16(Left(Mid(ClientAddition, i), 3)))
                         Next
                     Catch err As Exception
-                        'MailErr("Формирование сообщения поставщику ", ResStr & "; Cимвол: " & Left(Mid(ClientAddition, i), 3) & "; Исходная строка:" & ClientAddition & "; Ошибка:" & err.Message)
+                        'MailHelper.MailErr(CCode, "Формирование сообщения поставщику ", ResStr & "; Cимвол: " & Left(Mid(ClientAddition, i), 3) & "; Исходная строка:" & ClientAddition & "; Ошибка:" & err.Message)
                     End Try
 
                 End With
@@ -1692,7 +1692,7 @@ RestartInsertTrans:
 
                     'Cm.CommandText = "SELECT RowId FROM orders.ordershead where ClientOrderid=" & ServerOrderId
                     'OID = Convert.ToUInt64(Cm.ExecuteScalar)
-                    'MailErr("Приняли архивный заказ", "Заказ №" & ServerOrderId)
+                    'MailHelper.MailErr(CCode, "Приняли архивный заказ", "Заказ №" & ServerOrderId)
 
                 End If
                 OrderInsertCm.Connection = readWriteConnection
@@ -2131,13 +2131,6 @@ RestartInsertTrans:
             DBDisconnect()
         End Try
     End Function
-
-
-
-    Public Sub MailErr(ByVal ErrSource As String, ByVal ErrDesc As String)
-        MailHelper.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "Ошибка в сервисе подготовки данных")
-    End Sub
-
 
     Private Sub FnCheckID(ByVal uin As String)
         FnCheckID(uin, RequestType.GetData)
@@ -3414,7 +3407,7 @@ RestartTrans2:
                         ResStr &= Chr(Convert.ToInt32(Left(Mid(Code(i), PosID), 3)))
                     Next
                 Catch err As Exception
-                    MailErr("Формирование Code", err.Message)
+                    MailHelper.MailErr(CCode, "Формирование Code", err.Message)
                 End Try
                 newrow.Item("Code") = ResStr
 
@@ -3431,7 +3424,7 @@ RestartTrans2:
                         ResStr &= Chr(Convert.ToInt32(Left(Mid(CodeCr(i), PosID), 3)))
                     Next
                 Catch err As Exception
-                    MailErr("Формирование CodeCr", err.Message)
+                    MailHelper.MailErr(CCode, "Формирование CodeCr", err.Message)
                 End Try
                 newrow.Item("CodeCr") = ResStr
             Else
@@ -3505,7 +3498,7 @@ RestartTrans2:
                                 ProblemStr &= "В новом заказе №" & OrderID & " изменено колличество товара в сявязи с дублированием с заказом №" & Row.Item("OrderID").ToString & _
                                  ", строка №" & Row.Item("rowid").ToString & Chr(10) & Chr(13)
                             Catch e As Exception
-                                MailErr("Дублирующийся заказ", e.Message & ": " & e.StackTrace)
+                                MailHelper.MailErr(CCode, "Дублирующийся заказ", e.Message & ": " & e.StackTrace)
                             End Try
 
                         End If
@@ -3538,7 +3531,7 @@ RestartTrans2:
             If ProblemStr <> String.Empty Then
                 Addition = ProblemStr
                 .CommandText = "update orders.ordershead set rowcount=" & DS.Tables("OrdersL").Rows.Count & " where rowid=" & OrderID & "; "
-                'MailErr("Дубли в заказе", ProblemStr)
+                'MailHelper.MailErr(CCode, "Дубли в заказе", ProblemStr)
             End If
 
             .CommandText &= " insert into orders.orderslist (OrderID, ProductId, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost)" & _
@@ -3742,7 +3735,7 @@ RestartTrans2:
                 Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
                 Return S
             Else
-                MailErr("Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
+                MailHelper.MailErr(CCode, "Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
                 Addition = "Не заданы пароли для шифрации данных"
                 ErrorFlag = True
             End If
@@ -4022,7 +4015,7 @@ RestartMaxCodesSet:
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             helper.CommitExchange()
         Catch err As Exception
-            MailErr("Присвоение значений максимальных синонимов", err.Message)
+            MailHelper.MailErr(CCode, "Присвоение значений максимальных синонимов", err.Message)
             Addition = err.Message
             UpdateType = RequestType.Error
             ErrorFlag = True
@@ -4035,7 +4028,7 @@ RestartMaxCodesSet:
             helper.OldCommit(AbsentPriceCodes)
             Addition &= "!!! " & AbsentPriceCodes
         Catch err As Exception
-            MailErr("Присвоение значений максимальных синонимов", err.Message)
+            MailHelper.MailErr(CCode, "Присвоение значений максимальных синонимов", err.Message)
             Addition = err.Message
             UpdateType = RequestType.Error
             ErrorFlag = True
@@ -4048,7 +4041,7 @@ RestartMaxCodesSet:
             helper.ResetAbsentPriceCodes(AbsentPriceCodes)
             Addition &= "!!! " & AbsentPriceCodes
         Catch err As Exception
-            MailErr("Сброс информации по прайс-листам с недостающими синонимами", err.Message)
+            MailHelper.MailErr(CCode, "Сброс информации по прайс-листам с недостающими синонимами", err.Message)
             Addition = err.Message
             UpdateType = RequestType.Error
             ErrorFlag = True

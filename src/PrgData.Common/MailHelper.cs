@@ -26,5 +26,12 @@ namespace PrgData.Common
 			{
 			}
 		}
+
+		public static void MailErr(uint ClientId, string ErrSource, string ErrDesc)
+		{
+			Mail(
+				"Клиент: " + ClientId + Environment.NewLine + "Процесс: " + ErrSource + Environment.NewLine + "Описание: " + ErrDesc,
+				"Ошибка в сервисе подготовки данных");
+		}
 	}
 }
