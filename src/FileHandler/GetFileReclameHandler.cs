@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Web;
 using Counter;
+using PrgData.Common;
 
 namespace FileHandler
 {
@@ -39,7 +40,7 @@ namespace FileHandler
 		{
 			var sBody = "Код пользователя : " + SUserId + Environment.NewLine + "Процесс : " + ErrSource + Environment.NewLine +
 			            "Описание : " + ErrDesc;
-			Utils.Mail(sBody, "Сервис: ошибка в GetReclameHadler");
+			MailHelper.Mail(sBody, "Сервис: ошибка в GetReclameHadler");
 		}
 
 		public void ProcessRequest(HttpContext context)

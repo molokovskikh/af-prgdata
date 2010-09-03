@@ -827,7 +827,7 @@ endproc:
 
                                         Else
 
-                                            Counter.Utils.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
+                                            MailHelper.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
                                               Вывод7Z & _
                                              "-" & _
                                               Ошибка7Z)
@@ -2140,7 +2140,7 @@ RestartInsertTrans:
 
 
     Public Sub MailErr(ByVal ErrSource As String, ByVal ErrDesc As String)
-        Counter.Utils.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "Ошибка в сервисе подготовки данных")
+        MailHelper.Mail("Клиент: " & CCode & Chr(10) & Chr(13) & "Процесс: " & ErrSource & Chr(10) & Chr(13) & "Описание: " & ErrDesc, "Ошибка в сервисе подготовки данных")
     End Sub
 
 

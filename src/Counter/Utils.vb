@@ -56,19 +56,4 @@ Public Class Utils
         End If
     End Sub
 
-    Public Shared Sub Mail(ByVal MessageText As String, ByVal Subject As String)
-        Try
-            Dim MailAddress As New MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8)
-            Dim message As New MailMessage("service@analit.net", ConfigurationManager.AppSettings("ErrorMail"))
-            Dim SC As New SmtpClient("box.analit.net")
-            message.From = MailAddress
-            message.Subject = Subject
-            message.SubjectEncoding = Encoding.UTF8
-            message.BodyEncoding = Encoding.UTF8
-            message.Body = MessageText
-            SC.Send(message)
-        Catch err As Exception
-        End Try
-    End Sub
-
 End Class

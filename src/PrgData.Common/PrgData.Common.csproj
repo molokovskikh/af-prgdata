@@ -144,6 +144,7 @@
     <Compile Include="Context.cs" />
     <Compile Include="CostOptimizer.cs" />
     <Compile Include="HostsFileHelper.cs" />
+    <Compile Include="MailHelper.cs" />
     <Compile Include="OrderHelper.cs" />
     <Compile Include="Orders\ClientOrderPosition.cs" />
     <Compile Include="RequestType.cs" />
