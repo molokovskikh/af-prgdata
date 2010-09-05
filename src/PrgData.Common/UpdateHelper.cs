@@ -2108,40 +2108,6 @@ WHERE
 			});
 		}
 
-		public bool NeedUpdateToBuyingMatrix(string resultPath)
-		{
-			try
-			{
-				if (_updateData.EnableUpdate && _updateData.BuildNumber >= 1183 && _updateData.BuildNumber <= 1229)
-				{
-					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-					var info = FileVersionInfo.GetVersionInfo(exeName);
-					return info.FilePrivatePart >= 1249;
-				}
-			}
-			catch 
-			{
-			}
-			return false;
-		}
-
-		public bool NeedUpdateToNewMNN(string resultPath)
-		{
-			try
-			{
-				if (_updateData.EnableUpdate && _updateData.BuildNumber >= 1183 && _updateData.BuildNumber <= 1263)
-				{
-					var exeName = Array.Find(_updateData.GetUpdateFiles(resultPath), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-					var info = FileVersionInfo.GetVersionInfo(exeName);
-					return info.FilePrivatePart > 1263;
-				}
-			}
-			catch
-			{
-			}
-			return false;
-		}
-
 		public void SetUpdateParameters(MySqlCommand selectComand, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime)
 		{
 			selectComand.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);

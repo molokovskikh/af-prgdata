@@ -131,5 +131,58 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.IsTrue(updateData.Disabled(), "Пользотель включен");
 			}
 		}
+
+		[Test]
+		public void Check_ON_flags_for_BuyingMatrix_and_MNN_for_old_client()
+		{
+			Check_ON_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
+		}
+
+		[Test]
+		public void Check_ON_flags_for_BuyingMatrix_and_MNN_for_future_client()
+		{
+			Check_ON_flags_for_BuyingMatrix_and_MNN(_user.Login);
+		}
+
+		[Test]
+		public void Check_OFF_flags_for_BuyingMatrix_and_MNN_for_old_client()
+		{
+			Check_OFF_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
+		}
+
+		[Test]
+		public void Check_OFF_flags_for_BuyingMatrix_and_MNN_for_future_client()
+		{
+			Check_OFF_flags_for_BuyingMatrix_and_MNN(_user.Login);
+		}
+
+		private void Check_ON_flags_for_BuyingMatrix_and_MNN(string login)
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.EnableUpdate = true;
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1183");
+				Assert.IsTrue(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
+				Assert.IsTrue(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
+			}
+		}
+
+		private void Check_OFF_flags_for_BuyingMatrix_and_MNN(string login)
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.EnableUpdate = true;
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1269");
+				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
+				Assert.IsFalse(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
+			}
+		}
+
 	}
 }

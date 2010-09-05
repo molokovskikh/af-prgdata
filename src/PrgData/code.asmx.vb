@@ -92,8 +92,6 @@ Public Class PrgDataEx
     Private ReclamePath As String
     Private UncDT As Date
     Private GED, PackFinished, CalculateLeader As Boolean
-    Private _needUpdateToBuyingMatrix As Boolean
-    Private _needUpdateToNewMNN As Boolean
     Private NewZip As Boolean = True
     Dim GUpdateId As UInt32? = 0
     Private WithEvents DS As System.Data.DataSet
@@ -413,8 +411,6 @@ Public Class PrgDataEx
             End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
-            _needUpdateToBuyingMatrix = helper.NeedUpdateToBuyingMatrix(ResultFileName)
-            _needUpdateToNewMNN = helper.NeedUpdateToNewMNN(ResultFileName)
 
             'Если с момента последнего обновления менее установленного времени
             If Not Documents Then
@@ -488,7 +484,7 @@ Public Class PrgDataEx
                     End If
                     If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
 
-                    If _needUpdateToBuyingMatrix Then helper.SetForceReplication()
+                    If UpdateData.NeedUpdateToBuyingMatrix Then helper.SetForceReplication()
 
                 End If
 
@@ -2984,14 +2980,14 @@ RestartTrans2:
                          UpdateData.NeedUpdateTo945(), _
                          True)
 
-                        'Обновляем на новую структуру MNN без RussianMNN = (UpdateData.BuildNumber > 1263) Or _needUpdateToNewMNN)
+                        'Обновляем на новую структуру MNN без RussianMNN = (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN)
                         GetMySQLFileWithDefaultEx( _
                          "MNN", _
                          SelProc, _
                          helper.GetMNNCommand( _
                              False, _
                              GED, _
-                             (UpdateData.BuildNumber > 1263) Or _needUpdateToNewMNN), _
+                             (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN), _
                          ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate, _
                          True)
 
@@ -3171,7 +3167,7 @@ RestartTrans2:
                          helper.GetCoreCommand( _
                           False, _
                           (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
-                          (UpdateData.BuildNumber >= 1249) Or _needUpdateToBuyingMatrix _
+                          (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix _
                          ), _
                          (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
                          True _
@@ -3206,7 +3202,7 @@ RestartTrans2:
                         helper.PrepareImpersonalOffres(SelProc)
 
                         'Выгрузка данных для обезличенного прайс-листа
-                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or _needUpdateToBuyingMatrix))
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix))
                     Else
                         'выгружаем пустую таблицу Core
                         GetMySQLFileWithDefault("Core", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")

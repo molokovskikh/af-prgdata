@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Data;
+using System.Diagnostics;
 
 namespace PrgData.Common
 {
@@ -40,6 +41,10 @@ namespace PrgData.Common
 
 		public string UniqueID;
 		public string KnownUniqueID;
+
+		public bool NeedUpdateToBuyingMatrix { get; private set; }
+
+		public bool NeedUpdateToNewMNN { get; private set; }
 
 		public UpdateData(DataSet data)
 		{
@@ -115,6 +120,8 @@ namespace PrgData.Common
 				{
 					BuildNumber = buildNumber;
 					CheckBuildNumber();
+					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();
+					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();
 				}
 			}
 		}
@@ -131,6 +138,40 @@ namespace PrgData.Common
 		public bool NeedUpdateTo945()
 		{
 			return (BuildNumber == 945 || (BuildNumber >= 829 && BuildNumber <= 837)) && EnableUpdate;
+		}
+
+		private bool CheckNeedUpdateToBuyingMatrix()
+		{
+			try
+			{
+				if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1229)
+				{
+					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var info = FileVersionInfo.GetVersionInfo(exeName);
+					return info.FilePrivatePart >= 1249;
+				}
+			}
+			catch
+			{
+			}
+			return false;
+		}
+
+		private bool CheckNeedUpdateToNewMNN()
+		{
+			try
+			{
+				if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1263)
+				{
+					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var info = FileVersionInfo.GetVersionInfo(exeName);
+					return info.FilePrivatePart > 1263;
+				}
+			}
+			catch
+			{
+			}
+			return false;
 		}
 	}
 }
