@@ -3637,6 +3637,13 @@ RestartTrans2:
                 Addition = "Не заданы пароли для шифрации данных"
                 ErrorFlag = True
             End If
+        Catch updateException As UpdateException
+            If UpdateData IsNot Nothing Then
+                Log.Warn(updateException)
+            Else
+                Log.Error(updateException)
+            End If
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при получении паролей", ex)
             Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
