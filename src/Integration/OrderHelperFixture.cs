@@ -227,7 +227,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test(Description = "отправляем заказы под старым клиентом c базовым подчинением и проверяем корректность установки полей ClientCode, AddressId и UserId")]
+		[Test(Description = "Не работает, т.к. клиента перенесли в новую реальность: отправляем заказы под старым клиентом c базовым подчинением и проверяем корректность установки полей ClientCode, AddressId и UserId")]
 		public void check_ClientCode_and_AddressId_in_order_by_old_client_with_subordination()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
