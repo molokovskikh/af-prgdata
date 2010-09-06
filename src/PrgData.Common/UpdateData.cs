@@ -46,6 +46,8 @@ namespace PrgData.Common
 
 		public bool NeedUpdateToNewMNN { get; private set; }
 
+		public string ClientHost;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -131,7 +133,7 @@ namespace PrgData.Common
 			if (KnownBuildNumber.HasValue && BuildNumber < KnownBuildNumber)
 				throw new UpdateException("Доступ закрыт.",
 										  "Используемая версия программы не актуальна, необходимо обновление до версии №" + KnownBuildNumber + ".[5]",
-										  "Попытка обновить устаревшую версию; IP:" + ServiceContext.GetUserHost() + "; ",
+										  "Попытка обновить устаревшую версию; IP:" + ClientHost + "; ",
 										  RequestType.Forbidden);
 		}
 

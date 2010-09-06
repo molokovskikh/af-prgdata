@@ -74,6 +74,7 @@ Public Class PrgDataEx
     Private ErrorFlag, Documents As Boolean
     Private Addition, ClientLog As String
     Private Reclame As Boolean
+    Private GetHistory As Boolean
     Public ResultFileName As String
     Dim ArhiveStartTime As DateTime
 
@@ -89,7 +90,7 @@ Public Class PrgDataEx
     Dim CCode, UserId As UInt32
     Private SpyHostsFile, SpyAccount As Boolean
     Dim UpdateData As UpdateData
-    Private ReclamePath As String
+    Private UserHost, ReclamePath As String
     Private UncDT As Date
     Private GED, PackFinished, CalculateLeader As Boolean
     Private NewZip As Boolean = True
@@ -139,6 +140,7 @@ Public Class PrgDataEx
             Using connection = _simpleConnectionManager.GetConnection()
                 connection.Open()
                 updateData = UpdateHelper.GetUpdateData(connection, HttpContext.Current.User.Identity.Name)
+                updateData.ClientHost = ServiceContext.GetUserHost()
 
                 If updateData Is Nothing Then
                     Throw New Exception("Клиент не найден")
@@ -695,8 +697,10 @@ endproc:
                 Dim startInfo As ProcessStartInfo
 
 
-
-                If Reclame Then
+                If GetHistory Then
+                    SevenZipTmpArchive = Path.GetTempPath() & "Orders" & UserId
+                    ShareFileHelper.MySQLFileDelete(ResultFileName & "Orders" & UserId & ".zip")
+                ElseIf Reclame Then
                     SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
                     ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
                 Else
@@ -711,7 +715,7 @@ endproc:
 
                 'Если не реклама
                 Dim helper = New UpdateHelper(UpdateData, Nothing)
-                If Not Reclame Then
+                If Not Reclame AndAlso Not GetHistory Then
 
                     Try
                         ArchCmd.Connection = connection
@@ -1048,7 +1052,12 @@ StartZipping:
 
 
                         If FileForArchive.FileName.StartsWith("EndOfFiles.txt") Then
-                            If Reclame Then
+                            If GetHistory Then
+                                File.Move(SevenZipTmpArchive, ResultFileName & "Orders" & UserId & ".zip")
+
+                                FileInfo = New FileInfo(ResultFileName & "Orders" & UserId & ".zip")
+                                ResultLenght = Convert.ToUInt32(FileInfo.Length)
+                            ElseIf Reclame Then
 
                                 'ArchCmd.CommandText &= "1"
                                 File.Move(SevenZipTmpArchive, ResultFileName & "r" & UserId & ".zip")
@@ -1387,6 +1396,8 @@ StartZipping:
             UserName = Mid(UserName, 8)
         End If
         UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
+        UpdateData.ClientHost = UserHost
+
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
             Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
@@ -1422,6 +1433,7 @@ StartZipping:
     End Sub
 
     Private Function DBConnect()
+        UserHost = ServiceContext.GetUserHost()
         Try
 
             readWriteConnection = _simpleConnectionManager.GetConnection()
@@ -2116,7 +2128,8 @@ RestartInsertTrans:
                  Or (UpdateType = RequestType.PostOrderBatch) _
                  Or (UpdateType = RequestType.Forbidden) _
                  Or (UpdateType = RequestType.Error) _
-                 Or (UpdateType = RequestType.GetDocs) Then
+                 Or (UpdateType = RequestType.GetDocs) _
+                 Or (UpdateType = RequestType.GetHistoryOrders) Then
 
 PostLog:
 
@@ -2151,7 +2164,7 @@ PostLog:
                         .Parameters.Add(New MySqlParameter("?Addition", Addition))
                         .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
                         .Parameters.AddWithValue("?Commit", commit)
-                        .Parameters.AddWithValue("?ClientHost", ServiceContext.GetUserHost())
+                        .Parameters.AddWithValue("?ClientHost", UserHost)
                     End With
 
                     GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
@@ -4021,7 +4034,7 @@ RestartMaxCodesSet:
 
     Private Function ProcessUpdateException(ByVal updateException As UpdateException) As String
         UpdateType = updateException.UpdateType
-        Addition += updateException.Addition & "; IP:" & ServiceContext.GetUserHost() & "; "
+        Addition += updateException.Addition & "; IP:" & UserHost & "; "
         ErrorFlag = True
         If UpdateData IsNot Nothing Then
             Log.Warn(updateException)
@@ -4030,6 +4043,214 @@ RestartMaxCodesSet:
             Log.Error(updateException)
         End If
         Return updateException.GetAnalitFMessage()
+    End Function
+
+    <WebMethod()> _
+    Public Function GetHistoryOrders( _
+        ByVal EXEVersion As String, _
+        ByVal UniqueID As String, _
+        ByVal ExistsServerOrderIds As UInt64(), _
+        ByVal MaxOrderId As UInt64, _
+        ByVal MaxOrderListId As UInt64 _
+    ) As String
+
+        Dim ResStr As String = String.Empty
+
+        Try
+            UpdateType = RequestType.GetHistoryOrders
+            GetHistory = True
+
+            DBConnect()
+            GetClientCode()
+            Counter.TryLock(UserId, "GetHistoryOrders")
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            UpdateData.ParseBuildNumber(EXEVersion)
+
+            Dim historyIds As String = String.Empty
+            If ExistsServerOrderIds.Length > 0 Then
+                Dim d = ExistsServerOrderIds.Cast(Of String)()
+                If d.Count > 0 Then historyIds = String.Join(",", d)
+            End If
+
+            SelProc = New MySqlCommand
+            SelProc.Connection = readWriteConnection
+            Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
+            SelProc.Transaction = transaction
+
+            Try
+
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PostedOrderHeads" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PostedOrderLists" & UserId & ".txt")
+
+                SelProc.Parameters.Clear()
+                SelProc.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+
+                SelProc.CommandText = _
+                    "set @MaxOrderId := " & MaxOrderId & ";" & _
+                    "set @MaxOrderListId := " & MaxOrderListId & ";"
+                SelProc.ExecuteNonQuery()
+
+                SelProc.CommandText = _
+                    "drop temporary table IF EXISTS HistoryIds;" & _
+                    "create temporary table HistoryIds engine=MEMORY as " & _
+                    "select " & _
+                        " (@MaxOrderId := @MaxOrderId + 1) as PostOrderId, " & _
+                        " RowId as ServerOrderId " & _
+                    " from orders.OrdersHead " & _
+                    " where OrdersHead.UserId = ?UserId "
+
+                If Not String.IsNullOrEmpty(historyIds) Then
+                    SelProc.CommandText &= " and OrdersHead.RowId not in (" & historyIds & ");"
+                Else
+                    SelProc.CommandText &= ";"
+                End If
+
+                SelProc.ExecuteNonQuery()
+
+                GetMySQLFileWithDefault( _
+                 "PostedOrderHeads", _
+                 SelProc, _
+                 "select " & _
+                 "  HistoryIds.PostOrderId, " & _
+                 "  OrdersHead.* " & _
+                 "from " & _
+                    " HistoryIds " & _
+                    " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
+
+                'Начинаем архивирование
+                ThreadZipStream.Start()
+
+                GetMySQLFileWithDefault( _
+                 "PostedOrderLists", _
+                 SelProc, _
+                 "select " & _
+                 "  (@MaxOrderListId := @MaxOrderListId + 1) as PostOrderListId, " & _
+                 "  OrdersList.* " & _
+                 "from " & _
+                    " HistoryIds " & _
+                    " inner join orders.OrdersList on OrdersList.OrderId = HistoryIds.ServerOrderId ")
+
+                AddEndOfFiles()
+
+            Catch ex As Exception
+                ConnectionHelper.SafeRollback(transaction)
+                Me.Log.Error("Подготовка истории заказов, Код клиента " & CCode, ex)
+                If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+                ErrorFlag = True
+                UpdateType = RequestType.Error
+                Addition &= ex.Message
+            End Try
+
+
+endproc:
+            If Not PackFinished And ThreadZipStream.IsAlive And Not ErrorFlag Then
+
+                'Если есть ошибка, прекращаем подготовку данных
+                If ErrorFlag Then
+
+                    If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+
+                    PackFinished = True
+
+                End If
+                Thread.Sleep(1000)
+
+                GoTo endproc
+
+            ElseIf Not PackFinished And Not ErrorFlag And (UpdateType <> RequestType.Forbidden) Then
+
+                Addition &= "; Нет работающих потоков, данные c историей заказов не готовы."
+                UpdateType = RequestType.Forbidden
+
+                ErrorFlag = True
+
+            End If
+
+            If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
+
+            If Not ErrorFlag Then
+                Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
+
+                If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
+                    Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+                End If
+            End If
+
+
+            ProtocolUpdatesThread.Start()
+
+            If ErrorFlag Then
+
+                If Len(MessageH) = 0 Then
+                    ResStr = "Error=При подготовке истории заказов произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+                Else
+                    ResStr = "Error=" & MessageH & ";Desc=" & MessageD
+                End If
+
+            Else
+
+                While GUpdateId = 0
+                    Thread.Sleep(500)
+                End While
+
+                ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHistoryHandler.ashx?Id=" & GUpdateId
+
+            End If
+
+            Return ResStr
+        Catch updateException As UpdateException
+            Return ProcessUpdateException(updateException)
+        Catch ex As Exception
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при запросе истории заказов", ex)
+            Return "Error=Запрос истории заказов завершился неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+        Finally
+            Counter.ReleaseLock(UserId, "GetHistoryOrders")
+            DBDisconnect()
+        End Try
+
+    End Function
+
+    <WebMethod()> _
+    Public Function CommitHistoryOrders( _
+        ByVal UpdateId As UInt64) As Boolean
+
+        Dim transaction As MySqlTransaction
+        If Log.IsDebugEnabled Then Log.Debug("Вызвали CommitHistoryOrders")
+        Try
+            DBConnect()
+            GetClientCode()
+
+            FileInfo = New FileInfo(ResultFileName & "Orders" & UserId & ".zip")
+
+            If FileInfo.Exists Then
+
+                If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
+
+                transaction = readWriteConnection.BeginTransaction(IsoLevel)
+                '                        LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1, Log=?Log, Addition=concat(Addition, ifnull(?Addition, ''))  where UpdateId=" & GUpdateId
+
+                Cm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1 where UpdateId = ?UpdateId"
+                Cm.Parameters.AddWithValue("?UpdateId", UpdateId)
+                Cm.Connection = readWriteConnection
+                Cm.ExecuteNonQuery()
+                transaction.Commit()
+
+                If Log.IsDebugEnabled Then Log.Debug("Архив с заказами успешно подтвержден")
+            Else
+                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с историей заказов не существует {0}", ResultFileName & "Orders" & UserId & ".zip")
+            End If
+
+            GetHistory = True
+            ShareFileHelper.MySQLFileDelete(ResultFileName & "Orders" & UserId & ".zip")
+            CommitHistoryOrders = True
+            If Log.IsDebugEnabled Then Log.Debug("Успешно завершили CommitHistoryOrders")
+        Catch ex As Exception
+            ConnectionHelper.SafeRollback(transaction)
+            LogRequestHelper.MailWithRequest(Log, "Подтверждение истории заказов", ex)
+            CommitHistoryOrders = False
+        Finally
+            DBDisconnect()
+        End Try
     End Function
 
 End Class

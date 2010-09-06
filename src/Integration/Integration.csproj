@@ -98,6 +98,7 @@
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="FileHandlerFixture.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />
+    <Compile Include="GetHistoryOrdersFixture.cs" />
     <Compile Include="GetReclameFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
     <Compile Include="ImpersonalPriceFixture.cs" />

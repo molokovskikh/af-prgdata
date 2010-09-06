@@ -18,6 +18,7 @@ namespace PrgData.Common
 		SendWaybills = 9,   //Отправка накладных для разбора
 		PostOrderBatch = 10, //Отправка дефектуры для разбора
 		SendOrders = 11,     //Отправка заказов
-		PostPriceDataSettings = 12 //Отправка настроек прайс-листов
+		PostPriceDataSettings = 12, //Отправка настроек прайс-листов
+		GetHistoryOrders = 13 //Получить список архивных заказов
 	}
 }

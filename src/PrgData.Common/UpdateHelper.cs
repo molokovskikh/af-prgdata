@@ -2488,6 +2488,9 @@ CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsi
 								case RequestType.PostPriceDataSettings:
 									description = "Изменение настроек прайс-листов на данном компьютере запрещено.";
 									break;
+								case RequestType.GetHistoryOrders:
+									description = "Запрос истории заказов на данном компьютере запрещен.";
+									break;
 								default:
 									description = "Обновление программы на данном компьютере запрещено.";
 									break;
