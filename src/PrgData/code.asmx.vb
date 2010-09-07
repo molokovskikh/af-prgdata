@@ -1396,13 +1396,12 @@ StartZipping:
             UserName = Mid(UserName, 8)
         End If
         UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
-        UpdateData.ClientHost = UserHost
-
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
             Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
         End If
 
+        UpdateData.ClientHost = UserHost
         CCode = UpdateData.ClientId
         UserId = UpdateData.UserId
         OldUpTime = UpdateData.OldUpdateTime
@@ -2948,11 +2947,15 @@ RestartTrans2:
                 SelProc.Connection = readWriteConnection
                 helper.SetUpdateParameters(SelProc, GED, OldUpTime, CurUpdTime)
 
+                Dim debugHelper = New DebugReplicationHelper(UpdateData, readWriteConnection, SelProc)
+
                 transaction = readWriteConnection.BeginTransaction(IsoLevel)
                 SelProc.Transaction = transaction
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
                 SelProc.ExecuteNonQuery()
+
+                debugHelper.PrepareTmpReplicationInfo()
 
                 GetMySQLFileWithDefault( _
                  "UpdateInfo", _
@@ -3097,7 +3100,10 @@ RestartTrans2:
                 GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
 
                 helper.PreparePricesData(SelProc)
+                debugHelper.FillTmpReplicationInfo()
+                debugHelper.FillTable("TmpReplicationInfo", "select * from TmpReplicationInfo")
                 GetMySQLFileWithDefault("PricesData", SelProc, helper.GetPricesDataCommand())
+                debugHelper.FillTable("PricesData", helper.GetPricesDataCommand())
 
                 GetMySQLFileWithDefault("Rejects", SelProc, helper.GetRejectsCommand(GED))
                 GetMySQLFileWithDefault("Clients", SelProc, helper.GetClientsCommand(False))
@@ -3125,6 +3131,13 @@ RestartTrans2:
                     "SELECT IFNULL(SUM(fresh), 0) " & _
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
+
+                        If debugHelper.NeedDebugInfo() Then
+                            debugHelper.FillTable("ActivePrices", "select * from ActivePrices")
+                            debugHelper.FillTable("AnalitFReplicationInfo", "select * from AnalitFReplicationInfo where UserId = ?UserId")
+                            debugHelper.SendMail()
+                        End If
+
                         helper.SelectOffers()
                         '"UPDATE ActivePrices Prices, " & _
                         '"       Core " & _
