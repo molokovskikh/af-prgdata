@@ -44,7 +44,7 @@ namespace PrgData.Common.Orders
 			{
 				headerCommand.CommandText = "select FirmCode from usersettings.pricesdata pd where pd.PriceCode = ?PriceCode";
 
-				headerCommand.Parameters["?PriceCode"].Value = item.PriceCode;
+				headerCommand.Parameters["?PriceCode"].Value = item.ChildOrder.ActivePrice.Id.Price.PriceCode;
 				var firmCode = Convert.ToUInt64(headerCommand.ExecuteScalar());
 
 				headerCommand.CommandText = "select cd.ShortName from usersettings.pricesdata pd, usersettings.clientsdata cd where pd.PriceCode = ?PriceCode and cd.FirmCode = pd.FirmCode";
@@ -153,28 +153,29 @@ insert into documents.DocumentBodies
   (DocumentId, Product, Code, Period, Producer, SupplierCost, Quantity)
 values
   (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?SupplierCost, ?Quantity);";
-
-			order.Positions.ForEach((position) =>
+			foreach (ClientOrderPosition position in order.Positions)
 			{
-				var synonymName = Convert.ToString(MySqlHelper.ExecuteScalar(
-					connection,
-					"select Synonym from farm.Synonym where SynonymCode = ?SynonymCode",
-					new MySqlParameter("?SynonymCode", position.SynonymCode)));
-				var synonymFirmCrName = Convert.ToString(MySqlHelper.ExecuteScalar(
-					connection,
-					"select Synonym from farm.SynonymFirmCr where SynonymFirmCrCode = ?SynonymFirmCrCode",
-					new MySqlParameter("?SynonymFirmCrCode", position.SynonymFirmCrCode)));
+				//var synonymName = Convert.ToString(MySqlHelper.ExecuteScalar(
+				//    connection,
+				//    "select Synonym from farm.Synonym where SynonymCode = ?SynonymCode",
+				//    new MySqlParameter("?SynonymCode", position.SynonymCode)));
+				//var synonymFirmCrName = Convert.ToString(MySqlHelper.ExecuteScalar(
+				//    connection,
+				//    "select Synonym from farm.SynonymFirmCr where SynonymFirmCrCode = ?SynonymFirmCrCode",
+				//    new MySqlParameter("?SynonymFirmCrCode", position.SynonymFirmCrCode)));
 
-				detailCommand.Parameters["?Product"].Value = synonymName;
-				detailCommand.Parameters["?Code"].Value = position.Code;
-				detailCommand.Parameters["?Period"].Value = position.Period;
-				detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
-				detailCommand.Parameters["?Quantity"].Value = position.Quantity;
-				detailCommand.Parameters["?SupplierCost"].Value = position.Cost;
-				detailCommand.Parameters["?RegistryCost"].Value = position.RegistryCost;
+				//detailCommand.Parameters["?Product"].Value = synonymName;
+				//detailCommand.Parameters["?Code"].Value = position.Code;
+				//detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
+				//detailCommand.Parameters["?Quantity"].Value = position.Quantity;
+				//detailCommand.Parameters["?SupplierCost"].Value = position.Cost;
+
+//				detailCommand.Parameters["?RegistryCost"].Value = position.RegistryCost;
+//				detailCommand.Parameters["?Period"].Value = position.Period;
 
 				if (documentType == DocumentType.Waybills)
 				{
+					/*
 
 					if (random.Next(3) == 1)
 					{
@@ -220,10 +221,11 @@ values
 								break;
 						}
 					}
+					 */ 
 				}
 
 				detailCommand.ExecuteNonQuery();
-			});
+			}
 		}
 
 		public static bool ParseWaybils(MySqlConnection connection, UpdateData updateData, uint clientId, ulong[] providerIds, string[] fileNames, string waybillArchive)

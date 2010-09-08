@@ -642,5 +642,112 @@ limit 1
 			return serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
 		}
 
+		[Test]
+		public void save_order()
+		{
+			string userName = oldUser.OSUserName;
+			uint orderedClientId = oldClient.Id;
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+
+				//updateData.EnableImpersonalPrice = true;
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseFirstOrder(orderHelper);
+
+				//With.Session(
+				//    s =>
+				//    {
+				//        var transaction = s.BeginTransaction();
+				//        try
+				//        {
+
+				//            foreach (var order in orderHelper._orders)
+				//            {
+				//                if ((order.SendResult == OrderSendResult.Success) && !order.FullDuplicated)
+				//                {
+				//                    s.Save(order.ChildOrder);
+				//                }
+				//            }
+
+				//            transaction.Rollback();
+
+				//            //foreach (var order in orderHelper._orders)
+				//            //{
+				//            //    if ((order.SendResult == OrderSendResult.Success) && !order.FullDuplicated)
+				//            //    {
+				//            //        s.Evict(order.ChildOrder);
+				//            //    }
+				//            //}
+
+				//            //transaction.Commit();
+				//        }
+				//        catch (Exception)
+				//        {
+				//            transaction.Rollback();
+				//            throw;
+				//        }
+				//    });
+
+				//With.Session(
+				//    s =>
+				//    {
+
+				//        var transaction = s.BeginTransaction();
+				//        try
+				//        {
+
+				//            foreach (var order in orderHelper._orders)
+				//            {
+				//                if ((order.SendResult == OrderSendResult.Success) && !order.FullDuplicated)
+				//                {
+				//                    order.ChildOrder.RowId = 0;
+				//                    foreach (var item in order.ChildOrder.OrderItems)
+				//                    {
+				//                        item.RowId = 0;
+				//                    } 
+				//                    //s.Evict(order.ChildOrder));
+				//                    s.Save(order.ChildOrder);
+				//                }
+				//            }
+
+				//            transaction.Commit();
+				//        }
+				//        catch (Exception)
+				//        {
+				//            transaction.Rollback();
+				//            throw;
+				//        }
+				//    });
+
+
+				//var result = orderHelper.PostSomeOrders();
+				//var firstServerOrderId = CheckServiceResponse(result);
+				//Assert.That(firstServerOrderId, Is.Not.Null);
+				//Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				//Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе");
+
+				//var secondresult = orderHelper.PostSomeOrders();
+
+				//var secondServerOrderId = CheckServiceResponse(secondresult);
+
+
+/*
+
+				var countWithSynonymNull = MySqlHelper
+					.ExecuteScalar(
+						connection,
+						"select count(*) from orders.OrdersList ol where ol.OrderId = ?OrderId and ol.SynonymCode is null and ol.SynonymFirmCrCode is null",
+						new MySqlParameter("?OrderId", firstServerOrderId));
+				Assert.That(countWithSynonymNull, Is.EqualTo(2), "Не совпадает кол-во позиций в заказе, у которых поля SynonymCode SynonymFirmCr в null");
+ */ 
+			}
+		}
+
 	}
 }

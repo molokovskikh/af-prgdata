@@ -1,26 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Common.Models;
+using NHibernate;
+using NHibernate.Mapping.Attributes;
 
 namespace PrgData.Common.Orders
 {
 	public enum OrderSendResult
 	{		
-		Unknown = -1,
 		Success = 0,
 		LessThanMinReq = 1,
 		NeedCorrect = 2
 	}
 
-	public class ClientOrderHeader
+	public class ClientOrderHeader //: Order
 	{
-		public ulong ClientOrderId { get; set; }
-		public ulong PriceCode { get; set; }
-		public ulong RegionCode { get; set; }
-		public DateTime PriceDate { get; set; }
-		public string ClientAddition { get; set; }
-		public ushort RowCount { get; set; }
-
 		public bool FullDuplicated { get; set; }
 
 		public OrderSendResult SendResult { get; set; }
@@ -33,18 +28,19 @@ namespace PrgData.Common.Orders
 
 		public uint? MinReq { get; set; }
 
-		public decimal? DelayOfPayment { get; set; }
+		public Order ChildOrder;
 
 		public ClientOrderHeader()
+			: base()
 		{
-			this.Positions = new List<ClientOrderPosition>();
+			ClearOnCreate();
 		}
 
 		public string GetResultToClient()
 		{
 			var result = String.Format(
 				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}",
-				ClientOrderId, 
+				ChildOrder.ClientOrderId, 
 				Convert.ToInt32(SendResult),
 				ServerOrderId,
 				ErrorReason,
@@ -62,25 +58,27 @@ namespace PrgData.Common.Orders
 			return result;
 		}
 
-		public void ClearBeforPost()
+		private void ClearOnCreate()
 		{
+			this.Positions = new List<ClientOrderPosition>();
 			SendResult = OrderSendResult.Success;
 			ServerOrderId = 0;
 			ErrorReason = null;
 			FullDuplicated = false;
-			Positions.ForEach((item) => {item.ClearBeforPost();});
-		}
-
-		public decimal GetSumOrder()
-		{ 
-			decimal result = 0;
-			Positions.ForEach((item) => { result += item.Quantity * item.Cost; });
-			return result;
 		}
 
 		public uint GetSavedRowCount()
 		{
 			return Convert.ToUInt32( Positions.Count((item) => { return !item.Duplicated; }));
+		}
+
+		public void PrepareBeforPost(ISession session)
+		{
+			if (SendResult == OrderSendResult.Success && !FullDuplicated)
+			{
+				ServerOrderId = 0;
+				Positions.ForEach(position => position.PrepareBeforPost(session));
+			}
 		}
 	}
 }

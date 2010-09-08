@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Common.Models;
+using NHibernate;
+using NHibernate.Mapping.Attributes;
 
 namespace PrgData.Common.Orders
 {
@@ -15,51 +18,26 @@ namespace PrgData.Common.Orders
 		DifferentCostAndQuantity = 3,
 	}
 
-	public class ClientOrderPosition
+	public class ClientOrderPosition //: OrderItem
 	{
 		public ulong ClientPositionID { get; set; }
 		public ulong ClientServerCoreID { get; set; }
-		public ulong ProductID { get; set; }
-		public ulong? CodeFirmCr { get; set; }
-		public ulong? SynonymCode { get; set; }
-		public ulong? SynonymFirmCrCode { get; set; }
-		public string Code { get; set; }
-		public string CodeCr { get; set; }
-		public bool Junk { get; set; }
-		public bool Await { get; set; }
-		public ushort? RequestRatio { get; set; }
-		public decimal? OrderCost { get; set; }
-		public ulong? MinOrderCount { get; set; }
-		public ushort Quantity { get; set; }
-		public decimal Cost { get; set; }
-		public decimal? MinCost { get; set; }
-		public ulong? MinPriceCode { get; set; }
-		public decimal? LeaderMinCost { get; set; }
-		public ulong? LeaderMinPriceCode { get; set; }
 
-		public decimal? SupplierPriceMarkup { get; set; }
-
-		public string CoreQuantity { get; set; }
-		public string Unit { get; set; }
-		public string Volume { get; set; }
-		public string Note { get; set; }
-		public string Period { get; set; }
-		public string Doc { get; set; }
-		public decimal? RegistryCost { get; set; }
-		public bool VitallyImportant { get; set; }
-
-		public decimal? RetailMarkup { get; set; }
-
-		public decimal? ProducerCost { get; set; }
-		public ushort? NDS { get; set; }
+		public OrderItem OrderPosition;
 
 		public PositionSendResult SendResult { get; set; }
 
-		public decimal ServerCost { get; set; }
+		public float ServerCost { get; set; }
 
 		public uint ServerQuantity { get; set; }
 
 		public bool Duplicated { get; set; }
+
+		public ClientOrderPosition()
+			: base()
+		{
+			ClearOnCreate();
+		}
 
 		public string GetResultToClient()
 		{
@@ -71,7 +49,7 @@ namespace PrgData.Common.Orders
 				ServerQuantity);
 		}
 
-		public void ClearBeforPost()
+		public void ClearOnCreate()
 		{
 			SendResult = PositionSendResult.Success;
 			ServerCost = 0;
@@ -89,13 +67,13 @@ and (Code = '{3}')
 and (CodeCr = '{4}')
 and (Junk = {5})
 and (Await = {6})",
-				  ProductID,
-				  SynonymCode.HasValue ? " = " + SynonymCode.ToString() : "is Null",
-				  SynonymFirmCrCode.HasValue ? " = " + SynonymFirmCrCode.ToString() : "is Null",
-				  Code,
-				  CodeCr,
-				  Junk ? "True" : "False",
-				  Await ? "True" : "False"
+				  OrderPosition.ProductId,
+				  OrderPosition.SynonymCode.HasValue ? " = " + OrderPosition.SynonymCode.ToString() : "is Null",
+				  OrderPosition.SynonymFirmCrCode.HasValue ? " = " + OrderPosition.SynonymFirmCrCode.ToString() : "is Null",
+				  OrderPosition.Code,
+				  OrderPosition.CodeCr,
+				  OrderPosition.Junk ? "True" : "False",
+				  OrderPosition.Await ? "True" : "False"
 				  );
 		}
 
@@ -106,10 +84,55 @@ and (Await = {6})",
 and (RequestRatio {0})
 and (OrderCost {1})
 and (MinOrderCount {2})",
-				  RequestRatio.HasValue ? " = " + RequestRatio.ToString() : "is Null",
-				  OrderCost.HasValue ? " = " + OrderCost.ToString() : "is Null",
-				  MinOrderCount.HasValue ? " = " + MinOrderCount.ToString() : "is Null"
+				  OrderPosition.RequestRatio.HasValue ? " = " + OrderPosition.RequestRatio.ToString() : "is Null",
+				  OrderPosition.OrderCost.HasValue ? " = " + OrderPosition.OrderCost.ToString() : "is Null",
+				  OrderPosition.MinOrderCount.HasValue ? " = " + OrderPosition.MinOrderCount.ToString() : "is Null"
 				  );
+		}
+
+		internal void PrepareBeforPost(ISession session)
+		{
+			if (!Duplicated)
+			{
+				var synonymCodeFromDb = session
+					.CreateSQLQuery(@"
+ SELECT 
+        syn.synonymcode
+ FROM   
+    farm.synonymarchive syn
+ WHERE  syn.synonymcode = :SynonymCode")
+					.SetParameter("SynonymCode", OrderPosition.SynonymCode)
+					.UniqueResult<uint?>();
+				OrderPosition.SynonymCode = synonymCodeFromDb;
+
+				var synonymFirmCrCodeFromDb = session
+					.CreateSQLQuery(@"
+ SELECT 
+        sfcr.SynonymFirmCrCode
+ FROM   
+    farm.synonymfirmcr sfcr
+ WHERE  sfcr.SynonymFirmCrCode = :SynonymFirmCrCode")
+					.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
+					.UniqueResult<uint?>();
+				OrderPosition.SynonymFirmCrCode = synonymFirmCrCodeFromDb;
+
+				var codeFirmCrFromDb = session
+					.CreateSQLQuery(@"
+ SELECT 
+        IF(Prod.Id IS NULL, sfcr.codefirmcr, Prod.Id) as CodeFirmCr
+ FROM   
+    catalogs.products
+	LEFT JOIN farm.synonymfirmcr sfcr
+	ON     sfcr.SynonymFirmCrCode = :SynonymFirmCrCode    
+	LEFT JOIN catalogs.Producers Prod
+	ON     Prod.Id = :CodeFirmCr
+ WHERE  products.ID = :ProductID")
+					.SetParameter("ProductID", OrderPosition.ProductId)
+					.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
+					.SetParameter("CodeFirmCr", OrderPosition.CodeFirmCr)
+					.UniqueResult<uint?>();
+				OrderPosition.CodeFirmCr = codeFirmCrFromDb;
+			}
 		}
 	}
 }
