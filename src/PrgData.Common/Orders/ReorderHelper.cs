@@ -64,26 +64,44 @@ namespace PrgData.Common.Orders
 
 		public string PostSomeOrders()
 		{
-			PrepareOrdersForImpersonalPrice();
+			global::Common.MySql.With.DeadlockWraper(
+				() =>
+				{
+					With.Session(
+						session =>
+						{
+							var transaction = session.BeginTransaction();
+							try
+							{
+								InternalSendOrders(session);
 
-			InternalSendOrders();
+								transaction.Commit();
+							}
+							catch
+							{
+								try
+								{
+									transaction.Rollback();
+								}
+								catch (Exception rollbackException)
+								{
+									ILog _logger = LogManager.GetLogger(this.GetType());
+									_logger.Error(
+										"Ошибка при rollback'е транзакции сохранения заказов",
+										rollbackException);
+								}
+								throw;
+							}
+						});
+				});
 
 			return GetOrdersResult();
 		}
 
-		private void PrepareOrdersForImpersonalPrice()
+		private void InternalSendOrders(ISession session)
 		{
-			if (_data.EnableImpersonalPrice)
-				_orders.ForEach(order =>
-					order.Order.OrderItems.ToList().ForEach(position =>
-					{
-						position.SynonymCode = null;
-						position.SynonymFirmCrCode = null;
-					}));
-		}
+			CreateOrders(session);
 
-		private void InternalSendOrders()
-		{
 			//делаем проверки минимального заказа
 			CheckOrdersByMinRequest();
 
@@ -95,78 +113,90 @@ namespace PrgData.Common.Orders
 				CheckWithExistsPrices();
 
 			if (!_useCorrectOrders || AllOrdersIsSuccess())
-				global::Common.MySql.With.DeadlockWraper(
-					() =>
-					{
-						With.Session(
-							s =>
-							{
-								var transaction = s.BeginTransaction();
-								try
-								{
-									//Сбрасываем ServerOrderId перед заказом только у заказов, 
-									//которые не являются полностью дублированными
-									_orders.ForEach(item => item.PrepareBeforPost(s));
+			{
+				//Сбрасываем ServerOrderId перед заказом только у заказов, 
+				//которые не являются полностью дублированными
+				//_orders.ForEach(item => item.PrepareBeforPost(session));
 
-									//сохраняем сами заявки в базу
-									SaveOrders(s);
+				//сохраняем сами заявки в базу
+				SaveOrders(session);
 
 #if DEBUG
-									//if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
-									//    GenerateDocsHelper.GenerateDocs(_readWriteConnection,
-									//                                    _data,
-									//                                    _orders.FindAll(
-									//                                        item =>
-									//                                        item.SendResult ==
-									//                                        OrderSendResult.Success));
+				//if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
+				//    GenerateDocsHelper.GenerateDocs(_readWriteConnection,
+				//                                    _data,
+				//                                    _orders.FindAll(
+				//                                        item =>
+				//                                        item.SendResult ==
+				//                                        OrderSendResult.Success));
 #endif
 
-									s.CreateSQLQuery(@"
+				session.CreateSQLQuery(@"
 insert into logs.AnalitFUpdates 
   (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost) 
 values 
   (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost);
 "
-										)
-										.SetParameter("UpdateType", (int)RequestType.SendOrders)
-										.SetParameter("UserId", _data.UserId)
-										.SetParameter("AppVersion", _data.BuildNumber)
-										.SetParameter("ClientHost", _data.ClientHost)
-										.ExecuteUpdate();
+					)
+					.SetParameter("UpdateType", (int)RequestType.SendOrders)
+					.SetParameter("UserId", _data.UserId)
+					.SetParameter("AppVersion", _data.BuildNumber)
+					.SetParameter("ClientHost", _data.ClientHost)
+					.ExecuteUpdate();
+			}
+		}
 
-									transaction.Commit();
-								}
-								catch
-								{
-									try
-									{
-										transaction.Rollback();
-									}
-									catch (Exception rollbackException)
-									{
-										ILog _logger = LogManager.GetLogger(this.GetType());
-										_logger.Error(
-											"Ошибка при rollback'е транзакции сохранения заказов",
-											rollbackException);
-									}
-									throw;
-								}
-							});
-					});
+		private void CreateOrders(ISession session)
+		{
+			_orders.ForEach(
+				clientOrder => 
+				{ 
+					clientOrder.ClearOnCreate();
+
+					Order order;
+					if (_client is IClient)
+						order = new Order(clientOrder.ActivePrice, (IClient)_client, _orderRule);
+					else
+						order = new Order(clientOrder.ActivePrice, (User)_client, _address, _orderRule);
+
+					order.ClientAddition = clientOrder.ClientAddition;
+					order.ClientOrderId = clientOrder.ClientOrderId;
+
+					clientOrder.Order = order;
+
+					clientOrder.Positions.ForEach(
+						position => 
+						{
+							var orderPosition = clientOrder.Order.AddOrderItem(position.Offer, position.OrderedQuantity);
+
+							orderPosition.CoreId = null;
+
+							orderPosition.RetailMarkup = position.RetailMarkup;
+							orderPosition.SupplierPriceMarkup = position.SupplierPriceMarkup;
+							orderPosition.OfferInfo.NDS = position.NDS;
+
+							if (position.LeaderInfo != null)
+								orderPosition.LeaderInfo = position.LeaderInfo.Clone();
+
+							if (_data.EnableImpersonalPrice)
+							{
+								//Если готовимся для обезличенного прайс-листа, то сбрасываем коды синонимов
+								orderPosition.SynonymCode = null;
+								orderPosition.SynonymFirmCrCode = null;
+							}
+
+							position.OrderPosition = orderPosition;
+
+							position.PrepareBeforPost(session);
+						});
+				});
 		}
 
 		private List<Offer> GetOffers(List<uint> productIds)
 		{
 			var offersRepository = IoC.Resolve<ISmartOfferRepository>();
-			IOrderable Orderable;
-			if (_data.IsFutureClient)
-			{
-				Orderable = IoC.Resolve<IRepository<User>>().Get(_data.UserId);
-			}
-			else
-				Orderable = IoC.Resolve<IRepository<Client>>().Get(_data.ClientId);
 
-			return offersRepository.GetByProductIds(Orderable, productIds).ToList();
+			return offersRepository.SimpleGetByProductIds(_client, productIds).ToList();
 		}
 
 		private List<uint> GetSearchedProductIds()
@@ -291,141 +321,8 @@ values
 				{
 					session.Save(order.Order);
 					order.ServerOrderId = order.Order.RowId;
-/*
-					order.ServerOrderId = SaveOrder(
-						_orderedClientCode,
-						Convert.ToUInt32(order.ActivePrice.Id.Price.PriceCode),
-						order.RegionCode,
-						order.PriceDate,
-						order.GetSavedRowCount(),
-						Convert.ToUInt32(order.ClientOrderId),
-						order.ClientAddition,
-						order.DelayOfPayment);
- */
-					//foreach (ClientOrderPosition position in order.OrderItems)
-					//    if (!position.Duplicated)
-					//    {
-					//        session.Save((OrderItem)position);
-					//        //SaveOrderDetail(order, position);
-					//    }
 				}
 			}
-		}
-
-		private void SaveOrderDetail(ClientOrderHeader order, ClientOrderPosition position)
-		{
-			var command = new MySqlCommand(@"
- INSERT
- INTO   orders.orderslist
-        (
-               OrderID          ,
-               ProductId        ,
-               CodeFirmCr       ,
-               SynonymCode      ,
-               SynonymFirmCrCode,
-               Code             ,
-               CodeCr           ,
-               Quantity         ,
-               Junk             ,
-               Await            ,
-               Cost             ,
-               RequestRatio     ,
-               MinOrderCount    ,
-               OrderCost        ,
-               SupplierPriceMarkup,
-               RetailMarkup
-        )
- SELECT ?OrderID                                      ,
-        products.ID                                   ,
-        IF(Prod.Id IS NULL, sfcr.codefirmcr, Prod.Id) ,
-        syn.synonymcode                               ,
-        sfcr.SynonymFirmCrCode                        ,
-        ?Code                                         ,
-        ?CodeCr                                       ,
-        ?Quantity                                     ,
-        ?Junk                                         ,
-        ?Await                                        ,
-        ?Cost                                         ,
-        ?RequestRatio                                 ,
-        ?MinOrderCount                                ,
-        ?OrderCost                                    ,
-        ?SupplierPriceMarkup                          ,
-        ?RetailMarkup
- FROM   catalogs.products
-        LEFT JOIN farm.synonymarchive syn
-        ON     syn.synonymcode=?SynonymCode
-        LEFT JOIN farm.synonymfirmcr sfcr
-        ON     sfcr.SynonymFirmCrCode=?SynonymFirmCrCode
-        LEFT JOIN catalogs.Producers Prod
-        ON     Prod.Id=?CodeFirmCr
- WHERE  products.ID   =?ProductID;"
-				, 
-				_readWriteConnection);
-
-			command.Parameters.Clear();
-			//
-			command.CommandText += "set @LastOrderDetailId = last_insert_id();";
-
-//            if (_calculateLeaders
-//                && (position.MinCost.HasValue || position.LeaderMinCost.HasValue)
-//                && (position.MinPriceCode.HasValue || position.LeaderMinPriceCode.HasValue))
-//            {
-//                command.CommandText += @"
-//insert into orders.leaders 
-//values (@LastOrderDetailId, nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?MinPriceCode, 0), nullif(?LeaderMinPriceCode, 0));";
-//                command.Parameters.AddWithValue("?MinCost", position.MinCost);
-//                command.Parameters.AddWithValue("?LeaderMinCost", position.LeaderMinCost);
-//                command.Parameters.AddWithValue("?MinPriceCode", position.MinPriceCode);
-//                command.Parameters.AddWithValue("?LeaderMinPriceCode", position.LeaderMinPriceCode);
-//            }
-
-			command.CommandText += @"
-insert into orders.OrderedOffers
-(Id, Unit, Volume, Note, Period, Doc, VitallyImportant, RegistryCost, Quantity, ProducerCost, NDS) 
-values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImportant, ?RegistryCost, ?CoreQuantity, ?ProducerCost, ?NDS);";
-
-			command.Parameters.AddWithValue("?OrderId", order.ServerOrderId);
-
-			//command.Parameters.AddWithValue("?ProductId", position.ProductId);
-			//command.Parameters.AddWithValue("?CodeFirmCr", position.CodeFirmCr);
-			//command.Parameters.AddWithValue("?SynonymCode", position.SynonymCode);
-			//command.Parameters.AddWithValue("?SynonymFirmCrCode", position.SynonymFirmCrCode);
-			//command.Parameters.AddWithValue("?Code", position.Code);
-			//command.Parameters.AddWithValue("?CodeCr", position.CodeCr);
-			//command.Parameters.AddWithValue("?Quantity", position.Quantity);
-			//command.Parameters.AddWithValue("?Junk", position.Junk);
-			//command.Parameters.AddWithValue("?Await", position.Await);
-			//command.Parameters.AddWithValue("?Cost", position.Cost);
-
-			//command.Parameters.AddWithValue("?RequestRatio", position.RequestRatio);
-			//command.Parameters.AddWithValue("?MinOrderCount", position.MinOrderCount);
-			//command.Parameters.AddWithValue("?OrderCost", position.OrderCost);
-
-//			command.Parameters.AddWithValue("?SupplierPriceMarkup", position.SupplierPriceMarkup);
-
-/*
-			command.Parameters.AddWithValue("?Unit", position.Unit);
-			command.Parameters.AddWithValue("?Volume", position.Volume);
-			command.Parameters.AddWithValue("?Note", position.Note);
-			command.Parameters.AddWithValue("?Period", position.Period);
- */ 
-
-/*
-			command.Parameters.AddWithValue("?Doc", position.Doc);
-			command.Parameters.AddWithValue("?VitallyImportant", position.VitallyImportant);
-			command.Parameters.AddWithValue("?RegistryCost", position.RegistryCost);
- */
- 
-			//command.Parameters.AddWithValue("?CoreQuantity", position.CoreQuantity);
-
-/*
-			command.Parameters.AddWithValue("?RetailMarkup", position.RetailMarkup);
-
-			command.Parameters.AddWithValue("?ProducerCost", position.ProducerCost);
-			command.Parameters.AddWithValue("?NDS", position.NDS);
- */ 
-
-			command.ExecuteNonQuery();
 		}
 
 		private void CheckOrdersByMinRequest()
@@ -446,7 +343,7 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 
 		private bool AllOrdersIsSuccess()
 		{
-			return _orders.All((item) => { return (item.SendResult == OrderSendResult.Success); });
+			return _orders.All(item => item.SendResult == OrderSendResult.Success);
 		}
 
 		private string GetOrdersResult()
@@ -601,37 +498,14 @@ AND    RCS.clientcode          = ?ClientCode"
 									System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
 					};
 
-					Order order;
-					if (_client is IClient)
-						order = new Order(activePrice, (IClient)_client, _orderRule);
-					else
-						order = new Order(activePrice, (User)_client, _address, _orderRule);
-
-					order.ClientAddition = DecodedDelphiString(clientAddition[i]);
-					order.ClientOrderId = Convert.ToUInt32(clientOrderId[i]);
 					var clientOrder = 
 						new ClientOrderHeader
 						{
-							Order = order
+							ActivePrice = activePrice,
+							ClientAddition = DecodedDelphiString(clientAddition[i]),
+							ClientOrderId = Convert.ToUInt32(clientOrderId[i]),
 						};
 
-/*
-					var clientOrder = new ClientOrderHeader(activePrice, )
-					{
-						//ClientOrderId = clientOrderId[i],
-						//PriceCode = priceCode[i],
-						//RegionCode = regionCode[i],
-						//PriceDate = priceDate[i],
-						//ClientAddition = DecodedDelphiString(clientAddition[i]),
-						//RowCount = rowCount[i],
-						DelayOfPayment =
-							String.IsNullOrEmpty(delayOfPayment[i]) ? null : (decimal?)decimal
-								.Parse(
-									delayOfPayment[i],
-									System.Globalization.NumberStyles.Currency,
-									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
-					};
- */
 					var currentRowCount = rowCount[i];
 					_orders.Add(clientOrder);
 
@@ -686,31 +560,10 @@ AND    RCS.clientcode          = ?ClientCode"
 										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 						};
 
-						var orderPosition = order.AddOrderItem(offer, quantity[detailIndex]);
-
-						orderPosition.CoreId = null;
-						orderPosition.RetailMarkup =
-							String.IsNullOrEmpty(retailMarkup[detailIndex])
-								? null
-								: (float?) float
-								             	.Parse(
-								             		retailMarkup[detailIndex],
-								             		System.Globalization.NumberStyles.Currency,
-								             		System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
-						orderPosition.SupplierPriceMarkup =
-								String.IsNullOrEmpty(supplierPriceMarkup[detailIndex]) 
-								? null 
-								: (float?)float
-									.Parse(
-										supplierPriceMarkup[detailIndex],
-										System.Globalization.NumberStyles.Currency,
-										System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
-						orderPosition.OfferInfo.NDS = 
-							String.IsNullOrEmpty(nds[detailIndex]) ? null : (ushort?)ushort.Parse(nds[detailIndex]);
-
+						OrderItemLeadersInfo leaderInfo = null;
 						if (_orderRule.CalculateLeader)
 						{
-							var leaderInfo =
+							leaderInfo =
 								new OrderItemLeadersInfo 
 								{
 									MinCost =
@@ -731,24 +584,38 @@ AND    RCS.clientcode          = ?ClientCode"
 										String.IsNullOrEmpty(leaderMinPriceCode[detailIndex]) ? null : (uint?)uint.Parse(leaderMinPriceCode[detailIndex]),
 								};
 
-							if (	(leaderInfo.MinCost.HasValue || leaderInfo.LeaderMinCost.HasValue)
-								&&  (leaderInfo.PriceCode.HasValue || leaderInfo.LeaderPriceCode.HasValue))
-							{
-								leaderInfo.OrderItem = orderPosition;
-								var l = leaderInfo.Clone();
-								orderPosition.LeaderInfo = leaderInfo;
-							}
+							if ((!leaderInfo.MinCost.HasValue && !leaderInfo.LeaderMinCost.HasValue) ||
+							    (!leaderInfo.PriceCode.HasValue && !leaderInfo.LeaderPriceCode.HasValue))
+								leaderInfo = null;
 						}
 
-						var p = orderPosition.Clone();
-
-						var position = 
-							new ClientOrderPosition 
-							{
-								ClientPositionID = clientPositionID[detailIndex],
-								ClientServerCoreID = clientServerCoreID[detailIndex],
-								OrderPosition = orderPosition
-							};
+						var position =
+							new ClientOrderPosition
+								{
+									ClientPositionID = clientPositionID[detailIndex],
+									ClientServerCoreID = clientServerCoreID[detailIndex],
+									OrderedQuantity = quantity[detailIndex],
+									Offer = offer,
+									LeaderInfo = leaderInfo,
+									RetailMarkup =
+										String.IsNullOrEmpty(retailMarkup[detailIndex])
+											? null
+											: (float?)float
+															.Parse(
+																retailMarkup[detailIndex],
+																System.Globalization.NumberStyles.Currency,
+																System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+									SupplierPriceMarkup =
+										String.IsNullOrEmpty(supplierPriceMarkup[detailIndex])
+										? null
+										: (float?)float
+											.Parse(
+												supplierPriceMarkup[detailIndex],
+												System.Globalization.NumberStyles.Currency,
+												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+									NDS =
+										String.IsNullOrEmpty(nds[detailIndex]) ? null : (ushort?)ushort.Parse(nds[detailIndex]),
+								};
 
 						clientOrder.Positions.Add(position);
 					}

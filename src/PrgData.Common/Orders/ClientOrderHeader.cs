@@ -14,7 +14,7 @@ namespace PrgData.Common.Orders
 		NeedCorrect = 2
 	}
 
-	public class ClientOrderHeader //: Order
+	public class ClientOrderHeader
 	{
 		public bool FullDuplicated { get; set; }
 
@@ -28,11 +28,18 @@ namespace PrgData.Common.Orders
 
 		public uint? MinReq { get; set; }
 
-		public Order Order;
+
+		public Order Order { get; set; }
+
+		public ActivePrice ActivePrice { get; set; }
+
+		public string ClientAddition { get; set; }
+
+		public uint? ClientOrderId { get; set; }
 
 		public ClientOrderHeader()
-			: base()
 		{
+			Positions = new List<ClientOrderPosition>();
 			ClearOnCreate();
 		}
 
@@ -58,27 +65,19 @@ namespace PrgData.Common.Orders
 			return result;
 		}
 
-		private void ClearOnCreate()
+		public void ClearOnCreate()
 		{
-			this.Positions = new List<ClientOrderPosition>();
 			SendResult = OrderSendResult.Success;
 			ServerOrderId = 0;
 			ErrorReason = null;
 			FullDuplicated = false;
+			Order = null;
+			Positions.ForEach(item => item.ClearOnCreate());
 		}
 
 		public uint GetSavedRowCount()
 		{
 			return Convert.ToUInt32( Positions.Count((item) => { return !item.Duplicated; }));
-		}
-
-		public void PrepareBeforPost(ISession session)
-		{
-			if (SendResult == OrderSendResult.Success && !FullDuplicated)
-			{
-				ServerOrderId = 0;
-				Positions.ForEach(position => position.PrepareBeforPost(session));
-			}
 		}
 	}
 }

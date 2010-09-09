@@ -18,23 +18,26 @@ namespace PrgData.Common.Orders
 		DifferentCostAndQuantity = 3,
 	}
 
-	public class ClientOrderPosition //: OrderItem
+	public class ClientOrderPosition
 	{
 		public ulong ClientPositionID { get; set; }
 		public ulong ClientServerCoreID { get; set; }
 
-		public OrderItem OrderPosition;
+		public OrderItem OrderPosition { get; set; }
+		public Offer Offer { get; set; }
+		public OrderItemLeadersInfo LeaderInfo { get; set; }
 
 		public PositionSendResult SendResult { get; set; }
-
 		public float ServerCost { get; set; }
-
 		public uint ServerQuantity { get; set; }
-
 		public bool Duplicated { get; set; }
 
+		public uint OrderedQuantity { get; set; }
+		public float? SupplierPriceMarkup { get; set; }
+		public float? RetailMarkup { get; set; }
+		public ushort? NDS { get; set; }
+
 		public ClientOrderPosition()
-			: base()
 		{
 			ClearOnCreate();
 		}
@@ -55,6 +58,7 @@ namespace PrgData.Common.Orders
 			ServerCost = 0;
 			ServerQuantity = 0;
 			Duplicated = false;
+			OrderPosition = null;
 		}
 
 		public string GetFilterForDuplicatedOrder()
@@ -94,30 +98,41 @@ and (MinOrderCount {2})",
 		{
 			if (!Duplicated)
 			{
-				var synonymCodeFromDb = session
-					.CreateSQLQuery(@"
+				if (OrderPosition.SynonymCode.HasValue)
+				{
+					var synonymCodeFromDb = session
+						.CreateSQLQuery(
+							@"
  SELECT 
         syn.synonymcode
  FROM   
     farm.synonymarchive syn
  WHERE  syn.synonymcode = :SynonymCode")
-					.SetParameter("SynonymCode", OrderPosition.SynonymCode)
-					.UniqueResult<uint?>();
-				OrderPosition.SynonymCode = synonymCodeFromDb;
+						.SetParameter("SynonymCode", OrderPosition.SynonymCode)
+						.UniqueResult<uint?>();
+					OrderPosition.SynonymCode = synonymCodeFromDb;
+				}
 
-				var synonymFirmCrCodeFromDb = session
-					.CreateSQLQuery(@"
+				if (OrderPosition.SynonymFirmCrCode.HasValue)
+				{
+					var synonymFirmCrCodeFromDb = session
+						.CreateSQLQuery(
+							@"
  SELECT 
         sfcr.SynonymFirmCrCode
  FROM   
     farm.synonymfirmcr sfcr
  WHERE  sfcr.SynonymFirmCrCode = :SynonymFirmCrCode")
-					.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
-					.UniqueResult<uint?>();
-				OrderPosition.SynonymFirmCrCode = synonymFirmCrCodeFromDb;
+						.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
+						.UniqueResult<uint?>();
+					OrderPosition.SynonymFirmCrCode = synonymFirmCrCodeFromDb;
+				}
 
-				var codeFirmCrFromDb = session
-					.CreateSQLQuery(@"
+				if (OrderPosition.CodeFirmCr.HasValue)
+				{
+					var codeFirmCrFromDb = session
+						.CreateSQLQuery(
+							@"
  SELECT 
         IF(Prod.Id IS NULL, sfcr.codefirmcr, Prod.Id) as CodeFirmCr
  FROM   
@@ -127,11 +142,12 @@ and (MinOrderCount {2})",
 	LEFT JOIN catalogs.Producers Prod
 	ON     Prod.Id = :CodeFirmCr
  WHERE  products.ID = :ProductID")
-					.SetParameter("ProductID", OrderPosition.ProductId)
-					.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
-					.SetParameter("CodeFirmCr", OrderPosition.CodeFirmCr)
-					.UniqueResult<uint?>();
-				OrderPosition.CodeFirmCr = codeFirmCrFromDb;
+						.SetParameter("ProductID", OrderPosition.ProductId)
+						.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
+						.SetParameter("CodeFirmCr", OrderPosition.CodeFirmCr)
+						.UniqueResult<uint?>();
+					OrderPosition.CodeFirmCr = codeFirmCrFromDb;
+				}
 			}
 		}
 	}
