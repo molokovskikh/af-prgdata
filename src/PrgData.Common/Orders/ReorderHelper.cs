@@ -14,6 +14,7 @@ using Common.Models.Repositories;
 using SmartOrderFactory.Repositories;
 using NHibernate;
 using With = Common.Models.With;
+using Common.Tools;
 
 namespace PrgData.Common.Orders
 {
@@ -74,7 +75,7 @@ namespace PrgData.Common.Orders
 		{
 			if (_data.EnableImpersonalPrice)
 				_orders.ForEach(order =>
-					order.ChildOrder.OrderItems.ToList().ForEach(position =>
+					order.Order.OrderItems.ToList().ForEach(position =>
 					{
 						position.SynonymCode = null;
 						position.SynonymFirmCrCode = null;
@@ -246,8 +247,8 @@ values
 		{
 			var clientServerCoreIdOffers = offers.FindAll(item => { 
 				return
-					order.ChildOrder.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
-					order.ChildOrder.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
+					order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
+					order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
 					item.Id.ToString().EndsWith(position.ClientServerCoreID.ToString()); });
 
 			if (clientServerCoreIdOffers.Count == 1)
@@ -260,8 +261,8 @@ values
 						{
 							var newOrder = position.OrderPosition;
 							return
-								order.ChildOrder.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
-								order.ChildOrder.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
+								order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
+								order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
 								item.ProductId == newOrder.ProductId &&
 								item.SynonymCode == newOrder.SynonymCode &&
 								item.SynonymFirmCrCode == newOrder.SynonymFirmCrCode &&
@@ -288,8 +289,8 @@ values
 			{
 				if ((order.SendResult == OrderSendResult.Success) && !order.FullDuplicated)
 				{
-					session.Save(order.ChildOrder);
-					order.ServerOrderId = order.ChildOrder.RowId;
+					session.Save(order.Order);
+					order.ServerOrderId = order.Order.RowId;
 /*
 					order.ServerOrderId = SaveOrder(
 						_orderedClientCode,
@@ -431,10 +432,10 @@ values (@LastOrderDetailId, ?Unit, ?Volume, ?Note, ?Period, ?Doc, ?VitallyImport
 		{
 			foreach (var order in _orders)
 			{
-				var minReq = GetMinReq(_orderedClientCode, order.ChildOrder.RegionCode, order.ChildOrder.ActivePrice.Id.Price.PriceCode);
+				var minReq = GetMinReq(_orderedClientCode, order.Order.RegionCode, order.Order.ActivePrice.Id.Price.PriceCode);
 				order.SendResult = OrderSendResult.Success;
 				if ((minReq != null) && minReq.ControlMinReq && (minReq.MinReq > 0))
-					if (order.ChildOrder.CalculateSum() < minReq.MinReq)
+					if (order.Order.CalculateSum() < minReq.MinReq)
 					{
 						order.SendResult = OrderSendResult.LessThanMinReq;
 						order.MinReq = minReq.MinReq;
@@ -611,7 +612,7 @@ AND    RCS.clientcode          = ?ClientCode"
 					var clientOrder = 
 						new ClientOrderHeader
 						{
-							ChildOrder = order
+							Order = order
 						};
 
 /*
@@ -734,9 +735,12 @@ AND    RCS.clientcode          = ?ClientCode"
 								&&  (leaderInfo.PriceCode.HasValue || leaderInfo.LeaderPriceCode.HasValue))
 							{
 								leaderInfo.OrderItem = orderPosition;
+								var l = leaderInfo.Clone();
 								orderPosition.LeaderInfo = leaderInfo;
 							}
 						}
+
+						var p = orderPosition.Clone();
 
 						var position = 
 							new ClientOrderPosition 
@@ -833,7 +837,7 @@ limit 1
 where
   ol.OrderId = DuplicateOrderId.OrderId
 ", _readWriteConnection);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ChildOrder.ClientOrderId);
+					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.Order.ClientOrderId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _data.ClientId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?AddressId", _orderedClientCode);
@@ -862,7 +866,7 @@ limit 1
 where
   ol.OrderId = DuplicateOrderId.OrderId
 ", _readWriteConnection);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.ChildOrder.ClientOrderId);
+					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.Order.ClientOrderId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
 				}
@@ -884,11 +888,11 @@ where
 						if (position.OrderPosition.Quantity <= serverQuantity)
 						{
 							position.Duplicated = true;
-							order.ChildOrder.RemoveItem(position.OrderPosition);
+							order.Order.RemoveItem(position.OrderPosition);
 							_logger.InfoFormat(
 								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
 								+ "удалена дублирующаяся строка с заказом №{3}, строка №{4}",
-								order.ChildOrder.ClientOrderId,
+								order.Order.ClientOrderId,
 								_orderedClientCode,
 								_data.UserId,
 								existsOrderList[0]["OrderId"],
@@ -900,7 +904,7 @@ where
 							_logger.InfoFormat(
 								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
 								+ "изменено количество товара в связи с дублированием с заказом №{3}, строка №{4}",
-								order.ChildOrder.ClientOrderId,
+								order.Order.ClientOrderId,
 								_orderedClientCode,
 								_data.UserId,
 								existsOrderList[0]["OrderId"],
@@ -916,7 +920,7 @@ where
 							stringBuilder.AppendFormat(
 								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2}"
 								+ "поиск вернул несколько позиций: {3}\r\n",
-								order.ChildOrder.ClientOrderId,
+								order.Order.ClientOrderId,
 								_orderedClientCode,
 								_data.UserId,
 								existsOrderList.Length);

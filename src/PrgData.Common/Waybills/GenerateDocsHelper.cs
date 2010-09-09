@@ -44,7 +44,7 @@ namespace PrgData.Common.Orders
 			{
 				headerCommand.CommandText = "select FirmCode from usersettings.pricesdata pd where pd.PriceCode = ?PriceCode";
 
-				headerCommand.Parameters["?PriceCode"].Value = item.ChildOrder.ActivePrice.Id.Price.PriceCode;
+				headerCommand.Parameters["?PriceCode"].Value = item.Order.ActivePrice.Id.Price.PriceCode;
 				var firmCode = Convert.ToUInt64(headerCommand.ExecuteScalar());
 
 				headerCommand.CommandText = "select cd.ShortName from usersettings.pricesdata pd, usersettings.clientsdata cd where pd.PriceCode = ?PriceCode and cd.FirmCode = pd.FirmCode";

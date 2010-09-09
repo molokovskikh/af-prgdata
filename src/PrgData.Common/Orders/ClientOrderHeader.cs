@@ -28,7 +28,7 @@ namespace PrgData.Common.Orders
 
 		public uint? MinReq { get; set; }
 
-		public Order ChildOrder;
+		public Order Order;
 
 		public ClientOrderHeader()
 			: base()
@@ -40,7 +40,7 @@ namespace PrgData.Common.Orders
 		{
 			var result = String.Format(
 				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}",
-				ChildOrder.ClientOrderId, 
+				Order.ClientOrderId, 
 				Convert.ToInt32(SendResult),
 				ServerOrderId,
 				ErrorReason,
