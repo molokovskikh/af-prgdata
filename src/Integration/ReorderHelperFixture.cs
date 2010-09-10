@@ -349,7 +349,7 @@ limit 1
 					new string[] { activePrice["PriceCode"].ToString() },  //leaderMinPriceCode
 					new string[] { "" },  //supplierPriceMarkup
 					new string[] { "" }, //delayOfPayment,
-					new string[] { "" }, //coreQuantity,
+					new string[] { firstOffer["Quantity"].ToString() }, //coreQuantity,
 					new string[] { "" }, //unit,
 					new string[] { "" }, //volume,
 					new string[] { "" }, //note,
