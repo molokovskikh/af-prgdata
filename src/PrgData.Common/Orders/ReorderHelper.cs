@@ -161,6 +161,7 @@ values
 
 					order.ClientAddition = clientOrder.ClientAddition;
 					order.ClientOrderId = clientOrder.ClientOrderId;
+					order.CalculateLeader = false;
 
 					clientOrder.Order = order;
 
