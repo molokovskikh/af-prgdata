@@ -176,7 +176,10 @@ values
 							orderPosition.OfferInfo.NDS = position.NDS;
 
 							if (position.LeaderInfo != null)
+							{
 								orderPosition.LeaderInfo = position.LeaderInfo.Clone();
+								orderPosition.LeaderInfo.OrderItem = orderPosition;
+							}
 
 							if (_data.EnableImpersonalPrice)
 							{

@@ -343,10 +343,10 @@ limit 1
 					new string[] { firstOffer["MinOrderCount"].ToString() },
 					new ushort[] { 1 }, //Quantity
 					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
-					new string[] { "" },  //minCost
-					new string[] { "" },  //MinPriceCode
-					new string[] { "" },  //leaderMinCost
-					new string[] { "" },  //leaderMinPriceCode
+					new string[] { firstOffer["Cost"].ToString() },  //minCost
+					new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
+					new string[] { firstOffer["Cost"].ToString() },  //leaderMinCost
+					new string[] { activePrice["PriceCode"].ToString() },  //leaderMinPriceCode
 					new string[] { "" },  //supplierPriceMarkup
 					new string[] { "" }, //delayOfPayment,
 					new string[] { "" }, //coreQuantity,
@@ -640,6 +640,61 @@ limit 1
 			Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
 
 			return serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+		}
+
+		public void Check_simple_order_with_leaders(string userName, uint orderedClientId)
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.RetClientsSet set CalculateLeader = 1 where ClientCode = ?ClientCode",
+					new MySqlParameter("?ClientCode", updateData.ClientId));
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseSimpleOrder(orderHelper);
+
+				var result = orderHelper.PostSomeOrders();
+
+				var firstServerOrderId = CheckServiceResponse(result);
+
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+
+				var leaderInfoCount = 
+					Convert.ToInt32(MySqlHelper
+						.ExecuteScalar(
+							connection,
+							@"
+select 
+  count(*) 
+from 
+  orders.orderslist 
+  inner join orders.leaders on leaders.OrderListId = orderslist.RowId
+where 
+  orderslist.OrderId = ?OrderId",
+							new MySqlParameter("?OrderId", firstServerOrderId)));
+				Assert.That(leaderInfoCount, Is.EqualTo(1), "Не совпадает кол-во позиций в информации о лидерах в заказе");
+			}
+		}
+
+		[Test(Description = "Проверяем создание информации о лидерах в заказе для старых клиентов")]
+		public void Check_simple_order_with_leaders_for_old_client()
+		{
+			Check_simple_order_with_leaders(oldUser.OSUserName, oldClient.Id);
+		}
+
+		[Test(Description = "Проверяем создание информации о лидерах в заказе для клиентов из новой реальности")]
+		public void Check_simple_order_with_leaders_for_future_client()
+		{
+			Check_simple_order_with_leaders(user.Login, address.Id);
 		}
 
 		[Test]
