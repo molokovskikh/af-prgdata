@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Configuration;
+using System.Threading;
 using PrgData.Common;
 using log4net;
 using log4net.Config;
@@ -40,6 +42,16 @@ namespace PrgData.Common.Counters
 		public bool IsWaitToLong()
 		{
 			return DateTime.Now.Subtract(_StartTime).TotalMinutes > 30;
+		}
+
+		public override string ToString()
+		{
+			return String.Format(
+				"ClientStatus  Id = {0}  UserId = {1}  MethodName = {2}  StartTime = {3}",
+				Id,
+				_UserId,
+				_MethodName,
+				_StartTime);
 		}
 
 	}
@@ -94,6 +106,16 @@ namespace PrgData.Common.Counters
 			}
 
 			Save(new ClientStatus(UserId, Method, DateTime.Now));
+
+#if (!DEBUG)
+			var locks = FindAllFromLocks();
+			if (locks.Count > 0)
+				MailHelper.Mail(
+					"Список локов:" 
+						+ Environment.NewLine
+						+ String.Join(Environment.NewLine, locks.ToList().ConvertAll(item => item.ToString()).ToArray()), 
+					"Сервис: создан lock в базе данных sql2.analit.net");
+#endif
 			return true;
 		}
 
@@ -170,6 +192,11 @@ namespace PrgData.Common.Counters
 		private static IList<ClientStatus> FindAll()
 		{
 			return Utils.Request("select * from Logs.PrgDataLogs");
+		}
+
+		private static IList<ClientStatus> FindAllFromLocks()
+		{
+			return Utils.RequestFromLocks("select * from Logs.PrgDataLogs", null);
 		}
 
 		private static void Save(ClientStatus Status)
