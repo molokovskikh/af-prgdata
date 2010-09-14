@@ -1,12 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.IO;
 using System.Linq;
-using System.Text;
+using Castle.MicroKernel.Registration;
+using Common.Models;
+using Common.Models.Tests.Repositories;
+using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
 using System.Data;
-using System.Net;
+using PrgData.Common;
+using SmartOrderFactory.Domain;
+using SmartOrderFactory.Repositories;
 
 
 namespace Integration
@@ -14,8 +21,24 @@ namespace Integration
 	[TestFixture]
 	public class PostSomeOrdersFixture
 	{
+		[Test]
 		public void Send_orders_without_SupplierPriceMarkup()		
 		{
+			Test.Support.Setup.Initialize();
+			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
+			IoC.Container.Register(
+				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
+				);
+
+			ServiceContext.GetUserHost = () => "127.0.0.1";
+			ServiceContext.GetUserName = () => "sergei";
+			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
+			if (Directory.Exists("FtpRoot"))
+				FileHelper.DeleteDir("FtpRoot");
+			Directory.CreateDirectory("FtpRoot");
+			CreateFolders("1349");
+
+
 			using(var connection = new MySqlConnection(PrgData.Common.Settings.ConnectionString()))
 			{
 				connection.Open();
@@ -48,9 +71,8 @@ limit 10";
 				var position = positions.Rows[0];
 
 				string serverResponse;
-				using (var prgData = new localhost.PrgDataEx())
+				using (var prgData = new PrgDataEx())
 				{
-					prgData.Credentials = new NetworkCredential("sergei", "Srt38123");
 					serverResponse = prgData.PostSomeOrders(
 						UniqueId,
 						true,
@@ -115,5 +137,16 @@ limit 10";
 				}
 			}
 		}
+
+		private void CreateFolders(string folderName)
+		{
+			var fullName = Path.Combine("FtpRoot", folderName, "Waybills");
+			Directory.CreateDirectory(fullName);
+			fullName = Path.Combine("FtpRoot", folderName, "Rejects");
+			Directory.CreateDirectory(fullName);
+			fullName = Path.Combine("FtpRoot", folderName, "Docs");
+			Directory.CreateDirectory(fullName);
+		}
+
 	}
 }

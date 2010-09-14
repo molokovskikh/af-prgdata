@@ -22,15 +22,5 @@ namespace Integration.Properties {
                 return defaultInstance;
             }
         }
-        
-        [global::System.Configuration.ApplicationScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.SpecialSettingAttribute(global::System.Configuration.SpecialSetting.WebServiceUrl)]
-        [global::System.Configuration.DefaultSettingValueAttribute("http://localhost/PrgData/code.asmx")]
-        public string Integration_localhost_PrgDataEx {
-            get {
-                return ((string)(this["Integration_localhost_PrgDataEx"]));
-            }
-        }
     }
 }
