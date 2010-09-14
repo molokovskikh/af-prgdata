@@ -61,6 +61,9 @@ namespace PrgData.Common.Counters
 
 		private static readonly int MaxSessionCount = Convert.ToInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
 		private static readonly ILog Log = LogManager.GetLogger(typeof(Counter));
+		private static readonly string[] requestMethods = new string[] { "GetUserData", "PostOrderBatch" };
+		private static readonly string[] updateMethods = new string[] { "GetUserData", "MaxSynonymCode", "CommitExchange", "PostOrderBatch", "FileHandler" };
+		private static readonly string[] historyMethods = new string[] { "GetHistoryOrders", "HistoryFileHandler" };
 
 		public static ClientStatus[] GetClients()
 		{
@@ -75,7 +78,7 @@ namespace PrgData.Common.Counters
 		public static bool TryLock(uint UserId, string Method)
 		{
 
-			if (Method == "GetUserData")
+			if (IsRequestMethods(Method))
 			{
 				if (TotalUpdatingClientCount() > MaxSessionCount)
 				{
@@ -86,7 +89,7 @@ namespace PrgData.Common.Counters
 				}
 			}
 
-			if (!(Method == "ReclameFileHandler" || Method == "FileHandler"))
+			if (!(Method == "ReclameFileHandler"))
 			{
 				var ClientItems = FindLocks(UserId, Method);
 				if (!CanLock(ClientItems.ToList()))
@@ -94,9 +97,10 @@ namespace PrgData.Common.Counters
 					var messageHeader = "Обновление данных в настоящее время невозможно.";
 
 					if (Method == "PostOrder")
-					{
 						messageHeader = "Отправка заказов в настоящее время невозможна.";
-					}
+					else
+						if (IsHistoryMethods(Method))
+							messageHeader = "Загрузка истории заказов в настоящее время невозможна.";
 
 					throw new UpdateException(messageHeader,
 					 "Пожалуйста, повторите попытку через несколько минут.[6]",
@@ -169,24 +173,36 @@ namespace PrgData.Common.Counters
 
 		public static int TotalUpdatingClientCount()
 		{
-			return Utils.RequestScalar<int>("select count(*) from Logs.PrgDataLogs where MethodName = 'GetUserData'");
+			return Utils.RequestScalar<int>("select count(*) from Logs.PrgDataLogs where MethodName in (" + GetRequestMethods() + ")");
 		}
 
 
 		private static IList<ClientStatus> FindLocks(uint UserId, string Method)
 		{
-			if (Method == "GetUserData")
+			if (IsUpdateMethods(Method))
 				return FindUpdateLocks(UserId);
+			if (IsHistoryMethods(Method))
+				return FindHistoryLocks(UserId);
 			return Utils.Request(
 			"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method",
 				new { UserId = UserId, Method = Method });
 		}
 
-		private static IList<ClientStatus> FindUpdateLocks(uint UserId)
+		private static IList<ClientStatus> FindMultiplyLocks(uint UserId, string methods)
 		{
 			return Utils.Request(
-		"select * from Logs.PrgDataLogs where UserId = ?UserId and (MethodName = 'MaxSynonymCode' or MethodName = 'GetUserData')",
+		"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName in (" + methods + ")",
 			 new { UserId = UserId });
+		}
+
+		private static IList<ClientStatus> FindUpdateLocks(uint UserId)
+		{
+			return FindMultiplyLocks(UserId, GetUpdateMethods());
+		}
+
+		private static IList<ClientStatus> FindHistoryLocks(uint UserId)
+		{
+			return FindMultiplyLocks(UserId, GetHistoryMethods());
 		}
 
 		private static IList<ClientStatus> FindAll()
@@ -206,6 +222,40 @@ namespace PrgData.Common.Counters
 		new { UserId = Status._UserId, MethodName = Status._MethodName, StartTime = Status._StartTime });
 		}
 
+		private static bool IsRequestMethods(string method)
+		{
+			return requestMethods.Any(item => item.Equals(method, StringComparison.OrdinalIgnoreCase));
+		}
+
+		private static bool IsUpdateMethods(string method)
+		{
+			return updateMethods.Any(item => item.Equals(method, StringComparison.OrdinalIgnoreCase));
+		}
+
+		private static bool IsHistoryMethods(string method)
+		{
+			return historyMethods.Any(item => item.Equals(method, StringComparison.OrdinalIgnoreCase));
+		}
+
+		private static string GetConcat(string[] methods)
+		{
+			return String.Join(", ", methods.Select(item => "'" + item + "'").ToArray());
+		}
+
+		private static string GetRequestMethods()
+		{
+			return GetConcat(requestMethods);
+		}
+
+		private static string GetUpdateMethods()
+		{
+			return GetConcat(updateMethods);
+		}
+
+		private static string GetHistoryMethods()
+		{
+			return GetConcat(historyMethods);
+		}
 
 	}
 }

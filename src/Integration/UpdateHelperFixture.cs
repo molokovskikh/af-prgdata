@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
@@ -7,6 +8,7 @@ using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
+using PrgData.Common.Counters;
 using Test.Support;
 
 
@@ -314,6 +316,116 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				});
 			}
 		}
+
+
+		private void CheckLocks(string firstLock, string secondLock, bool generateException, string exceptionMessage)
+		{
+			try
+			{
+				Counter.Clear();
+
+				Counter.TryLock(_user.Id, firstLock);
+
+				Counter.TryLock(_user.Id, secondLock);
+
+				if (generateException)
+					Assert.Fail("Ожидалось исключение для пары методов {0}-{1}: {2}", firstLock, secondLock, exceptionMessage);
+			}
+			catch (UpdateException exception)
+			{
+				if (!generateException || !exception.Message.Equals(exceptionMessage))
+					Assert.Fail("Неожидаемое исключение для пары методов {0}-{1}: {2}", firstLock, secondLock, exception);
+			}
+
+			if (generateException)
+			{
+				Counter.ReleaseLock(_user.Id, firstLock);
+				Counter.TryLock(_user.Id, secondLock);
+			}
+		}
+
+		private void CheckUpdateLocks(string firstLock, string secondLock)
+		{
+			CheckLocks(firstLock, secondLock, true, "Обновление данных в настоящее время невозможно.");
+		}
+
+		private void CheckUnlockedLocks(string firstLock, string secondLock)
+		{
+			CheckLocks(firstLock, secondLock, false, null);
+		}
+
+		[Test]
+		public void Check_PostOrder_lock()
+		{
+			CheckLocks("PostOrder", "PostOrder", true, "Отправка заказов в настоящее время невозможна.");
+		}
+
+		[Test]
+		public void Check_SendClientLog_lock()
+		{
+			CheckUpdateLocks("SendClientLog", "SendClientLog");
+		}
+
+		[Test]
+		public void Check_ReclameFileHandler_lock()
+		{
+			CheckUnlockedLocks("ReclameFileHandler", "ReclameFileHandler");
+		}
+
+		[Test]
+		public void Check_GetUserData_lock()
+		{
+			var methods = new[] { "GetUserData", "MaxSynonymCode", "CommitExchange", "PostOrderBatch", "FileHandler" };
+			for (var i = 0; i < methods.Length; i++)
+				for (var j = 0; j < methods.Length; j++)
+					CheckUpdateLocks(methods[i], methods[j]);
+		}
+
+		[Test]
+		public void Check_History_locks()
+		{
+			var methods = new[] { "GetHistoryOrders", "HistoryFileHandler" };
+			for (var i = 0; i < methods.Length; i++)
+				for (var j = 0; j < methods.Length; j++)
+					CheckLocks(methods[i], methods[j], true, "Загрузка истории заказов в настоящее время невозможна.");
+		}
+
+		[Test]
+		public void Check_unlocked_locks()
+		{
+			var methods = new[] { "PostOrderBatch", "PostOrder", "SendClientLog", "ReclameFileHandler", "GetHistoryOrders" };
+			for (var i = 0; i < methods.Length; i++)
+				for (var j = 0; j < methods.Length; j++)
+					if (i != j)
+						CheckUnlockedLocks(methods[i], methods[j]);
+		}
+
+		[Test]
+		public void Check_max_update_client_count()
+		{
+			Counter.Clear();
+			var maxSessionCount = Convert.ToUInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
+			for (uint i = 0; i <= maxSessionCount; i++)
+				Counter.TryLock(i, "PostOrderBatch");
+
+			try
+			{
+				Counter.TryLock(maxSessionCount+1, "GetUserData");
+
+				Assert.Fail("Ожидалось исключение при превышении максимального кол-ва пользователей: {0}", "Обновление данных в настоящее время невозможно.");
+			}
+			catch (UpdateException exception)
+			{
+				if (!exception.Message.Equals("Обновление данных в настоящее время невозможно."))
+					Assert.Fail("Неожидаемое исключение при превышении максимального кол-ва пользователей: {0}", exception);
+			}
+
+			//Освободили предыдущую блокировку
+			Counter.ReleaseLock(maxSessionCount, "PostOrderBatch");
+			//Попытались наложить блокировку еще раз и она наложилась
+			Counter.TryLock(maxSessionCount + 1, "GetUserData");
+		}
+
 
 	}
 }
