@@ -5,10 +5,15 @@ using System.Configuration;
 using System.Data;
 using System.Text.RegularExpressions;
 using Castle.ActiveRecord;
+using Castle.MicroKernel.Registration;
+using Common.Models;
+using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
 using NUnit.Framework;
 using PrgData.Common;
+using SmartOrderFactory.Domain;
+using SmartOrderFactory.Repositories;
 using Test.Support;
 using PrgData;
 using MySql.Data.MySqlClient;
@@ -30,8 +35,13 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			UniqueId = "123";
 			Test.Support.Setup.Initialize();
+			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
+			IoC.Container.Register(
+				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
+				);
+		
+			UniqueId = "123";
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 
