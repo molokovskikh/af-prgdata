@@ -150,5 +150,33 @@ and (MinOrderCount {2})",
 				}
 			}
 		}
+
+		private bool OfferInfoIsEmpty()
+		{
+			var info = OrderPosition.OfferInfo;
+			return
+				String.IsNullOrEmpty(info.Unit) &&
+				String.IsNullOrEmpty(info.Volume) &&
+				String.IsNullOrEmpty(info.Note) &&
+				String.IsNullOrEmpty(info.Period) &&
+				String.IsNullOrEmpty(info.Doc) &&
+				!info.MinBoundCost.HasValue &&
+				!info.RegistryCost.HasValue &&
+				!info.MaxBoundCost.HasValue &&
+				!info.ProducerCost.HasValue &&
+				!info.NDS.HasValue &&
+				!info.Quantity.HasValue &&
+				!info.VitallyImportant;
+		}
+
+		public void CheckOfferInfo()
+		{
+			if (OrderPosition.OfferInfo != null && OfferInfoIsEmpty())
+			{
+				var info = OrderPosition.OfferInfo;
+				info.OrderItem = null;
+				OrderPosition.OfferInfo = null;
+			}
+		}
 	}
 }

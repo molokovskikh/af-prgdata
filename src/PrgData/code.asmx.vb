@@ -1577,12 +1577,6 @@ StartZipping:
  ByVal MinOrderCount As String(), _
  ByVal LeaderMinPriceCode As String()) As String
 
-        Dim ResStr As String
-        Dim OID As UInt64
-        Dim LockCount As Integer
-        Dim SumOrder, WeeklySumOrder As UInt32
-        Dim it As Integer
-
         Try
             UpdateType = RequestType.SendOrder
 
@@ -1590,126 +1584,42 @@ StartZipping:
             GetClientCode()
             Counter.TryLock(UserId, "PostOrder")
 
-            Dim helper = New OrderHelper(UpdateData, readWriteConnection)
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
 
-            If ServerOrderId = 0 Then
+            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, True, ClientCode, False)
 
-                UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            helper.ParseOldOrder( _
+                PriceCode, _
+                RegionCode, _
+                PriceDate, _
+                ClientAddition, _
+                RowCount, _
+                ProductID, _
+                ClientOrderID, _
+                CodeFirmCr, _
+                SynonymCode, _
+                SynonymFirmCrCode, _
+                Code, _
+                CodeCr, _
+                Quantity, _
+                Junk, _
+                Await, _
+                Cost, _
+                MinCost, _
+                MinPriceCode, _
+                LeaderMinCost, _
+                RequestRatio, _
+                OrderCost, _
+                MinOrderCount, _
+                LeaderMinPriceCode)
 
-                With Cm
-                    .Connection = readWriteConnection
-                    .Transaction = Nothing
-                End With
-
-                'Контроль превышения суммы закупок за неделю
-
-                Cm.CommandText = "" & _
-                 "SELECT ROUND(IF(SUM(cost                  *quantity)>RCS.MaxWeeklyOrdersSum " & _
-                 "   AND CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0) " & _
-                 "FROM   orders.OrdersHead Oh, " & _
-                 "       orders.OrdersList Ol, " & _
-                 "       RetClientsSet RCS " & _
-                 "WHERE  WriteTime               >curdate() - interval dayofweek(curdate())-2 DAY " & _
-                 "   AND Oh.RowId                =ol.OrderId " & _
-                 "   AND RCS.ClientCode          =oh.ClientCode " & _
-                 "   AND RCS.CheCkWeeklyOrdersSum=1 " & _
-                 "   AND RCS.clientcode          =" & CCode
-
-                WeeklySumOrder = Convert.ToUInt32(Cm.ExecuteScalar)
-
-                If WeeklySumOrder > 0 Then
-                    Throw New UpdateException("Превышен недельный лимит заказа (уже заказано на " & WeeklySumOrder & " руб.)", "", RequestType.Error)
-                End If
-
-                'начинаем проверять минимальный заказ
-                Dim minReq = helper.GetMinReq(ClientCode, RegionCode, PriceCode)
-
-                If Not minReq Is Nothing AndAlso minReq.ControlMinReq AndAlso minReq.MinReq > 0 Then
-                    SumOrder = 0
-                    For it = 0 To Cost.Length - 1
-                        SumOrder += Convert.ToUInt32(Math.Round(Quantity(it) * Cost(it), 0))
-                    Next
-                    If SumOrder < minReq.MinReq Then
-                        Throw New UpdateException("Сумма заказа меньше минимально допустимой.", "Поставщик отказал в приеме заказа.", RequestType.Forbidden)
-                    End If
-                End If
-
-                With Cm
-
-                    .Connection = readWriteConnection
-
-                    ResStr = String.Empty
-                    Try
-                        For i = 1 To Len(ClientAddition) Step 3
-                            ResStr &= Chr(Convert.ToInt16(Left(Mid(ClientAddition, i), 3)))
-                        Next
-                    Catch err As Exception
-                        'MailHelper.MailErr(CCode, "Формирование сообщения поставщику ", ResStr & "; Cимвол: " & Left(Mid(ClientAddition, i), 3) & "; Исходная строка:" & ClientAddition & "; Ошибка:" & err.Message)
-                    End Try
-
-                End With
-            End If
-RestartInsertTrans:
-
-            Dim transaction As MySqlTransaction
-            Try
-
-                transaction = readWriteConnection.BeginTransaction(IsoLevel)
-
-                If ServerOrderId = 0 Then
-                    OID = helper.SaveOrder(ClientCode, PriceCode, RegionCode, PriceDate, RowCount, ClientOrderID, ResStr)
-                    Cm.CommandText = "select CalculateLeader from retclientsset where clientcode=?ClientCode"
-                    CalculateLeader = Convert.ToBoolean(Cm.ExecuteScalar)
-                Else
-
-                    'Cm.CommandText = "SELECT RowId FROM orders.ordershead where ClientOrderid=" & ServerOrderId
-                    'OID = Convert.ToUInt64(Cm.ExecuteScalar)
-                    'MailHelper.MailErr(CCode, "Приняли архивный заказ", "Заказ №" & ServerOrderId)
-
-                End If
-                OrderInsertCm.Connection = readWriteConnection
-                OrderInsertCm.CommandText = "SELECT " & _
-                 "        `MinCost`          , " & _
-                 "        `LeaderMinCost`    , " & _
-                 "        `PriceCode`         , " & _
-                 "        `LeaderPriceCode`   , " & _
-                 "        `ProductID`         , " & _
-                 "        `CodeFirmCr`       , " & _
-                 "        `SynonymCode`      , " & _
-                 "        `SynonymFirmCrCode`, " & _
-                 "        `Code`             , " & _
-                 "        `CodeCr`           , " & _
-                 "        `Quantity`         , " & _
-                 "        `Junk`             , " & _
-                 "        `Await`            , " & _
-                 "        `Cost` " & _
-                 "FROM    orders.orderslist, " & _
-                 "        orders.leaders"
-
-                OrderInsertDA.FillSchema(DS, SchemaType.Source, "OrdersL")
-
-                If PostOrderDB(ClientCode, ClientOrderID, ProductID, OID, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost, PriceCode, MinCost, MinPriceCode, LeaderMinCost, LeaderMinPriceCode) Then
-                    ResultLenght = Convert.ToUInt32(OID)
-                    'UpdateType = RequestType.SendOrder
-                    UpdateHelper.InsertAnalitFUpdatesLog(transaction.Connection, UpdateData, UpdateType)
-                    transaction.Commit()
-                Else
-                    transaction.Rollback()
-                    OID = 0
-                End If
-
-            Catch ex As Exception
-                ConnectionHelper.SafeRollback(transaction)
-                If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-                    Thread.Sleep(500)
-                    LockCount += 1
-                    GoTo RestartInsertTrans
-                End If
-                Throw
-            End Try
+            Return helper.PostOldOrder()
 
         Catch updateException As UpdateException
             Return ProcessUpdateException(updateException)
+        Catch ex As NotEnoughElementsException
+            Log.Warn("Ошибка при отправке заказа", ex)
+            Return "Error=Отправка заказов завершилась неудачно.;Desc=Некоторые заявки не были обработанны."
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказа", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
@@ -1717,17 +1627,6 @@ RestartInsertTrans:
             Counter.ReleaseLock(UserId, "PostOrder")
             DBDisconnect()
         End Try
-
-        If ErrorFlag Or (UpdateType > RequestType.SendOrder) Then
-            If Len(MessageH) = 0 Then
-                PostOrder = "Error=Отправка заказов завершилась неудачно.;Desc=Некоторые заявки не были обработанны."
-            Else
-                Addition = MessageH & " " & MessageD
-                PostOrder = "Error=" & MessageH & ";Desc=" & MessageD
-            End If
-        Else
-            PostOrder = "OrderID=" & OID
-        End If
 
     End Function
 
