@@ -375,7 +375,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		[Test]
 		public void Check_GetUserData_lock()
 		{
-			var methods = new[] { "GetUserData", "MaxSynonymCode", "CommitExchange", "PostOrderBatch", "FileHandler" };
+			var methods = new[] { "GetUserData", "MaxSynonymCode", "CommitExchange", "PostOrderBatch" };
 			for (var i = 0; i < methods.Length; i++)
 				for (var j = 0; j < methods.Length; j++)
 					CheckUpdateLocks(methods[i], methods[j]);
@@ -393,7 +393,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		[Test]
 		public void Check_unlocked_locks()
 		{
-			var methods = new[] { "PostOrderBatch", "PostOrder", "SendClientLog", "ReclameFileHandler", "GetHistoryOrders" };
+			var methods = new[] { "PostOrderBatch", "PostOrder", "SendClientLog", "ReclameFileHandler", "GetHistoryOrders", "FileHandler" };
 			for (var i = 0; i < methods.Length; i++)
 				for (var j = 0; j < methods.Length; j++)
 					if (i != j)

@@ -147,6 +147,7 @@ where c.Status = 1
 
 
 				Counter.TryLock(UserId, "FileHandler");
+				_log.DebugFormat("Успешно наложена блокировка FileHandler для пользователя: {0}", UserId);
 
 				context.Response.ContentType = "application/octet-stream";
 				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -202,7 +203,9 @@ where c.Status = 1
 			}
 			finally
 			{
+				_log.DebugFormat("Пытаемся снять блокировку FileHandler для пользователя: {0}", SUserId);
 				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler");
+				_log.DebugFormat("Успешно снята блокировка FileHandler для пользователя: {0}", SUserId);
 			}
 		}
 

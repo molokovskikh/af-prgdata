@@ -62,7 +62,7 @@ namespace PrgData.Common.Counters
 		private static readonly int MaxSessionCount = Convert.ToInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
 		private static readonly ILog Log = LogManager.GetLogger(typeof(Counter));
 		private static readonly string[] requestMethods = new string[] { "GetUserData", "PostOrderBatch" };
-		private static readonly string[] updateMethods = new string[] { "GetUserData", "MaxSynonymCode", "CommitExchange", "PostOrderBatch", "FileHandler" };
+		private static readonly string[] updateMethods = new string[] { "GetUserData", "MaxSynonymCode", "CommitExchange", "PostOrderBatch" };
 		private static readonly string[] historyMethods = new string[] { "GetHistoryOrders", "HistoryFileHandler" };
 
 		public static ClientStatus[] GetClients()
@@ -89,7 +89,7 @@ namespace PrgData.Common.Counters
 				}
 			}
 
-			if (!(Method == "ReclameFileHandler"))
+			if (!(Method == "ReclameFileHandler" || Method == "FileHandler"))
 			{
 				var ClientItems = FindLocks(UserId, Method);
 				if (!CanLock(ClientItems.ToList()))
