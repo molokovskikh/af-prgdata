@@ -3979,9 +3979,9 @@ RestartMaxCodesSet:
             UpdateData.ParseBuildNumber(EXEVersion)
 
             Dim historyIds As String = String.Empty
-            If ExistsServerOrderIds.Length > 0 Then
-                Dim d = ExistsServerOrderIds.Cast(Of String)()
-                If d.Count > 0 Then historyIds = String.Join(",", d)
+            If (ExistsServerOrderIds.Length > 0) AndAlso (ExistsServerOrderIds(0) <> 0) Then
+                Dim d = ExistsServerOrderIds.Select(Function(item) item.ToString())
+                If d.Count > 0 Then historyIds = String.Join(",", d.ToArray())
             End If
 
             SelProc = New MySqlCommand
@@ -3996,6 +3996,7 @@ RestartMaxCodesSet:
 
                 SelProc.Parameters.Clear()
                 SelProc.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+                SelProc.Parameters.AddWithValue("?ClientId", UpdateData.ClientId)
 
                 SelProc.CommandText = _
                     "set @MaxOrderId := " & MaxOrderId & ";" & _
@@ -4009,7 +4010,15 @@ RestartMaxCodesSet:
                         " (@MaxOrderId := @MaxOrderId + 1) as PostOrderId, " & _
                         " RowId as ServerOrderId " & _
                     " from orders.OrdersHead " & _
-                    " where OrdersHead.UserId = ?UserId "
+                    " where "
+
+                If UpdateData.IsFutureClient Then
+                    SelProc.CommandText &= " OrdersHead.UserId = ?UserId "
+                Else
+                    SelProc.CommandText &= " OrdersHead.ClientCode = ?ClientId "
+                End If
+
+                SelProc.CommandText &= " and OrdersHead.deleted = 0 and OrdersHead.processed = 1 "
 
                 If Not String.IsNullOrEmpty(historyIds) Then
                     SelProc.CommandText &= " and OrdersHead.RowId not in (" & historyIds & ");"
@@ -4019,12 +4028,27 @@ RestartMaxCodesSet:
 
                 SelProc.ExecuteNonQuery()
 
+                SelProc.CommandText = "select count(*) from HistoryIds"
+                Dim historyOrdersCount = Convert.ToInt32(SelProc.ExecuteScalar())
+                If historyOrdersCount = 0 Then
+                    UpdateHelper.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "С сервера загружена вся история заказов", UpdateData.BuildNumber)
+                    Return "FullHistory=True"
+                End If
+
+                'OrdersHead
+                'AddressId, UserId,  PriceDate, RowCount, Processed, Submited, Deleted, SubmitDate, ClientOrderId, CalculateLeader, 
                 GetMySQLFileWithDefault( _
                  "PostedOrderHeads", _
                  SelProc, _
                  "select " & _
-                 "  HistoryIds.PostOrderId, " & _
-                 "  OrdersHead.* " & _
+                 "  HistoryIds.PostOrderId as OrderId, " & _
+                 "  OrdersHead.RowID as ServerOrderId, " & _
+                 "  OrdersHead.ClientCode as ClientId, " & _
+                 "  OrdersHead.PriceCode, " & _
+                 "  OrdersHead.RegionCode, " & _
+                 "  OrdersHead.WriteTime as SendDate, " & _
+                 "  OrdersHead.ClientAddition as MessageTO, " & _
+                 "  OrdersHead.DelayOfPayment  " & _
                  "from " & _
                     " HistoryIds " & _
                     " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
@@ -4032,15 +4056,48 @@ RestartMaxCodesSet:
                 'Начинаем архивирование
                 ThreadZipStream.Start()
 
+                'OrdersList
+                'RowID, OrderID, CoreId, 
+                'OrderedOffers
+                'ID,  MinBoundCost, MaxBoundCost, CoreUpdateTime, CoreQuantityUpdate, 
                 GetMySQLFileWithDefault( _
                  "PostedOrderLists", _
                  SelProc, _
                  "select " & _
                  "  (@MaxOrderListId := @MaxOrderListId + 1) as PostOrderListId, " & _
-                 "  OrdersList.* " & _
+                 "  HistoryIds.PostOrderId as OrderId, " & _
+                 "  OrdersHead.ClientCode as ClientId, " & _
+                 "  OrdersList.ProductId, " & _
+                 "  OrdersList.CodeFirmCr, " & _
+                 "  OrdersList.SynonymCode, " & _
+                 "  OrdersList.SynonymFirmCrCode, " & _
+                 "  OrdersList.Code, " & _
+                 "  OrdersList.CodeCr, " & _
+                 "  OrdersList.Await, " & _
+                 "  OrdersList.Junk, " & _
+                 "  OrdersList.Quantity as OrderCount, " & _
+                 "  OrdersList.Cost as Price, " & _
+                 "  OrdersList.Cost as RealPrice, " & _
+                 "  OrdersList.RequestRatio, " & _
+                 "  OrdersList.OrderCost, " & _
+                 "  OrdersList.MinOrderCount, " & _
+                 "  OrdersList.SupplierPriceMarkup, " & _
+                 "  OrdersList.RetailMarkup, " & _
+                 "  OrderedOffers.Unit, " & _
+                 "  OrderedOffers.Volume, " & _
+                 "  OrderedOffers.Note, " & _
+                 "  OrderedOffers.Period, " & _
+                 "  OrderedOffers.Doc, " & _
+                 "  OrderedOffers.VitallyImportant, " & _
+                 "  OrderedOffers.Quantity as CoreQuantity, " & _
+                 "  OrderedOffers.RegistryCost, " & _
+                 "  OrderedOffers.ProducerCost, " & _
+                 "  OrderedOffers.NDS " & _
                  "from " & _
                     " HistoryIds " & _
-                    " inner join orders.OrdersList on OrdersList.OrderId = HistoryIds.ServerOrderId ")
+                    " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _
+                    " inner join orders.OrdersList on OrdersList.OrderId = HistoryIds.ServerOrderId " & _
+                    " left join orders.OrderedOffers on OrderedOffers.Id = OrdersList.RowId ")
 
                 AddEndOfFiles()
 
