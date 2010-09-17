@@ -4051,7 +4051,8 @@ RestartMaxCodesSet:
                  "  OrdersHead.RegionCode, " & _
                  "  OrdersHead.WriteTime as SendDate, " & _
                  "  OrdersHead.ClientAddition as MessageTO, " & _
-                 "  OrdersHead.DelayOfPayment  " & _
+                 "  OrdersHead.DelayOfPayment,  " & _
+                 "  date_sub(OrdersHead.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as PriceDate  " & _
                  "from " & _
                     " HistoryIds " & _
                     " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
