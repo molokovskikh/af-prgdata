@@ -276,7 +276,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				{
 					var filledCore = MySqlHelper.ExecuteDataset(
 						connection,
-						helper.GetCoreCommand(false, true, false) + " and Core.Id = " + item.CoreID,
+						helper.GetCoreCommand(false, true, false, false) + " and Core.Id = " + item.CoreID,
 						new MySqlParameter("?Cumulative", 0));
 
 

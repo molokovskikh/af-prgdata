@@ -1352,7 +1352,7 @@ AND
 ";
 		}
 
-		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix)
+		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool cryptCost)
 		{
 			string buyingMatrixCondition;
 			if (_updateData.BuyingMatrixPriceId.HasValue)
@@ -1537,7 +1537,7 @@ SELECT CT.PriceCode               ,
        Core.RegistryCost          ,
        Core.VitallyImportant      ,
        Core.RequestRatio          ,
-       CT.Cost                    ,
+       {3} as               Cost  ,
        RIGHT(CT.ID, 9) as CoreID  ,
        OrderCost                  ,
        MinOrderCount
@@ -1572,8 +1572,9 @@ Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = CT.ProductId
-  left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
-);
+  left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+				cryptCost ? "CT.CryptCost" : "CT.Cost"
+				);
 		}
 
 		public string GetSynonymFirmCrCommand(bool Cumulative)
@@ -1909,6 +1910,7 @@ AND    ForceReplication =2;
 
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate,
+       CostSessionKey = null,
        MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
 "
@@ -2000,6 +2002,7 @@ AND    ForceReplication =2;
 
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate,
+       CostSessionKey = null,
        MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
 
@@ -2027,18 +2030,22 @@ AND    UserId            = {0};
 				{
 					var command = new MySqlCommand("", _readWriteConnection);
 					if (updateType != RequestType.ResumeData)
-						command.CommandText = @"update UserUpdateInfo set UncommitedUpdateDate=now() where UserId = ?userId; ";
+						command.CommandText = @"update UserUpdateInfo set UncommitedUpdateDate=now(), CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId; ";
 
 					command.CommandText += "select UncommitedUpdateDate from UserUpdateInfo where UserId = ?userId;";
 
 					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 
-					DateTime updateTime;
-					using (var reader = command.ExecuteReader())
-					{
-						reader.Read();
-						updateTime = reader.GetDateTime(0);
-					}
+					DateTime updateTime = Convert.ToDateTime(command.ExecuteScalar());
+
+					//using (var reader = command.ExecuteReader())
+					//{
+					//    reader.Read();
+					//    updateTime = reader.GetDateTime(0);
+					//}
+
+					command.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = ?userId;";
+					_updateData.CostSessionKey = Convert.ToString(command.ExecuteScalar());
 
 					transaction.Commit();
 					return updateTime;

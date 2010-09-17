@@ -3061,14 +3061,16 @@ RestartTrans2:
                         '    "   AND Core.PriceCode != ?ImpersonalPriceId ; "
                         'SelProc.ExecuteNonQuery()
 
-                        'SelProc.CommandText = _
-                        '    "UPDATE ActivePrices Prices, " & _
-                        '    "       Core " & _
-                        '    "SET    CryptCost       = AES_ENCRYPT(Cost, (SELECT BaseCostPassword FROM   retclientsset WHERE  clientcode=?ClientCode)) " & _
-                        '    "WHERE  Prices.PriceCode= Core.PriceCode " & _
-                        '    "   AND IF(?Cumulative, 1, Fresh) " & _
-                        '    "   AND Core.PriceCode != ?ImpersonalPriceId ; "
-                        'SelProc.ExecuteNonQuery()
+                        If UpdateData.BuildNumber > 1271 Or UpdateData.NeedUpdateToCryptCost Then
+                            SelProc.CommandText = _
+                                "UPDATE ActivePrices Prices, " & _
+                                "       Core " & _
+                                "SET    CryptCost       = AES_ENCRYPT(Cost, '" & UpdateData.CostSessionKey & "') " & _
+                                "WHERE  Prices.PriceCode= Core.PriceCode " & _
+                                "   AND IF(?Cumulative, 1, Fresh) " & _
+                                "   AND Core.PriceCode != ?ImpersonalPriceId ; "
+                            SelProc.ExecuteNonQuery()
+                        End If
 
                         'GetMySQLFileWithDefaultEx( _
                         ' "CoreTest", _
@@ -3092,7 +3094,8 @@ RestartTrans2:
                          helper.GetCoreCommand( _
                           False, _
                           (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
-                          (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix _
+                          (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, _
+                          UpdateData.BuildNumber > 1271 Or UpdateData.NeedUpdateToCryptCost
                          ), _
                          (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
                          True _
@@ -3127,7 +3130,7 @@ RestartTrans2:
                         helper.PrepareImpersonalOffres(SelProc)
 
                         'Выгрузка данных для обезличенного прайс-листа
-                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix))
+                        GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, False))
                     Else
                         'выгружаем пустую таблицу Core
                         GetMySQLFileWithDefault("Core", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
@@ -3541,6 +3544,9 @@ RestartTrans2:
                 SQLdr.Read()
                 BasecostPassword = SQLdr.GetString(0)
             End Using
+
+            Cm.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = " & UpdateData.UserId
+            BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
 
             'Получаем маску разрешенных для сохранения гридов
             If Not UpdateData.IsFutureClient Then
