@@ -4012,10 +4012,13 @@ RestartMaxCodesSet:
                     " from orders.OrdersHead " & _
                     " where "
 
+                Dim ClientIdAsField As String
                 If UpdateData.IsFutureClient Then
                     SelProc.CommandText &= " OrdersHead.UserId = ?UserId "
+                    ClientIdAsField = "OrdersHead.AddressId"
                 Else
                     SelProc.CommandText &= " OrdersHead.ClientCode = ?ClientId "
+                    ClientIdAsField = "OrdersHead.ClientCode"
                 End If
 
                 SelProc.CommandText &= " and OrdersHead.deleted = 0 and OrdersHead.processed = 1 "
@@ -4043,7 +4046,7 @@ RestartMaxCodesSet:
                  "select " & _
                  "  HistoryIds.PostOrderId as OrderId, " & _
                  "  OrdersHead.RowID as ServerOrderId, " & _
-                 "  OrdersHead.ClientCode as ClientId, " & _
+                 "  " & ClientIdAsField & " as ClientId, " & _
                  "  OrdersHead.PriceCode, " & _
                  "  OrdersHead.RegionCode, " & _
                  "  OrdersHead.WriteTime as SendDate, " & _
@@ -4066,7 +4069,7 @@ RestartMaxCodesSet:
                  "select " & _
                  "  (@MaxOrderListId := @MaxOrderListId + 1) as PostOrderListId, " & _
                  "  HistoryIds.PostOrderId as OrderId, " & _
-                 "  OrdersHead.ClientCode as ClientId, " & _
+                 "  " & ClientIdAsField & " as ClientId, " & _
                  "  OrdersList.ProductId, " & _
                  "  OrdersList.CodeFirmCr, " & _
                  "  OrdersList.SynonymCode, " & _
