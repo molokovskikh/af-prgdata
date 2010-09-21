@@ -133,7 +133,7 @@ namespace PrgData.Common
 			if (KnownBuildNumber.HasValue && BuildNumber < KnownBuildNumber)
 				throw new UpdateException("Доступ закрыт.",
 										  "Используемая версия программы не актуальна, необходимо обновление до версии №" + KnownBuildNumber + ".[5]",
-										  "Попытка обновить устаревшую версию; IP:" + ClientHost + "; ",
+										  "Попытка обновить устаревшую версию; ",
 										  RequestType.Forbidden);
 		}
 
