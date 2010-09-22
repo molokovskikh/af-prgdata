@@ -48,25 +48,6 @@ namespace PrgData.Common.Counters
 			}
 		}
 
-		public static IList<ClientStatus> RequestFromLocks(string CommandText, object ParametersAsAnonymousObject)
-		{
-			using (var connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Locks"].ConnectionString))
-			{
-				connection.Open();
-				var command = new MySqlCommand(CommandText, connection);
-				BindParameters(command, ParametersAsAnonymousObject);
-				var statuses = new List<ClientStatus>();
-				using (var Reader = command.ExecuteReader())
-				{
-					while (Reader.Read())
-					{
-						statuses.Add(new ClientStatus(Reader.GetInt32("Id"), Reader.GetUInt32("UserId"), Reader.GetString("MethodName"), Reader.GetDateTime("StartTime")));
-					}
-				}
-				return statuses;
-			}
-		}
-
 		public static T RequestScalar<T>(string CommandText)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))

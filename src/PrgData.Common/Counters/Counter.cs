@@ -111,15 +111,6 @@ namespace PrgData.Common.Counters
 
 			Save(new ClientStatus(UserId, Method, DateTime.Now));
 
-#if (!DEBUG)
-			var locks = FindAllFromLocks();
-			if (locks.Count > 0)
-				MailHelper.Mail(
-					"Список локов:" 
-						+ Environment.NewLine
-						+ String.Join(Environment.NewLine, locks.ToList().ConvertAll(item => item.ToString()).ToArray()), 
-					"Сервис: создан lock в базе данных sql2.analit.net");
-#endif
 			return true;
 		}
 
@@ -208,11 +199,6 @@ namespace PrgData.Common.Counters
 		private static IList<ClientStatus> FindAll()
 		{
 			return Utils.Request("select * from Logs.PrgDataLogs");
-		}
-
-		private static IList<ClientStatus> FindAllFromLocks()
-		{
-			return Utils.RequestFromLocks("select * from Logs.PrgDataLogs", null);
 		}
 
 		private static void Save(ClientStatus Status)
