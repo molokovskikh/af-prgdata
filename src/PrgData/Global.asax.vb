@@ -22,7 +22,10 @@ Public Class Global_asax
             "FtpRoot\10068", "FtpRoot\10068\Docs", "FtpRoot\10068\Orders", "FtpRoot\10068\Rejects", "FtpRoot\10068\Waybills", _
             "FtpRoot\10069", "FtpRoot\10069\Docs", "FtpRoot\10069\Orders", "FtpRoot\10069\Rejects", "FtpRoot\10069\Waybills"}
 
+
+        Dim parentDir = Directory.GetParent(ServiceContext.GetResultPath())
         For Each dir As String In dirs
+            dir = Path.Combine(parentDir.FullName, dir)
             If Not Directory.Exists(dir) Then Directory.CreateDirectory(dir)
         Next
 
