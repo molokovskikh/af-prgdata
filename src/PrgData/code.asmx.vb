@@ -4086,7 +4086,7 @@ RestartMaxCodesSet:
                  "  OrdersList.Await, " & _
                  "  OrdersList.Junk, " & _
                  "  OrdersList.Quantity as OrderCount, " & _
-                 "  OrdersList.Cost as Price, " & _
+                 "  if(OrdersHead.DelayOfPayment is null or OrdersHead.DelayOfPayment = 0, OrdersList.Cost, cast(OrdersList.Cost * (1 + OrdersHead.DelayOfPayment/100) as decimal(18, 2)))  as Price, " & _
                  "  OrdersList.Cost as RealPrice, " & _
                  "  OrdersList.RequestRatio, " & _
                  "  OrdersList.OrderCost, " & _
