@@ -3539,14 +3539,15 @@ RestartTrans2:
                 UpdateData.ParseBuildNumber(EXEVersion)
             End If
 
-            Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
-            Using SQLdr As MySqlDataReader = Cm.ExecuteReader
-                SQLdr.Read()
-                BasecostPassword = SQLdr.GetString(0)
-            End Using
+            Dim needSessionKey = UpdateData.BuildNumber.HasValue AndAlso (UpdateData.BuildNumber > 1269 Or UpdateData.NeedUpdateToCryptCost)
 
-            Cm.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = " & UpdateData.UserId
-            BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
+            If needSessionKey Then
+                Cm.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = " & UpdateData.UserId
+                BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
+            Else
+                Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
+                BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
+            End If
 
             'Получаем маску разрешенных для сохранения гридов
             If Not UpdateData.IsFutureClient Then
@@ -3562,6 +3563,9 @@ RestartTrans2:
 
             If (BasecostPassword <> Nothing) Then
                 Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
+                If needSessionKey Then
+                    S = "SessionKey=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
+                End If
                 Return S
             Else
                 MailHelper.MailErr(CCode, "Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
