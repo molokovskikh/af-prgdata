@@ -2029,20 +2029,18 @@ AND    UserId            = {0};
 				try
 				{
 					var command = new MySqlCommand("", _readWriteConnection);
+
 					if (updateType != RequestType.ResumeData)
-						command.CommandText = @"update UserUpdateInfo set UncommitedUpdateDate=now(), CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId; ";
+						command.CommandText += @"update UserUpdateInfo set UncommitedUpdateDate=now() where UserId = ?userId; ";
+
+					if (updateType != RequestType.ResumeData && updateType != RequestType.PostOrderBatch)
+						command.CommandText += @"update UserUpdateInfo set CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId; ";
 
 					command.CommandText += "select UncommitedUpdateDate from UserUpdateInfo where UserId = ?userId;";
 
 					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 
 					DateTime updateTime = Convert.ToDateTime(command.ExecuteScalar());
-
-					//using (var reader = command.ExecuteReader())
-					//{
-					//    reader.Read();
-					//    updateTime = reader.GetDateTime(0);
-					//}
 
 					command.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = ?userId;";
 					_updateData.CostSessionKey = Convert.ToString(command.ExecuteScalar());
@@ -2057,6 +2055,32 @@ AND    UserId            = {0};
 				}
 			});
 		}
+
+		public static void GenerateSessionKey(MySqlConnection readWriteConnection, UpdateData updateData)
+		{
+			With.DeadlockWraper(() =>
+			{
+				var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+				try
+				{
+					updateData.CostSessionKey = Convert.ToString(MySqlHelper.ExecuteScalar(
+						readWriteConnection,
+						@"
+update UserUpdateInfo set CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId;
+select CostSessionKey from UserUpdateInfo where UserId = ?userId;
+",
+						new MySqlParameter("?UserId", updateData.UserId)));
+
+					transaction.Commit();
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			});
+		}
+
 
 		private void ProcessCommitCommand(string commitCommand)
 		{

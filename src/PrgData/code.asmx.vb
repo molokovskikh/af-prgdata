@@ -1970,6 +1970,8 @@ StartZipping:
             Try
                 helper.PrepareBatchFile(BatchFile)
 
+                UpdateHelper.GenerateSessionKey(readWriteConnection, UpdateData)
+
                 helper.ProcessBatchFile()
 
                 AddFileToQueue(helper.BatchReportFileName)

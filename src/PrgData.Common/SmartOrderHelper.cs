@@ -18,7 +18,7 @@ using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using NHibernate.Mapping.Attributes;
-
+using MySqlHelper = Common.MySql.MySqlHelper;
 
 
 namespace PrgData.Common
@@ -121,90 +121,119 @@ namespace PrgData.Common
 			}
 		}
 
+		private string GetCryptCost(MySqlConnection connection, float cost, string sessionKey)
+		{
+			var t = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
+				connection,
+				"select cast(AES_ENCRYPT(?Cost, ?SessionKey) as char);",
+				new MySqlParameter("?Cost", cost),
+				new MySqlParameter("?SessionKey", sessionKey)
+				)
+				.ToString();
+			return MySql.Data.MySqlClient.MySqlHelper.EscapeString(t);
+		}
+
 		private void SaveToFile(List<OrderBatchItem> list, List<Order> orders)
 		{
 			var buildOrder = new StringBuilder();
 			var buildItems = new StringBuilder();
 			var buildReport = new StringBuilder();
-			//uint id = 1;
-			foreach (var order in orders)
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
-				order.RowId = _maxOrderId;
-				_maxOrderId++;
-				buildOrder.AppendFormat(
-					"{0}\t{1}\t{2}\t{3}\n",
-					order.RowId,
-					OrderedClientCode,
-					order.PriceList.PriceCode,
-					order.RegionCode);
-				foreach (var item in order.OrderItems)
+				connection.Open();
+
+				foreach (var order in orders)
 				{
-					item.RowId = _maxOrderListId;
-					_maxOrderListId++;
-
-					var report = list.Find(reportItem => { return reportItem.Item != null && reportItem.Item.OrderItem == item; });
-
-					buildItems.AppendFormat(
-						"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\t{17}\t{18}\t{19}\n",
-						item.RowId,
-						item.Order.RowId,
+					order.RowId = _maxOrderId;
+					_maxOrderId++;
+					buildOrder.AppendFormat(
+						"{0}\t{1}\t{2}\t{3}\n",
+						order.RowId,
 						OrderedClientCode,
-						item.CoreId,
-						item.ProductId,
-						item.CodeFirmCr.HasValue ? item.CodeFirmCr.Value.ToString() : "\\N",
-						item.SynonymCode.HasValue ? item.SynonymCode.Value.ToString() : "\\N",
-						item.SynonymFirmCrCode.HasValue ? item.SynonymFirmCrCode.Value.ToString() : "\\N",
-						item.Code,
-						item.CodeCr,
-						report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat),
-						report.Item.Offer.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat),
-						item.Await ? "1" : "0",
-						item.Junk ? "1" : "0",
-						item.Quantity,
-						item.RequestRatio.HasValue ? item.RequestRatio.Value.ToString() : "\\N",
-						item.OrderCost.HasValue ? item.OrderCost.Value.ToString(CultureInfo.InvariantCulture.NumberFormat) : "\\N",
-						item.MinOrderCount.HasValue ? item.MinOrderCount.Value.ToString() : "\\N",
-						item.OfferInfo.Period,
-						item.OfferInfo.ProducerCost.HasValue ? item.OfferInfo.ProducerCost.Value.ToString(CultureInfo.InvariantCulture.NumberFormat) : "\\N");
-				}
-			}
+						order.PriceList.PriceCode,
+						order.RegionCode);
+					foreach (var item in order.OrderItems)
+					{
+						item.RowId = _maxOrderListId;
+						_maxOrderListId++;
 
-			foreach (var report in list)
-			{
-				if (report.Item != null)
+						var report = list.Find(reportItem => { return reportItem.Item != null && reportItem.Item.OrderItem == item; });
+
+						string cryptCostWithoutDelayOfPayment, cryptCost;
+
+						if (_updateData.BuildNumber > 1271)
+						{
+							cryptCostWithoutDelayOfPayment = GetCryptCost(connection, report.Item.Offer.CostWithoutDelayOfPayment, _updateData.CostSessionKey);
+							cryptCost = cryptCostWithoutDelayOfPayment;
+							if (!report.Item.Offer.Cost.Equals(report.Item.Offer.CostWithoutDelayOfPayment))
+								cryptCost = GetCryptCost(connection, report.Item.Offer.Cost, _updateData.CostSessionKey);
+						}
+						else
+						{
+							cryptCostWithoutDelayOfPayment =
+								report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat);
+							cryptCost = report.Item.Offer.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat);
+						}
+
+						buildItems.AppendFormat(
+							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\t{17}\t{18}\t{19}\n",
+							item.RowId,
+							item.Order.RowId,
+							OrderedClientCode,
+							item.CoreId,
+							item.ProductId,
+							item.CodeFirmCr.HasValue ? item.CodeFirmCr.Value.ToString() : "\\N",
+							item.SynonymCode.HasValue ? item.SynonymCode.Value.ToString() : "\\N",
+							item.SynonymFirmCrCode.HasValue ? item.SynonymFirmCrCode.Value.ToString() : "\\N",
+							item.Code,
+							item.CodeCr,
+							cryptCostWithoutDelayOfPayment,
+							cryptCost,
+							item.Await ? "1" : "0",
+							item.Junk ? "1" : "0",
+							item.Quantity,
+							item.RequestRatio.HasValue ? item.RequestRatio.Value.ToString() : "\\N",
+							item.OrderCost.HasValue ? item.OrderCost.Value.ToString(CultureInfo.InvariantCulture.NumberFormat) : "\\N",
+							item.MinOrderCount.HasValue ? item.MinOrderCount.Value.ToString() : "\\N",
+							item.OfferInfo.Period,
+							item.OfferInfo.ProducerCost.HasValue ? item.OfferInfo.ProducerCost.Value.ToString(CultureInfo.InvariantCulture.NumberFormat) : "\\N");
+					}
+				}
+
+				foreach (var report in list)
 				{
-					var comments = new List<string>();
-					if (!String.IsNullOrEmpty(report.Comment))
-						comments.Add(report.Comment);
-					comments.AddRange(report.Item.Comments);
-					comments = comments.Distinct().ToList();
-					buildReport.AppendFormat(
-						//"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\n",
-						"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\n",
-						_maxBatchId,
-						OrderedClientCode,
-						//!String.IsNullOrEmpty(report.Code) ? report.Code : "\\N",
-						report.ProductName,
-						report.ProducerName,
-						report.Quantity,
-						String.Join("\r\\\n", comments.ToArray()),
-						report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
-						(int)report.Item.Status,
-						report.Item.ProductId,
-						report.Item.CodeFirmCr.HasValue ? report.Item.CodeFirmCr.Value.ToString() : "\\N");
+					if (report.Item != null)
+					{
+						var comments = new List<string>();
+						if (!String.IsNullOrEmpty(report.Comment))
+							comments.Add(report.Comment);
+						comments.AddRange(report.Item.Comments);
+						comments = comments.Distinct().ToList();
+						buildReport.AppendFormat(
+							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\n",
+							_maxBatchId,
+							OrderedClientCode,
+							report.ProductName,
+							report.ProducerName,
+							report.Quantity,
+							String.Join("\r\\\n", comments.ToArray()),
+							report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
+							(int)report.Item.Status,
+							report.Item.ProductId,
+							report.Item.CodeFirmCr.HasValue ? report.Item.CodeFirmCr.Value.ToString() : "\\N");
+					}
+					else
+						buildReport.AppendFormat(
+							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N\n",
+							_maxBatchId,
+							OrderedClientCode,
+							report.ProductName,
+							report.ProducerName,
+							report.Quantity,
+							report.Comment);
+					_maxBatchId++;
 				}
-				else
-					buildReport.AppendFormat(
-						//"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n",
-						"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N\n",
-						_maxBatchId,
-						OrderedClientCode,
-						//report.Code,
-						report.ProductName,
-						report.ProducerName,
-						report.Quantity,
-						report.Comment);
-				_maxBatchId++;
 			}
 
 			File.WriteAllText(BatchReportFileName, buildReport.ToString(), Encoding.GetEncoding(1251));
