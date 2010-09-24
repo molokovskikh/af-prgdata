@@ -836,7 +836,7 @@ and (regions.RegionCode = Clients.RegionCode)
 select
   DocumentHeaders.Id,
   DocumentHeaders.DownloadId,
-  date_sub(date_sub(DocumentHeaders.DocumentDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second), interval regions.MoscowBias hour) as WriteTime,
+  DocumentHeaders.DocumentDate as WriteTime,
   DocumentHeaders.FirmCode,
   DocumentHeaders.ClientCode,
   DocumentHeaders.DocumentType,
