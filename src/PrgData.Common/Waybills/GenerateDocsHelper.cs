@@ -132,11 +132,11 @@ set @LastDocumentId = last_insert_id();
 			detailCommand.Parameters.Add("?Code", MySqlDbType.String);
 			detailCommand.Parameters.Add("?Period", MySqlDbType.String);
 			detailCommand.Parameters.Add("?Producer", MySqlDbType.String);
-			detailCommand.Parameters.Add("?ProducerCost", MySqlDbType.Decimal);
-			detailCommand.Parameters.Add("?RegistryCost", MySqlDbType.Decimal);
-			detailCommand.Parameters.Add("?SupplierPriceMarkup", MySqlDbType.Decimal);
-			detailCommand.Parameters.Add("?SupplierCostWithoutNDS", MySqlDbType.Decimal);
-			detailCommand.Parameters.Add("?SupplierCost", MySqlDbType.Decimal);
+			detailCommand.Parameters.Add("?ProducerCost", MySqlDbType.Float);
+			detailCommand.Parameters.Add("?RegistryCost", MySqlDbType.Float);
+			detailCommand.Parameters.Add("?SupplierPriceMarkup", MySqlDbType.Float);
+			detailCommand.Parameters.Add("?SupplierCostWithoutNDS", MySqlDbType.Float);
+			detailCommand.Parameters.Add("?SupplierCost", MySqlDbType.Float);
 			detailCommand.Parameters.Add("?Quantity", MySqlDbType.Int32);
 			detailCommand.Parameters.Add("?VitallyImportant", MySqlDbType.Byte);
 			detailCommand.Parameters.Add("?NDS", MySqlDbType.Int32);
@@ -155,28 +155,29 @@ values
   (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?SupplierCost, ?Quantity);";
 			foreach (ClientOrderPosition position in order.Positions)
 			{
-				//var synonymName = Convert.ToString(MySqlHelper.ExecuteScalar(
-				//    connection,
-				//    "select Synonym from farm.Synonym where SynonymCode = ?SynonymCode",
-				//    new MySqlParameter("?SynonymCode", position.SynonymCode)));
-				//var synonymFirmCrName = Convert.ToString(MySqlHelper.ExecuteScalar(
-				//    connection,
-				//    "select Synonym from farm.SynonymFirmCr where SynonymFirmCrCode = ?SynonymFirmCrCode",
-				//    new MySqlParameter("?SynonymFirmCrCode", position.SynonymFirmCrCode)));
+				var synonymName = Convert.ToString(MySqlHelper.ExecuteScalar(
+					connection,
+					"select Synonym from farm.Synonym where SynonymCode = ?SynonymCode",
+					new MySqlParameter("?SynonymCode", position.OrderPosition.SynonymCode)));
+				var synonymFirmCrName = Convert.ToString(MySqlHelper.ExecuteScalar(
+					connection,
+					"select Synonym from farm.SynonymFirmCr where SynonymFirmCrCode = ?SynonymFirmCrCode",
+					new MySqlParameter("?SynonymFirmCrCode", position.OrderPosition.SynonymFirmCrCode)));
 
-				//detailCommand.Parameters["?Product"].Value = synonymName;
-				//detailCommand.Parameters["?Code"].Value = position.Code;
-				//detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
-				//detailCommand.Parameters["?Quantity"].Value = position.Quantity;
-				//detailCommand.Parameters["?SupplierCost"].Value = position.Cost;
+				detailCommand.Parameters["?Product"].Value = synonymName;
+				detailCommand.Parameters["?Code"].Value = position.OrderPosition.Code;
+				detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
+				detailCommand.Parameters["?Quantity"].Value = position.OrderPosition.Quantity;
+				detailCommand.Parameters["?SupplierCost"].Value = position.OrderPosition.Cost;
 
-//				detailCommand.Parameters["?RegistryCost"].Value = position.RegistryCost;
-//				detailCommand.Parameters["?Period"].Value = position.Period;
+				if (position.OrderPosition.OfferInfo != null)
+				{
+					detailCommand.Parameters["?RegistryCost"].Value = position.OrderPosition.OfferInfo.RegistryCost;
+					detailCommand.Parameters["?Period"].Value = position.OrderPosition.OfferInfo.Period;
+				}
 
 				if (documentType == DocumentType.Waybills)
 				{
-					/*
-
 					if (random.Next(3) == 1)
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = null;
@@ -190,20 +191,23 @@ values
 					if (position.SupplierPriceMarkup.HasValue)
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
-						detailCommand.Parameters["?ProducerCost"].Value = position.ProducerCost;
-						detailCommand.Parameters["?VitallyImportant"].Value = position.VitallyImportant;
+						if (position.OrderPosition.OfferInfo != null)
+						{
+							detailCommand.Parameters["?ProducerCost"].Value = position.OrderPosition.OfferInfo.ProducerCost;
+							detailCommand.Parameters["?VitallyImportant"].Value = position.OrderPosition.OfferInfo.VitallyImportant ? 1 : 0;
+						}
 						detailCommand.Parameters["?NDS"].Value = position.NDS;
 						if (position.NDS.HasValue)
-							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / (1 + position.NDS/100);
+							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.OrderPosition.Cost / (1 + position.NDS / 100);
 						else
-							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.10m;
+							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.OrderPosition.Cost / 1.10;
 					}
 					else
 					{
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
-						detailCommand.Parameters["?ProducerCost"].Value = position.Cost / 1.25m;
+						detailCommand.Parameters["?ProducerCost"].Value = position.OrderPosition.Cost / 1.25;
 
-						detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.18m;
+						detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.OrderPosition.Cost / 1.18;
 						detailCommand.Parameters["?NDS"].Value = 18;
 
 						switch (random.Next(3))
@@ -213,7 +217,7 @@ values
 								break;
 							case 2:
 								detailCommand.Parameters["?VitallyImportant"].Value = 1;
-								detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.Cost / 1.1m;
+								detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.OrderPosition.Cost / 1.1;
 								detailCommand.Parameters["?NDS"].Value = 10;
 								break;
 							default:
@@ -221,7 +225,6 @@ values
 								break;
 						}
 					}
-					 */ 
 				}
 
 				detailCommand.ExecuteNonQuery();

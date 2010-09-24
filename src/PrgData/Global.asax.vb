@@ -23,9 +23,14 @@ Public Class Global_asax
             "FtpRoot\10069", "FtpRoot\10069\Docs", "FtpRoot\10069\Orders", "FtpRoot\10069\Rejects", "FtpRoot\10069\Waybills"}
 
 
-        Dim parentDir = Directory.GetParent(ServiceContext.GetResultPath())
+        Dim parentDir = AppDomain.CurrentDomain.BaseDirectory
+        If Directory.Exists(Path.Combine(parentDir, "bin")) Then
+            parentDir = Path.Combine(parentDir, "bin")
+        End If
+        ConfigurationManager.AppSettings("DocumentsPath") = Path.Combine(parentDir, "FtpRoot") & "\"
+        ConfigurationManager.AppSettings("WaybillPath") = Path.Combine(parentDir, "FtpRoot")
         For Each dir As String In dirs
-            dir = Path.Combine(parentDir.FullName, dir)
+            dir = Path.Combine(parentDir, dir)
             If Not Directory.Exists(dir) Then Directory.CreateDirectory(dir)
         Next
 

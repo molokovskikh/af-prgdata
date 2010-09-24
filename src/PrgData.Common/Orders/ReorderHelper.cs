@@ -96,6 +96,31 @@ namespace PrgData.Common.Orders
 							}
 						});
 				});
+
+#if DEBUG
+			if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
+				global::Common.MySql.With.DeadlockWraper(
+					() =>
+						{
+							var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+							try
+							{
+								GenerateDocsHelper.GenerateDocs(_readWriteConnection,
+																_data,
+																_orders.FindAll(
+																	item =>
+																	item.SendResult ==
+																	OrderSendResult.Success));
+								transaction.Commit();
+							}
+							catch
+							{
+								ConnectionHelper.SafeRollback(transaction);
+								throw;
+							}
+						});
+#endif
+
 		}
 
 		public string PostSomeOrders()
@@ -136,16 +161,6 @@ namespace PrgData.Common.Orders
 			{
 				//сохраняем сами заявки в базу
 				SaveOrders(session);
-
-#if DEBUG
-				//if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
-				//    GenerateDocsHelper.GenerateDocs(_readWriteConnection,
-				//                                    _data,
-				//                                    _orders.FindAll(
-				//                                        item =>
-				//                                        item.SendResult ==
-				//                                        OrderSendResult.Success));
-#endif
 
 				session.CreateSQLQuery(@"
 insert into logs.AnalitFUpdates 
@@ -432,8 +447,8 @@ values
 SELECT ROUND(IF(SUM(cost            *quantity)>RCS.MaxWeeklyOrdersSum
 AND    CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0)
 FROM   orders.OrdersHead Oh,
-       orders.OrdersList Ol,
-       RetClientsSet RCS
+	   orders.OrdersList Ol,
+	   RetClientsSet RCS
 WHERE  WriteTime               >curdate() - interval dayofweek(curdate())-2 DAY
 AND    Oh.RowId                =ol.OrderId
 AND    RCS.ClientCode          =oh.ClientCode
@@ -459,23 +474,23 @@ AND    RCS.clientcode          = ?ClientCode"
 			ushort[] rowCount,
 			ulong[] clientPositionID,
 			ulong[] clientServerCoreID,
-            ulong[] productID,
-            string[] codeFirmCr,
+			ulong[] productID,
+			string[] codeFirmCr,
 			ulong[] synonymCode,
 			string[] synonymFirmCrCode,
-            string[] code,
-            string[] codeCr, 
-            bool[] junk,
-            bool[] await,
+			string[] code,
+			string[] codeCr, 
+			bool[] junk,
+			bool[] await,
 			string[] requestRatio,
 			string[] orderCost,
 			string[] minOrderCount,
 			ushort[] quantity,
 			decimal[] cost, 
-            string[] minCost, 
-            string[] minPriceCode,
-            string[] leaderMinCost, 
-            string[] leaderMinPriceCode,
+			string[] minCost, 
+			string[] minPriceCode,
+			string[] leaderMinCost, 
+			string[] leaderMinPriceCode,
 			string[] supplierPriceMarkup,
 			string[] delayOfPayment,
 			string[] coreQuantity,
@@ -571,18 +586,18 @@ AND    RCS.clientcode          = ?ClientCode"
 					{
 						var offer = new Offer()
 						{
-						    ProductId = Convert.ToUInt32(productID[detailIndex]),
-						    CodeFirmCr =
-						        String.IsNullOrEmpty(codeFirmCr[detailIndex]) ? null : (uint?) uint.Parse(codeFirmCr[detailIndex]),
-						    SynonymCode = Convert.ToUInt32(synonymCode[detailIndex]),
-						    SynonymFirmCrCode =
-						        String.IsNullOrEmpty(synonymFirmCrCode[detailIndex])
-						            ? null
-						            : (uint?) uint.Parse(synonymFirmCrCode[detailIndex]),
-						    Code = code[detailIndex],
-						    CodeCr = codeCr[detailIndex],
-						    Junk = junk[detailIndex],
-						    Await = await[detailIndex],
+							ProductId = Convert.ToUInt32(productID[detailIndex]),
+							CodeFirmCr =
+								String.IsNullOrEmpty(codeFirmCr[detailIndex]) ? null : (uint?) uint.Parse(codeFirmCr[detailIndex]),
+							SynonymCode = Convert.ToUInt32(synonymCode[detailIndex]),
+							SynonymFirmCrCode =
+								String.IsNullOrEmpty(synonymFirmCrCode[detailIndex])
+									? null
+									: (uint?) uint.Parse(synonymFirmCrCode[detailIndex]),
+							Code = code[detailIndex],
+							CodeCr = codeCr[detailIndex],
+							Junk = junk[detailIndex],
+							Await = await[detailIndex],
 							RequestRatio =
 								String.IsNullOrEmpty(requestRatio[detailIndex]) ? null : (ushort?)ushort.Parse(requestRatio[detailIndex]),
 							OrderCost =
@@ -643,7 +658,7 @@ AND    RCS.clientcode          = ?ClientCode"
 								};
 
 							if ((!leaderInfo.MinCost.HasValue && !leaderInfo.LeaderMinCost.HasValue) ||
-							    (!leaderInfo.PriceCode.HasValue && !leaderInfo.LeaderPriceCode.HasValue))
+								(!leaderInfo.PriceCode.HasValue && !leaderInfo.LeaderPriceCode.HasValue))
 								leaderInfo = null;
 						}
 
@@ -886,12 +901,12 @@ SELECT oh.RowId as OrderId
 FROM   orders.ordershead oh
 WHERE  clientorderid = ?ClientOrderID
 AND    writetime    >ifnull(
-       (SELECT MAX(requesttime)
-       FROM    logs.AnalitFUpdates px
-       WHERE   updatetype =2
-       AND     px.UserId  = ?UserId
-       )
-       , now() - interval 2 week)
+	   (SELECT MAX(requesttime)
+	   FROM    logs.AnalitFUpdates px
+	   WHERE   updatetype =2
+	   AND     px.UserId  = ?UserId
+	   )
+	   , now() - interval 2 week)
 AND    clientcode = ?ClientCode
 AND    UserId = ?UserId
 AND    AddressId = ?AddressId
@@ -917,12 +932,12 @@ SELECT oh.RowId as OrderId
 FROM   orders.ordershead oh
 WHERE  clientorderid = ?ClientOrderID
 AND    writetime    >ifnull(
-       (SELECT MAX(requesttime)
-       FROM    logs.AnalitFUpdates px
-       WHERE   updatetype =2
-       AND     px.UserId  = ?UserId
-       )
-       , now() - interval 2 week)
+	   (SELECT MAX(requesttime)
+	   FROM    logs.AnalitFUpdates px
+	   WHERE   updatetype =2
+	   AND     px.UserId  = ?UserId
+	   )
+	   , now() - interval 2 week)
 AND    clientcode = ?ClientCode
 order by oh.RowId desc
 limit 1

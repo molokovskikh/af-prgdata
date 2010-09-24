@@ -60,8 +60,6 @@ Public Class PrgDataEx
         MyBase.Dispose(disposing)
     End Sub
 
-    ReadOnly ѕуть ƒокументам As String = System.Configuration.ConfigurationManager.AppSettings("DocumentsPath")
-
     'ReadOnly ZipProcessorAffinityMask As Integer = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("ZipProcessorAffinity"))
 
     Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
@@ -686,7 +684,7 @@ endproc:
             Dim zipfilecount = 0
             Dim xset As New DataTable
             Dim ArchTrans As MySqlTransaction
-            Dim ef(), —писок‘айлов() As String
+            Dim ef(), ListOfDocs() As String
 
 
             Using connection = _simpleConnectionManager.GetConnection()
@@ -735,7 +733,7 @@ endproc:
                             ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
                             For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
 
-                                —писок‘айлов = Directory.GetFiles(ѕуть ƒокументам & _
+                                ListOfDocs = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
                                  Row.Item("ClientCode").ToString & _
                                  "\" & _
                                  CType(Row.Item("DocumentType"), “ипƒокумента).ToString, _
@@ -747,7 +745,7 @@ endproc:
                                 xRow.Item("DocumentId") = Row.Item("RowId").ToString
                                 DS.Tables("ProcessingDocuments").Rows.Add(xRow)
 
-                                If —писок‘айлов.Length = 1 Then
+                                If ListOfDocs.Length = 1 Then
 
                                     startInfo = New ProcessStartInfo(SevenZipExe)
                                     startInfo.CreateNoWindow = True
@@ -760,11 +758,11 @@ endproc:
                                        SevenZipTmpArchive & """ " & _
                                        " -i!""" & _
                                        CType(Row.Item("DocumentType"), “ипƒокумента).ToString & "\" & _
-                                       Path.GetFileName(—писок‘айлов(0)) & _
+                                       Path.GetFileName(ListOfDocs(0)) & _
                                        """ " & _
                                        SevenZipParam
 
-                                    startInfo.WorkingDirectory = ѕуть ƒокументам & _
+                                    startInfo.WorkingDirectory = ServiceContext.GetDocumentsPath() & _
                                        Row.Item("ClientCode").ToString
 
                                     Pr = New Process
@@ -798,9 +796,9 @@ endproc:
                                               ќшибка7Z)
                                         End If
                                     End If
-                                ElseIf —писок‘айлов.Length = 0 Then
+                                ElseIf ListOfDocs.Length = 0 Then
                                     Addition &= "ѕри подготовке документов в папке: " & _
-                                     ѕуть ƒокументам & _
+                                     ServiceContext.GetDocumentsPath() & _
                                        Row.Item("ClientCode").ToString & _
                                        "\" & _
                                        CType(Row.Item("DocumentType"), “ипƒокумента).ToString & _
@@ -2158,7 +2156,7 @@ PostLog:
 
                             For Each DocumentsIdRow As DataRow In processedDocuments.Rows
 
-                                —писок‘айлов = Directory.GetFiles(ѕуть ƒокументам & _
+                                —писок‘айлов = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
                                    DocumentsIdRow.Item("ClientCode").ToString & _
                                    "\" & _
                                    CType(DocumentsIdRow.Item("DocumentType"), “ипƒокумента).ToString, _
