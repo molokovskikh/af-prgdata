@@ -25,6 +25,7 @@ namespace Integration
 		TestOldUser oldUser;
 
 		private uint lastUpdateId;
+		private bool fullHistory;
 		private string responce;
 
 		private string UniqueId;
@@ -94,9 +95,19 @@ namespace Integration
 			service.ResultFileName = "results";
 			responce = service.GetHistoryOrders(appVersion, UniqueId, new ulong[0], 1, 1);
 
-			var match = Regex.Match(responce, @"\d+").Value;
-			if (match.Length > 0)
-				lastUpdateId = Convert.ToUInt32(match);
+			if (responce.Contains("FullHistory=True"))
+				fullHistory = true;
+			else
+			{
+				if (responce.Contains("GetFileHistoryHandler.ashx?Id="))
+				{
+					var match = Regex.Match(responce, @"\d+").Value;
+					if (match.Length > 0)
+						lastUpdateId = Convert.ToUInt32(match);
+				}
+				else
+					Assert.Fail("Ќераспознанный ответ от сервера при запросе истории заказов: {0}", responce);
+			}
 			return responce;
 		}
 
@@ -112,9 +123,13 @@ namespace Integration
 		{
 			SetCurrentUser(login);
 			lastUpdateId = 0;
+			fullHistory = false;
 			SimpleLoadData();
+
 			Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "ќтвет от сервера указывает, что имеетс€ ошибка");
-			Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен");
+
+			if (!fullHistory)
+				Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен");
 		}
 
 		[Test]
@@ -122,20 +137,22 @@ namespace Integration
 		{
 			CheckGetHistoryOrders(user.Login);
 
-			var commit =
-				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
-				                                            "select Commit from logs.AnalitFUpdates where UpdateId = " +
-				                                            lastUpdateId));
-			Assert.IsFalse(commit, "«апрос с историей заказов считаетс€ подтвержденным");
+			if (!fullHistory)
+			{
+				var commit =
+					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+																"select Commit from logs.AnalitFUpdates where UpdateId = " +
+																lastUpdateId));
+				Assert.IsFalse(commit, "«апрос с историей заказов считаетс€ подтвержденным");
 
-			CommitExchange();
+				CommitExchange();
 
-			commit =
-				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
-															"select Commit from logs.AnalitFUpdates where UpdateId = " +
-															lastUpdateId));
-			Assert.IsTrue(commit, "«апрос с историей заказов считаетс€ неподтвержденным");
-
+				commit =
+					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+																"select Commit from logs.AnalitFUpdates where UpdateId = " +
+																lastUpdateId));
+				Assert.IsTrue(commit, "«апрос с историей заказов считаетс€ неподтвержденным");
+			}
 		}
 
 	}
