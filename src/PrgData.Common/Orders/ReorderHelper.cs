@@ -1013,6 +1013,11 @@ where
 
 				//Если все заказы были помечены как дублирующиеся, то весь заказ помечаем как полностью дублирующийся
 				order.FullDuplicated = (order.GetSavedRowCount() == 0);
+				if (order.FullDuplicated)
+				{
+					var serverOrder = IoC.Resolve<IRepository<Order>>().Load(Convert.ToUInt32(order.ServerOrderId));
+					order.Order.WriteTime = serverOrder.WriteTime;
+				}
 			}
 		}
 	}
