@@ -60,26 +60,26 @@ namespace PrgData.Common
 			_maxOrderListId = maxOrderListId;
 			_maxBatchId = maxBatchId;
 
-			_orderRule = IoC.Resolve<IRepository<OrderRules>>().Get(updateData.ClientId);
-			if (!_orderRule.EnableSmartOrder)
-				throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
-
-			_smartOrderRule = IoC.Resolve<ISmartOrderFactoryRepository>().GetSmartOrderRule(updateData.ClientId);
-
-			if (_smartOrderRule == null)
-				throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Не настроены правила для автоматического формирования заказа; ", RequestType.Forbidden);
-
 			using(var unitOfWork = new UnitOfWork())
 			{
+				_orderRule = IoC.Resolve<IRepository<OrderRules>>().Load(updateData.ClientId);
+				if (!_orderRule.EnableSmartOrder)
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
+
+				_smartOrderRule = IoC.Resolve<ISmartOrderFactoryRepository>().GetSmartOrderRule(updateData.ClientId);
+
+				if (_smartOrderRule == null)
+					throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Не настроены правила для автоматического формирования заказа; ", RequestType.Forbidden);
+
 				if (_updateData.IsFutureClient)
 				{
-					Orderable = IoC.Resolve<IRepository<User>>().Get(_updateData.UserId);
+					Orderable = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
 					NHibernateUtil.Initialize(((User)Orderable).AvaliableAddresses);
-					Address = IoC.Resolve<IRepository<Address>>().Get(orderedClientCode);
+					Address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
 					NHibernateUtil.Initialize(Address.Users);
 				}
 				else
-					Orderable = IoC.Resolve<IRepository<Client>>().Get(orderedClientCode);
+					Orderable = IoC.Resolve<IRepository<Client>>().Load(orderedClientCode);
 			}
 
 			_tmpBatchFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName());

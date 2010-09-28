@@ -44,19 +44,21 @@ namespace PrgData.Common.Orders
 			_orderedClientCode = orderedClientCode;
 			_useCorrectOrders = useCorrectOrders;
 
-			_orderRule = IoC.Resolve<IRepository<OrderRules>>().Get(data.ClientId);
 
 			using (var unitOfWork = new UnitOfWork())
 			{
+				_orderRule = IoC.Resolve<IRepository<OrderRules>>().Load(data.ClientId);
+				NHibernateUtil.Initialize(_orderRule);
+
 				if (data.IsFutureClient)
 				{
-					_client = IoC.Resolve<IRepository<User>>().Get(data.UserId);
+					_client = IoC.Resolve<IRepository<User>>().Load(data.UserId);
 					NHibernateUtil.Initialize(((User)_client).AvaliableAddresses);
-					_address = IoC.Resolve<IRepository<Address>>().Get(orderedClientCode);
+					_address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
 					NHibernateUtil.Initialize(_address.Users);
 				}
 				else
-					_client = IoC.Resolve<IRepository<Client>>().Get(orderedClientCode);
+					_client = IoC.Resolve<IRepository<Client>>().Load(orderedClientCode);
 			}
 
 			CheckCanPostOrder();
@@ -558,7 +560,7 @@ AND    RCS.clientcode          = ?ClientCode"
 				var detailsPosition = 0u;
 				for (int i = 0; i < orderCount; i++)
 				{
-					var priceList = IoC.Resolve<IRepository<PriceList>>().Get(Convert.ToUInt32(priceCode[i]));
+					var priceList = IoC.Resolve<IRepository<PriceList>>().Load(Convert.ToUInt32(priceCode[i]));
 					var activePrice = new ActivePrice
 					{
 						Id = new PriceKey(priceList) { RegionCode = regionCode[i] },
@@ -747,7 +749,7 @@ AND    RCS.clientcode          = ?ClientCode"
 
 			using (var unitOfWork = new UnitOfWork())
 			{
-				var priceList = IoC.Resolve<IRepository<PriceList>>().Get(Convert.ToUInt32(priceCode));
+				var priceList = IoC.Resolve<IRepository<PriceList>>().Load(Convert.ToUInt32(priceCode));
 				var activePrice = new ActivePrice
 				{
 					Id = new PriceKey(priceList) { RegionCode = regionCode },

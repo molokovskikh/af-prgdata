@@ -66,10 +66,10 @@ namespace Integration
 			Address realAddress;
 			using (var unitOfWork = new UnitOfWork())
 			{
-				orderable = IoC.Resolve<IRepository<User>>().Get(user.Id);
+				orderable = IoC.Resolve<IRepository<User>>().Load(user.Id);
 				NHibernateUtil.Initialize(orderable.AvaliableAddresses);
 
-				realAddress = IoC.Resolve<IRepository<Address>>().Get(address.Id);
+				realAddress = IoC.Resolve<IRepository<Address>>().Load(address.Id);
 				NHibernateUtil.Initialize(realAddress.Users);
 			}
 
