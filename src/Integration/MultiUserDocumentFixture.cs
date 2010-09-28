@@ -62,7 +62,7 @@ namespace Integration
 			TestDocumentLog doc;
 			using (var transaction = new TransactionScope(OnDispose.Rollback))
 			{
-				var supplierId = user.GetActivePrices()[0].FirmCode;
+				var supplierId = user.GetActivePrices()[0].Supplier.Id;
 				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
 					FirmCode = supplierId,
@@ -254,7 +254,7 @@ namespace Integration
 			uint supplierId;
 			using (new TransactionScope())
 			{
-				supplierId = client.Users[0].GetActivePrices()[0].FirmCode;
+				supplierId = client.Users[0].GetActivePrices()[0].Supplier.Id;
 			}
 			
 			service.SendWaybills(client.Addresses[0].Id,
@@ -270,7 +270,7 @@ namespace Integration
 			uint supplierId;
 			using (new TransactionScope())
 			{
-				supplierId = client.Users[0].GetActivePrices()[0].FirmCode;
+				supplierId = client.Users[0].GetActivePrices()[0].Supplier.Id;
 			}
 
 			return service.SendWaybillsEx(client.Addresses[0].Id,
