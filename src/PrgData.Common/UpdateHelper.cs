@@ -1910,7 +1910,7 @@ AND    ForceReplication =2;
 
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate,
-       CostSessionKey = null,
+#CostSessionKey = null,
        MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
 "
@@ -2002,7 +2002,7 @@ AND    ForceReplication =2;
 
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate,
-       CostSessionKey = null,
+#CostSessionKey = null,
        MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
 

@@ -3542,7 +3542,7 @@ RestartTrans2:
                 UpdateData.ParseBuildNumber(EXEVersion)
             End If
 
-            Dim needSessionKey = UpdateData.BuildNumber.HasValue AndAlso (UpdateData.BuildNumber > 1269 Or UpdateData.NeedUpdateToCryptCost)
+            Dim needSessionKey = False
 
             If needSessionKey Then
                 Cm.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = " & UpdateData.UserId
