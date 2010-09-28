@@ -1970,7 +1970,7 @@ StartZipping:
             Try
                 helper.PrepareBatchFile(BatchFile)
 
-                UpdateHelper.GenerateSessionKey(readWriteConnection, UpdateData)
+                'UpdateHelper.GenerateSessionKey(readWriteConnection, UpdateData)
 
                 helper.ProcessBatchFile()
 
@@ -3064,16 +3064,16 @@ RestartTrans2:
                         '    "   AND Core.PriceCode != ?ImpersonalPriceId ; "
                         'SelProc.ExecuteNonQuery()
 
-                        If UpdateData.BuildNumber > 1271 Or UpdateData.NeedUpdateToCryptCost Then
-                            SelProc.CommandText = _
-                                "UPDATE ActivePrices Prices, " & _
-                                "       Core " & _
-                                "SET    CryptCost       = AES_ENCRYPT(Cost, '" & UpdateData.CostSessionKey & "') " & _
-                                "WHERE  Prices.PriceCode= Core.PriceCode " & _
-                                "   AND IF(?Cumulative, 1, Fresh) " & _
-                                "   AND Core.PriceCode != ?ImpersonalPriceId ; "
-                            SelProc.ExecuteNonQuery()
-                        End If
+                        'If UpdateData.BuildNumber > 1271 Or UpdateData.NeedUpdateToCryptCost Then
+                        '    SelProc.CommandText = _
+                        '        "UPDATE ActivePrices Prices, " & _
+                        '        "       Core " & _
+                        '        "SET    CryptCost       = AES_ENCRYPT(Cost, '" & UpdateData.CostSessionKey & "') " & _
+                        '        "WHERE  Prices.PriceCode= Core.PriceCode " & _
+                        '        "   AND IF(?Cumulative, 1, Fresh) " & _
+                        '        "   AND Core.PriceCode != ?ImpersonalPriceId ; "
+                        '    SelProc.ExecuteNonQuery()
+                        'End If
 
                         'GetMySQLFileWithDefaultEx( _
                         ' "CoreTest", _

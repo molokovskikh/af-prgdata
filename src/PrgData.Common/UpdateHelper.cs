@@ -1573,7 +1573,7 @@ Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = CT.ProductId
   left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
-				cryptCost ? "CT.CryptCost" : "CT.Cost"
+				cryptCost ? "CT.Cost" : "CT.Cost"
 				);
 		}
 
@@ -2033,8 +2033,8 @@ AND    UserId            = {0};
 					if (updateType != RequestType.ResumeData)
 						command.CommandText += @"update UserUpdateInfo set UncommitedUpdateDate=now() where UserId = ?userId; ";
 
-					if (updateType != RequestType.ResumeData && updateType != RequestType.PostOrderBatch)
-						command.CommandText += @"update UserUpdateInfo set CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId; ";
+					//if (updateType != RequestType.ResumeData && updateType != RequestType.PostOrderBatch)
+					//    command.CommandText += @"update UserUpdateInfo set CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId; ";
 
 					command.CommandText += "select UncommitedUpdateDate from UserUpdateInfo where UserId = ?userId;";
 
@@ -2042,8 +2042,8 @@ AND    UserId            = {0};
 
 					DateTime updateTime = Convert.ToDateTime(command.ExecuteScalar());
 
-					command.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = ?userId;";
-					_updateData.CostSessionKey = Convert.ToString(command.ExecuteScalar());
+					//command.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = ?userId;";
+					//_updateData.CostSessionKey = Convert.ToString(command.ExecuteScalar());
 
 					transaction.Commit();
 					return updateTime;

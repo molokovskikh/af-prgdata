@@ -166,14 +166,14 @@ namespace PrgData.Common
 
 						string cryptCostWithoutDelayOfPayment, cryptCost;
 
-						if (_updateData.BuildNumber > 1271)
-						{
-							cryptCostWithoutDelayOfPayment = GetCryptCost(connection, report.Item.Offer.CostWithoutDelayOfPayment, _updateData.CostSessionKey);
-							cryptCost = cryptCostWithoutDelayOfPayment;
-							if (!report.Item.Offer.Cost.Equals(report.Item.Offer.CostWithoutDelayOfPayment))
-								cryptCost = GetCryptCost(connection, report.Item.Offer.Cost, _updateData.CostSessionKey);
-						}
-						else
+						//if (_updateData.BuildNumber > 1271)
+						//{
+						//    cryptCostWithoutDelayOfPayment = GetCryptCost(connection, report.Item.Offer.CostWithoutDelayOfPayment, _updateData.CostSessionKey);
+						//    cryptCost = cryptCostWithoutDelayOfPayment;
+						//    if (!report.Item.Offer.Cost.Equals(report.Item.Offer.CostWithoutDelayOfPayment))
+						//        cryptCost = GetCryptCost(connection, report.Item.Offer.Cost, _updateData.CostSessionKey);
+						//}
+						//else
 						{
 							cryptCostWithoutDelayOfPayment =
 								report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat);
