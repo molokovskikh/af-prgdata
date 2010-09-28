@@ -1977,6 +1977,9 @@ StartZipping:
                 AddFileToQueue(helper.BatchReportFileName)
                 AddFileToQueue(helper.BatchOrderFileName)
                 AddFileToQueue(helper.BatchOrderItemsFileName)
+                If (UpdateData.BuildNumber > 1271) Then
+                    AddFileToQueue(helper.BatchReportServiceFieldsFileName)
+                End If
 
                 ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True)
 

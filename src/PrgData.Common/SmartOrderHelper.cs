@@ -38,6 +38,7 @@ namespace PrgData.Common
 		public string BatchReportFileName;
 		public string BatchOrderFileName;
 		public string BatchOrderItemsFileName;
+		public string BatchReportServiceFieldsFileName;
 
 		private SmartOrderBatchHandler _handler;
 
@@ -86,6 +87,7 @@ namespace PrgData.Common
 			BatchReportFileName = _tmpBatchFolder + @"\BatchReport.txt";
 			BatchOrderFileName = _tmpBatchFolder + @"\BatchOrder.txt";
 			BatchOrderItemsFileName = _tmpBatchFolder + @"\BatchOrderItems.txt";
+			BatchReportServiceFieldsFileName = _tmpBatchFolder + @"\BatchReportServiceFields.txt";
 			Directory.CreateDirectory(_tmpBatchFolder);
 		}
 
@@ -135,6 +137,8 @@ namespace PrgData.Common
 
 		private void SaveToFile(List<OrderBatchItem> list, List<Order> orders)
 		{
+			ServiceFieldsToFile();
+
 			var buildOrder = new StringBuilder();
 			var buildItems = new StringBuilder();
 			var buildReport = new StringBuilder();
@@ -203,6 +207,10 @@ namespace PrgData.Common
 
 				foreach (var report in list)
 				{
+					var serviceValues = "";
+					if (_updateData.BuildNumber > 1271)
+						serviceValues = GetServiceValues(report);
+
 					if (report.Item != null)
 					{
 						var comments = new List<string>();
@@ -211,7 +219,7 @@ namespace PrgData.Common
 						comments.AddRange(report.Item.Comments);
 						comments = comments.Distinct().ToList();
 						buildReport.AppendFormat(
-							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\n",
+							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
 							_maxBatchId,
 							OrderedClientCode,
 							report.ProductName,
@@ -221,17 +229,19 @@ namespace PrgData.Common
 							report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
 							(int)report.Item.Status,
 							report.Item.ProductId,
-							report.Item.CodeFirmCr.HasValue ? report.Item.CodeFirmCr.Value.ToString() : "\\N");
+							report.Item.CodeFirmCr.HasValue ? report.Item.CodeFirmCr.Value.ToString() : "\\N",
+							serviceValues);
 					}
 					else
 						buildReport.AppendFormat(
-							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N\n",
+							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N{6}\n",
 							_maxBatchId,
 							OrderedClientCode,
 							report.ProductName,
 							report.ProducerName,
 							report.Quantity,
-							report.Comment);
+							report.Comment,
+							serviceValues);
 					_maxBatchId++;
 				}
 			}
@@ -239,6 +249,27 @@ namespace PrgData.Common
 			File.WriteAllText(BatchReportFileName, buildReport.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(BatchOrderFileName, buildOrder.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(BatchOrderItemsFileName, buildItems.ToString(), Encoding.GetEncoding(1251));
+		}
+
+		private string GetServiceValues(OrderBatchItem report)
+		{
+			var values = new List<string>();
+			foreach (var key in report.ServiceValues.Keys)
+				values.Add(MySql.Data.MySqlClient.MySqlHelper.EscapeString(report.ServiceValues[key]));
+			return "\t" + String.Join("\t", values.ToArray());
+		}
+
+		private void ServiceFieldsToFile()
+		{
+			if (_updateData.BuildNumber > 1271 && _handler.Source.ServiceFields.Count > 0)
+			{
+				var buildFields = new StringBuilder();
+
+				foreach (var key in _handler.Source.ServiceFields.Keys)
+					buildFields.AppendLine(MySql.Data.MySqlClient.MySqlHelper.EscapeString(key));
+
+				File.WriteAllText(BatchReportServiceFieldsFileName, buildFields.ToString(), Encoding.GetEncoding(1251));
+			}
 		}
 
 		public void DeleteTemporaryFiles()
