@@ -261,7 +261,7 @@ namespace PrgData.Common
 
 		private void ServiceFieldsToFile()
 		{
-			if (_updateData.BuildNumber > 1271 && _handler.Source.ServiceFields.Count > 0)
+			if (_updateData.BuildNumber > 1271)
 			{
 				var buildFields = new StringBuilder();
 
