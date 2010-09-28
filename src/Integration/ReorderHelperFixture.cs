@@ -642,6 +642,20 @@ limit 1
 			return serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
 		}
 
+		private string CheckServiceResponseWithSendDate(string response)
+		{
+			var serverParams = response.Split(';');
+			Assert.That(serverParams.Length, Is.EqualTo(6), "Неожидаемое кол-во секций в ответе сервера");
+			Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
+			Assert.That(serverParams[1], Is.EqualTo("PostResult=0").IgnoreCase, "Возникла ошибка при отправке заказа");
+			Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
+			Assert.That(serverParams[3], Is.EqualTo("ErrorReason=").IgnoreCase, "Возникла ошибка при отправке заказа");
+			Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+			Assert.That(serverParams[5], Is.StringStarting("SendDate=").IgnoreCase);
+
+			return serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+		}
+		
 		public void Check_simple_order_with_leaders(string userName, uint orderedClientId)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -695,6 +709,39 @@ where
 		public void Check_simple_order_with_leaders_for_future_client()
 		{
 			Check_simple_order_with_leaders(user.Login, address.Id);
+		}
+
+		[Test(Description = "Проверка отправки заказа приложением с версией больше 1271")]
+		public void Check_order_with_buildNumber_greater_than_1271()
+		{
+			string userName = user.Login;
+			uint orderedClientId = address.Id;
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+
+				updateData.BuildNumber = 1272;
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.RetClientsSet set CalculateLeader = 1 where ClientCode = ?ClientCode",
+					new MySqlParameter("?ClientCode", updateData.ClientId));
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseFirstOrder(orderHelper);
+
+				var result = orderHelper.PostSomeOrders();
+
+				var firstServerOrderId = CheckServiceResponseWithSendDate(result);
+
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе");
+			}
 		}
 
 		[Test]

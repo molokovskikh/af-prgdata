@@ -43,15 +43,16 @@ namespace PrgData.Common.Orders
 			ClearOnCreate();
 		}
 
-		public string GetResultToClient()
+		public string GetResultToClient(int? buildNumber)
 		{
 			var result = String.Format(
-				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}",
+				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}{5}",
 				Order.ClientOrderId, 
 				Convert.ToInt32(SendResult),
 				ServerOrderId,
 				ErrorReason,
-				MinReq);
+				MinReq,
+				buildNumber > 1271 ? ";SendDate=" + Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") : "");
 
 			if (SendResult == OrderSendResult.NeedCorrect)
 			{
