@@ -3098,7 +3098,7 @@ RestartTrans2:
                           False, _
                           (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
                           (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, _
-                          UpdateData.BuildNumber > 1271 Or UpdateData.NeedUpdateToCryptCost
+                          False
                          ), _
                          (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
                          True _

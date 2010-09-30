@@ -1596,7 +1596,7 @@ Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = CT.ProductId
   left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
-				cryptCost ? "CT.Cost" : "CT.Cost"
+				cryptCost ? "CT.CryptCost" : "CT.Cost"
 				);
 		}
 

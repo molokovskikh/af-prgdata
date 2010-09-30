@@ -133,7 +133,7 @@ namespace PrgData.Common
 					UpdateExeVersionInfo = GetUpdateVersionInfo();
 					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();
 					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();
-					NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
+					//NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
 					NeedUpdateToNewClientsWithLegalEntity = CheckNeedUpdateToNewClientsWithLegalEntity();
 				}
 			}
@@ -171,10 +171,7 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToCryptCost()
 		{
-			if (UpdateExeVersionInfo != null && BuildNumber <= 1271)
-				return UpdateExeVersionInfo.FilePrivatePart > 1271;
-
-			return false;
+			throw new NotImplementedException();
 		}
 
 		private bool CheckNeedUpdateToNewClientsWithLegalEntity()
