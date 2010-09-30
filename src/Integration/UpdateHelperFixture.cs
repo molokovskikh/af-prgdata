@@ -165,9 +165,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
 
-				updateData.EnableUpdate = true;
-				updateData.ParseBuildNumber("6.0.0.1269");
-
 				updateData.BuildNumber = 1272;
 
 				var firebirdSQL = helper.GetClientsCommand(true);

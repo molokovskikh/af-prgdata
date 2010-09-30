@@ -54,6 +54,8 @@ namespace PrgData.Common
 
 		public bool NeedUpdateToNewClientsWithLegalEntity { get; private set; }
 
+		public FileVersionInfo UpdateExeVersionInfo { get; private set; }
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -128,6 +130,7 @@ namespace PrgData.Common
 				{
 					BuildNumber = buildNumber;
 					CheckBuildNumber();
+					UpdateExeVersionInfo = GetUpdateVersionInfo();
 					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();
 					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();
 					NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
@@ -152,70 +155,50 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToBuyingMatrix()
 		{
-			try
-			{
-				if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1229)
-				{
-					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-					var info = FileVersionInfo.GetVersionInfo(exeName);
-					return info.FilePrivatePart >= 1249;
-				}
-			}
-			catch
-			{
-			}
+			if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1229 && UpdateExeVersionInfo != null)
+				return UpdateExeVersionInfo.FilePrivatePart >= 1249;
+
 			return false;
 		}
 
 		private bool CheckNeedUpdateToNewMNN()
 		{
-			try
-			{
-				if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1263)
-				{
-					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-					var info = FileVersionInfo.GetVersionInfo(exeName);
-					return info.FilePrivatePart > 1263;
-				}
-			}
-			catch
-			{
-			}
+			if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1263 && UpdateExeVersionInfo != null)
+				return UpdateExeVersionInfo.FilePrivatePart > 1263;
+
 			return false;
 		}
 
 		private bool CheckNeedUpdateToCryptCost()
 		{
-			try
-			{
-				if (EnableUpdate && BuildNumber <= 1271)
-				{
-					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-					var info = FileVersionInfo.GetVersionInfo(exeName);
-					return info.FilePrivatePart > 1271;
-				}
-			}
-			catch
-			{
-			}
+			if (EnableUpdate && BuildNumber <= 1271 && UpdateExeVersionInfo != null)
+				return UpdateExeVersionInfo.FilePrivatePart > 1271;
+
 			return false;
 		}
 
 		private bool CheckNeedUpdateToNewClientsWithLegalEntity()
 		{
+			if (EnableUpdate && BuildNumber <= 1271 && UpdateExeVersionInfo != null)
+				return UpdateExeVersionInfo.FilePrivatePart > 1271;
+
+			return false;
+		}
+
+		private FileVersionInfo GetUpdateVersionInfo()
+		{
+			if (!EnableUpdate)
+				return null;
+
 			try
 			{
-				if (EnableUpdate && BuildNumber <= 1271)
-				{
-					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-					var info = FileVersionInfo.GetVersionInfo(exeName);
-					return info.FilePrivatePart > 1271;
-				}
+				var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+				return FileVersionInfo.GetVersionInfo(exeName);
 			}
 			catch
 			{
+				return null;
 			}
-			return false;
 		}
 
 	}

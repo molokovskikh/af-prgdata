@@ -156,6 +156,18 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			Check_OFF_flags_for_BuyingMatrix_and_MNN(_user.Login);
 		}
 
+		[Test]
+		public void Check_ON_flags_for_NewClients_for_future_client()
+		{
+			Check_ON_flags_for_NewClients(_user.Login);
+		}
+
+		[Test]
+		public void Check_OFF_flags_for_NewClients_for_future_client()
+		{
+			Check_OFF_flags_for_NewClients(_user.Login);
+		}
+
 		private void Check_ON_flags_for_BuyingMatrix_and_MNN(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
@@ -167,6 +179,14 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				updateData.ParseBuildNumber("6.0.0.1183");
 				Assert.IsTrue(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
 				Assert.IsTrue(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
+
+				updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.EnableUpdate = true;
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1263");
+				//Значения будут false, т.к. обновление для версии 1263 не выложено
+				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
+				Assert.IsFalse(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
 			}
 		}
 
@@ -181,6 +201,32 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				updateData.ParseBuildNumber("6.0.0.1269");
 				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
 				Assert.IsFalse(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
+			}
+		}
+
+		private void Check_ON_flags_for_NewClients(string login)
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.EnableUpdate = true;
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1271");
+				Assert.IsTrue(updateData.NeedUpdateToNewClientsWithLegalEntity, "Неправильно сработало условие обновления новых клиентов с юр лицами");
+			}
+		}
+
+		private void Check_OFF_flags_for_NewClients(string login)
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.EnableUpdate = true;
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1279");
+				Assert.IsFalse(updateData.NeedUpdateToNewClientsWithLegalEntity, "Неправильно сработало условие обновления новых клиентов с юр лицами");
 			}
 		}
 
