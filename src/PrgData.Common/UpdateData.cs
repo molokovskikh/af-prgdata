@@ -155,7 +155,7 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToBuyingMatrix()
 		{
-			if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1229 && UpdateExeVersionInfo != null)
+			if (UpdateExeVersionInfo != null && BuildNumber >= 1183 && BuildNumber <= 1229)
 				return UpdateExeVersionInfo.FilePrivatePart >= 1249;
 
 			return false;
@@ -163,7 +163,7 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToNewMNN()
 		{
-			if (EnableUpdate && BuildNumber >= 1183 && BuildNumber <= 1263 && UpdateExeVersionInfo != null)
+			if (UpdateExeVersionInfo != null && BuildNumber >= 1183 && BuildNumber <= 1263)
 				return UpdateExeVersionInfo.FilePrivatePart > 1263;
 
 			return false;
@@ -171,7 +171,7 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToCryptCost()
 		{
-			if (EnableUpdate && BuildNumber <= 1271 && UpdateExeVersionInfo != null)
+			if (UpdateExeVersionInfo != null && BuildNumber <= 1271)
 				return UpdateExeVersionInfo.FilePrivatePart > 1271;
 
 			return false;
@@ -179,7 +179,7 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToNewClientsWithLegalEntity()
 		{
-			if (EnableUpdate && BuildNumber <= 1271 && UpdateExeVersionInfo != null)
+			if (UpdateExeVersionInfo != null && BuildNumber <= 1271)
 				return UpdateExeVersionInfo.FilePrivatePart > 1271;
 
 			return false;
