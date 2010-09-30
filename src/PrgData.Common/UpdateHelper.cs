@@ -926,27 +926,50 @@ WHERE RowId =" + _updateData.UserId;
 		{
 			if (_updateData.IsFutureClient)
 			{
-				return String.Format(@"
-SELECT a.Id as FirmCode,
-     right(a.Address, 50) as ShortName,
-     ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
-     rcs.OverCostPercent,
-     rcs.DifferenceCalculation,
-     rcs.MultiUserLevel,
-     (rcs.OrderRegionMask & u.OrderRegionMask) OrderRegionMask,
-     {0}
-     rcs.CalculateLeader
-     {1}
-FROM Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-WHERE 
-    u.Id = ?UserId
-and a.Enabled = 1", 
-					 isFirebird ? "'', " : "",
-					 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ");
+				if (_updateData.BuildNumber > 1271 || _updateData.NeedUpdateToNewClientsWithLegalEntity)
+					return @"
+	SELECT a.Id as FirmCode,
+		 concat(left(le.Name, 100), ', ', right(a.Address, 153)) as ShortName,
+		 ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
+		 rcs.OverCostPercent,
+		 rcs.DifferenceCalculation,
+		 rcs.MultiUserLevel,
+		 (rcs.OrderRegionMask & u.OrderRegionMask) OrderRegionMask,
+		 rcs.CalculateLeader, 
+		 rcs.AllowDelayOfPayment, 
+		 c.FullName
+	FROM Future.Users u
+	  join future.Clients c on u.ClientId = c.Id
+	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
+	  join Future.UserAddresses ua on ua.UserId = u.Id
+	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+      join billing.LegalEntities le on le.Id = a.LegalEntityId
+	WHERE 
+		u.Id = ?UserId
+	and a.Enabled = 1
+";
+				else
+					return String.Format(@"
+	SELECT a.Id as FirmCode,
+		 right(a.Address, 50) as ShortName,
+		 ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
+		 rcs.OverCostPercent,
+		 rcs.DifferenceCalculation,
+		 rcs.MultiUserLevel,
+		 (rcs.OrderRegionMask & u.OrderRegionMask) OrderRegionMask,
+		 {0}
+		 rcs.CalculateLeader
+		 {1}
+	FROM Future.Users u
+	  join future.Clients c on u.ClientId = c.Id
+	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
+	  join Future.UserAddresses ua on ua.UserId = u.Id
+	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	WHERE 
+		u.Id = ?UserId
+	and a.Enabled = 1", 
+						 isFirebird ? "'', " : "",
+						 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ");
 			}
 			else
 			{

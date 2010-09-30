@@ -157,6 +157,63 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
+		[Test(Description = "Проверка поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 или обновляющихся на нее")]
+		public void Check_Clients_field_lengts_for_future_client_with_version_greater_than_1271()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				updateData.EnableUpdate = true;
+				updateData.ParseBuildNumber("6.0.0.1269");
+
+				updateData.BuildNumber = 1272;
+
+				var firebirdSQL = helper.GetClientsCommand(true);
+				var nonFirebirdSQL = helper.GetClientsCommand(false);
+
+				Assert.That(firebirdSQL, Is.EqualTo(nonFirebirdSQL), "Два SQL-запроса по содержанию не равны");
+
+				CheckFieldLength(
+					connection,
+					firebirdSQL,
+					updateData,
+					new KeyValuePair<string, int>[]
+						{
+							new KeyValuePair<string, int>("ShortName", 255)
+						});
+
+				CheckFieldLength(
+					connection,
+					nonFirebirdSQL,
+					updateData,
+					new KeyValuePair<string, int>[]
+						{
+							new KeyValuePair<string, int>("ShortName", 255)
+						});
+
+				updateData.BuildNumber = null;
+				//Явно устанавливаем значение свойства NeedUpdateToNewClientsWithLegalEntity в true, чтобы проверить функциональность при обновлении версий
+				typeof(UpdateData)
+					.GetProperty("NeedUpdateToNewClientsWithLegalEntity")
+					.SetValue(updateData, true, null);
+				Assert.IsTrue(updateData.NeedUpdateToNewClientsWithLegalEntity, "Не получилось установить значение свойства NeedUpdateToNewClientsWithLegalEntity");
+
+				var updateToNewClientsSQL = helper.GetClientsCommand(false);
+				Assert.That(firebirdSQL, Is.EqualTo(updateToNewClientsSQL), "Два SQL-запроса по содержанию не равны");
+				CheckFieldLength(
+					connection,
+					updateToNewClientsSQL,
+					updateData,
+					new KeyValuePair<string, int>[]
+						{
+							new KeyValuePair<string, int>("ShortName", 255)
+						});
+			}
+		}
+
+
 		[Test(Description = "Получаем данные для пользователя, которому не назначен ни один адрес доставки")]
 		public void Get_UserInfo_without_addresses()
 		{

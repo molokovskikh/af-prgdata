@@ -52,6 +52,8 @@ namespace PrgData.Common
 
 		public bool NeedUpdateToCryptCost { get; private set; }
 
+		public bool NeedUpdateToNewClientsWithLegalEntity { get; private set; }
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -129,6 +131,7 @@ namespace PrgData.Common
 					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();
 					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();
 					NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
+					NeedUpdateToNewClientsWithLegalEntity = CheckNeedUpdateToNewClientsWithLegalEntity();
 				}
 			}
 		}
@@ -182,6 +185,23 @@ namespace PrgData.Common
 		}
 
 		private bool CheckNeedUpdateToCryptCost()
+		{
+			try
+			{
+				if (EnableUpdate && BuildNumber <= 1271)
+				{
+					var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
+					var info = FileVersionInfo.GetVersionInfo(exeName);
+					return info.FilePrivatePart > 1271;
+				}
+			}
+			catch
+			{
+			}
+			return false;
+		}
+
+		private bool CheckNeedUpdateToNewClientsWithLegalEntity()
 		{
 			try
 			{
