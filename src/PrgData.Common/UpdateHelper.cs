@@ -927,9 +927,33 @@ WHERE RowId =" + _updateData.UserId;
 			if (_updateData.IsFutureClient)
 			{
 				if (_updateData.BuildNumber > 1271 || _updateData.NeedUpdateToNewClientsWithLegalEntity)
-					return @"
+				{
+					var clientShortNameField = "right(a.Address, 255)";
+					if (Convert.ToInt32(MySqlHelper
+							.ExecuteScalar(
+								_readWriteConnection,
+								@"
+	SELECT 
+		count(distinct le.Id)
+	FROM 
+	Future.Users u
+	  join future.Clients c on u.ClientId = c.Id
+	  join Future.UserAddresses ua on ua.UserId = u.Id
+	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+      join billing.LegalEntities le on le.Id = a.LegalEntityId
+	WHERE 
+		u.Id = ?UserId
+	and a.Enabled = 1
+",
+								new MySqlParameter("?UserId", _updateData.UserId))
+						) > 1)
+						clientShortNameField = "concat(left(le.Name, 100), ', ', right(a.Address, 153))";
+
+					return
+						String.Format(
+						@"
 	SELECT a.Id as FirmCode,
-		 concat(left(le.Name, 100), ', ', right(a.Address, 153)) as ShortName,
+		 {0} as ShortName,
 		 ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
 		 rcs.OverCostPercent,
 		 rcs.DifferenceCalculation,
@@ -947,7 +971,10 @@ WHERE RowId =" + _updateData.UserId;
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1
-";
+"
+						,
+						clientShortNameField);
+				}
 				else
 					return String.Format(@"
 	SELECT a.Id as FirmCode,
@@ -967,7 +994,7 @@ WHERE RowId =" + _updateData.UserId;
 	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 	WHERE 
 		u.Id = ?UserId
-	and a.Enabled = 1", 
+	and a.Enabled = 1",
 						 isFirebird ? "'', " : "",
 						 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ");
 			}

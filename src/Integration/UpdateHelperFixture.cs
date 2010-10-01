@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Configuration;
 using System.Data;
 using Castle.ActiveRecord;
@@ -140,6 +141,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			using(var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
+				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
 				var helper = new UpdateHelper(updateData, connection);
 				CheckFields(updateData, helper, connection);
@@ -151,6 +153,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
+				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
 				CheckFields(updateData, helper, connection);
@@ -162,6 +165,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
+				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
 
@@ -228,6 +232,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
+				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userWithoutAddresses.Login);
 				var helper = new UpdateHelper(updateData, connection);
 				var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
@@ -480,6 +485,81 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			Counter.TryLock(maxSessionCount + 1, "GetUserData");
 		}
 
+		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с одним юридическим лицом")]
+		public void Check_Clients_content_for_future_client_with_version_greater_than_1271_and_one_LegalEntity()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				updateData.BuildNumber = 1272;
+
+				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+
+				var clients = new DataTable();
+				dataAdapter.Fill(clients);
+
+				Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
+				var address =
+					_user.AvaliableAddresses.FirstOrDefault(item => item.Id.ToString().Equals(clients.Rows[0]["FirmCode"].ToString()));
+				Assert.That(address, Is.Not.Null, "Не нашли выгруженный адрес доставки");
+				Assert.That(clients.Rows[0]["ShortName"].ToString(), Is.EqualTo(address.Value), "Не совпадает значение адреса");
+			}
+		}
+
+		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с несколькими юридическими лицами")]
+		public void Check_Clients_content_for_future_client_with_version_greater_than_1271_and_same_LegalEntities()
+		{
+			TestAddress newAddress;
+			TestLegalEntity newLegalEntity;
+
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				newLegalEntity = _client.CreateLegalEntity();
+
+				newAddress = _client.CreateAddress();
+				newAddress.LegalEntity = newLegalEntity;
+				_user.JoinAddress(newAddress);
+
+				newAddress.Save();
+
+				//Почему для сохранения изменений не достаточно вызвать newAddress.Save(), а надо еще вызывать _client.Update()?
+				_client.Update();
+
+				transaction.VoteCommit();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				updateData.BuildNumber = 1272;
+
+				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+
+				var clients = new DataTable();
+				dataAdapter.Fill(clients);
+				
+				Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
+
+				foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
+				{
+					var rows = clients.Select("FirmCode = " + enabledAddress.Id);
+					if (rows == null || rows.Length == 0)
+						Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
+					var addressName = String.Format("{0}, {1}", enabledAddress.LegalEntity.Name, enabledAddress.Value);
+					Assert.That(rows[0]["ShortName"].ToString(), Is.EqualTo(addressName), "Не совпадает значение адреса");
+				}
+			}
+		}
 
 	}
 }
