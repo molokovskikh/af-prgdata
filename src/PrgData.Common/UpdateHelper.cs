@@ -406,7 +406,8 @@ SELECT
 FROM retclientsset r
 	join OrderSendRules.smart_order_rules s
 		left join Usersettings.ClientsData cd on cd.FirmCode = s.OffersClientCode
-		left join Future.Clients c on c.Id = s.OffersClientCode
+		left join Future.Users u on u.Id = s.OffersClientCode
+		left join Future.Clients c on c.Id = u.ClientId
 WHERE r.clientcode = ?ClientCode
 	and s.id = r.smartorderruleid
 	and s.offersclientcode != r.clientcode;", connection);
@@ -474,6 +475,8 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 			if (_updateData.EnableImpersonalPrice)
 			{
 				var command = new MySqlCommand("CALL usersettings.GetPrices2(?OffersClientCode)", _readWriteConnection);
+				if (_updateData.IsFutureClient)
+					command.CommandText = "call future.GetPrices(?OffersClientCode)";
 				command.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 				command.ExecuteNonQuery();
 			}
@@ -2205,10 +2208,17 @@ WHERE
 
 		public void PrepareImpersonalOffres(MySqlCommand selectCommand)
 		{
-			selectCommand.CommandText = @"
+			if (_updateData.IsFutureClient)
+				selectCommand.CommandText = @"
+DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
+CALL future.GetActivePrices(?OffersClientCode);
+CALL future.GetOffers(?OffersClientCode);";
+			else
+				selectCommand.CommandText = @"
 DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
 CALL usersettings.GetActivePrices2(?OffersClientCode);
 CALL usersettings.GetOffers(?OffersClientCode, 0);";
+
 			selectCommand.ExecuteNonQuery();
 
 			selectCommand.CommandText = @"

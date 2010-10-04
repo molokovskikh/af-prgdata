@@ -20,9 +20,13 @@ namespace Integration
 	{
 		private TestClient client;
 		private TestUser user;
-		private TestOldClient offersClient;
 
-		private TestSmartOrderRule smartRule;
+		private TestOldClient offersOldClient;
+		private TestClient offersFutureClient;
+		private TestUser offersFutureUser;
+
+		private TestSmartOrderRule smartRuleOld;
+		private TestSmartOrderRule smartRuleFuture;
 		private TestDrugstoreSettings orderRuleFuture;
 		private TestDrugstoreSettings orderRuleOld;
 
@@ -51,9 +55,19 @@ namespace Integration
 				var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
 				Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
 
-				offersClient = TestOldClient.CreateTestClient(offersRegion.Id);
+				offersOldClient = TestOldClient.CreateTestClient(offersRegion.Id);
 
-				client = TestClient.CreateSimple();
+				offersFutureClient = TestClient.Create(offersRegion.Id);
+				offersFutureUser = offersFutureClient.Users[0];
+				offersFutureClient.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				offersFutureUser.Update();
+
+				client = TestClient.Create(offersRegion.Id);
 				user = client.Users[0];
 
 				client.Users.Each(u =>
@@ -64,12 +78,16 @@ namespace Integration
 				                  	});
 				user.Update();
 
-				oldClient = TestOldClient.CreateTestClient();
+				oldClient = TestOldClient.CreateTestClient(offersRegion.Id);
 				oldUser = oldClient.Users[0];
 
-				smartRule = new TestSmartOrderRule();
-				smartRule.OffersClientCode = offersClient.Id;
-				smartRule.SaveAndFlush();
+				smartRuleOld = new TestSmartOrderRule();
+				smartRuleOld.OffersClientCode = offersOldClient.Id;
+				smartRuleOld.SaveAndFlush();
+
+				smartRuleFuture = new TestSmartOrderRule();
+				smartRuleFuture.OffersClientCode = offersFutureUser.Id;
+				smartRuleFuture.SaveAndFlush();
 
 				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
 				try
@@ -89,12 +107,12 @@ namespace Integration
 			using (var transaction = new TransactionScope())
 			{
 				orderRuleFuture = TestDrugstoreSettings.Find(client.Id);
-				orderRuleFuture.SmartOrderRule = smartRule;
+				orderRuleFuture.SmartOrderRule = smartRuleFuture;
 				orderRuleFuture.EnableImpersonalPrice = true;
 				orderRuleFuture.UpdateAndFlush();
 
 				orderRuleOld = TestDrugstoreSettings.Find(oldClient.Id);
-				orderRuleOld.SmartOrderRule = smartRule;
+				orderRuleOld.SmartOrderRule = smartRuleOld;
 				orderRuleOld.EnableImpersonalPrice = true;
 				orderRuleOld.UpdateAndFlush();
 			}
@@ -108,16 +126,16 @@ namespace Integration
 		[Test]
 		public void Check_update_helper_for_Future()
 		{
-			CheckUpdateHelper(user.Login);
+			CheckUpdateHelper(user.Login, offersFutureUser.Id, offersFutureClient.RegionCode);
 		}
 
 		[Test]
 		public void Check_update_helper_for_old()
 		{
-			CheckUpdateHelper(oldUser.OSUserName);
+			CheckUpdateHelper(oldUser.OSUserName, offersOldClient.Id, offersOldClient.RegionCode);
 		}
 
-		public void CheckUpdateHelper(string login)
+		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
@@ -127,8 +145,8 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 
 				Assert.That(updateData.EnableImpersonalPrice, Is.True, "Не включен механизм 'Обезличенный прайс'");
-				Assert.That(updateData.OffersClientCode, Is.EqualTo(offersClient.Id), "Не совпадает ид OffersClient");
-				Assert.That(updateData.OffersRegionCode, Is.EqualTo(offersClient.RegionCode), "Не совпадает код региона у OffersClient");
+				Assert.That(updateData.OffersClientCode, Is.EqualTo(offersClientId), "Не совпадает ид OffersClientCode");
+				Assert.That(updateData.OffersRegionCode, Is.EqualTo(offersRegionId), "Не совпадает код региона у OffersClientCode");
 
 				CheckSQL(false, connection, updateData, helper);
 
@@ -221,7 +239,7 @@ namespace Integration
 			var ExistsFirms = MySqlHelper.ExecuteScalar(
 				Settings.ConnectionString(),
 				@"
-call usersettings.GetPrices2(?OffersClientCode);
+call future.GetPrices(?OffersClientCode);
 select
   count(*)
 from
@@ -229,7 +247,7 @@ from
   left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
   afi.UserId is null;",
-				new MySqlParameter("?OffersClientCode", offersClient.Id),
+				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
 				new MySqlParameter("?UserId", user.Id));
 
 			Assert.That(
@@ -238,7 +256,7 @@ where
 				"Хотя клиент {0} создан в другом регионе {1} у него в AnalitFReplicationInfo добавлены все фирмы из региона {2}",
 				client.Id,
 				client.RegionCode,
-				offersClient.RegionCode);
+				offersFutureClient.RegionCode);
 
 			CheckGetUserData(user.Login);
 
@@ -247,8 +265,8 @@ where
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"call usersettings.GetPrices2(?OffersClientCode)",
-					new MySqlParameter("?OffersClientCode", offersClient.Id));
+					"call future.GetPrices(?OffersClientCode)",
+					new MySqlParameter("?OffersClientCode", offersFutureUser.Id));
 
 				var nonExistsFirms = MySqlHelper.ExecuteScalar(
 					connection,
@@ -267,7 +285,7 @@ where
 					Is.EqualTo(0),
 					"У клиента {0} в AnalitFReplicationInfo должны быть все фирмы из региона {1}",
 					client.Id,
-					offersClient.RegionCode);
+					offersFutureClient.RegionCode);
 
 				var nonExistsForce = MySqlHelper.ExecuteScalar(
 					connection,
@@ -287,7 +305,7 @@ and afi.ForceReplication = 0",
 					Is.EqualTo(0),
 					"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication в 0 для фирм из региона {1}",
 					client.Id,
-					offersClient.RegionCode);
+					offersFutureClient.RegionCode);
 			}
 
 			CommitExchange();
@@ -295,7 +313,7 @@ and afi.ForceReplication = 0",
 			var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
 				Settings.ConnectionString(),
 				@"
-call usersettings.GetPrices2(?OffersClientCode);
+call future.GetPrices(?OffersClientCode);
 select
   count(*)
 from
@@ -304,7 +322,7 @@ from
 where
     afi.UserId is not null
 and afi.ForceReplication > 0",
-				new MySqlParameter("?OffersClientCode", offersClient.Id),
+				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
 				new MySqlParameter("?UserId", user.Id));
 
 			Assert.That(
@@ -312,7 +330,7 @@ and afi.ForceReplication > 0",
 				Is.EqualTo(0),
 				"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication > 0 для фирм из региона {1}",
 				client.Id,
-				offersClient.RegionCode);
+				offersFutureClient.RegionCode);
 		}
 
 		[Test(Description = "Проверка на используемую версию программы AnalitF")]
