@@ -2,6 +2,7 @@
 Imports System.IO
 Imports System.Net.Mail
 Imports System.Configuration
+Imports PrgData.Common
 
 
 Public Class LogRequestHelper
@@ -35,7 +36,7 @@ Public Class LogRequestHelper
                     "User: {1}" & vbCrLf & _
                     "{2}", _
                     DateTime.Now, _
-                    HttpContext.Current.User.Identity.Name, _
+                    ServiceContext.GetUserName(), _
                     MessageText)
 
                 Dim MailAddress As New MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8)

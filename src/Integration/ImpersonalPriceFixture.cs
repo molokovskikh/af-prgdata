@@ -3,6 +3,10 @@ using System.IO;
 using Castle.ActiveRecord;
 using Common.Tools;
 using Inforoom.Common;
+using log4net;
+using log4net.Appender;
+using log4net.Config;
+using log4net.Core;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
@@ -400,6 +404,40 @@ where
 			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", lastUpdateId);
 
 			return updateTime;
+		}
+
+		[Test]
+		public void Check_send_letter()
+		{
+			SetCurrentUser(user.Login);
+			var service = new PrgDataEx();
+			var letterResponse = service.SendLetter("Test subject", "test body", null);
+			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+		}
+
+		[Test]
+		public void Check_send_letter_by_unknow_user()
+		{
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				SetCurrentUser("dsdsdsdsds");
+				var service = new PrgDataEx();
+				var letterResponse = service.SendLetter("Test subject", "test body", null);
+				Assert.That(letterResponse, Is.EqualTo("Error=Не удалось отправить письмо. Попробуйте позднее.").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+
+				var events = memoryAppender.GetEvents();
+				var lastEvent = events[events.Length - 1];
+				Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
+				Assert.That(lastEvent.ExceptionObject, Is.TypeOf(typeof(Exception)));
+				Assert.That(((Exception)lastEvent.ExceptionObject).Message, Is.StringStarting("Не удалось найти клиента для указанных учетных данных:").IgnoreCase);
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
 		}
 		
 	}

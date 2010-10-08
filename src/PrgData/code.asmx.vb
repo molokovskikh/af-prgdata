@@ -137,12 +137,20 @@ Public Class PrgDataEx
             Dim updateData As UpdateData
             Using connection = _simpleConnectionManager.GetConnection()
                 connection.Open()
-                updateData = UpdateHelper.GetUpdateData(connection, HttpContext.Current.User.Identity.Name)
-                updateData.ClientHost = ServiceContext.GetUserHost()
+
+                Dim letterUserName = ServiceContext.GetUserName()
+                ThreadContext.Properties("user") = letterUserName
+                If Left(letterUserName, 7) = "ANALIT\" Then
+                    letterUserName = Mid(letterUserName, 8)
+                End If
+
+                updateData = UpdateHelper.GetUpdateData(connection, letterUserName)
 
                 If updateData Is Nothing Then
-                    Throw New Exception("Клиент не найден")
+                    Throw New Exception(String.Format("Не удалось найти клиента для указанных учетных данных: {0}", ServiceContext.GetUserName()))
                 End If
+
+                updateData.ClientHost = ServiceContext.GetUserHost()
 
                 Dim mess As MailMessage = New MailMessage( _
                  New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
