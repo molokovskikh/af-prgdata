@@ -56,6 +56,8 @@ namespace PrgData.Common
 
 		public FileVersionInfo UpdateExeVersionInfo { get; private set; }
 
+		public uint? NetworkSupplierId;
+
 		public UpdateData(DataSet data)
 		{
 			var row = data.Tables[0].Rows[0];
@@ -84,6 +86,9 @@ namespace PrgData.Common
 			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
 			KnownUniqueID = row["KnownUniqueID"].ToString();
 			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (int?)Convert.ToInt32(row["KnownBuildNumber"]);
+			NetworkSupplierId = Convert.IsDBNull(row["NetworkSupplierId"])
+			                    	? null
+			                    	: (uint?) Convert.ToUInt32(row["NetworkSupplierId"]);
 		}
 
 		public bool Disabled()
