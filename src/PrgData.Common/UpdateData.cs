@@ -134,7 +134,8 @@ namespace PrgData.Common
 				if (int.TryParse(numbers[numbers.Length - 1], out buildNumber))
 				{
 					BuildNumber = buildNumber;
-					CheckBuildNumber();
+					if (!NetworkSupplierId.HasValue)
+						CheckBuildNumber();
 					UpdateExeVersionInfo = GetUpdateVersionInfo();
 					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();
 					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();

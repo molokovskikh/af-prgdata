@@ -230,5 +230,47 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
+		[Test(Description = "В общем случае нельзя запрашивать обновление с устаревшей версией")]
+		public void Check_old_version_after_new_version()
+		{
+			var login = _user.Login;
+
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.KnownBuildNumber = 1279;
+				try
+				{
+					updateData.ParseBuildNumber("6.0.0.1261");
+					Assert.Fail("Не сработало исключение об актуальности версии");
+				}
+				catch (UpdateException updateException)
+				{
+					Assert.That(updateException.Addition, Is.StringStarting("Попытка обновить устаревшую версию").IgnoreCase);
+					Assert.That(updateException.Message, Is.StringStarting("Доступ закрыт").IgnoreCase);
+					Assert.That(updateException.Error, Is.StringStarting("Используемая версия программы не актуальна, необходимо обновление до версии №1279").IgnoreCase);
+				}
+			}
+		}
+
+		[Test(Description = "Версия программы не проверяется, если установлен параметр NetworkSupplierId")]
+		public void Check_old_version_after_new_version_with_NetworkSupplierId()
+		{
+			var login = _user.Login;
+
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				//Устанавливаем любого поставщика, в данном случае это поставщик Инфорум
+				updateData.NetworkSupplierId = 3514;
+				updateData.KnownBuildNumber = 1279;
+
+				updateData.ParseBuildNumber("6.0.0.1261");
+				Assert.That(updateData.BuildNumber, Is.EqualTo(1261));
+			}
+		}
+
 	}
 }
