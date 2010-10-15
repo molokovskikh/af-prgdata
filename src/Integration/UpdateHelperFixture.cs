@@ -558,6 +558,16 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 					var addressName = String.Format("{0}, {1}", enabledAddress.LegalEntity.Name, enabledAddress.Value);
 					Assert.That(rows[0]["ShortName"].ToString(), Is.EqualTo(addressName), "Не совпадает значение адреса");
 				}
+
+				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
+				//Установили несуществующего поставщика
+				updateData.NetworkSupplierId = 10100;
+				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+				clients = new DataTable();
+				dataAdapter.Fill(clients);
+				DataRow row = clients.Rows[0];
+				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
+				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
 			}
 		}
 
@@ -591,6 +601,60 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
 				row = clients.Rows[0];
+				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
+				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
+
+				//Установили параметр в null
+				updateData.NetworkSupplierId = null;
+				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+				clients = new DataTable();
+				dataAdapter.Fill(clients);
+				Assert.That(clients.Columns.Contains("SelfClientId"), Is.EqualTo(false));
+			}
+		}
+
+		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkSupplierId для клиентов с несколькими юридическими лицами")]
+		public void Check_SelfClientId_for_future_client_with_version_greater_than_1271_and_same_LegalEntities()
+		{
+			TestAddress newAddress;
+			TestLegalEntity newLegalEntity;
+
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				newLegalEntity = _client.CreateLegalEntity();
+
+				newAddress = _client.CreateAddress();
+				newAddress.LegalEntity = newLegalEntity;
+				_user.JoinAddress(newAddress);
+
+				newAddress.Save();
+
+				//Почему для сохранения изменений не достаточно вызвать newAddress.Save(), а надо еще вызывать _client.Update()?
+				_client.Update();
+
+				transaction.VoteCommit();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				updateData.BuildNumber = 1272;
+
+				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
+				//Установили несуществующего поставщика
+				updateData.NetworkSupplierId = 10100;
+
+				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+
+				var clients = new DataTable();
+				dataAdapter.Fill(clients);
+
+				var row = clients.Rows[0];
 				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
 				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
 

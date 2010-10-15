@@ -1007,7 +1007,7 @@ limit 1
 		 (rcs.OrderRegionMask & u.OrderRegionMask) OrderRegionMask,
 		 rcs.CalculateLeader, 
 		 rcs.AllowDelayOfPayment, 
-		 c.FullName,
+		 c.FullName
 		{1}
 	FROM Future.Users u
 	  join future.Clients c on u.ClientId = c.Id
@@ -1048,7 +1048,7 @@ limit 1
 		u.Id = ?UserId
 	and a.Enabled = 1",
 						 isFirebird ? "'', " : "",
-						 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName, a.Id ",
+						 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ",
 						 isFirebird ? "" : networkSelfClientIdColumn,
 						 isFirebird ? "" : networkSelfClientIdJoin);
 			}
