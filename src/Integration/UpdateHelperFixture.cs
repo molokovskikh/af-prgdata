@@ -599,9 +599,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
-				row = clients.Rows[0];
-				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
-				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
+				Assert.That(clients.Columns.Contains("SelfClientId"), Is.EqualTo(false));
 			}
 		}
 

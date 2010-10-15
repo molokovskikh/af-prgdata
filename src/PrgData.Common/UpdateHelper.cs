@@ -930,6 +930,8 @@ WHERE RowId =" + _updateData.UserId;
 		public string GetClientsCommand(bool isFirebird)
 		{
 			uint? networkPriceId = null;
+			var networkSelfClientIdColumn = String.Empty;
+			var networkSelfClientIdJoin = String.Empty; 
 			if (_updateData.NetworkSupplierId.HasValue && _updateData.IsFutureClient)
 			{
 				//Берем первый попавшийся прайс-лист поставщика NetworkSupplierId, по которому будут существовать пересечения в условиях работы пользователя
@@ -959,6 +961,13 @@ limit 1
 					new MySqlParameter("?NetworkSupplierId", _updateData.NetworkSupplierId));
 				if (value != null)
 					networkPriceId = Convert.ToUInt32(value);
+				networkSelfClientIdColumn = networkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId";
+				networkSelfClientIdJoin = 
+					networkPriceId.HasValue
+						? " left join future.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " +
+							networkPriceId +
+							" left join future.AddressIntersection ai on ai.IntersectionId = i.Id and ai.AddressId = a.Id  "
+						: "";
 			}
 
 			if (_updateData.IsFutureClient)
@@ -1013,12 +1022,8 @@ limit 1
 "
 						,
 						clientShortNameField,
-						networkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId",
-						networkPriceId.HasValue
-									? " left join future.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " +
-										networkPriceId +
-										" left join future.AddressIntersection ai on ai.IntersectionId = i.Id and ai.AddressId = a.Id  "
-									: "");
+						networkSelfClientIdColumn,
+						networkSelfClientIdJoin);
 				}
 				else
 					return String.Format(@"
@@ -1044,14 +1049,8 @@ limit 1
 	and a.Enabled = 1",
 						 isFirebird ? "'', " : "",
 						 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName, a.Id ",
-						 isFirebird ? "" : (networkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId"),
-						 isFirebird ? "" 
-							: (
-								networkPriceId.HasValue 
-									? " left join future.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " + 
-										networkPriceId +
-										" left join future.AddressIntersection ai on ai.IntersectionId = i.Id and ai.AddressId = a.Id  " 
-									: ""));
+						 isFirebird ? "" : networkSelfClientIdColumn,
+						 isFirebird ? "" : networkSelfClientIdJoin);
 			}
 			else
 			{
