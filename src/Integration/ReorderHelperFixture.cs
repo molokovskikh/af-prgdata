@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using log4net;
+using log4net.Appender;
+using log4net.Config;
+using log4net.Core;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
@@ -453,6 +457,51 @@ limit 1
 					);
 		}
 
+		public void ParseOrderWithSimpleDouble(ReorderHelper orderHelper)
+		{
+			orderHelper.ParseOrders(
+					1,
+					new ulong[] { 1L },
+					new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+					new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
+					new DateTime[] { DateTime.Now }, //pricedate
+					new string[] { "" },             //clientaddition
+					new ushort[] { 3 },              //rowCount
+					new ulong[] { 1L, 2L, 3L },              //clientPositionId
+					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().Substring(firstOffer["Id"].ToString().Length - 9, 9)), Convert.ToUInt64(secondOffer["Id"].ToString().Substring(secondOffer["Id"].ToString().Length - 9, 9)), Convert.ToUInt64(firstOffer["Id"].ToString().Substring(firstOffer["Id"].ToString().Length - 9, 9)) }, //ClientServerCoreID
+					new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]), Convert.ToUInt64(secondOffer["ProductId"]), Convert.ToUInt64(firstOffer["ProductId"]) },     //ProductId
+					new string[] { firstOffer["CodeFirmCr"].ToString(), secondOffer["CodeFirmCr"].ToString(), firstOffer["CodeFirmCr"].ToString() },
+					new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]), Convert.ToUInt64(secondOffer["SynonymCode"]), Convert.ToUInt64(firstOffer["SynonymCode"]) }, //SynonymCode
+					new string[] { firstOffer["SynonymFirmCrCode"].ToString(), secondOffer["SynonymFirmCrCode"].ToString(), firstOffer["SynonymFirmCrCode"].ToString() },
+					new string[] { firstOffer["Code"].ToString(), secondOffer["Code"].ToString(), firstOffer["Code"].ToString() },
+					new string[] { firstOffer["CodeCr"].ToString(), secondOffer["CodeCr"].ToString(), firstOffer["CodeCr"].ToString() },
+					new bool[] { Convert.ToBoolean(firstOffer["Junk"]), Convert.ToBoolean(secondOffer["Junk"]), Convert.ToBoolean(firstOffer["Junk"]) },
+					new bool[] { Convert.ToBoolean(firstOffer["Await"]), Convert.ToBoolean(secondOffer["Await"]), Convert.ToBoolean(firstOffer["Await"]) },
+					new string[] { firstOffer["RequestRatio"].ToString(), secondOffer["RequestRatio"].ToString(), firstOffer["RequestRatio"].ToString() },
+					new string[] { firstOffer["OrderCost"].ToString(), secondOffer["OrderCost"].ToString(), firstOffer["OrderCost"].ToString() },
+					new string[] { firstOffer["MinOrderCount"].ToString(), secondOffer["MinOrderCount"].ToString(), firstOffer["MinOrderCount"].ToString() },
+					new ushort[] { 1, 1, 1 }, //Quantity
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]), Convert.ToDecimal(firstOffer["Cost"]) },
+					new string[] { firstOffer["Cost"].ToString(), secondOffer["Cost"].ToString(), firstOffer["Cost"].ToString() },  //minCost
+					new string[] { activePrice["PriceCode"].ToString(), activePrice["PriceCode"].ToString(), activePrice["PriceCode"].ToString() },  //MinPriceCode
+					new string[] { firstOffer["Cost"].ToString(), secondOffer["Cost"].ToString(), firstOffer["Cost"].ToString() },  //leaderMinCost
+					new string[] { activePrice["PriceCode"].ToString(), activePrice["PriceCode"].ToString(), activePrice["PriceCode"].ToString() },  //leaderMinPriceCode
+					new string[] { "", "", "" },  //supplierPriceMarkup
+					new string[] { "" }, //delayOfPayment,
+					new string[] { firstOffer["Quantity"].ToString(), secondOffer["Quantity"].ToString(), firstOffer["Quantity"].ToString() }, //coreQuantity,
+					new string[] { "", "", "" }, //unit,
+					new string[] { "", "", "" }, //volume,
+					new string[] { "", "", "" }, //note,
+					new string[] { "", "", "" }, //period,
+					new string[] { "", "", "" }, //doc,
+					new string[] { "", "", "" }, //registryCost,
+					new bool[] { false, false, false }, //vitallyImportant,
+					new string[] { "", "", "" }, //retailMarkup,
+					new string[] { "", "", "" }, //producerCost,
+					new string[] { "", "", "" } //nds
+					);
+		}
+
 		public int GetOrderCount(MySqlConnection connection, string orderId)
 		{
 			return Convert.ToInt32(MySqlHelper
@@ -743,6 +792,64 @@ where
 				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе");
 			}
 		}
+
+		[Test(Description = "Отправляем заказ, в котором пристутсвуют позиции с одинаковым CoreId")]
+		public void Check_order_with_double_CoreId()
+		{
+			string userName = user.Login;
+			uint orderedClientId = address.Id;
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseOrderWithSimpleDouble(orderHelper);
+
+				try
+				{
+					var memoryAppender = new MemoryAppender();
+					BasicConfigurator.Configure(memoryAppender);
+
+					var result = orderHelper.PostSomeOrders();
+
+					var firstServerOrderId = CheckServiceResponse(result);
+
+					Assert.That(firstServerOrderId, Is.Not.Null);
+					Assert.That(firstServerOrderId, Is.Not.Empty);
+
+					Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(3), "Не совпадает кол-во позиций в заказе");
+
+					var coreIdFillCount =
+						Convert.ToInt32(MySqlHelper
+							.ExecuteScalar(
+								connection,
+								@"
+select 
+  count(*) 
+from 
+  orders.orderslist 
+where 
+	orderslist.OrderId = ?OrderId
+and orderslist.Coreid is not null",
+								new MySqlParameter("?OrderId", firstServerOrderId)));
+					Assert.That(coreIdFillCount, Is.EqualTo(3), "Не совпадает кол-во позиций с заполенным полем CoreId");
+
+					var events = memoryAppender.GetEvents();
+					var lastEvent = events[events.Length - 1];
+
+					Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
+					Assert.That(lastEvent.RenderedMessage, Is.StringStarting(String.Format("Заказ {0} содержит дублирующиеся позиции по CoreId", firstServerOrderId)));
+				}
+				finally
+				{
+					LogManager.ResetConfiguration();
+				}
+			}
+		}
+
 
 	}
 }

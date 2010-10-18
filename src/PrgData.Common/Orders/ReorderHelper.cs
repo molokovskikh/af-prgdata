@@ -129,7 +129,39 @@ namespace PrgData.Common.Orders
 		{
 			ProcessDeadlock();
 
+			CheckDoubleCoreId();
+
 			return GetOrdersResult();
+		}
+
+		private void CheckDoubleCoreId()
+		{
+			var logger = LogManager.GetLogger(typeof (ReorderHelper));
+
+			_orders.ForEach(
+				order =>
+					{
+						//Группируем элементы по ClientServerCoreId
+						var groupedItems = order.Positions.GroupBy(position => new {position.ClientServerCoreID})
+							//Формируем новый элемент со значением CoreId, кол-вом и самим списком элементов
+							.Select(g => new {g.Key, ItemCount = g.Count(), GroupedElems = g.ToList()}).ToList();
+
+						var stringBuilder = new StringBuilder();
+
+						groupedItems
+							//Выбираем только тех, у которых кол-во элементов больше одного
+							.Where(g => g.Key.ClientServerCoreID > 0 && g.ItemCount > 1)
+							.Each(
+								g =>
+									{
+										stringBuilder.AppendLine("ClientServerCoreId : " + g.Key.ClientServerCoreID);
+										g.GroupedElems
+											.Each(elem => stringBuilder.AppendLine("   " + elem.OrderPosition));
+									});
+
+						if (stringBuilder.Length > 0)
+							logger.ErrorFormat("Заказ {0} содержит дублирующиеся позиции по CoreId: {1}", order.ServerOrderId, stringBuilder);
+					});
 		}
 
 		public string PostOldOrder()
@@ -203,7 +235,10 @@ values
 						{
 							var orderPosition = clientOrder.Order.AddOrderItem(position.Offer, position.OrderedQuantity);
 
-							orderPosition.CoreId = null;
+							if (position.ClientServerCoreID > 0)
+								orderPosition.CoreId = position.ClientServerCoreID;
+							else
+								orderPosition.CoreId = null;
 
 							orderPosition.RetailMarkup = position.RetailMarkup;
 							orderPosition.SupplierPriceMarkup = position.SupplierPriceMarkup;
