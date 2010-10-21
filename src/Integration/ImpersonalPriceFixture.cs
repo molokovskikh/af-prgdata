@@ -7,6 +7,7 @@ using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
+using log4net.Layout;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
@@ -75,11 +76,11 @@ namespace Integration
 				user = client.Users[0];
 
 				client.Users.Each(u =>
-				                  	{
-				                  		u.AssignedPermissions.Add(permission);
-				                  		u.SendRejects = true;
-				                  		u.SendWaybills = true;
-				                  	});
+									{
+										u.AssignedPermissions.Add(permission);
+										u.SendRejects = true;
+										u.SendWaybills = true;
+									});
 				user.Update();
 
 				oldClient = TestOldClient.CreateTestClient(offersRegion.Id);
@@ -300,7 +301,7 @@ from
   Prices
   left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
-    afi.UserId is not null
+	afi.UserId is not null
 and afi.ForceReplication = 0",
 					new MySqlParameter("?UserId", user.Id));
 
@@ -324,7 +325,7 @@ from
   Prices
   left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
-    afi.UserId is not null
+	afi.UserId is not null
 and afi.ForceReplication > 0",
 				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
 				new MySqlParameter("?UserId", user.Id));
@@ -352,11 +353,29 @@ and afi.ForceReplication > 0",
 
 		private void CheckGetUserData(string login)
 		{
-			SetCurrentUser(login);
-			lastUpdateId = 0;
-			SimpleLoadData();
-			Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка");
-			Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен");
+			using (var writer = new StringWriter())
+			{
+				try
+				{
+					var textAppender = new TextWriterAppender()
+										{
+											Writer = writer,
+											Layout = new PatternLayout("%d{dd.MM.yyyy HH:mm:ss.fff} %property{user} [%t] %-5p %c - %m%n")
+										};
+					BasicConfigurator.Configure(textAppender);
+
+					SetCurrentUser(login);
+					lastUpdateId = 0;
+					SimpleLoadData();
+
+					Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка.\r\nLog:\r\n:{0}", writer);
+					Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен.\r\nLog:\r\n:{0}", writer);
+				}
+				finally
+				{
+					LogManager.ResetConfiguration();			
+				}
+			}
 		}
 
 		private void SetCurrentUser(string login)
