@@ -274,17 +274,17 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		public void Check_core_command_with_NDS()
 		{
 			var states = new List<CheckedState>()
-			             	{
-			             		new CheckedState {ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null},
-			             		new CheckedState {ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null},
-			             		new CheckedState
-			             			{ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30/(10*1.1f) - 1)*100},
-			             		new CheckedState {ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f/10f - 1)*100},
-			             		new CheckedState
-			             			{ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30/(10*(1 + 10f/100f)) - 1)*100},
-			             		new CheckedState
-			             			{ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30/(10*(1 + 18f/100f)) - 1)*100},
-			             	};
+							{
+								new CheckedState {ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null},
+								new CheckedState {ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null},
+								new CheckedState
+									{ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30/(10*1.1f) - 1)*100},
+								new CheckedState {ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f/10f - 1)*100},
+								new CheckedState
+									{ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30/(10*(1 + 10f/100f)) - 1)*100},
+								new CheckedState
+									{ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30/(10*(1 + 18f/100f)) - 1)*100},
+							};
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
@@ -324,11 +324,11 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 				states.ForEach(item =>
 				{
-				    updateCommand.Parameters["?Id"].Value = item.CoreID;
+					updateCommand.Parameters["?Id"].Value = item.CoreID;
 					updateCommand.Parameters["?Cost"].Value = item.Cost;
 					updateCommand.Parameters["?ProducerCost"].Value = item.ProducerCost;
 					updateCommand.Parameters["?NDS"].Value = item.NDS;
-				    updateCommand.ExecuteNonQuery();
+					updateCommand.ExecuteNonQuery();
 				});
 
 				states.ForEach(item =>
@@ -348,8 +348,8 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 						else
 						{
 							var calculatedSupplierPriceMarkup = Convert.IsDBNull(rows.Rows[0]["SupplierPriceMarkup"])
-							                                    	? null
-							                                    	: (float?) Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
+																	? null
+																	: (float?) Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
 							if (!item.SupplierPriceMarkup.HasValue)
 								Assert.IsNull(calculatedSupplierPriceMarkup, 
 									"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}",
@@ -664,6 +664,44 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
 				Assert.That(clients.Columns.Contains("SelfClientId"), Is.EqualTo(false));
+			}
+		}
+
+		[Test(Description = "Это тест для проверки чтение с помощью коннектора, надо перенести в другое место")]
+		public void TestCallCount()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var fillSql = helper.GetClientsCommand(true);
+
+				var dataAdapter = CreateAdapter(connection, fillSql, updateData);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+
+				//В предыдущих версиях коннектера при версии базы данных больше 5.5 после FillSchema запрос ExecuteScalar возвращал null,
+				//что быть не должно
+
+				var count = MySqlHelper.ExecuteScalar(connection, @"
+	SELECT 
+		count(distinct le.Id)
+	FROM 
+	Future.Users u
+	  join future.Clients c on u.ClientId = c.Id
+	  join Future.UserAddresses ua on ua.UserId = u.Id
+	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	  join billing.LegalEntities le on le.Id = a.LegalEntityId
+	WHERE 
+		u.Id = ?UserId
+	and a.Enabled = 1",
+				  new MySqlParameter("?UserId", _user.Id));
+
+				Assert.That(count, Is.Not.Null);
 			}
 		}
 

@@ -1566,9 +1566,7 @@ SELECT
        null as NDS
       {0}
 FROM   
-       (
        CoreAssortment A
-       )
       {1}
 WHERE
     A.CodeFirmCr IS NOT NULL
@@ -1604,9 +1602,7 @@ SELECT
        null as NDS
        {0}
 FROM   
-       (
        CoreProducts A
-       )
        {2}
 
 "
