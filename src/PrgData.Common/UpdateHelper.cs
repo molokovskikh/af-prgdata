@@ -401,19 +401,36 @@ WHERE
 			if (updateData == null)
 				return null;
 
-			dataAdapter = new MySqlDataAdapter(@"
+			string offersSql;
+			if (updateData.IsFutureClient)
+				offersSql = @"
 SELECT 
   s.OffersClientCode,
-  ifnull(cd.RegionCode, c.RegionCode) as OfferRegionCode
+  c.RegionCode as OfferRegionCode
 FROM retclientsset r
 	join OrderSendRules.smart_order_rules s
-		left join Usersettings.ClientsData cd on cd.FirmCode = s.OffersClientCode
-		left join Future.Users u on u.Id = s.OffersClientCode
-		left join Future.Clients c on c.Id = u.ClientId
+	left join Future.Users u on u.Id = s.OffersClientCode
+	left join Future.Clients c on c.Id = u.ClientId
 WHERE r.clientcode = ?ClientCode
 	and s.id = r.smartorderruleid
-	and s.offersclientcode != r.clientcode;", connection);
+	and s.offersclientcode != r.clientcode;";
+			else
+			{
+				offersSql = @"
+SELECT 
+  s.OffersClientCode,
+  cd.RegionCode as OfferRegionCode
+FROM retclientsset r
+	join OrderSendRules.smart_order_rules s
+	left join Usersettings.ClientsData cd on cd.FirmCode = s.OffersClientCode
+WHERE r.clientcode = ?ClientCode
+	and s.id = r.smartorderruleid
+	and s.offersclientcode != r.clientcode;";
+			}
+
+			dataAdapter = new MySqlDataAdapter(offersSql, connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", updateData.ClientId);
+
 			var smartOrderData = new DataSet();
 			dataAdapter.Fill(smartOrderData);
 
