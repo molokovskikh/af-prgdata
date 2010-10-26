@@ -427,6 +427,9 @@ where ordersList.OrderId = " + serverOrderId);
 				Assert.That(realOrderId.ToString(), Is.Not.Empty);
 				Assert.That(realOrderId.ToString(), Is.EqualTo(serverOrderId));
 
+				var calculateLeader = MySqlHelper.ExecuteScalar(connection, "select CalculateLeader from orders.ordershead where RowId = " + serverOrderId);
+				Assert.That(calculateLeader, Is.Not.Null);
+
 				var insertedCount = MySqlHelper.ExecuteScalar(connection, "select count(*) from orders.ordershead inner join orders.orderslist on orderslist.OrderId = ordershead.RowId where ordershead.RowId = " + serverOrderId);
 				Assert.That(insertedCount, Is.EqualTo(1), "Не совпадает кол-во записей в заказе");
 
