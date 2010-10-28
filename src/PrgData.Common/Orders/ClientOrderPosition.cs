@@ -61,8 +61,9 @@ namespace PrgData.Common.Orders
 			OrderPosition = null;
 		}
 
-		public string GetFilterForDuplicatedOrder()
+		public string GetFilterForDuplicatedOrder(bool postOldOrder)
 		{
+			if (postOldOrder || ClientServerCoreID <= 0)
 			return String.Format(@"
 (ProductId = {0})
 and (SynonymCode {1})
@@ -79,19 +80,8 @@ and (Await = {6})",
 				  OrderPosition.Junk ? "True" : "False",
 				  OrderPosition.Await ? "True" : "False"
 				  );
-		}
-
-		public string GetFilter()
-		{
-			return GetFilterForDuplicatedOrder() +
-				String.Format(@"
-and (RequestRatio {0})
-and (OrderCost {1})
-and (MinOrderCount {2})",
-				  OrderPosition.RequestRatio.HasValue ? " = " + OrderPosition.RequestRatio.ToString() : "is Null",
-				  OrderPosition.OrderCost.HasValue ? " = " + OrderPosition.OrderCost.ToString() : "is Null",
-				  OrderPosition.MinOrderCount.HasValue ? " = " + OrderPosition.MinOrderCount.ToString() : "is Null"
-				  );
+			else
+				return String.Format("(CoreId = {0})", ClientServerCoreID);
 		}
 
 		internal void PrepareBeforPost(ISession session)

@@ -147,6 +147,13 @@ from
 				);
 
 			Assert.That(response, Is.StringStarting("OrderID=").IgnoreCase, "Отправка заказа завершилась ошибкой.");
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == oldUser.Id).OrderByDescending(l => l.Id).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1), "Неожидаемое количество записей в логе {0}: {1}", logs.Count, logs.Implode());
+				Assert.That(logs[0].UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendOrder)));
+			}
 		}
 
 		[Test(Description = "Проверяем текст ошибки при нарушении MinReq")]
@@ -195,8 +202,9 @@ from
 
 			using (new SessionScope())
 			{
-				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == oldUser.Id).Max(l => l.Id);
-				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				var logs = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == oldUser.Id).OrderByDescending(l => l.Id).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1), "Неожидаемое количество записей в логе {0}: {1}", logs.Count, logs.Implode());
+				var log = logs[0];
 				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)));
 				Assert.That(log.Addition, Is.StringStarting("Сумма заказа меньше минимально допустимой").IgnoreCase, "Неожидаемый Addtion в логе.");
 			}

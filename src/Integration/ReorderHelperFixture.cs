@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using log4net;
 using log4net.Appender;
@@ -25,6 +27,98 @@ using Castle.ActiveRecord;
 
 namespace Integration
 {
+
+	public class ParseHelper
+	{
+		public static string GetValue(string paramValue, string parametrName)
+		{
+			Assert.That(paramValue, Is.StringStarting(parametrName + "=").IgnoreCase);
+			return paramValue.Substring(paramValue.IndexOf('=') + 1);
+		}
+	}
+
+	public class OrderPositionResult
+	{
+		public ulong ClientPositionId { get; set; }
+
+		public PositionSendResult SendResult { get; set; }
+
+		public float ServerCost { get; set; }
+
+		public uint ServerQuantity { get; set; }
+
+		public static OrderPositionResult Parse(string clientPositionId, string sendResult, string serverCost, string serverQuantity)
+		{
+			var position = new OrderPositionResult
+			               	{
+								ClientPositionId = Convert.ToUInt64(ParseHelper.GetValue(clientPositionId, "ClientPositionId")),
+								SendResult = (PositionSendResult)Convert.ToInt32(ParseHelper.GetValue(sendResult, "SendResult")),
+								ServerCost = Convert.ToSingle(ParseHelper.GetValue(serverCost, "ServerCost"), CultureInfo.InvariantCulture.NumberFormat),
+								ServerQuantity = Convert.ToUInt32(ParseHelper.GetValue(serverQuantity, "ServerQuantity"))
+			               	};
+
+			return position;
+		}
+	}
+
+	public class OrderServiceResponce
+	{
+		public ulong ClientOrderId { get; set; }
+
+		public OrderSendResult PostResult { get; set; }
+
+		public ulong ServerOrderId { get; set; }
+
+		public string ErrorReason { get; set; }
+
+		public uint? ServerMinReq { get; set; }
+
+		public DateTime SendDate { get; set; }
+
+		public List<OrderPositionResult> Positions;
+
+		public OrderServiceResponce()
+		{
+			Positions = new List<OrderPositionResult>();
+		}
+
+		public static OrderServiceResponce Parse(string clientOrderId, string postResult, string serverOrderId, string errorReason, string serverMinReq, string sendDate, List<string> positionResults)
+		{
+			var responce = new OrderServiceResponce
+			               	{
+								ClientOrderId = Convert.ToUInt64(ParseHelper.GetValue(clientOrderId, "ClientOrderId")),
+								PostResult = (OrderSendResult)Convert.ToInt32(ParseHelper.GetValue(postResult, "PostResult")),
+								ServerOrderId = Convert.ToUInt64(ParseHelper.GetValue(serverOrderId, "ServerOrderId")),
+								ErrorReason = ParseHelper.GetValue(errorReason, "ErrorReason"),
+								ServerMinReq = String.IsNullOrEmpty(ParseHelper.GetValue(serverMinReq, "ServerMinReq")) ? null : (uint?)Convert.ToUInt32(ParseHelper.GetValue(serverMinReq, "ServerMinReq")),
+								SendDate = DateTime.ParseExact(ParseHelper.GetValue(sendDate, "SendDate"), "yyyy-MM-dd HH:mm:ss", null),
+			               	};
+
+			if (positionResults.Count > 0)
+			{
+				var index = 0;
+				while (index < positionResults.Count)
+				{
+					if (index + 3 < positionResults.Count)
+					{
+						var position = OrderPositionResult.Parse(
+							positionResults[index],
+							positionResults[index+1],
+							positionResults[index+2],
+							positionResults[index+3]);
+						responce.Positions.Add(position);
+					}
+					else
+						Assert.Fail("Невозможно распарсить результат позиции начиная с индекса {0}: {1}", index, positionResults.Implode());
+					index += 4;
+				}
+			}
+
+			return responce;
+		}
+
+	}
+
 	[TestFixture]
 	public class ReorderHelperFixture
 	{
@@ -422,8 +516,8 @@ limit 1
 					new DateTime[] { DateTime.Now },
 					new string[] { "" },
 					new ushort[] { 2 },
-					new ulong[] { 1L, 2L },
-					new ulong[] { 1L, 2L },
+					new ulong[] { 2L, 3L },
+					new ulong[] { 2L, 3L },
 					new ulong[] { Convert.ToUInt64(secondOffer["ProductId"]), Convert.ToUInt64(fourOffer["ProductId"]) },
 					new string[] { "", "" },
 					new ulong[] { Convert.ToUInt64(secondOffer["SynonymCode"]), Convert.ToUInt64(fourOffer["SynonymCode"]) },
@@ -480,7 +574,7 @@ limit 1
 					new string[] { firstOffer["RequestRatio"].ToString(), secondOffer["RequestRatio"].ToString(), firstOffer["RequestRatio"].ToString() },
 					new string[] { firstOffer["OrderCost"].ToString(), secondOffer["OrderCost"].ToString(), firstOffer["OrderCost"].ToString() },
 					new string[] { firstOffer["MinOrderCount"].ToString(), secondOffer["MinOrderCount"].ToString(), firstOffer["MinOrderCount"].ToString() },
-					new ushort[] { 1, 1, 1 }, //Quantity
+					new ushort[] { 2, 1, 1 }, //Quantity
 					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]), Convert.ToDecimal(firstOffer["Cost"]) },
 					new string[] { firstOffer["Cost"].ToString(), secondOffer["Cost"].ToString(), firstOffer["Cost"].ToString() },  //minCost
 					new string[] { activePrice["PriceCode"].ToString(), activePrice["PriceCode"].ToString(), activePrice["PriceCode"].ToString() },  //MinPriceCode
@@ -704,7 +798,28 @@ limit 1
 
 			return serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
 		}
-		
+
+		private OrderServiceResponce ConvertServiceResponse(string response)
+		{
+			var serverParams = response.Split(';');
+			Assert.That(serverParams.Length, Is.GreaterThanOrEqualTo(6), "Неожидаемое кол-во секций в ответе сервера");
+
+			var positionResults = new List<string>();
+			if (serverParams.Length > 6)
+				positionResults = serverParams.ToList().GetRange(6, serverParams.Length - 6);
+
+			var orderResponce = OrderServiceResponce.Parse(
+				serverParams[0], 
+				serverParams[1], 
+				serverParams[2], 
+				serverParams[3],
+				serverParams[4], 
+				serverParams[5],
+				positionResults);
+
+			return orderResponce;
+		}
+
 		public void Check_simple_order_with_leaders(string userName, uint orderedClientId)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -793,7 +908,14 @@ where
 			}
 		}
 
-		[Test(Description = "Отправляем заказ, в котором пристутсвуют позиции с одинаковым CoreId")]
+		private List<ClientOrderHeader> GetOrders(ReorderHelper helper)
+		{
+			var field = helper.GetType().GetField("_orders", BindingFlags.NonPublic | BindingFlags.Instance);
+			return (List<ClientOrderHeader>)field.GetValue(helper);
+
+		}
+
+		[Test(Description = "Отправляем заказ, в котором пристутсвуют позиции с одинаковым CoreId, сохраниться должны только по одной позиции из дублей и при повторной отправке заказа весь заказ должен быть помечен как дублирующийся")]
 		public void Check_order_with_double_CoreId()
 		{
 			string userName = user.Login;
@@ -803,24 +925,33 @@ where
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+				updateData.BuildNumber = 1272;
 
-				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
-
-				ParseOrderWithSimpleDouble(orderHelper);
 
 				try
 				{
 					var memoryAppender = new MemoryAppender();
 					BasicConfigurator.Configure(memoryAppender);
 
-					var result = orderHelper.PostSomeOrders();
+					var firstOrderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
-					var firstServerOrderId = CheckServiceResponse(result);
+					ParseOrderWithSimpleDouble(firstOrderHelper);
 
-					Assert.That(firstServerOrderId, Is.Not.Null);
-					Assert.That(firstServerOrderId, Is.Not.Empty);
+					var firstResult = firstOrderHelper.PostSomeOrders();
 
-					Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(3), "Не совпадает кол-во позиций в заказе");
+					var firstResponse = ConvertServiceResponse(firstResult);
+
+					var firstParsedOrders = GetOrders(firstOrderHelper);
+
+					Assert.That(firstResponse.ServerOrderId, Is.GreaterThan(0));
+
+					Assert.That(GetOrderCount(connection, firstResponse.ServerOrderId.ToString()), Is.EqualTo(2), "Не совпадает кол-во позиций в заказе, должны были сохранить только не дублирующиеся");
+
+					Assert.That(firstParsedOrders.Count, Is.EqualTo(1));
+					Assert.That(firstParsedOrders[0].Positions.Count, Is.EqualTo(3));
+					Assert.That(firstParsedOrders[0].Positions[0].Duplicated, Is.EqualTo(false));
+					Assert.That(firstParsedOrders[0].Positions[1].Duplicated, Is.EqualTo(false));
+					Assert.That(firstParsedOrders[0].Positions[2].Duplicated, Is.EqualTo(true));
 
 					var coreIdFillCount =
 						Convert.ToInt32(MySqlHelper
@@ -834,14 +965,35 @@ from
 where 
 	orderslist.OrderId = ?OrderId
 and orderslist.Coreid is not null",
-								new MySqlParameter("?OrderId", firstServerOrderId)));
-					Assert.That(coreIdFillCount, Is.EqualTo(3), "Не совпадает кол-во позиций с заполенным полем CoreId");
+								new MySqlParameter("?OrderId", firstResponse.ServerOrderId)));
+					Assert.That(coreIdFillCount, Is.EqualTo(2), "Не совпадает кол-во позиций с заполненным полем CoreId");
 
 					var events = memoryAppender.GetEvents();
 					var lastEvent = events[events.Length - 1];
 
 					Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
-					Assert.That(lastEvent.RenderedMessage, Is.StringStarting(String.Format("Заказ {0} содержит дублирующиеся позиции по CoreId", firstServerOrderId)));
+					Assert.That(lastEvent.RenderedMessage, Is.StringStarting(String.Format("Заказ {0} содержит дублирующиеся позиции по CoreId", firstResponse.ServerOrderId)));
+
+					var secondOrderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+					ParseOrderWithSimpleDouble(secondOrderHelper);
+
+					var secondResult = secondOrderHelper.PostSomeOrders();
+
+					var secondResponse = ConvertServiceResponse(secondResult);
+
+					Assert.That(secondResponse.ServerOrderId, Is.EqualTo(firstResponse.ServerOrderId));
+
+					var secondParsedOrders = GetOrders(secondOrderHelper);
+					Assert.That(secondParsedOrders.Count, Is.EqualTo(1));
+					Assert.That(secondParsedOrders[0].Positions.Count, Is.EqualTo(3));
+					Assert.That(secondParsedOrders[0].Positions.TrueForAll(item => item.Duplicated), Is.EqualTo(true), "Не все позиции помеченны как дублирующиеся");
+
+					events = memoryAppender.GetEvents();
+					lastEvent = events[events.Length - 1];
+
+					Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
+					Assert.That(lastEvent.RenderedMessage, Is.StringStarting(String.Format("Заказ {0} содержит дублирующиеся позиции по CoreId", secondResponse.ServerOrderId)));
 				}
 				finally
 				{
@@ -849,6 +1001,57 @@ and orderslist.Coreid is not null",
 				}
 			}
 		}
+
+		[Test(Description = "Отправляем заказ и создаем дубль по позиции с таким же CoreId, при попытке отправить заказ повторно мы должны получить, что позиция дублируюущаяся")]
+		public void Check_double_order_for_future_client_with_same_exists_OrderItems()
+		{
+			var userName = user.Login;
+			var orderedClientId = address.Id;
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+				updateData.BuildNumber = 1272;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseSimpleOrder(firstOrderHelper);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var firstResponse = ConvertServiceResponse(firstResult);
+
+				Assert.That(firstResponse.ServerOrderId, Is.GreaterThan(0));
+
+				Assert.That(GetOrderCount(connection, firstResponse.ServerOrderId.ToString()), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+
+				var insertCount = MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+insert into Orders.OrdersList 
+(`OrderID`, `CoreId`, `ProductId`, `CodeFirmCr`, `SynonymCode`, `SynonymFirmCrCode`, `Code`, `CodeCr`, `Quantity`, `Junk`, `Await`, `RequestRatio`, `OrderCost`, `MinOrderCount`, `Cost`, `SupplierPriceMarkup`, `RetailMarkup`) 
+select 
+  `OrdersList`.`OrderID`, `OrdersList`.`CoreId`, `OrdersList`.`ProductId`, `OrdersList`.`CodeFirmCr`, `OrdersList`.`SynonymCode`, `OrdersList`.`SynonymFirmCrCode`, `OrdersList`.`Code`, `OrdersList`.`CodeCr`, `OrdersList`.`Quantity`, `OrdersList`.`Junk`, `OrdersList`.`Await`, `OrdersList`.`RequestRatio`, `OrdersList`.`OrderCost`, `OrdersList`.`MinOrderCount`, `OrdersList`.`Cost`, `OrdersList`.`SupplierPriceMarkup`, `OrdersList`.`RetailMarkup`
+from Orders.OrdersList where OrderId = ?OrderId limit 1;
+update Orders.OrdersHead set RowCount = RowCount + 1 where RowId = ?OrderId;",
+					new MySqlParameter("?OrderId", firstResponse.ServerOrderId));
+				Assert.That(insertCount, Is.EqualTo(2), "Количество обновленных или добавленных записей должно быть 2");
+
+				var secondOrderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseSimpleOrder(secondOrderHelper);
+
+				var secondResult = secondOrderHelper.PostSomeOrders();
+
+				var secondResponse = ConvertServiceResponse(secondResult);
+
+				Assert.That(secondResponse.ServerOrderId, Is.GreaterThan(0));
+				Assert.That(secondResponse.ServerOrderId, Is.EqualTo(firstResponse.ServerOrderId), "Заказ не помечен как дублирующийся");
+			}
+
+		}
+
 
 
 	}

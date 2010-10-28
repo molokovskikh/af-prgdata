@@ -155,7 +155,7 @@ namespace PrgData.Common.Orders
 								g =>
 									{
 										stringBuilder.AppendLine("ClientServerCoreId : " + g.Key.ClientServerCoreID);
-										g.GroupedElems
+										g.GroupedElems.OrderByDescending(item => item.OrderedQuantity)
 											.Each(elem => stringBuilder.AppendLine("   " + elem.OrderPosition));
 									});
 
@@ -196,18 +196,35 @@ namespace PrgData.Common.Orders
 				//сохраняем сами заявки в базу
 				SaveOrders(session);
 
-				session.CreateSQLQuery(@"
+				if (!_postOldOrder)
+				{
+					session.CreateSQLQuery(@"
 insert into logs.AnalitFUpdates 
   (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost) 
 values 
   (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost);
 "
-					)
-					.SetParameter("UpdateType", (int)RequestType.SendOrders)
-					.SetParameter("UserId", _data.UserId)
-					.SetParameter("AppVersion", _data.BuildNumber)
-					.SetParameter("ClientHost", _data.ClientHost)
-					.ExecuteUpdate();
+						)
+						.SetParameter("UpdateType", (int)RequestType.SendOrders)
+						.SetParameter("UserId", _data.UserId)
+						.SetParameter("AppVersion", _data.BuildNumber)
+						.SetParameter("ClientHost", _data.ClientHost)
+						.ExecuteUpdate();
+				}
+				else
+					if (AllOrdersIsSuccess())
+						session.CreateSQLQuery(@"
+insert into logs.AnalitFUpdates 
+  (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost) 
+values 
+  (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost);
+"
+							)
+							.SetParameter("UpdateType", (int)RequestType.SendOrder)
+							.SetParameter("UserId", _data.UserId)
+							.SetParameter("AppVersion", _data.BuildNumber)
+							.SetParameter("ClientHost", _data.ClientHost)
+							.ExecuteUpdate();
 			}
 		}
 
@@ -258,9 +275,35 @@ values
 							}
 
 							position.OrderPosition = orderPosition;
-
-							position.PrepareBeforPost(session);
 						});
+
+					//Опеределяем дублирующиеся по ClientServerCoreId и помечаем их как дублирующиеся
+					if (!_postOldOrder)
+					{
+						//Группируем элементы по ClientServerCoreId
+						var groupedItems = clientOrder.Positions.GroupBy(position => new { position.ClientServerCoreID })
+							//Формируем новый элемент со значением CoreId, кол-вом и самим списком элементов
+							.Select(g => new { g.Key, ItemCount = g.Count(), GroupedElems = g.ToList() }).ToList();
+
+						groupedItems
+							//Выбираем только тех, у которых кол-во элементов больше одного
+							.Where(g => g.Key.ClientServerCoreID > 0 && g.ItemCount > 1)
+							.Each(
+								g =>
+								{
+									//Сортируем по заказанному количеству по убыванию
+									var orderByQuantity = g.GroupedElems.OrderByDescending(item => item.OrderedQuantity).ToList();
+									//Первый элемент с наибольшим количеством оставляем, а остальные помечаем как дублирующиеся
+									for (int i = 1; i < orderByQuantity.Count(); i++)
+									{
+										orderByQuantity[i].Duplicated = true;
+										orderByQuantity[i].OrderPosition.Order.RemoveItem(orderByQuantity[i].OrderPosition);
+									}
+								});
+					}
+
+					clientOrder.Positions.ForEach(position => { if(!position.Duplicated) position.PrepareBeforPost(session);});
+
 				});
 		}
 
@@ -997,53 +1040,86 @@ where
 
 				foreach (ClientOrderPosition position in order.Positions)
 				{
-					var existsOrderList = existsOrders.Select(position.GetFilterForDuplicatedOrder());
-					if (existsOrderList.Length == 1)
+					//позиция может быть дублированной из-за ClientServerCoreId
+					if (!position.Duplicated)
 					{
-						var serverQuantity = Convert.ToUInt32(existsOrderList[0]["Quantity"]);
-						//Если меньше или равняется, то считаем, что заказ был уже отправлен
-						if (position.OrderPosition.Quantity <= serverQuantity)
+						var existsOrderList = existsOrders.Select(position.GetFilterForDuplicatedOrder(_postOldOrder));
+						if (existsOrderList.Length == 1)
 						{
-							position.Duplicated = true;
-							order.Order.RemoveItem(position.OrderPosition);
-							_logger.InfoFormat(
-								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
-								+ "удалена дублирующаяся строка с заказом №{3}, строка №{4}",
-								order.Order.ClientOrderId,
-								_orderedClientCode,
-								_data.UserId,
-								existsOrderList[0]["OrderId"],
-								existsOrderList[0]["RowId"]);
+							var serverQuantity = Convert.ToUInt32(existsOrderList[0]["Quantity"]);
+							//Если меньше или равняется, то считаем, что заказ был уже отправлен
+							if (position.OrderPosition.Quantity <= serverQuantity)
+							{
+								position.Duplicated = true;
+								order.Order.RemoveItem(position.OrderPosition);
+								_logger.InfoFormat(
+									"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
+									+ "удалена дублирующаяся строка с заказом №{3}, строка №{4}",
+									order.Order.ClientOrderId,
+									_orderedClientCode,
+									_data.UserId,
+									existsOrderList[0]["OrderId"],
+									existsOrderList[0]["RowId"]);
+							}
+							else
+							{
+								position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - serverQuantity);
+								_logger.InfoFormat(
+									"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
+									+ "изменено количество товара в связи с дублированием с заказом №{3}, строка №{4}",
+									order.Order.ClientOrderId,
+									_orderedClientCode,
+									_data.UserId,
+									existsOrderList[0]["OrderId"],
+									existsOrderList[0]["RowId"]);
+							}
+							//удаляем позицию, чтобы больше не находить ее
+							existsOrderList[0].Delete();
 						}
 						else
-						{
-							position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - serverQuantity);
-							_logger.InfoFormat(
-								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
-								+ "изменено количество товара в связи с дублированием с заказом №{3}, строка №{4}",
-								order.Order.ClientOrderId,
-								_orderedClientCode,
-								_data.UserId,
-								existsOrderList[0]["OrderId"],
-								existsOrderList[0]["RowId"]);
-						}
-						//удаляем позицию, чтобы больше не находить ее
-						existsOrderList[0].Delete();
+							if (existsOrderList.Length > 1)
+							{
+								var byQuantity = existsOrderList.OrderByDescending(item => item["Quantity"]).ToList();
+
+								var existsOrderedQuantity = Convert.ToUInt32(byQuantity[0]["Quantity"]);
+
+								var stringBuilder = new StringBuilder();
+								existsOrderList.ToList().ForEach(row => stringBuilder.AppendLine(row.ItemArray.Implode()));
+
+								//Если меньше или равняется, то считаем, что заказ был уже отправлен
+								if (position.OrderPosition.Quantity <= existsOrderedQuantity)
+								{
+									position.Duplicated = true;
+									order.Order.RemoveItem(position.OrderPosition);
+
+									_logger.InfoFormat(
+										"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
+										+ "удалена дублирующаяся строка с заказом №{3}, поиск вернул несколько позиций ({4}):\r\n{5}",
+										order.Order.ClientOrderId,
+										_orderedClientCode,
+										_data.UserId,
+										existsOrderList[0]["OrderId"],
+										existsOrderList.Length,
+										stringBuilder);
+								}
+								else
+								{
+									position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - existsOrderedQuantity);
+
+									_logger.InfoFormat(
+										"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
+										+ "изменено количество товара в связи с дублированием с заказом №{3}, поиск вернул несколько позиций ({4}):\r\n{5}",
+										order.Order.ClientOrderId,
+										_orderedClientCode,
+										_data.UserId,
+										existsOrderList[0]["OrderId"],
+										existsOrderList.Length,
+										stringBuilder);
+								}
+								//удаляем позиции, чтобы больше не находить их
+								byQuantity.ForEach(row => row.Delete());
+							}
 					}
-					else
-						if (existsOrderList.Length > 1)
-						{
-							var stringBuilder = new StringBuilder();
-							stringBuilder.AppendFormat(
-								"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2}"
-								+ "поиск вернул несколько позиций: {3}\r\n",
-								order.Order.ClientOrderId,
-								_orderedClientCode,
-								_data.UserId,
-								existsOrderList.Length);
-							existsOrderList.ToList().ForEach((row) => { stringBuilder.AppendLine(row.ItemArray.ToString()); });
-							//Это надо залогировать
-						}
 				}
 
 				//Если все заказы были помечены как дублирующиеся, то весь заказ помечаем как полностью дублирующийся
