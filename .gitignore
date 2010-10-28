@@ -13,5 +13,5 @@ _resharper.*
 *.suo
 *.cache
 /src/PrgData/Logs/PrgData.txt
-/src/PrgData/Logs/PrgDataDebug.txt
+/src/PrgData/Logs/PrgDataDebug*
 *.user
