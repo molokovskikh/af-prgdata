@@ -543,7 +543,7 @@ and orderslist.SynonymCode = ?SynonymCode",
 			var compareColumns = new[] { 
 				"ProductId", "CodeFirmCr", "SynonymCode", "SynonymFirmCrCode", "Code", "CodeCr", "Junk", "Await", "Cost", 
 				"RequestRatio", "OrderCost", "MinOrderCount", "Unit", "Volume", "Note", "Period", "Doc", "MinBoundCost", 
-				"RegistryCost", "MaxBoundCost", "ProducerCost", "NDS"};
+				"RegistryCost", "MaxBoundCost", "ProducerCost"};
 
 			foreach (var column in compareColumns)
 				Assert.That(insertPosition[column], Is.EqualTo(offer[column]), "Не сопадает значение столбца {0}", column);
