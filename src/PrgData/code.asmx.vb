@@ -154,7 +154,7 @@ Public Class PrgDataEx
 
                 Dim mess As MailMessage = New MailMessage( _
                  New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
-                 New MailAddress("tech@analit.net"))
+                 New MailAddress(ConfigurationManager.AppSettings("TechMail")))
                 mess.Body = body
                 mess.IsBodyHtml = False
                 mess.BodyEncoding = Encoding.UTF8

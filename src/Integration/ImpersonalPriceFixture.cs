@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using Castle.ActiveRecord;
@@ -8,6 +9,8 @@ using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
 using log4net.Layout;
+using LumiSoft.Net.IMAP;
+using LumiSoft.Net.Mail;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
@@ -17,6 +20,7 @@ using System.Text.RegularExpressions;
 using MySql.Data.MySqlClient;
 using System.Data;
 using NHibernate.Criterion;
+using LumiSoft.Net.IMAP.Client;
 
 namespace Integration
 {
@@ -428,10 +432,70 @@ where
 		[Test]
 		public void Check_send_letter()
 		{
-			SetCurrentUser(user.Login);
-			var service = new PrgDataEx();
-			var letterResponse = service.SendLetter("Test subject", "test body", null);
-			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+			using(var imapClient = new IMAP_Client())
+			{
+				imapClient.Connect("box.analit.net", 143);
+				try
+				{
+					var allset = new IMAP_SequenceSet();
+					allset.Parse("1:*", long.MaxValue);
+
+					imapClient.Login("kvasovtest@analit.net", "12345678");
+					imapClient.SelectFolder("INBOX");
+
+					var fetchDataItems = new IMAP_Fetch_DataItem[]{new IMAP_Fetch_DataItem_Envelope()};
+					var handler = new IMAP_Client_FetchHandler();
+					var envelops = new List<IMAP_Envelope>();
+
+					handler.Envelope += (object sender, LumiSoft.Net.EventArgs<IMAP_Envelope> e) => envelops.Add(e.Value);
+
+					imapClient.Fetch(false, allset, fetchDataItems, handler);
+
+					imapClient.StoreMessageFlags(false, allset, IMAP_Flags_SetType.Replace, IMAP_MessageFlags.Deleted);
+
+					imapClient.Expunge();
+
+					SetCurrentUser(user.Login);
+					var service = new PrgDataEx();
+					var letterResponse = service.SendLetter("Test subject", "test body", null);
+					Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+
+					envelops.Clear();
+
+					imapClient.CloseFolder();
+					imapClient.SelectFolder("INBOX");
+
+					var fetchHandler = new IMAP_Client_FetchHandler();
+					fetchHandler.Envelope += (object sender, LumiSoft.Net.EventArgs<IMAP_Envelope> e) => envelops.Add(e.Value);
+					var dataItems = new IMAP_Fetch_DataItem[] { new IMAP_Fetch_DataItem_Envelope() };
+
+					imapClient.Fetch(false, allset, dataItems, fetchHandler);
+
+					Assert.That(envelops.Count, Is.EqualTo(1), "Письмо должно быть одно");
+
+					var message = envelops[0];
+
+					Assert.That(message.From, Is.Not.Null);
+					Assert.That(message.From.Length, Is.EqualTo(1));
+					Assert.That(message.From[0].GetType(), Is.EqualTo(typeof(Mail_t_Mailbox)));
+					Assert.That(((Mail_t_Mailbox)message.From[0]).Address, Is.EqualTo("afmail@analit.net").IgnoreCase);
+
+					Assert.That(message.To, Is.Not.Null);
+					Assert.That(message.To.Length, Is.EqualTo(1));
+					Assert.That(message.To[0].GetType(), Is.EqualTo(typeof(Mail_t_Mailbox)));
+					Assert.That(((Mail_t_Mailbox)message.To[0]).Address, Is.EqualTo(ConfigurationManager.AppSettings["TechMail"]).IgnoreCase);
+
+					Assert.That(message.Subject, Is.StringContaining(String.Format("UserId:{0}:", user.Id)).IgnoreCase);
+
+					imapClient.StoreMessageFlags(false, allset, IMAP_Flags_SetType.Replace, IMAP_MessageFlags.Deleted);
+
+					imapClient.Expunge();
+				}
+				finally
+				{
+					imapClient.Disconnect();
+				}
+			}
 		}
 
 		[Test]
