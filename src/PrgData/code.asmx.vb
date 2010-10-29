@@ -43,11 +43,8 @@ Public Class PrgDataEx
 
     Private _simpleConnectionManager As Global.Common.MySql.SimpleConnectionManager
     Private WithEvents SelProc As MySql.Data.MySqlClient.MySqlCommand
-    Private WithEvents dataTable4 As System.Data.DataTable
     Private WithEvents DA As MySql.Data.MySqlClient.MySqlDataAdapter
-    Friend WithEvents DataTable3 As System.Data.DataTable
-    Friend WithEvents DataTable5 As System.Data.DataTable
-    Friend WithEvents DataTable6 As System.Data.DataTable
+    Friend WithEvents dtProcessingDocuments As System.Data.DataTable
 
     Private components As System.ComponentModel.IContainer
 
@@ -68,7 +65,6 @@ Public Class PrgDataEx
     'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
     Private AbsentPriceCodes As String
     Private MessageH As String
-    Private i As Integer
     Private ErrorFlag, Documents As Boolean
     Private Addition, ClientLog As String
     Private Reclame As Boolean
@@ -94,18 +90,8 @@ Public Class PrgDataEx
     Private NewZip As Boolean = True
     Dim GUpdateId As UInt32? = 0
     Private WithEvents DS As System.Data.DataSet
-    Public WithEvents DataTable1 As System.Data.DataTable
-    Public WithEvents DataColumn1 As System.Data.DataColumn
-    Public WithEvents DataColumn2 As System.Data.DataColumn
-    Public WithEvents DataColumn3 As System.Data.DataColumn
-    Public WithEvents DataTable2 As System.Data.DataTable
-    Public WithEvents DataColumn4 As System.Data.DataColumn
-    Public WithEvents DataColumn5 As System.Data.DataColumn
     Private WithEvents Cm As MySql.Data.MySqlClient.MySqlCommand
 
-    Public WithEvents OrdersL As System.Data.DataTable
-    Private WithEvents OrderInsertCm As MySql.Data.MySqlClient.MySqlCommand
-    Private WithEvents OrderInsertDA As MySql.Data.MySqlClient.MySqlDataAdapter
     Private readWriteConnection As MySql.Data.MySqlClient.MySqlConnection
 
     Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
@@ -1287,7 +1273,7 @@ StartZipping:
             End Try
             ProtocolUpdatesThread.Start()
         Catch e As Exception
-            LogRequestHelper.MailWithRequest(Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
+            LogRequestHelper.MailWithRequest(Me.Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
             Return Now().ToUniversalTime
         Finally
             Counter.ReleaseLock(UserId, "MaxSynonymCode")
@@ -1387,7 +1373,7 @@ StartZipping:
             End Try
             SendClientLog = "OK"
         Catch e As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при сохранении лога клиента", e)
+            LogRequestHelper.MailWithRequest(Me.Log, "Ошибка при сохранении лога клиента", e)
             SendClientLog = "Error"
         Finally
             DBDisconnect()
@@ -2202,97 +2188,25 @@ PostLog:
 
     Private Sub InitializeComponent()
         Me.DS = New System.Data.DataSet
-        Me.DataTable1 = New System.Data.DataTable
-        Me.DataColumn1 = New System.Data.DataColumn
-        Me.DataColumn2 = New System.Data.DataColumn
-        Me.DataColumn3 = New System.Data.DataColumn
-        Me.DataTable2 = New System.Data.DataTable
-        Me.DataColumn4 = New System.Data.DataColumn
-        Me.DataColumn5 = New System.Data.DataColumn
-        Me.OrdersL = New System.Data.DataTable
-        Me.dataTable4 = New System.Data.DataTable
-        Me.DataTable3 = New System.Data.DataTable
-        Me.DataTable5 = New System.Data.DataTable
-        Me.DataTable6 = New System.Data.DataTable
+        Me.dtProcessingDocuments = New System.Data.DataTable
         Me.Cm = New MySql.Data.MySqlClient.MySqlCommand
         Me.readWriteConnection = New MySql.Data.MySqlClient.MySqlConnection
-        Me.OrderInsertCm = New MySql.Data.MySqlClient.MySqlCommand
-        Me.OrderInsertDA = New MySql.Data.MySqlClient.MySqlDataAdapter
         Me.SelProc = New MySql.Data.MySqlClient.MySqlCommand
         Me.DA = New MySql.Data.MySqlClient.MySqlDataAdapter
         CType(Me.DS, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.DataTable1, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.DataTable2, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.OrdersL, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.dataTable4, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.DataTable3, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.DataTable5, System.ComponentModel.ISupportInitialize).BeginInit()
-        CType(Me.DataTable6, System.ComponentModel.ISupportInitialize).BeginInit()
+        CType(Me.dtProcessingDocuments, System.ComponentModel.ISupportInitialize).BeginInit()
         '
         'DS
         '
         Me.DS.DataSetName = "DS"
         Me.DS.Locale = New System.Globalization.CultureInfo("ru-RU")
         Me.DS.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.DS.Tables.AddRange(New System.Data.DataTable() {Me.DataTable1, Me.DataTable2, Me.OrdersL, Me.dataTable4, Me.DataTable3, Me.DataTable5, Me.DataTable6})
+        Me.DS.Tables.AddRange(New System.Data.DataTable() {Me.dtProcessingDocuments})
         '
-        'DataTable1
+        'dtProcessingDocuments
         '
-        Me.DataTable1.Columns.AddRange(New System.Data.DataColumn() {Me.DataColumn1, Me.DataColumn2, Me.DataColumn3})
-        Me.DataTable1.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.DataTable1.TableName = "Archiving"
-        '
-        'DataColumn1
-        '
-        Me.DataColumn1.ColumnName = "Path"
-        '
-        'DataColumn2
-        '
-        Me.DataColumn2.ColumnName = "ResultName"
-        '
-        'DataColumn3
-        '
-        Me.DataColumn3.ColumnName = "NeedDelete"
-        Me.DataColumn3.DataType = GetType(Boolean)
-        '
-        'DataTable2
-        '
-        Me.DataTable2.Columns.AddRange(New System.Data.DataColumn() {Me.DataColumn4, Me.DataColumn5})
-        Me.DataTable2.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.DataTable2.TableName = "Logs"
-        '
-        'DataColumn4
-        '
-        Me.DataColumn4.ColumnName = "Message"
-        '
-        'DataColumn5
-        '
-        Me.DataColumn5.ColumnName = "Source"
-        '
-        'OrdersL
-        '
-        Me.OrdersL.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.OrdersL.TableName = "OrdersL"
-        '
-        'dataTable4
-        '
-        Me.dataTable4.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.dataTable4.TableName = "results"
-        '
-        'DataTable3
-        '
-        Me.DataTable3.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.DataTable3.TableName = "OrdersDouble"
-        '
-        'DataTable5
-        '
-        Me.DataTable5.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.DataTable5.TableName = "Documents"
-        '
-        'DataTable6
-        '
-        Me.DataTable6.RemotingFormat = System.Data.SerializationFormat.Binary
-        Me.DataTable6.TableName = "ProcessingDocuments"
+        Me.dtProcessingDocuments.RemotingFormat = System.Data.SerializationFormat.Binary
+        Me.dtProcessingDocuments.TableName = "ProcessingDocuments"
         '
         'Cm
         '
@@ -2302,18 +2216,6 @@ PostLog:
         'ReadOnlyCn
         '
         Me.readWriteConnection.ConnectionString = Nothing
-        '
-        'OrderInsertCm
-        '
-        Me.OrderInsertCm.Connection = Me.readWriteConnection
-        Me.OrderInsertCm.Transaction = Nothing
-        '
-        'OrderInsertDA
-        '
-        Me.OrderInsertDA.DeleteCommand = Nothing
-        Me.OrderInsertDA.InsertCommand = Me.OrderInsertCm
-        Me.OrderInsertDA.SelectCommand = Me.OrderInsertCm
-        Me.OrderInsertDA.UpdateCommand = Nothing
         '
         'SelProc
         '
@@ -2325,13 +2227,7 @@ PostLog:
         Me.DA.SelectCommand = Me.Cm
         Me.DA.UpdateCommand = Nothing
         CType(Me.DS, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.DataTable1, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.DataTable2, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.OrdersL, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.dataTable4, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.DataTable3, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.DataTable5, System.ComponentModel.ISupportInitialize).EndInit()
-        CType(Me.DataTable6, System.ComponentModel.ISupportInitialize).EndInit()
+        CType(Me.dtProcessingDocuments, System.ComponentModel.ISupportInitialize).EndInit()
 
     End Sub
 
@@ -3179,238 +3075,6 @@ RestartTrans2:
         End Try
     End Sub
 
-
-    Private Function PostOrderDB(ByVal ClientCode As UInt32, ByVal ClientOrderID As UInt32, _
-       ByVal ProductID As UInt32(), ByVal OrderID As UInt64, ByVal CodeFirmCr As String(), _
-       ByVal SynonymCode As UInt32(), ByVal SynonymFirmCrCode As String(), _
-       ByVal Code As String(), _
-       ByVal CodeCr As String(), ByVal Quantity As UInt16(), ByVal Junk As Boolean(), _
-       ByVal Await As Boolean(), ByVal Cost As Decimal(), ByVal PriceCode As UInt32, _
-       ByVal MinCost As String(), _
-       ByVal MinPriceCode As String(), _
-       ByVal LeaderMinCost As String(), _
-       ByVal LeaderMinPriceCode As String() _
-       ) As Boolean
-
-        Dim newrow As DataRow
-        Dim PosID As Integer = 0
-
-        Dim LeaderMinPriceCodeP As UInt32 = 0
-        Dim MinPriceCodeP As UInt32 = 0
-        Dim SynonymFirmCrCodeP As UInt32
-        Dim MinCostP As Decimal = 0
-        Dim LaederMinCostP As Decimal = 0
-        Dim ProblemStr As String = String.Empty
-
-        DS.Tables("OrdersL").Clear()
-        DS.Tables("OrdersDouble").Clear()
-
-
-        For i = 0 To ProductID.Length - 1
-            newrow = DS.Tables("OrdersL").NewRow
-            newrow.Item("ProductID") = ProductID(i)
-            newrow.Item("SynonymCode") = SynonymCode(i)
-
-            If UInt32.TryParse(SynonymFirmCrCode(i), SynonymFirmCrCodeP) Then
-
-                If SynonymFirmCrCodeP > 2 Then
-
-                    newrow.Item("SynonymFirmCrCode") = SynonymFirmCrCodeP
-
-                Else
-
-                    newrow.Item("SynonymFirmCrCode") = DBNull.Value
-
-                End If
-
-            Else
-
-                newrow.Item("SynonymFirmCrCode") = DBNull.Value
-
-            End If
-
-
-            If CodeFirmCr(i).Length < 1 Then
-                newrow.Item("CodeFirmCr") = DBNull.Value
-            Else
-                newrow.Item("CodeFirmCr") = CodeFirmCr(i)
-            End If
-
-
-
-            If Left(Code(i), 1) = "?" Then
-                Dim ResStr As String = String.Empty
-                Try
-                    For PosID = 2 To Len(Code(i)) Step 3
-                        ResStr &= Chr(Convert.ToInt32(Left(Mid(Code(i), PosID), 3)))
-                    Next
-                Catch err As Exception
-                    MailHelper.MailErr(CCode, "Формирование Code", err.Message)
-                End Try
-                newrow.Item("Code") = ResStr
-
-            Else
-                newrow.Item("Code") = Code(i)
-            End If
-
-
-
-            If Left(CodeCr(i), 1) = "?" Then
-                Dim ResStr As String = String.Empty
-                Try
-                    For PosID = 2 To Len(CodeCr(i)) Step 3
-                        ResStr &= Chr(Convert.ToInt32(Left(Mid(CodeCr(i), PosID), 3)))
-                    Next
-                Catch err As Exception
-                    MailHelper.MailErr(CCode, "Формирование CodeCr", err.Message)
-                End Try
-                newrow.Item("CodeCr") = ResStr
-            Else
-                newrow.Item("CodeCr") = CodeCr(i)
-            End If
-
-
-            newrow.Item("Quantity") = Quantity(i)
-            newrow.Item("Junk") = Junk(i)
-            newrow.Item("Await") = Await(i)
-            newrow.Item("Cost") = Cost(i)
-
-            If CalculateLeader Then
-
-                If UInt32.TryParse(MinPriceCode(i), MinPriceCodeP) Then newrow.Item("PriceCode") = MinPriceCodeP
-                If UInt32.TryParse(LeaderMinPriceCode(i), LeaderMinPriceCodeP) Then newrow.Item("LeaderPriceCode") = LeaderMinPriceCodeP
-
-                If Decimal.TryParse(LeaderMinCost(i), NumberStyles.Currency, CultureInfo.InvariantCulture.NumberFormat, LaederMinCostP) Then newrow.Item("LeaderMinCost") = LaederMinCostP
-                If Decimal.TryParse(MinCost(i), NumberStyles.Currency, CultureInfo.InvariantCulture.NumberFormat, MinCostP) Then newrow.Item("MinCost") = MinCostP
-
-            End If
-
-
-            DS.Tables("OrdersL").Rows.Add(newrow)
-        Next
-
-
-        OrderInsertCm.CommandText = "" & _
-        "SELECT  ol.* " & _
-         "FROM    orders.ordershead oh, " & _
-         "        orders.orderslist ol " & _
-         "WHERE   clientorderid=" & ClientOrderID & _
-         "    AND writetime    >ifnull( " & _
-         "        (SELECT MAX(requesttime) " & _
-         "        FROM    logs.AnalitFUpdates px " & _
-         "        WHERE   updatetype                  =2 " & _
-         "            AND px.UserId               =" & UserId & _
-         "        ), now() - interval 2 week) " & _
-         "    AND clientcode=" & ClientCode & _
-         "    AND ol.orderid=oh.rowid"
-
-
-        If OrderInsertDA.Fill(DS, "OrdersDouble") > 0 Then
-
-            Dim DelRowId As List(Of DataRow) = New List(Of DataRow)
-            Dim Row As DataRow
-
-            For i = 0 To DS.Tables("OrdersL").Rows.Count - 1
-
-                For Each Row In DS.Tables("OrdersDouble").Rows
-
-
-                    If DS.Tables("OrdersL").Rows(i).Item("ProductID").Equals(Row.Item("ProductID")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("CodeFirmCr").Equals(Row.Item("CodeFirmCr")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("SynonymCode").Equals(Row.Item("SynonymCode")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("SynonymFirmCrCode").Equals(Row.Item("SynonymFirmCrCode")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("Code").Equals(Row.Item("Code")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("CodeCr").Equals(Row.Item("CodeCr")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("Junk").Equals(Row.Item("Junk")) _
-                      And DS.Tables("OrdersL").Rows(i).Item("Await").Equals(Row.Item("Await")) _
-                       Then
-                        If DS.Tables("OrdersL").Rows(i).Item("Quantity").Equals(Row.Item("Quantity")) Then
-
-                            DelRowId.Add(DS.Tables("OrdersL").Rows(i))
-                            ProblemStr &= "В новом заказе №" & OrderID & " удалена дублирующаяся строка с заказом №" & Row.Item("OrderID").ToString & _
-                             ", строка №" & Row.Item("rowid").ToString & Chr(10) & Chr(13)
-
-                        Else
-                            Try
-                                DS.Tables("OrdersL").Rows(i).Item("Quantity") = Convert.ToUInt16(DS.Tables("OrdersL").Rows(i).Item("Quantity")) - Convert.ToUInt16(Row.Item("Quantity"))
-                                ProblemStr &= "В новом заказе №" & OrderID & " изменено колличество товара в сявязи с дублированием с заказом №" & Row.Item("OrderID").ToString & _
-                                 ", строка №" & Row.Item("rowid").ToString & Chr(10) & Chr(13)
-                            Catch e As Exception
-                                MailHelper.MailErr(CCode, "Дублирующийся заказ", e.Message & ": " & e.StackTrace)
-                            End Try
-
-                        End If
-                    End If
-
-                Next
-
-            Next
-
-            If DelRowId.Count >= DS.Tables("OrdersL").Rows.Count Then
-                DS.Tables("OrdersL").Clear()
-            Else
-
-                For Each RowForDelete As DataRow In DelRowId
-                    DS.Tables("OrdersL").Rows.Remove(RowForDelete)
-                Next
-            End If
-        End If
-
-
-        If DS.Tables("OrdersL").Rows.Count = 0 Then
-            ProblemStr = "Заказ №" & ClientOrderID & "(по клиенту) не принят как полностью повторяющийся."
-            Return False
-
-        End If
-
-        With OrderInsertCm
-            .CommandText = String.Empty
-            .Parameters.Clear()
-            If ProblemStr <> String.Empty Then
-                Addition = ProblemStr
-                .CommandText = "update orders.ordershead set rowcount=" & DS.Tables("OrdersL").Rows.Count & " where rowid=" & OrderID & "; "
-                'MailHelper.MailErr(CCode, "Дубли в заказе", ProblemStr)
-            End If
-
-            .CommandText &= " insert into orders.orderslist (OrderID, ProductId, CodeFirmCr, SynonymCode, SynonymFirmCrCode, Code, CodeCr, Quantity, Junk, Await, Cost)" & _
-             " select  " & OrderID & ", products.ID, if(Prod.Id is null, sfcr.codefirmcr, Prod.Id) , syn.synonymcode, sfcr.SynonymFirmCrCode, ?Code, ?CodeCr, ?Quantity, ?Junk, ?Await, ?Cost" & _
-             " from catalogs.products" & _
-             " left join farm.synonymarchive  syn on syn.synonymcode=?SynonymCode" & _
-             " left join farm.synonymfirmcr sfcr on sfcr.SynonymFirmCrCode=?SynonymFirmCrCode" & _
-             " left join  catalogs.Producers Prod on Prod.Id=?CodeFirmCr" & _
-             " where products.ID=?ProductID; "
-
-            If CalculateLeader And (MinPriceCodeP > 0 Or LeaderMinPriceCodeP > 0) And (LaederMinCostP > 0 Or MinCostP > 0) Then
-
-                .CommandText &= " insert into orders.leaders " & _
-                 "values(last_insert_id(), nullif(?MinCost, 0), nullif(?LeaderMinCost, 0), nullif(?PriceCode, 0), nullif(?LeaderPriceCode, 0))"
-
-                .Parameters.Add(New MySqlParameter("?PriceCode", MySqlDbType.UInt32, 0, "PriceCode"))
-                .Parameters.Add(New MySqlParameter("?LeaderPriceCode", MySqlDbType.UInt32, 0, "LeaderPriceCode"))
-                .Parameters.Add(New MySqlParameter("?MinCost", MySqlDbType.Decimal, 0, "MinCost"))
-                .Parameters.Add(New MySqlParameter("?LeaderMinCost", MySqlDbType.Decimal, 0, "LeaderMinCost"))
-
-
-            End If
-
-            .Parameters.Add(New MySqlParameter("?ProductID", MySqlDbType.UInt32, 0, "ProductID"))
-            .Parameters.Add(New MySqlParameter("?CodeFirmCr", MySqlDbType.UInt32, 0, "CodeFirmCr"))
-            .Parameters.Add(New MySqlParameter("?SynonymCode", MySqlDbType.UInt32, 0, "SynonymCode"))
-            .Parameters.Add(New MySqlParameter("?SynonymFirmCrCode", MySqlDbType.UInt32, 0, "SynonymFirmCrCode"))
-            .Parameters.Add(New MySqlParameter("?Code", MySqlDbType.VarString, 0, "Code"))
-            .Parameters.Add(New MySqlParameter("?CodeCr", MySqlDbType.VarString, 0, "CodeCr"))
-            .Parameters.Add(New MySqlParameter("?Quantity", MySqlDbType.UInt16, 0, "Quantity"))
-            .Parameters.Add(New MySqlParameter("?Junk", MySqlDbType.Bit, 0, "Junk"))
-            .Parameters.Add(New MySqlParameter("?Await", MySqlDbType.Bit, 0, "Await"))
-            .Parameters.Add(New MySqlParameter("?Cost", MySqlDbType.Decimal, 0, "Cost"))
-        End With
-
-        OrderInsertDA.Update(DS.Tables("OrdersL"))
-
-        Return True
-
-    End Function
-
     'Исходная строка преобразуется в набор символов Hex-кодов
     Private Function ToHex(ByVal Src As String) As String
         Dim sb As System.Text.StringBuilder = New System.Text.StringBuilder
@@ -3465,8 +3129,9 @@ RestartTrans2:
 
             Dim ResStrRSTUIN As String = String.Empty
             Try
-                For i = 1 To Len(RSTUIN) Step 3
-                    ResStrRSTUIN &= Chr(Convert.ToInt16(Left(Mid(RSTUIN, i), 3)))
+                Dim localI As Integer
+                For localI = 1 To Len(RSTUIN) Step 3
+                    ResStrRSTUIN &= Chr(Convert.ToInt16(Left(Mid(RSTUIN, localI), 3)))
                 Next
             Catch err As Exception
                 Log.ErrorFormat("Ошибка в SendUData при формировании RSTUIN : {0}\n{1}", RSTUIN, err)
