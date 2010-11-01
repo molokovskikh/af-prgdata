@@ -200,15 +200,16 @@ namespace PrgData.Common.Orders
 				{
 					session.CreateSQLQuery(@"
 insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost) 
+  (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost, Addition) 
 values 
-  (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost);
+  (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost, :Addition);
 "
 						)
 						.SetParameter("UpdateType", (int)RequestType.SendOrders)
 						.SetParameter("UserId", _data.UserId)
 						.SetParameter("AppVersion", _data.BuildNumber)
 						.SetParameter("ClientHost", _data.ClientHost)
+						.SetParameter("Addition", GetOrdersResultToAddition())
 						.ExecuteUpdate();
 				}
 				else
@@ -226,6 +227,19 @@ values
 							.SetParameter("ClientHost", _data.ClientHost)
 							.ExecuteUpdate();
 			}
+		}
+
+		private string GetOrdersResultToAddition()
+		{
+			var results = new List<string>();
+			foreach (var clientOrderHeader in _orders)
+				if (clientOrderHeader.SendResult == OrderSendResult.LessThanMinReq)
+					results.Add(clientOrderHeader.GetResultToAddition());
+
+			if (results.Count == 0)
+				return null;
+
+			return results.Implode("\r\n");
 		}
 
 		private void CreateOrders(ISession session)

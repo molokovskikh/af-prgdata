@@ -8,6 +8,8 @@ using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
+using NHibernate;
+using NHibernate.Criterion;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
@@ -24,6 +26,7 @@ using SmartOrderFactory.Domain;
 using Test.Support;
 using Common.Tools;
 using Castle.ActiveRecord;
+using Test.Support.Logs;
 
 namespace Integration
 {
@@ -50,12 +53,12 @@ namespace Integration
 		public static OrderPositionResult Parse(string clientPositionId, string sendResult, string serverCost, string serverQuantity)
 		{
 			var position = new OrderPositionResult
-			               	{
+							{
 								ClientPositionId = Convert.ToUInt64(ParseHelper.GetValue(clientPositionId, "ClientPositionId")),
 								SendResult = (PositionSendResult)Convert.ToInt32(ParseHelper.GetValue(sendResult, "SendResult")),
 								ServerCost = Convert.ToSingle(ParseHelper.GetValue(serverCost, "ServerCost"), CultureInfo.InvariantCulture.NumberFormat),
 								ServerQuantity = Convert.ToUInt32(ParseHelper.GetValue(serverQuantity, "ServerQuantity"))
-			               	};
+							};
 
 			return position;
 		}
@@ -85,14 +88,14 @@ namespace Integration
 		public static OrderServiceResponce Parse(string clientOrderId, string postResult, string serverOrderId, string errorReason, string serverMinReq, string sendDate, List<string> positionResults)
 		{
 			var responce = new OrderServiceResponce
-			               	{
+							{
 								ClientOrderId = Convert.ToUInt64(ParseHelper.GetValue(clientOrderId, "ClientOrderId")),
 								PostResult = (OrderSendResult)Convert.ToInt32(ParseHelper.GetValue(postResult, "PostResult")),
 								ServerOrderId = Convert.ToUInt64(ParseHelper.GetValue(serverOrderId, "ServerOrderId")),
 								ErrorReason = ParseHelper.GetValue(errorReason, "ErrorReason"),
 								ServerMinReq = String.IsNullOrEmpty(ParseHelper.GetValue(serverMinReq, "ServerMinReq")) ? null : (uint?)Convert.ToUInt32(ParseHelper.GetValue(serverMinReq, "ServerMinReq")),
 								SendDate = DateTime.ParseExact(ParseHelper.GetValue(sendDate, "SendDate"), "yyyy-MM-dd HH:mm:ss", null),
-			               	};
+							};
 
 			if (positionResults.Count > 0)
 			{
@@ -427,7 +430,7 @@ limit 1
 					new string[] { "" },             //clientaddition
 					new ushort[] { 1 },              //rowCount
 					new ulong[] { 1L },              //clientPositionId
-					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().Substring(firstOffer["Id"].ToString().Length - 9, 9)) }, //ClientServerCoreID
+					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) }, //ClientServerCoreID
 					new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },     //ProductId
 					new string[] { firstOffer["CodeFirmCr"].ToString() },
 					new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) }, //SynonymCode
@@ -562,7 +565,7 @@ limit 1
 					new string[] { "" },             //clientaddition
 					new ushort[] { 3 },              //rowCount
 					new ulong[] { 1L, 2L, 3L },              //clientPositionId
-					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().Substring(firstOffer["Id"].ToString().Length - 9, 9)), Convert.ToUInt64(secondOffer["Id"].ToString().Substring(secondOffer["Id"].ToString().Length - 9, 9)), Convert.ToUInt64(firstOffer["Id"].ToString().Substring(firstOffer["Id"].ToString().Length - 9, 9)) }, //ClientServerCoreID
+					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)), Convert.ToUInt64(secondOffer["Id"].ToString().RightSlice(9)), Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) }, //ClientServerCoreID
 					new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]), Convert.ToUInt64(secondOffer["ProductId"]), Convert.ToUInt64(firstOffer["ProductId"]) },     //ProductId
 					new string[] { firstOffer["CodeFirmCr"].ToString(), secondOffer["CodeFirmCr"].ToString(), firstOffer["CodeFirmCr"].ToString() },
 					new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]), Convert.ToUInt64(secondOffer["SynonymCode"]), Convert.ToUInt64(firstOffer["SynonymCode"]) }, //SynonymCode
@@ -1052,7 +1055,168 @@ update Orders.OrdersHead set RowCount = RowCount + 1 where RowId = ?OrderId;",
 
 		}
 
+		[Test(Description = "Отправляем несколько заказов, один из которых должен быть с нарушением минимальной суммы заказа")]
+		public void Send_some_orders_with_MinReq()
+		{
+			TestPrice price;
+			TestPrice minReqPrice;
 
+			TestCore core;
+			TestCore minReqCore;
+
+			using (var transaction = new TransactionScope())
+			{
+				var prices = user.GetActivePrices();
+				price = prices[0];
+				minReqPrice = prices.First(p => p.Supplier != price.Supplier);
+
+				core =
+					TestCore.FindFirst(Expression.Eq("Price", price));
+				minReqCore =
+					TestCore.FindFirst(Expression.Eq("Price", minReqPrice));
+
+				NHibernateUtil.Initialize(core);
+				NHibernateUtil.Initialize(minReqCore);
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+update
+  Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join future.Intersection i on i.ClientId = c.Id
+  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 0
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", price.Id)
+						.ExecuteUpdate();
+
+					session.CreateSQLQuery(@"
+update
+  Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join future.Intersection i on i.ClientId = c.Id
+  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 1,
+  ai.MinReq = 10000
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", minReqPrice.Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+				transaction.VoteCommit();
+			}
+
+			var firstOrder = new ClientOrderHeader
+			                 	{
+									ActivePrice = new ActivePrice
+									{
+										Id = new PriceKey(new PriceList{PriceCode = price.Id, Firm = new Firm{FirmCode = price.Supplier.Id, ShortName = price.Supplier.ShortName}}) { RegionCode = client.RegionCode },
+										PriceDate = DateTime.Now,
+									},
+			                 		ClientOrderId = 1,
+			                 	};
+			firstOrder.Positions.Add(
+				new ClientOrderPosition
+				{
+					ClientPositionID = 1,
+					ClientServerCoreID = core.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer
+					        	{
+					        		Id = core.Id, 
+									ProductId = core.Product.Id,
+									CodeFirmCr = core.Producer != null ? (uint?)core.Producer.Id : null,
+									SynonymCode = core.ProductSynonym.Id,
+									SynonymFirmCrCode = core.ProducerSynonym != null ? (uint?)core.ProducerSynonym.Id : null,
+					        	}
+				});
+
+			var minReqOrder = new ClientOrderHeader
+			{
+				ActivePrice = new ActivePrice
+				{
+					Id = new PriceKey(new PriceList { PriceCode = minReqPrice.Id, Firm = new Firm { FirmCode = minReqPrice.Supplier.Id, ShortName = minReqPrice.Supplier.ShortName } }) { RegionCode = client.RegionCode },
+					PriceDate = DateTime.Now,
+				},
+				ClientOrderId = 2,
+			};
+			minReqOrder.Positions.Add(
+				new ClientOrderPosition
+				{
+					ClientPositionID = 2,
+					ClientServerCoreID = minReqCore.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer
+					{
+						Id = minReqCore.Id,
+						ProductId = minReqCore.Product.Id,
+						CodeFirmCr = minReqCore.Producer != null ? (uint?)minReqCore.Producer.Id : null,
+						SynonymCode = minReqCore.ProductSynonym.Id,
+						SynonymFirmCrCode = minReqCore.ProducerSynonym != null ? (uint?)minReqCore.ProducerSynonym.Id : null,
+					}
+				});
+
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				updateData.BuildNumber = 1272;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				var firstParsedOrders = GetOrders(firstOrderHelper);
+
+				firstParsedOrders.Add(firstOrder);
+				firstParsedOrders.Add(minReqOrder);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var orderResults = firstResult.Split(new []{"ClientOrderID="}, StringSplitOptions.RemoveEmptyEntries);
+
+				Assert.That(orderResults.Length, Is.EqualTo(2), "Должно быть два ответа");
+
+				var firstOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+				var minReqOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[1].TrimEnd(';'));
+
+				Assert.That(firstOrderResponse.ServerOrderId, Is.GreaterThan(0));
+
+				Assert.That(minReqOrderResponse.ServerOrderId, Is.EqualTo(0));
+				Assert.That(minReqOrderResponse.PostResult, Is.EqualTo(OrderSendResult.LessThanMinReq));
+				Assert.That(minReqOrderResponse.ErrorReason, Is.StringContaining("Сумма заказа меньше минимально допустимой").IgnoreCase);
+			}
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы заказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
+			}
+		}
 
 	}
 }

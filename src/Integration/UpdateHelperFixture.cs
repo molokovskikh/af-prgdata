@@ -261,15 +261,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			public float? SupplierPriceMarkup { get; set; }
 		}
 
-		private string GetStringRight(string value, int right)
-		{
-			if (String.IsNullOrEmpty(value))
-				return value;
-			if (value.Length <= right)
-				return value;
-			return value.Substring(value.Length - right, right);
-		}
-
 		[Test]
 		public void Check_core_command_with_NDS()
 		{

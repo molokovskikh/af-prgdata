@@ -66,6 +66,19 @@ namespace PrgData.Common.Orders
 			return result;
 		}
 
+		public string GetResultToAddition()
+		{
+			if (SendResult != OrderSendResult.LessThanMinReq)
+				return null;
+
+			return String.Format(
+				"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения минимальной суммы заказа {3}.",
+				ClientOrderId,
+				Order.CalculateSum(),
+				ActivePrice.Id.Price.Firm.ShortName,
+				MinReq);
+		}
+
 		public void ClearOnCreate()
 		{
 			SendResult = OrderSendResult.Success;

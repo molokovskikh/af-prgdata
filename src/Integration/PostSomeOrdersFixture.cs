@@ -7,6 +7,7 @@ using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
+using Common.Tools;
 using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
@@ -306,7 +307,7 @@ limit 1
 						new string[] { "" },             //ClientAddition
 						new ushort[] { 1 },              //RowCount
 						new ulong[] { 1 },               //ClientPositionId
-						new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().Substring(firstOffer["Id"].ToString().Length - 9, 9)) },  //ClientServerCoreId
+						new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) },  //ClientServerCoreId
 						new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },
 						new string[] { firstOffer["CodeFirmCr"].ToString() },
 						new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) },
