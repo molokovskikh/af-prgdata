@@ -699,5 +699,98 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			}
 		}
 
+		public static DataTable CompareTwoDataTable(DataTable dt1, DataTable dt2)
+		{
+
+			dt1.Merge(dt2);
+
+			DataTable d3 = dt2.GetChanges();
+
+			return d3;
+		}
+
+		[Test]
+		public void Check_core_count_with_GroupBy()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var coreSql = helper.GetCoreCommand(false, true, false, false);
+				var lastIndex = coreSql.LastIndexOf("group by", StringComparison.OrdinalIgnoreCase);
+				var withoutGroupCoreSql = coreSql.Slice(lastIndex);
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;");
+
+				var startGroupBy = DateTime.Now;
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					String.Format(
+					@"
+create temporary table usersettings.GroupByCore engine=memory as 
+{0}
+;
+"
+					,
+					coreSql),
+					new MySqlParameter("?Cumulative", 0));
+				Console.WriteLine("fill group: {0}", DateTime.Now.Subtract(startGroupBy));
+
+				var startPure = DateTime.Now;
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					String.Format(
+					@"
+create temporary table usersettings.PureCore engine=memory as
+select * from usersettings.GroupByCore limit 0;
+insert into usersettings.PureCore
+{0}
+;
+"
+					,
+					withoutGroupCoreSql),
+					new MySqlParameter("?Cumulative", 0));
+				Console.WriteLine("fill pure: {0}", DateTime.Now.Subtract(startPure));
+
+				var withGroupBy = 
+					MySqlHelper.ExecuteDataset(
+						connection,
+						"select * from usersettings.GroupByCore");
+				var withGroupByCore = withGroupBy.Tables[0];
+
+				var withoutGroupBy =
+					MySqlHelper.ExecuteDataset(
+						connection,
+						"select * from usersettings.PureCore");
+				var withoutGroupByCore = withoutGroupBy.Tables[0];
+
+				Console.WriteLine("withGroupByCore : {0}", withGroupByCore.Rows.Count);
+				Console.WriteLine("withoutGroupByCore : {0}", withoutGroupByCore.Rows.Count);
+
+				var changes = CompareTwoDataTable(withGroupByCore, withoutGroupByCore);
+
+				Assert.That(changes, Is.Null);
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;");
+			}
+		}
+
+
 	}
 }
