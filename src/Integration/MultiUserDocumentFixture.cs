@@ -1,11 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Castle.ActiveRecord;
 using Common.Tools;
 using Inforoom.Common;
+using log4net;
+using log4net.Appender;
+using log4net.Config;
+using log4net.Filter;
 using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
@@ -21,6 +27,7 @@ namespace Integration
 		uint lastUpdateId;
 		string responce;
 		TestDocumentLog document;
+		TestDocumentLog fakeDocument;
 
 		TestClient client;
 		string waybills;
@@ -29,8 +36,10 @@ namespace Integration
 		public void Setup()
 		{
 			Test.Support.Setup.Initialize();
+
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
+			ServiceContext.GetResultPath = () => "results\\";
 			using (new TransactionScope())
 			{
 				ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
@@ -52,6 +61,8 @@ namespace Integration
 				Directory.CreateDirectory(waybills);
 
 				document = CreateDocument(user);
+
+				fakeDocument = CreateFakeDocument(user);
 
 				SetCurrentUser(user.Login);
 			}
@@ -86,6 +97,34 @@ namespace Integration
 			return doc;
 		}
 
+		private TestDocumentLog CreateFakeDocument(TestUser user)
+		{
+			TestDocumentLog doc;
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				var supplierId = user.GetActivePrices()[0].Supplier.Id;
+				doc = new TestDocumentLog
+				{
+					LogTime = DateTime.Now,
+					FirmCode = supplierId,
+					DocumentType = DocumentType.Waybill,
+					ClientCode = client.Id,
+					AddressId = client.Addresses[0].Id,
+					Ready = true,
+					IsFake = true
+				};
+				doc.Save();
+				new TestDocumentSendLog
+				{
+					ForUser = user,
+					Document = doc
+				}.Save();
+				transaction.VoteCommit();
+			}
+
+			return doc;
+		}
+
 		[Test]
 		public void Documents_should_be_sended_to_all_user_whom_address_avaliable()
 		{
@@ -102,6 +141,14 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 			Assert.That(File.Exists(document.LocalFile), Is.True, "удалил файл с накладной чего не нужно было делать");
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id || updateLog.UserId == client.Users[1].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+				Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
+			}
 		}
 
 		[Test]
@@ -110,10 +157,13 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 			TestDocumentSendLog log;
-			using(new SessionScope())
+			TestDocumentSendLog fakelog;
+			using (new SessionScope())
 			{
 				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(log.Committed, Is.False);
+				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
+				Assert.That(fakelog.Committed, Is.False);
 			}
 
 			LoadDocuments();
@@ -123,6 +173,13 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+				Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
 			}
 		}
 
@@ -141,12 +198,20 @@ namespace Integration
 
 			var url = LoadDocuments();
 			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+			}
 		}
 
 		[Test]
 		public void Confirm_update_if_new_document_not_found()
 		{
 			document.Delete();
+			fakeDocument.Delete();
 
 			var responce = LoadDocuments();
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
@@ -164,6 +229,7 @@ namespace Integration
 		{
 			CreateUser();
 			document.Delete();
+			fakeDocument.Delete();
 
 			SendWaybill();
 
@@ -242,6 +308,129 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "Написал тест для проверки выгрузки документа с признаком IsFake, чтобы проверить, что он корректно подтверждается")]
+		public void Check_Fake_for_old_user()
+		{
+			TestDocumentLog fakeDoc;
+			TestOldClient _oldClient;
+			TestOldUser _oldUser;
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				var permission = TestUserPermission.ByShortcut("AF");
+
+				_oldClient = TestOldClient.CreateTestClient();
+				_oldUser = _oldClient.Users[0];
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+						.SetParameter("permissionid", permission.Id)
+						.SetParameter("userid", _oldUser.Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+				var supplierId = _oldClient.GetActivePrices()[0].Supplier.Id;
+				fakeDoc = new TestDocumentLog
+				{
+					LogTime = DateTime.Now,
+					FirmCode = supplierId,
+					DocumentType = DocumentType.Waybill,
+					ClientCode = _oldClient.Id,
+					Ready = true,
+					IsFake = true
+				};
+				fakeDoc.Save();
+
+				transaction.VoteCommit();
+			}
+
+			var waybillsFolder = Path.Combine("FtpRoot", _oldClient.Id.ToString(), "Waybills");
+			Directory.CreateDirectory(waybillsFolder);
+
+			SetCurrentUser(_oldUser.OSUserName);
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(2000);
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == _oldUser.Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+				Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					var commited = session.CreateSQLQuery(@"select Committed from usersettings.AnalitFDocumentsProcessing where DocumentId = :DocumentId and UpdateId = :UpdateId")
+						.SetParameter("DocumentId", fakeDoc.Id)
+						.SetParameter("UpdateId", lastUpdateId)
+						.UniqueResult();
+					Assert.That(commited, Is.Null, "Ненастоящий документ не подтвержден.");
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+			}
+		}
+
+		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом")]
+		public void Get_parsed_fake_docs()
+		{
+			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
+
+			TestWaybill waybill;
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				waybill = new TestWaybill
+							{
+								DocumentType = DocumentType.Waybill,
+								DownloadId = fakeDocument.Id,
+								ClientCode = client.Id,
+								FirmCode = fakeDocument.FirmCode.Value,
+								WriteTime = DateTime.Now
+							};
+				waybill.Lines = new List<TestWaybillLine> { new TestWaybillLine { Waybill = waybill } };
+				waybill.Save();
+				waybill.Lines[0].Save();
+				transaction.VoteCommit();
+			}
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + ".zip";
+			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+
+			var extractFolder = "ResultExtract";
+			if (Directory.Exists(extractFolder))
+				FileHelper.DeleteDir(extractFolder);
+			Directory.CreateDirectory(extractFolder);
+
+			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
+			var files = Directory.GetFiles(extractFolder, "Document*" + client.Users[0].Id + ".txt");
+			Assert.That(files.Length, Is.GreaterThanOrEqualTo(2), "Не все файлы найдены в архиве: {0}", files.Implode());
+			var documentHeadersFile = files.First(item => item.Contains("DocumentHeaders"));
+			Assert.IsNotNullOrEmpty(documentHeadersFile, "Не найден файл DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+
+			var contentHeader = File.ReadAllText(documentHeadersFile);
+			Assert.That(contentHeader, Is.StringStarting(String.Format("{0}\t{1}", waybill.Id, fakeDocument.Id)), "В содержимом DocumentHeaders нет искомого разобранного документа");
+
+			Confirm();
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
@@ -250,7 +439,6 @@ namespace Integration
 		private void SendWaybill()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			uint supplierId;
 			using (new TransactionScope())
 			{
@@ -266,7 +454,6 @@ namespace Integration
 		private string SendWaybillEx(string uin)
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			uint supplierId;
 			using (new TransactionScope())
 			{
@@ -297,6 +484,11 @@ namespace Integration
 					ForUser = user,
 					Document = document
 				}.Save();
+				new TestDocumentSendLog
+				{
+					ForUser = user,
+					Document = fakeDocument
+				}.Save();
 			}
 		}
 
@@ -308,14 +500,12 @@ namespace Integration
 		private void Confirm()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			service.MaxSynonymCode("", new uint[0], lastUpdateId, true);
 		}
 
 		private string LoadDocuments()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			responce = service.GetUserData(DateTime.Now, false, "1065", 50, "123", "", "", true);
 
 			var match = Regex.Match(responce, @"\d+").Value;

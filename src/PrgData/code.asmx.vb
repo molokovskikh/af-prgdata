@@ -727,78 +727,83 @@ endproc:
                             ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
                             For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
 
-                                ListOfDocs = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
-                                 Row.Item("ClientCode").ToString & _
-                                 "\" & _
-                                 CType(Row.Item("DocumentType"), ТипДокумента).ToString, _
-                                 Row.Item("RowId").ToString & "_*")
-
-                                'даже если нет документа мы должны подтвердить его, что бы не вытаться его отдавать затем всегда
+                                'даже если нет документа мы должны подтвердить его, что бы не пытаться его отдавать затем всегда
+                                'или если документ фиктивный
                                 xRow = DS.Tables("ProcessingDocuments").NewRow
                                 xRow("Committed") = False
                                 xRow.Item("DocumentId") = Row.Item("RowId").ToString
                                 DS.Tables("ProcessingDocuments").Rows.Add(xRow)
 
-                                If ListOfDocs.Length = 1 Then
+                                If Not Convert.ToBoolean(Row.Item("IsFake")) Then
 
-                                    startInfo = New ProcessStartInfo(SevenZipExe)
-                                    startInfo.CreateNoWindow = True
-                                    startInfo.RedirectStandardOutput = True
-                                    startInfo.RedirectStandardError = True
-                                    startInfo.UseShellExecute = False
-                                    startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                                    ListOfDocs = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
+                                     Row.Item("ClientCode").ToString & _
+                                     "\" & _
+                                     CType(Row.Item("DocumentType"), ТипДокумента).ToString, _
+                                     Row.Item("RowId").ToString & "_*")
 
-                                    startInfo.Arguments = "a """ & _
-                                       SevenZipTmpArchive & """ " & _
-                                       " -i!""" & _
-                                       CType(Row.Item("DocumentType"), ТипДокумента).ToString & "\" & _
-                                       Path.GetFileName(ListOfDocs(0)) & _
-                                       """ " & _
-                                       SevenZipParam
+                                    If ListOfDocs.Length = 1 Then
 
-                                    startInfo.WorkingDirectory = ServiceContext.GetDocumentsPath() & _
-                                       Row.Item("ClientCode").ToString
+                                        startInfo = New ProcessStartInfo(SevenZipExe)
+                                        startInfo.CreateNoWindow = True
+                                        startInfo.RedirectStandardOutput = True
+                                        startInfo.RedirectStandardError = True
+                                        startInfo.UseShellExecute = False
+                                        startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
 
-                                    Pr = New Process
-                                    Pr.StartInfo = startInfo
-                                    Pr = Process.Start(startInfo)
-                                    Pr.WaitForExit()
+                                        startInfo.Arguments = "a """ & _
+                                           SevenZipTmpArchive & """ " & _
+                                           " -i!""" & _
+                                           CType(Row.Item("DocumentType"), ТипДокумента).ToString & "\" & _
+                                           Path.GetFileName(ListOfDocs(0)) & _
+                                           """ " & _
+                                           SevenZipParam
 
-                                    Вывод7Z = Pr.StandardOutput.ReadToEnd
-                                    Ошибка7Z = Pr.StandardError.ReadToEnd
+                                        startInfo.WorkingDirectory = ServiceContext.GetDocumentsPath() & _
+                                           Row.Item("ClientCode").ToString
 
-                                    If Pr.ExitCode <> 0 Then
+                                        Pr = New Process
+                                        Pr.StartInfo = startInfo
+                                        Pr = Process.Start(startInfo)
+                                        Pr.WaitForExit()
 
-                                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-                                        Addition &= "Архивирование документов, Вышли из 7Z с ошибкой: " & _
-                                           Вывод7Z & _
-                                           "-" & _
-                                           Ошибка7Z & _
-                                           "; "
+                                        Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                        Ошибка7Z = Pr.StandardError.ReadToEnd
 
-                                        If Documents Then
+                                        If Pr.ExitCode <> 0 Then
 
-                                            Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
-                                             "-" & _
-                                             Ошибка7Z))
+                                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
+                                            Addition &= "Архивирование документов, Вышли из 7Z с ошибкой: " & _
+                                               Вывод7Z & _
+                                               "-" & _
+                                               Ошибка7Z & _
+                                               "; "
 
-                                        Else
+                                            If Documents Then
 
-                                            MailHelper.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
-                                              Вывод7Z & _
-                                             "-" & _
-                                              Ошибка7Z)
+                                                Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
+                                                 "-" & _
+                                                 Ошибка7Z))
+
+                                            Else
+
+                                                MailHelper.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
+                                                  Вывод7Z & _
+                                                 "-" & _
+                                                  Ошибка7Z)
+                                            End If
                                         End If
+                                    ElseIf ListOfDocs.Length = 0 Then
+                                        Addition &= "При подготовке документов в папке: " & _
+                                         ServiceContext.GetDocumentsPath() & _
+                                           Row.Item("ClientCode").ToString & _
+                                           "\" & _
+                                           CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
+                                           " не найден документ № " & _
+                                           Row.Item("RowId").ToString & _
+                                           " ; "
                                     End If
-                                ElseIf ListOfDocs.Length = 0 Then
-                                    Addition &= "При подготовке документов в папке: " & _
-                                     ServiceContext.GetDocumentsPath() & _
-                                       Row.Item("ClientCode").ToString & _
-                                       "\" & _
-                                       CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
-                                       " не найден документ № " & _
-                                       Row.Item("RowId").ToString & _
-                                       " ; "
+
                                 End If
                             Next
 
