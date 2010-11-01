@@ -1673,7 +1673,8 @@ FROM
 WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
-AND    IF(?Cumulative, 1, fresh)"
+AND    IF(?Cumulative, 1, fresh)
+group by CT.id, CT.regioncode "
 				,
 				exportSupplierPriceMarkup ? @"
 , 

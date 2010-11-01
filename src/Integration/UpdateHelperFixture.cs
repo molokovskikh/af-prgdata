@@ -326,11 +326,14 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				{
 					var filledCore = MySqlHelper.ExecuteDataset(
 						connection,
-						helper.GetCoreCommand(false, true, false, false) + " and Core.Id = " + item.CoreID,
+						helper.GetCoreCommand(false, true, false, false) //+ " and Core.Id = " + item.CoreID
+						,
 						new MySqlParameter("?Cumulative", 0));
 
+					filledCore.Tables[0].DefaultView.RowFilter = "CoreId = '" + item.CoreID.ToString().RightSlice(9) + "'";
 
-					var rows = filledCore.Tables[0];
+
+					var rows = filledCore.Tables[0].DefaultView.ToTable();
 					if (rows.Rows.Count == 0)
 						Assert.Fail("Не найдено предложение с Id = {0}", item.CoreID);
 					else
