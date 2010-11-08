@@ -133,6 +133,20 @@ and (p.Fresh = 1)
 			writer.WriteLine();
 		}
 
+		public string TableToString(string tableName)
+		{
+			using (var writer = new StringWriter())
+			{
+				if (_dataSet.Tables.Contains(tableName))
+				{
+					DumpTable(writer, _dataSet.Tables[tableName]);
+					return writer.ToString();
+				}
+				else
+					return null;
+			}
+		}
+
 		public void SendMail()
 		{
 			var body = String

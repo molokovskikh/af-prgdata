@@ -19,6 +19,7 @@ Imports SmartOrderFactory
 Imports SmartOrderFactory.Domain
 Imports Common.Models
 Imports PrgData.Common.Counters
+Imports Common.Tools
 
 <WebService(Namespace:="IOS.Service")> _
 Public Class PrgDataEx
@@ -3000,7 +3001,13 @@ RestartTrans2:
                         ' True _
                         ')
 
-                        GetMySQLFileWithDefaultEx( _
+                        Log.DebugFormat("Before Core GED = {0}", GED)
+                        debugHelper.FillTable("ActivePriceSizes", "select at.PriceCode, at.regioncode, at.Fresh, count(*) from ActivePrices at, Core ct WHERE  ct.pricecode = at.pricecode AND ct.regioncode=at.regioncode AND IF(?Cumulative, 1, fresh) group by at.PriceCode, at.regioncode")
+
+                        Log.DebugFormat("{0}", debugHelper.TableToString("ActivePriceSizes"))
+
+
+                        Dim ExportCoreCount = GetMySQLFileForCore( _
                          "Core", _
                          SelProc, _
                          helper.GetCoreCommand( _
@@ -3012,6 +3019,8 @@ RestartTrans2:
                          (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
                          True _
                         )
+
+                        Log.DebugFormat("ExportCoreCount = {0}", ExportCoreCount)
                     Else
                         'Выгружаем пустую таблицу Core
                         'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
@@ -3634,6 +3643,41 @@ RestartMaxCodesSet:
         End If
 
     End Sub
+
+    Private Function GetMySQLFileForCore(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean, ByVal AddToQueue As Boolean) As Integer
+        Dim SQL As String = SQLText
+        Dim oldCumulative As Boolean
+        Dim Result As Integer = 0
+
+        Try
+            Log.DebugFormat("For Core flag SetCumulative = {0}", SetCumulative)
+            Log.DebugFormat("For Core Params: {0}", MyCommand.Parameters.Cast(Of MySqlParameter)().Select(Function(param) String.Format("{0} = {1}", param.ParameterName, param.Value)).Implode())
+            If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
+                oldCumulative = MyCommand.Parameters("?Cumulative").Value
+                MyCommand.Parameters("?Cumulative").Value = True
+            End If
+
+            SQL &= " INTO OUTFILE '" & GetFileNameForMySql(FileName & UserId & ".txt") & "' "
+            MyCommand.CommandText = SQL
+            Result = MyCommand.ExecuteNonQuery()
+
+        Finally
+            If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
+                MyCommand.Parameters("?Cumulative").Value = oldCumulative
+            End If
+        End Try
+
+        If AddToQueue Then
+            SyncLock (FilesForArchive)
+
+                FilesForArchive.Enqueue(New FileForArchive(FileName, False))
+
+            End SyncLock
+        End If
+
+        Return Result
+
+    End Function
 
     Private Function ProcessUpdateException(ByVal updateException As UpdateException) As String
         UpdateType = updateException.UpdateType
