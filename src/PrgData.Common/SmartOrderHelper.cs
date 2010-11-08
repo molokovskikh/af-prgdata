@@ -135,6 +135,11 @@ namespace PrgData.Common
 			return MySql.Data.MySqlClient.MySqlHelper.EscapeString(t);
 		}
 
+		private uint GetOrderedId(Order order)
+		{
+			return order.AddressId.HasValue ? order.AddressId.Value : order.ClientCode;
+		}
+
 		private void SaveToFile(List<OrderBatchItem> list, List<Order> orders)
 		{
 			ServiceFieldsToFile();
@@ -154,7 +159,7 @@ namespace PrgData.Common
 					buildOrder.AppendFormat(
 						"{0}\t{1}\t{2}\t{3}\n",
 						order.RowId,
-						OrderedClientCode,
+						GetOrderedId(order),
 						order.PriceList.PriceCode,
 						order.RegionCode);
 					foreach (var item in order.OrderItems)
@@ -184,7 +189,7 @@ namespace PrgData.Common
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\t{17}\t{18}\t{19}\n",
 							item.RowId,
 							item.Order.RowId,
-							OrderedClientCode,
+							GetOrderedId(order),
 							item.CoreId,
 							item.ProductId,
 							item.CodeFirmCr.HasValue ? item.CodeFirmCr.Value.ToString() : "\\N",
@@ -221,11 +226,11 @@ namespace PrgData.Common
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
 							_maxBatchId,
-							OrderedClientCode,
-							report.ProductName,
-							report.ProducerName,
+							report.Item.OrderItem != null ? GetOrderedId(report.Item.OrderItem.Order) : OrderedClientCode,
+							MySqlEscapeString(report.ProductName),
+							MySqlEscapeString(report.ProducerName),
 							report.Quantity,
-							String.Join("\r\\\n", comments.ToArray()),
+							MySqlEscapeString(String.Join("\r\\\n", comments.ToArray())),
 							report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
 							(int)report.Item.Status,
 							report.Item.ProductId,
@@ -237,10 +242,10 @@ namespace PrgData.Common
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N{6}\n",
 							_maxBatchId,
 							OrderedClientCode,
-							report.ProductName,
-							report.ProducerName,
+							MySqlEscapeString(report.ProductName),
+							MySqlEscapeString(report.ProducerName),
 							report.Quantity,
-							report.Comment,
+							MySqlEscapeString(report.Comment),
 							serviceValues);
 					_maxBatchId++;
 				}
@@ -249,6 +254,11 @@ namespace PrgData.Common
 			File.WriteAllText(BatchReportFileName, buildReport.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(BatchOrderFileName, buildOrder.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(BatchOrderItemsFileName, buildItems.ToString(), Encoding.GetEncoding(1251));
+		}
+
+		private string MySqlEscapeString(string value)
+		{
+			return string.IsNullOrEmpty(value) ? value : MySql.Data.MySqlClient.MySqlHelper.EscapeString(value);
 		}
 
 		private string GetServiceValues(OrderBatchItem report)
