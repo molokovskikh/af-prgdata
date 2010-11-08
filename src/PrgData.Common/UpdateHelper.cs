@@ -745,6 +745,21 @@ SET    MaxSynonymCode     = maxcodessyn.synonymcode
 WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
   AND AFRI.UserId = ?UserId
   and AFRI.MaxSynonymCode > maxcodessyn.synonymcode;";
+
+				if (_updateData.IsFutureClient)
+					commandText += @"
+update
+  logs.AnalitFUpdates afu,
+  Logs.DocumentSendLogs ds
+set
+  ds.Committed = 0
+where
+    afu.RequestTime > ?oldUpdateTime
+and afu.UserId = ?UserId
+and ds.UpdateId = afu.UpdateId
+and ds.UserId = afu.UserId
+and ds.Committed = 1;";
+
 				var command = new MySqlCommand(commandText, _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.Parameters.AddWithValue("?oldUpdateTime", oldUpdateTime);

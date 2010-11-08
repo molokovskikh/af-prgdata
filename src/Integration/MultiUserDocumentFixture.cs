@@ -431,6 +431,58 @@ namespace Integration
 			Confirm();
 		}
 
+		[Test(Description = "Должен быть сброшен флаг Commited при частичном КО")]
+		public void ResetCommittedAfterLimitedCumulative()
+		{
+			var updateTime = DateTime.Now.AddMinutes(-1);
+
+			TestDocumentSendLog log;
+			TestDocumentSendLog fakelog;
+			using (new SessionScope())
+			{
+				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+				Assert.That(log.Committed, Is.False);
+				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
+				Assert.That(fakelog.Committed, Is.False);
+			}
+
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+			ConfirmData();
+
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+			}
+
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.False);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.False);
+			}
+
+			ConfirmData();
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+			}
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
@@ -512,6 +564,23 @@ namespace Integration
 			if (match.Length > 0)
 				lastUpdateId = Convert.ToUInt32(match);
 			return responce;
+		}
+
+		private string GetUserData(DateTime updateTime)
+		{
+			var service = new PrgDataEx();
+			responce = service.GetUserData(updateTime, false, "5.3.16.1101", 50, "123", "", "", false);
+
+			var match = Regex.Match(responce, @"\d+").Value;
+			if (match.Length > 0)
+				lastUpdateId = Convert.ToUInt32(match);
+			return responce;
+		}
+
+		private void ConfirmData()
+		{
+			var service = new PrgDataEx();
+			service.CommitExchange(lastUpdateId, false);
 		}
 
 		private void SetCurrentUser(string login)
