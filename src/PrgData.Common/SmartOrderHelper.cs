@@ -220,8 +220,8 @@ namespace PrgData.Common
 					{
 						var comments = new List<string>();
 						if (!String.IsNullOrEmpty(report.Comment))
-							comments.Add(report.Comment);
-						comments.AddRange(report.Item.Comments);
+							comments.Add(MySqlEscapeString(report.Comment));
+						comments.AddRange(report.Item.Comments.Select(MySqlEscapeString));
 						comments = comments.Distinct().ToList();
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
@@ -230,7 +230,7 @@ namespace PrgData.Common
 							MySqlEscapeString(report.ProductName),
 							MySqlEscapeString(report.ProducerName),
 							report.Quantity,
-							MySqlEscapeString(String.Join("\r\\\n", comments.ToArray())),
+							String.Join("\r\\\n", comments.ToArray()),
 							report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
 							(int)report.Item.Status,
 							report.Item.ProductId,
