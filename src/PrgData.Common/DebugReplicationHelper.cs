@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Common.Tools;
 using System.Linq;
 using System.Data;
+using log4net;
 using MySql.Data.MySqlClient;
 using System.IO;
 
@@ -16,8 +17,11 @@ namespace PrgData.Common
 		private DataSet _dataSet;
 		private UpdateData _updateData;
 
+		public ILog Logger = LogManager.GetLogger(typeof (DebugReplicationHelper));
+
 		public DebugReplicationHelper(UpdateData updateData, MySqlConnection connection, MySqlCommand command)
 		{
+			ThreadContext.Properties["user"] = updateData.UserName;
 			_updateData = updateData;
 			_dataSet = new DataSet();
 			_connection = connection;

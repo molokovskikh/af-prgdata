@@ -3001,10 +3001,10 @@ RestartTrans2:
                         ' True _
                         ')
 
-                        Log.DebugFormat("Before Core GED = {0}", GED)
+                        debugHelper.Logger.DebugFormat("Before Core GED = {0}", GED)
                         debugHelper.FillTable("ActivePriceSizes", "select at.PriceCode, at.regioncode, at.Fresh, count(*) from ActivePrices at, Core ct WHERE  ct.pricecode = at.pricecode AND ct.regioncode=at.regioncode AND IF(?Cumulative, 1, fresh) group by at.PriceCode, at.regioncode")
 
-                        Log.DebugFormat("{0}", debugHelper.TableToString("ActivePriceSizes"))
+                        debugHelper.Logger.DebugFormat("{0}", debugHelper.TableToString("ActivePriceSizes"))
 
 
                         Dim ExportCoreCount = GetMySQLFileForCore( _
@@ -3017,10 +3017,11 @@ RestartTrans2:
                           False
                          ), _
                          (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
-                         True _
+                         True, _
+                         debugHelper
                         )
 
-                        Log.DebugFormat("ExportCoreCount = {0}", ExportCoreCount)
+                        debugHelper.Logger.DebugFormat("ExportCoreCount = {0}", ExportCoreCount)
                     Else
                         'Выгружаем пустую таблицу Core
                         'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
@@ -3644,14 +3645,14 @@ RestartMaxCodesSet:
 
     End Sub
 
-    Private Function GetMySQLFileForCore(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean, ByVal AddToQueue As Boolean) As Integer
+    Private Function GetMySQLFileForCore(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean, ByVal AddToQueue As Boolean, ByRef debughelper As DebugReplicationHelper) As Integer
         Dim SQL As String = SQLText
         Dim oldCumulative As Boolean
         Dim Result As Integer = 0
 
         Try
-            Log.DebugFormat("For Core flag SetCumulative = {0}", SetCumulative)
-            Log.DebugFormat("For Core Params: {0}", MyCommand.Parameters.Cast(Of MySqlParameter)().Select(Function(param) String.Format("{0} = {1}", param.ParameterName, param.Value)).Implode())
+            debughelper.Logger.DebugFormat("For Core flag SetCumulative = {0}", SetCumulative)
+            debughelper.Logger.DebugFormat("For Core Params: {0}", MyCommand.Parameters.Cast(Of MySqlParameter)().Select(Function(param) String.Format("{0} = {1}", param.ParameterName, param.Value)).Implode())
             If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
                 oldCumulative = MyCommand.Parameters("?Cumulative").Value
                 MyCommand.Parameters("?Cumulative").Value = True
