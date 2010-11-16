@@ -579,7 +579,7 @@ WHERE  r.regioncode = cd.regioncode
 
 		public void Cleanup()
 		{
-			var command = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes;", _readWriteConnection);
+			var command = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo;", _readWriteConnection);
 			command.ExecuteNonQuery();
 		}
 
@@ -591,18 +591,30 @@ drop temporary table IF EXISTS CurrentReplicationInfo;
 CREATE TEMPORARY TABLE CurrentReplicationInfo engine=MEMORY
 SELECT   
   Prices.FirmCode, 
-  MAX(AFRI.ForceReplicationUpdate) CurrentForceReplicationUpdate 
+  AFRI.UserId,
+  MAX(AFRI.ForceReplicationUpdate) CurrentForceReplicationUpdate,
+  AFRI.ForceReplication,
+  AFRI.MaxSynonymCode,
+  AFRI.MaxSynonymFirmCrCode
 FROM     
-  ActivePrices Prices       , 
+  Prices       , 
   AnalitFReplicationInfo AFRI
 WHERE    
     AFRI.UserId                =  ?UserId
 and Prices.FirmCode = AFRI.FirmCode
-and AFRI.ForceReplication = 1
+# and AFRI.ForceReplication = 1
 GROUP BY 1;";
 
+			var command = new MySqlCommand(commandText, _readWriteConnection);
+			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			command.ExecuteNonQuery();
+		}
+
+		public void FillParentCodes()
+		{
 			if (!_updateData.EnableImpersonalPrice)
-				commandText += @"
+			{
+				var commandText = @"
 CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
         SELECT   PriceSynonymCode PriceCode,
                  MaxSynonymCode            ,
@@ -610,9 +622,10 @@ CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
         FROM     ActivePrices Prices
         GROUP BY 1;";
 
-			var command = new MySqlCommand(commandText, _readWriteConnection);
-			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-			command.ExecuteNonQuery();
+				var command = new MySqlCommand(commandText, _readWriteConnection);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				command.ExecuteNonQuery();
+			}
 		}
 
 		public void UpdateReplicationInfo()
@@ -654,6 +667,7 @@ SET    AFRI.ForceReplication    = 2
 WHERE  AFRI.ForceReplication    = 1 
  AND AFRI.UserId = ?UserId
 and CurrentReplicationInfo.FirmCode = AFRI.FirmCode
+and CurrentReplicationInfo.ForceReplication = 1
 and CurrentReplicationInfo.CurrentForceReplicationUpdate = AFRI.ForceReplicationUpdate;
 
 UPDATE AnalitFReplicationInfo AFRI 
@@ -2532,10 +2546,10 @@ SELECT
          IF(?OffersClientCode IS NULL, ((ForceReplication != 0) OR (actual = 0) OR ?Cumulative), 1)          as Fresh
 FROM     
          clientsdata AS firm,
-         tmpprd             ,
+         PriceCounts             ,
          Prices             ,
-         AnalitFReplicationInfo ARI
-WHERE    tmpprd.firmcode = firm.firmcode
+         CurrentReplicationInfo ARI
+WHERE    PriceCounts.firmcode = firm.firmcode
 AND      firm.firmcode   = Prices.FirmCode
 AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
@@ -2568,9 +2582,9 @@ where
 			else
 			{
 				selectCommand.CommandText = @"
-CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY;
+CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY;
         INSERT
-        INTO   tmpprd
+        INTO   PriceCounts
         SELECT   firmcode,
                  COUNT(pricecode)
         FROM     Prices

@@ -110,11 +110,7 @@ Public Class PrgDataEx
 
 
     Private Function MySqlLocalFilePath() As String
-#If DEBUG Then
         Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
-#Else
-        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
-#End If
     End Function
 
     'Получает письмо и отправляет его
@@ -2350,7 +2346,7 @@ RestartTrans2:
                 transaction = readWriteConnection.BeginTransaction(IsoLevel)
                 SelProc.Transaction = transaction
 
-                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
                 SelProc.ExecuteNonQuery()
 
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinPrices" & UserId & ".txt")
@@ -2400,6 +2396,9 @@ RestartTrans2:
                 GetMySQLFile("Regions", SelProc, helper.GetRegionsCommand())
 
                 helper.SelectPrices()
+                helper.SelectReplicationInfo()
+                helper.SelectActivePrices()
+                helper.FillParentCodes()
 
                 GetMySQLFile("ClientsDataN", SelProc, _
                 "SELECT firm.FirmCode, " & _
@@ -2463,9 +2462,9 @@ RestartTrans2:
                 End If
 
                 SelProc.CommandText = "" & _
-                "CREATE TEMPORARY TABLE tmpprd ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
+                "CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
                 "INSERT " & _
-                "INTO   tmpprd " & _
+                "INTO   PriceCounts " & _
                 "SELECT   firmcode, " & _
                 "         COUNT(pricecode) " & _
                 "FROM     Prices " & _
@@ -2537,10 +2536,10 @@ RestartTrans2:
                   "         ''          , " & _
                   "         '0' " & _
                   "FROM     clientsdata AS firm, " & _
-                  "         tmpprd             , " & _
+                  "         PriceCounts             , " & _
                   "         Prices, " & _
-                  "         AnalitFReplicationInfo ARI " & _
-                  "WHERE    tmpprd.firmcode = firm.firmcode " & _
+                  "         CurrentReplicationInfo ARI " & _
+                  "WHERE    PriceCounts.firmcode = firm.firmcode " & _
                   "     AND firm.firmcode   = Prices.FirmCode " & _
                   "     AND ARI.FirmCode    = Prices.FirmCode " & _
                   "     AND ARI.UserId    = ?UserId " & _
@@ -2566,10 +2565,6 @@ RestartTrans2:
 
                 GetMySQLFile("Rejects", SelProc, SQLText)
                 GetMySQLFile("Clients", SelProc, helper.GetClientsCommand(True))
-
-                helper.SelectActivePrices()
-
-                helper.SelectReplicationInfo()
 
                 GetMySQLFile("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(GED))
 
@@ -2764,10 +2759,8 @@ RestartTrans2:
                 transaction = readWriteConnection.BeginTransaction(IsoLevel)
                 SelProc.Transaction = transaction
 
-                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, tmpprd, MaxCodesSyn, ParentCodes; "
+                SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
                 SelProc.ExecuteNonQuery()
-
-                debugHelper.PrepareTmpReplicationInfo()
 
                 GetMySQLFileWithDefault( _
                  "UpdateInfo", _
@@ -2895,6 +2888,10 @@ RestartTrans2:
                 GetMySQLFileWithDefault("Regions", SelProc, helper.GetRegionsCommand())
 
                 helper.SelectPrices()
+                helper.PreparePricesData(SelProc)
+                helper.SelectReplicationInfo()
+                helper.SelectActivePrices()
+                helper.FillParentCodes()
 
                 Try
                     'Подготовка временной таблицы с контактами
@@ -2911,9 +2908,9 @@ RestartTrans2:
 
                 GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
 
-                helper.PreparePricesData(SelProc)
-                debugHelper.FillTmpReplicationInfo()
-                debugHelper.FillTable("TmpReplicationInfo", "select * from TmpReplicationInfo")
+                'debugHelper.FillTmpReplicationInfo()
+                'debugHelper.FillTable("TmpReplicationInfo", "select * from TmpReplicationInfo")
+
                 GetMySQLFileWithDefault("PricesData", SelProc, helper.GetPricesDataCommand())
                 debugHelper.FillTable("PricesData", helper.GetPricesDataCommand())
 
@@ -2922,9 +2919,6 @@ RestartTrans2:
 
                 GetMySQLFileWithDefault("DelayOfPayments", SelProc, helper.GetDelayOfPaymentsCommand())
 
-                helper.SelectActivePrices()
-
-                helper.SelectReplicationInfo()
 
                 If UpdateData.EnableImpersonalPrice And (OldUpTime < New DateTime(2010, 8, 18, 5, 18, 0)) Then
                     GetMySQLFileWithDefault("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(True))
@@ -2944,11 +2938,7 @@ RestartTrans2:
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
 
-                        If debugHelper.NeedDebugInfo() Then
-                            debugHelper.FillTable("ActivePrices", "select * from ActivePrices")
-                            debugHelper.FillTable("AnalitFReplicationInfo", "select * from AnalitFReplicationInfo where UserId = ?UserId")
-                            debugHelper.SendMail()
-                        End If
+                        debugHelper.CopyActivePrices()
 
                         helper.SelectOffers()
                         '"UPDATE ActivePrices Prices, " & _
@@ -3002,10 +2992,9 @@ RestartTrans2:
                         ')
 
                         debugHelper.Logger.DebugFormat("Before Core GED = {0}", GED)
-                        debugHelper.FillTable("ActivePriceSizes", "select at.PriceCode, at.regioncode, at.Fresh, count(*) from ActivePrices at, Core ct WHERE  ct.pricecode = at.pricecode AND ct.regioncode=at.regioncode AND IF(?Cumulative, 1, fresh) group by at.PriceCode, at.regioncode")
 
-                        debugHelper.Logger.DebugFormat("{0}", debugHelper.TableToString("ActivePriceSizes"))
-
+                        'debugHelper.FillTable("ActivePriceSizes", "select at.PriceCode, at.regioncode, at.Fresh, count(*) from ActivePrices at, Core ct WHERE  ct.pricecode = at.pricecode AND ct.regioncode=at.regioncode AND IF(?Cumulative, 1, fresh) group by at.PriceCode, at.regioncode")
+                        'debugHelper.Logger.DebugFormat("{0}", debugHelper.TableToString("ActivePriceSizes"))
 
                         Dim ExportCoreCount = GetMySQLFileForCore( _
                          "Core", _
@@ -3022,6 +3011,13 @@ RestartTrans2:
                         )
 
                         debugHelper.Logger.DebugFormat("ExportCoreCount = {0}", ExportCoreCount)
+
+                        If debugHelper.NeedDebugInfo(ExportCoreCount) Then
+                            debugHelper.FillTable("ActivePrices", "select * from ActivePrices")
+                            debugHelper.FillTable("AnalitFReplicationInfo", "select * from AnalitFReplicationInfo where UserId = ?UserId")
+                            debugHelper.FillTable("CurrentReplicationInfo", "select * from CurrentReplicationInfo")
+                            debugHelper.SendMail()
+                        End If
                     Else
                         'Выгружаем пустую таблицу Core
                         'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей

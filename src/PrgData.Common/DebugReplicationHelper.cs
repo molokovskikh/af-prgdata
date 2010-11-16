@@ -16,22 +16,18 @@ namespace PrgData.Common
 		private MySqlCommand _command;
 		private DataSet _dataSet;
 		private UpdateData _updateData;
+		private List<string> _reasons;
 
 		public ILog Logger = LogManager.GetLogger(typeof (DebugReplicationHelper));
 
 		public DebugReplicationHelper(UpdateData updateData, MySqlConnection connection, MySqlCommand command)
 		{
 			ThreadContext.Properties["user"] = updateData.UserName;
+			_reasons = new List<string>();
 			_updateData = updateData;
 			_dataSet = new DataSet();
 			_connection = connection;
 			_command = command;
-		}
-
-		public void PrepareTmpReplicationInfo()
-		{
-			_command.CommandText = "drop temporary table IF EXISTS TmpReplicationInfo;";
-			_command.ExecuteNonQuery();
 		}
 
 		public void FillTmpReplicationInfo()
@@ -50,15 +46,30 @@ select
          Prices.Actual
 from
          clientsdata AS firm,
-         tmpprd             ,
+         PriceCounts        ,
          Prices             ,
          AnalitFReplicationInfo ARI
-WHERE    tmpprd.firmcode = firm.firmcode
+WHERE    PriceCounts.firmcode = firm.firmcode
 AND      firm.firmcode   = Prices.FirmCode
 AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
 GROUP BY Prices.FirmCode,
          Prices.pricecode;
+";
+				_command.ExecuteNonQuery();
+			}
+		}
+
+		public void CopyActivePrices()
+		{
+			if (!_updateData.EnableImpersonalPrice)
+			{
+				_command.CommandText =
+					@"
+drop temporary table if exists CopyActivePrices;
+create temporary table CopyActivePrices engine=MEMORY
+as
+select * from ActivePrices;
 ";
 				_command.ExecuteNonQuery();
 			}
@@ -76,35 +87,130 @@ GROUP BY Prices.FirmCode,
 			}
 		}
 
-		public bool NeedDebugInfo()
+		public bool NeedDebugInfo(int exportCoreCount)
 		{
 			_command.CommandText = @"
 select
   count(*)
 from
-  TmpReplicationInfo ri
-  inner join ActivePrices p on p.PriceCode = ri.PriceCode
+  CurrentReplicationInfo ri
+  inner join ActivePrices p on p.FirmCode = ri.FirmCode
 where
     (ri.ForceReplication = 0)
 and (p.Fresh = 1)";
 			var countFresh = Convert.ToInt32(_command.ExecuteScalar());
-
 			if (countFresh > 0)
+			{
+				_reasons.Add("разница во Fresh между CurrentReplicationInfo и ActivePrices");
 				FillTable(
 					"DistinctReplicationInfo",
 					@"
 select
 ri.ForceReplication as TmpForceReplication,
-ri.Actual as TmpActual,
 p.*
 from
-  TmpReplicationInfo ri
-  inner join ActivePrices p on p.PriceCode = ri.PriceCode
+  CurrentReplicationInfo ri
+  inner join ActivePrices p on p.FirmCode = ri.FirmCode
 where
     (ri.ForceReplication = 0)
 and (p.Fresh = 1)
 ");
-			return countFresh > 0;
+			}
+
+			_command.CommandText = @"
+select
+  count(*)
+from
+  ActivePrices p
+  left join CurrentReplicationInfo ri on p.FirmCode = ri.FirmCode
+where
+    (ri.FirmCode is null)";
+			var countNotReplicationInfo = Convert.ToInt32(_command.ExecuteScalar());
+			if (countNotReplicationInfo > 0)
+			{
+				_reasons.Add("в ActivePrices существуют записи, которые не существуют в CurrentReplicationInfo");
+				FillTable(
+					"NotReplicationInfo",
+					@"
+select
+  p.*
+from
+  ActivePrices p
+  left join CurrentReplicationInfo ri on p.FirmCode = ri.FirmCode
+where
+    (ri.FirmCode is null)
+");
+			}
+
+			_command.CommandText = @"
+select
+  *
+from
+  ActivePrices,
+  CopyActivePrices
+where
+    CopyActivePrices.PriceCode = ActivePrices.PriceCode
+and CopyActivePrices.RegionCode = ActivePrices.RegionCode
+and CopyActivePrices.Fresh != ActivePrices.Fresh
+";
+			var countDistictActivePrices = Convert.ToInt32(_command.ExecuteScalar());
+			if (countDistictActivePrices > 0)
+			{
+				_reasons.Add("ActivePrices после получения предложений была изменена");
+				FillTable(
+					"DistictActivePrices",
+					@"
+
+select
+  ActivePrices.*
+from
+  ActivePrices,
+  CopyActivePrices
+where
+    CopyActivePrices.PriceCode = ActivePrices.PriceCode
+and CopyActivePrices.RegionCode = ActivePrices.RegionCode
+and CopyActivePrices.Fresh != ActivePrices.Fresh
+");
+				FillTable(
+					"CopyActivePrices",
+					@"
+select
+  *
+from
+  CopyActivePrices
+");
+			}
+
+			_command.CommandText = @"
+select
+  count(*)
+from
+  Core c
+  left join farm.Core0 c0 on c0.id = c.Id
+where
+  c0.Id is null
+";
+			var countNotExistsCore = Convert.ToInt32(_command.ExecuteScalar());
+			if (countNotExistsCore > 0)
+			{
+				_reasons.Add("во временной таблице Core существуют позиции, которых нет в Core0");
+				FillTable(
+					"NotExistsCore",
+					@"
+select
+  c.PriceCode, c.RegionCode, count(*)
+from
+  Core c
+  left join farm.Core0 c0 on c0.id = c.Id
+where
+  c0.Id is null
+group by c.PriceCode, c.RegionCode
+");
+			}
+
+			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
+
+			return _reasons.Count > 0;
 		}
 
 		
@@ -155,12 +261,13 @@ and (p.Fresh = 1)
 		{
 			var body = String
 				.Format(
-					"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}", 
+					"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}\r\nПричины:\r\n{2}", 
 					_updateData.UserName,
-					_updateData.OldUpdateTime);
+					_updateData.OldUpdateTime,
+					_reasons.Implode("\r\n"));
 			var attachment = DumpTables();
 
-			MailHelper.Mail(body, "При подготовке данных возникла разница во Fresh между PricesData и Core", attachment);
+			MailHelper.Mail(body, "При подготовке данных возникли различия во Fresh между PricesData и Core", attachment);
 		}
 	}
 }
