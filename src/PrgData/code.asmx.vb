@@ -2756,7 +2756,7 @@ RestartTrans2:
 
                 Dim debugHelper = New DebugReplicationHelper(UpdateData, readWriteConnection, SelProc)
 
-                transaction = readWriteConnection.BeginTransaction(IsoLevel)
+                transaction = readWriteConnection.BeginTransaction(IsolationLevel.RepeatableRead)
                 SelProc.Transaction = transaction
 
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
