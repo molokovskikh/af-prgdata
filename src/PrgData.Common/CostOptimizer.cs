@@ -58,10 +58,20 @@ limit 1", _readWriteConnection);
 			}
 
 			command.CommandText = @"
+select RegionCode
+from future.clients
+where Id = ?ClientId";
+			var tempRegionCode = command.ExecuteScalar();
+			if (tempRegionCode != null)
+				_homeRegionCode = Convert.ToUInt64(tempRegionCode);
+			else
+			{
+				command.CommandText = @"
 select regionCode
 from usersettings.clientsdata
 where firmcode = ?ClientId";
-			_homeRegionCode = Convert.ToUInt64(command.ExecuteScalar());
+				_homeRegionCode = Convert.ToUInt64(command.ExecuteScalar());
+			}
 		}
 
 		public bool IsCostOptimizationNeeded()
