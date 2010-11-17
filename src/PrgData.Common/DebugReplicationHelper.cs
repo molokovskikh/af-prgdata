@@ -20,44 +20,17 @@ namespace PrgData.Common
 
 		public ILog Logger = LogManager.GetLogger(typeof (DebugReplicationHelper));
 
+		public int ExportCoreCount;
+
 		public DebugReplicationHelper(UpdateData updateData, MySqlConnection connection, MySqlCommand command)
 		{
 			ThreadContext.Properties["user"] = updateData.UserName;
+			ExportCoreCount = 0;
 			_reasons = new List<string>();
 			_updateData = updateData;
 			_dataSet = new DataSet();
 			_connection = connection;
 			_command = command;
-		}
-
-		public void FillTmpReplicationInfo()
-		{
-			if (!_updateData.EnableImpersonalPrice)
-			{
-				_command.CommandText =
-					@"
-create temporary table TmpReplicationInfo engine=MEMORY
-as
-select
-         Prices.FirmCode ,
-         Prices.pricecode,
-         IF(?OffersClientCode IS NULL, ((ForceReplication != 0) OR (actual = 0) OR ?Cumulative), 1)          as Fresh,
-         ARI.ForceReplication,
-         Prices.Actual
-from
-         clientsdata AS firm,
-         PriceCounts        ,
-         Prices             ,
-         AnalitFReplicationInfo ARI
-WHERE    PriceCounts.firmcode = firm.firmcode
-AND      firm.firmcode   = Prices.FirmCode
-AND      ARI.FirmCode    = Prices.FirmCode
-AND      ARI.UserId      = ?UserId
-GROUP BY Prices.FirmCode,
-         Prices.pricecode;
-";
-				_command.ExecuteNonQuery();
-			}
 		}
 
 		public void CopyActivePrices()
@@ -87,61 +60,8 @@ select * from ActivePrices;
 			}
 		}
 
-		public bool NeedDebugInfo(int exportCoreCount)
+		public bool NeedDebugInfo()
 		{
-			_command.CommandText = @"
-select
-  count(*)
-from
-  CurrentReplicationInfo ri
-  inner join ActivePrices p on p.FirmCode = ri.FirmCode
-where
-    (ri.ForceReplication = 0)
-and (p.Fresh = 1)";
-			var countFresh = Convert.ToInt32(_command.ExecuteScalar());
-			if (countFresh > 0)
-			{
-				_reasons.Add("разница во Fresh между CurrentReplicationInfo и ActivePrices");
-				FillTable(
-					"DistinctReplicationInfo",
-					@"
-select
-ri.ForceReplication as TmpForceReplication,
-p.*
-from
-  CurrentReplicationInfo ri
-  inner join ActivePrices p on p.FirmCode = ri.FirmCode
-where
-    (ri.ForceReplication = 0)
-and (p.Fresh = 1)
-");
-			}
-
-			_command.CommandText = @"
-select
-  count(*)
-from
-  ActivePrices p
-  left join CurrentReplicationInfo ri on p.FirmCode = ri.FirmCode
-where
-    (ri.FirmCode is null)";
-			var countNotReplicationInfo = Convert.ToInt32(_command.ExecuteScalar());
-			if (countNotReplicationInfo > 0)
-			{
-				_reasons.Add("в ActivePrices существуют записи, которые не существуют в CurrentReplicationInfo");
-				FillTable(
-					"NotReplicationInfo",
-					@"
-select
-  p.*
-from
-  ActivePrices p
-  left join CurrentReplicationInfo ri on p.FirmCode = ri.FirmCode
-where
-    (ri.FirmCode is null)
-");
-			}
-
 			_command.CommandText = @"
 select
   *
@@ -181,7 +101,9 @@ from
 ");
 			}
 
-			_command.CommandText = @"
+			if (ExportCoreCount > 0)
+			{
+				_command.CommandText = @"
 select
   count(*)
 from
@@ -190,13 +112,13 @@ from
 where
   c0.Id is null
 ";
-			var countNotExistsCore = Convert.ToInt32(_command.ExecuteScalar());
-			if (countNotExistsCore > 0)
-			{
-				_reasons.Add("во временной таблице Core существуют позиции, которых нет в Core0");
-				FillTable(
-					"NotExistsCore",
-					@"
+				var countNotExistsCore = Convert.ToInt32(_command.ExecuteScalar());
+				if (countNotExistsCore > 0)
+				{
+					_reasons.Add("во временной таблице Core существуют позиции, которых нет в Core0");
+					FillTable(
+						"NotExistsCore",
+						@"
 select
   c.PriceCode, c.RegionCode, count(*)
 from
@@ -206,6 +128,41 @@ where
   c0.Id is null
 group by c.PriceCode, c.RegionCode
 ");
+				}
+
+				_command.CommandText = @"
+select
+  count(*)
+from
+  ActivePrices at, 
+  Core ct
+WHERE  
+    ct.pricecode  = at.pricecode 
+AND ct.regioncode = at.regioncode 
+AND IF(?Cumulative, 1, fresh) 
+";
+				var expectedCoreCount = Convert.ToInt32(_command.ExecuteScalar());
+				if (expectedCoreCount != ExportCoreCount)
+				{
+					_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
+					FillTable(
+						"ActivePricesSizes",
+						@"
+select 
+  at.PriceCode, 
+  at.regioncode, 
+  count(ct.Id) as CoreCount,
+  count(c0.Id) as RealCount
+from   
+  ActivePrices at
+  inner join Core ct on ct.pricecode = at.pricecode AND ct.regioncode = at.regioncode
+  left join farm.Core0 c0 on c0.id = ct.Id 
+WHERE  
+   IF(?Cumulative, 1, fresh) 
+group by at.PriceCode, at.regioncode
+");
+				}
+
 			}
 
 			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));

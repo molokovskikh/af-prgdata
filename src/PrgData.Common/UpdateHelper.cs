@@ -602,7 +602,6 @@ FROM
 WHERE    
     AFRI.UserId                =  ?UserId
 and Prices.FirmCode = AFRI.FirmCode
-# and AFRI.ForceReplication = 1
 GROUP BY 1;";
 
 			var command = new MySqlCommand(commandText, _readWriteConnection);
@@ -2540,15 +2539,18 @@ WHERE
 SELECT   
          Prices.FirmCode ,
          Prices.pricecode,
-         concat(firm.shortname, IF(PriceCount> 1 OR ShowPriceName = 1, concat(' (', pricename, ')'), ''))    as PriceName,
+         concat(firm.shortname, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
          ''                                                                                                  as PRICEINFO,
-         date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
-         IF(?OffersClientCode IS NULL, ((ForceReplication != 0) OR (actual = 0) OR ?Cumulative), 1)          as Fresh
+         date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
+         max(ifnull(ActivePrices.Fresh, 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
 FROM     
+         (
          clientsdata AS firm,
          PriceCounts             ,
          Prices             ,
          CurrentReplicationInfo ARI
+         )
+         left join ActivePrices on ActivePrices.PriceCode = Prices.pricecode and ActivePrices.RegionCode = Prices.RegionCode
 WHERE    PriceCounts.firmcode = firm.firmcode
 AND      firm.firmcode   = Prices.FirmCode
 AND      ARI.FirmCode    = Prices.FirmCode

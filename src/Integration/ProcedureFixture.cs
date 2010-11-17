@@ -407,7 +407,13 @@ limit 6;");
 				catch
 				{
 					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item => item.RenderedMessage).Implode("\r\n"));
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					                                                                           	{
+																									if (string.IsNullOrEmpty(item.GetExceptionString()))
+																										return item.RenderedMessage;
+																									else
+																										return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					                                                                           	}).Implode("\r\n"));
 					throw;
 				}
 

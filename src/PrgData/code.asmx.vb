@@ -2474,78 +2474,6 @@ RestartTrans2:
                 SelProc.ExecuteNonQuery()
 
 
-                GetMySQLFile("PricesData", SelProc, _
-                  "SELECT   Prices.FirmCode , " & _
-                  "         Prices.pricecode, " & _
-                  "                  concat(firm.shortname, IF(PriceCount> 1 " & _
-                  "      OR ShowPriceName                                = 1, concat(' (', pricename, ')'), '')), " & _
-                  "          0                                                                  , " & _
-                  "         ''                                                                                  , " & _
-                  "        date_sub(PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)  , " & _
-                  "         if(?OffersClientCode is null, ((ForceReplication != 0) " & _
-                  "          OR (actual = 0) or ?Cumulative), 1)  , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         ''          , " & _
-                  "         '0' " & _
-                  "FROM     clientsdata AS firm, " & _
-                  "         PriceCounts             , " & _
-                  "         Prices, " & _
-                  "         CurrentReplicationInfo ARI " & _
-                  "WHERE    PriceCounts.firmcode = firm.firmcode " & _
-                  "     AND firm.firmcode   = Prices.FirmCode " & _
-                  "     AND ARI.FirmCode    = Prices.FirmCode " & _
-                  "     AND ARI.UserId    = ?UserId " & _
-                  "GROUP BY Prices.FirmCode, " & _
-                  "         Prices.pricecode")
-
                 SQLText = "SELECT FirmCr        , " & _
                   "       CountryCr     , " & _
                   "       FullName      , " & _
@@ -2674,6 +2602,79 @@ RestartTrans2:
                     End If
 
                 End If
+
+                GetMySQLFile("PricesData", SelProc, _
+                  "SELECT   Prices.FirmCode , " & _
+                  "         Prices.pricecode, " & _
+                  "                  concat(firm.shortname, IF(PriceCounts.PriceCount> 1 " & _
+                  "      OR Prices.ShowPriceName                                = 1, concat(' (', Prices.pricename, ')'), '')), " & _
+                  "          0                                                                  , " & _
+                  "         ''                                                                                  , " & _
+                  "        date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)  , " & _
+                  "         max(ifnull(ActivePrices.Fresh, 0) " & _
+                  "          OR (actual = 0) or ?Cumulative)  as Fresh, " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         ''          , " & _
+                  "         '0' " & _
+                  "FROM     (clientsdata AS firm, " & _
+                  "         PriceCounts             , " & _
+                  "         Prices, " & _
+                  "         CurrentReplicationInfo ARI ) " & _
+                  "         left join ActivePrices on ActivePrices.PriceCode = Prices.pricecode and ActivePrices.RegionCode = Prices.RegionCode " & _
+                  "WHERE    PriceCounts.firmcode = firm.firmcode " & _
+                  "     AND firm.firmcode   = Prices.FirmCode " & _
+                  "     AND ARI.FirmCode    = Prices.FirmCode " & _
+                  "     AND ARI.UserId    = ?UserId " & _
+                  "GROUP BY Prices.FirmCode, " & _
+                  "         Prices.pricecode")
 
                 AddEndOfFiles()
 
@@ -2893,6 +2894,10 @@ RestartTrans2:
                 helper.SelectActivePrices()
                 helper.FillParentCodes()
 
+                If Not UpdateData.EnableImpersonalPrice Then
+                    debugHelper.CopyActivePrices()
+                End If
+
                 Try
                     'Подготовка временной таблицы с контактами
                     helper.PrepareProviderContacts(SelProc)
@@ -2907,12 +2912,6 @@ RestartTrans2:
                 GetMySQLFileWithDefault("PricesRegionalData", SelProc, helper.GetPricesRegionalDataCommand())
 
                 GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
-
-                'debugHelper.FillTmpReplicationInfo()
-                'debugHelper.FillTable("TmpReplicationInfo", "select * from TmpReplicationInfo")
-
-                GetMySQLFileWithDefault("PricesData", SelProc, helper.GetPricesDataCommand())
-                debugHelper.FillTable("PricesData", helper.GetPricesDataCommand())
 
                 GetMySQLFileWithDefault("Rejects", SelProc, helper.GetRejectsCommand(GED))
                 GetMySQLFileWithDefault("Clients", SelProc, helper.GetClientsCommand(False))
@@ -2937,8 +2936,6 @@ RestartTrans2:
                     "SELECT IFNULL(SUM(fresh), 0) " & _
                     "FROM   ActivePrices"
                     If CType(SelProc.ExecuteScalar, Integer) > 0 Or GED Then
-
-                        debugHelper.CopyActivePrices()
 
                         helper.SelectOffers()
                         '"UPDATE ActivePrices Prices, " & _
@@ -2991,12 +2988,11 @@ RestartTrans2:
                         ' True _
                         ')
 
+                        debugHelper.CopyActivePrices()
+
                         debugHelper.Logger.DebugFormat("Before Core GED = {0}", GED)
 
-                        'debugHelper.FillTable("ActivePriceSizes", "select at.PriceCode, at.regioncode, at.Fresh, count(*) from ActivePrices at, Core ct WHERE  ct.pricecode = at.pricecode AND ct.regioncode=at.regioncode AND IF(?Cumulative, 1, fresh) group by at.PriceCode, at.regioncode")
-                        'debugHelper.Logger.DebugFormat("{0}", debugHelper.TableToString("ActivePriceSizes"))
-
-                        Dim ExportCoreCount = GetMySQLFileForCore( _
+                        debugHelper.ExportCoreCount = GetMySQLFileForCore( _
                          "Core", _
                          SelProc, _
                          helper.GetCoreCommand( _
@@ -3010,14 +3006,7 @@ RestartTrans2:
                          debugHelper
                         )
 
-                        debugHelper.Logger.DebugFormat("ExportCoreCount = {0}", ExportCoreCount)
-
-                        If debugHelper.NeedDebugInfo(ExportCoreCount) Then
-                            debugHelper.FillTable("ActivePrices", "select * from ActivePrices")
-                            debugHelper.FillTable("AnalitFReplicationInfo", "select * from AnalitFReplicationInfo where UserId = ?UserId")
-                            debugHelper.FillTable("CurrentReplicationInfo", "select * from CurrentReplicationInfo")
-                            debugHelper.SendMail()
-                        End If
+                        debugHelper.Logger.DebugFormat("ExportCoreCount = {0}", debugHelper.ExportCoreCount)
                     Else
                         'Выгружаем пустую таблицу Core
                         'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
@@ -3055,6 +3044,18 @@ RestartTrans2:
                     End If
                     'выгружаем пустую таблицу MaxProducerCosts
                     GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+                End If
+
+                GetMySQLFileWithDefault("PricesData", SelProc, helper.GetPricesDataCommand())
+
+                If Not UpdateData.EnableImpersonalPrice Then
+                    If debugHelper.NeedDebugInfo() Then
+                        debugHelper.FillTable("PricesData", helper.GetPricesDataCommand())
+                        debugHelper.FillTable("ActivePrices", "select * from ActivePrices")
+                        debugHelper.FillTable("AnalitFReplicationInfo", "select * from AnalitFReplicationInfo where UserId = ?UserId")
+                        debugHelper.FillTable("CurrentReplicationInfo", "select * from CurrentReplicationInfo")
+                        debugHelper.SendMail()
+                    End If
                 End If
 
                 AddEndOfFiles()
