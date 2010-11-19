@@ -808,12 +808,9 @@ endproc:
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
-                                'Задержка при удалении локальных файлов не нужна
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-#If DEBUG Then
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
-#End If
 
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -870,10 +867,8 @@ endproc:
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
-#If DEBUG Then
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
-#End If
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
                             End If
 
                         End If
@@ -2327,6 +2322,10 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
 
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
+
                 helper.MaintainReplicationInfo()
 
                 If ThreadZipStream.IsAlive Then
@@ -2744,6 +2743,10 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
                 'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
+
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
