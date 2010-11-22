@@ -169,6 +169,10 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 			Confirm();
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
 			using (new SessionScope())
 			{
 				log.Refresh();
