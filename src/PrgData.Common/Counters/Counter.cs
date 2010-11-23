@@ -114,9 +114,11 @@ namespace PrgData.Common.Counters
 			return true;
 		}
 
-		public static void Clear()
+		public static int ClearByUserId(uint userId)
 		{
-			Utils.Execute("delete from Logs.PrgDataLogs");
+			return Utils.Execute(
+				"delete from Logs.PrgDataLogs where UserId = ?UserId and StartTime < now() - interval 30 minute",
+				new { UserId = userId});
 		}
 
 		public static void ReleaseLock(uint UserId, string Method)

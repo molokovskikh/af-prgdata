@@ -121,11 +121,8 @@ Public Class PrgDataEx
             Using connection = _simpleConnectionManager.GetConnection()
                 connection.Open()
 
-                Dim letterUserName = ServiceContext.GetUserName()
-                ThreadContext.Properties("user") = letterUserName
-                If Left(letterUserName, 7) = "ANALIT\" Then
-                    letterUserName = Mid(letterUserName, 8)
-                End If
+                Dim letterUserName = ServiceContext.GetShortUserName()
+                ThreadContext.Properties("user") = ServiceContext.GetUserName()
 
                 updateData = UpdateHelper.GetUpdateData(connection, letterUserName)
 
@@ -1379,11 +1376,8 @@ StartZipping:
     End Function
 
     Private Sub GetClientCode()
-        UserName = ServiceContext.GetUserName()
-        ThreadContext.Properties("user") = UserName
-        If Left(UserName, 7) = "ANALIT\" Then
-            UserName = Mid(UserName, 8)
-        End If
+        UserName = ServiceContext.GetShortUserName()
+        ThreadContext.Properties("user") = ServiceContext.GetUserName()
         UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then

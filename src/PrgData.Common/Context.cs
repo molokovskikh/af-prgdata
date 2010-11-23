@@ -13,6 +13,13 @@ namespace PrgData.Common
 		public static Func<String> GetDocumentsPath = () => ConfigurationManager.AppSettings["DocumentsPath"];
 		public static Func<String> GetWaybillPath = () => ConfigurationManager.AppSettings["WaybillPath"];
 
+		public static string GetShortUserName()
+		{
+			var userName = GetUserName();
+			if (userName.StartsWith(@"ANALIT\", StringComparison.OrdinalIgnoreCase))
+				userName = userName.Substring(7);
+			return userName;
+		}
 
 		public static void SetupDebugContext()
 		{

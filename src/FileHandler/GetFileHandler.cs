@@ -70,10 +70,8 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 		public static string GetUserId(HttpContext context)
 		{
-			var UserName = ServiceContext.GetUserName();
-			ThreadContext.Properties["user"] = UserName;
-			if (UserName.StartsWith(@"ANALIT\", StringComparison.OrdinalIgnoreCase))
-				UserName = UserName.Substring(7);
+			var UserName = ServiceContext.GetShortUserName() ;
+			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
 			string userId = null;
 			try
 			{

@@ -136,6 +136,15 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 						});
 		}
 
+		private void ClearLocks()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				MySqlHelper.ExecuteNonQuery(connection, "delete from Logs.PrgDataLogs");
+			}
+		}
+
 		[Test]
 		public void Check_string_field_lengts_for_old_client()
 		{
@@ -287,6 +296,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				helper.Cleanup();
 
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
 				helper.SelectActivePrices();
 
 				helper.SelectOffers();
@@ -375,7 +386,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		{
 			try
 			{
-				Counter.Clear();
+				ClearLocks();
 
 				Counter.TryLock(_user.Id, firstLock);
 
@@ -456,7 +467,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		[Test]
 		public void Check_max_update_client_count()
 		{
-			Counter.Clear();
+			ClearLocks();
 			var maxSessionCount = Convert.ToUInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
 			for (uint i = 0; i <= maxSessionCount; i++)
 				Counter.TryLock(i, "PostOrderBatch");
@@ -791,6 +802,51 @@ drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;"
 			}
 		}
 
+		[Test(Description = "проверка работы метода ClearByUserId")]
+		public void TestClearByUserId()
+		{
+			ClearLocks();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?MethodName", "GetHistoryOrders"),
+					new MySqlParameter("?StartTime", DateTime.Now.AddHours(-1)));
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?MethodName", "HistoryFileHandler"),
+					new MySqlParameter("?StartTime", DateTime.Now.AddHours(-2)));
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?MethodName", "GetUserData"),
+					new MySqlParameter("?StartTime", DateTime.Now));
+			}
+
+			var clearCount = Counter.ClearByUserId(_user.Id);
+
+			Assert.That(clearCount, Is.EqualTo(2), "Некорректное кол-во удаленных блокировок");
+
+			try
+			{
+				Counter.TryLock(_user.Id, "GetUserData");
+
+				Assert.Fail("Блокировка не должна быть наложена");
+			}
+			catch (UpdateException updateException)
+			{
+				if (!updateException.Message.Equals("Обновление данных в настоящее время невозможно."))
+					Assert.Fail("Неожидаемое исключение при превышении максимального кол-ва пользователей: {0}", updateException);
+			}
+		}
 
 	}
 }

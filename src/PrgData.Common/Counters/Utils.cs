@@ -18,14 +18,14 @@ namespace PrgData.Common.Counters
 			Execute(CommandText, null);
 		}
 
-		public static void Execute(string CommandText, object ParametersAsAnonymousObject)
+		public static int Execute(string CommandText, object ParametersAsAnonymousObject)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);
-				command.ExecuteNonQuery();
+				return command.ExecuteNonQuery();
 			}
 		}
 
