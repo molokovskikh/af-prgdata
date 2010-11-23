@@ -1001,8 +1001,6 @@ and ForceReplication > 0;",
 
 				helper.SelectPrices();
 
-				//DisabledByClient
-
 				var disabledPrice = MySqlHelper.ExecuteDataset(
 					connection,
 					"select * from Prices where Actual = 1 and DisabledByClient = 0 limit 1").Tables[0].Rows[0];
@@ -1050,7 +1048,6 @@ where
 				var disabledPrices = prices.Select("PriceCode = {0}".Format(disabledPrice["PriceCode"]));
 				Assert.That(disabledPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
 				Assert.That(disabledPrices[0]["Fresh"], Is.EqualTo(1), "Отключенный прайс-лист должен быть помечен как свежий");
-
 
 				var pricesBySupplier = prices.Select("FirmCode = {0}".Format(disabledPrice["FirmCode"]));
 
