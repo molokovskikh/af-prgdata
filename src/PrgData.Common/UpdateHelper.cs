@@ -2542,7 +2542,7 @@ SELECT
          concat(firm.shortname, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
          ''                                                                                                  as PRICEINFO,
          date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
-         max(ifnull(ActivePrices.Fresh, 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
+         max(ifnull(ActivePrices.Fresh, ARI.ForceReplication > 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
 FROM     
          (
          clientsdata AS firm,
