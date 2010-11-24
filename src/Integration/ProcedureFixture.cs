@@ -496,5 +496,86 @@ where
 			return updateTime;
 		}
 
+		private TestUser CreateUserForAnalitF()
+		{
+			using (var transaction = new TransactionScope())
+			{
+				var client = TestClient.CreateSimple();
+				var user = client.Users[0];
+
+				var permission = TestUserPermission.ByShortcut("AF");
+				client.Users.Each(u =>
+				                   	{
+				                   		u.AssignedPermissions.Add(permission);
+				                   		u.SendRejects = true;
+				                   		u.SendWaybills = true;
+				                   	});
+				user.Update();
+
+				return user;
+			}
+		}
+
+		[Test(Description = "При несуществовании таблицы CurrentReplicationInfo должно вызываться исключение")]
+		public void GetActivePricesWithoutCurrentReplicationInfo()
+		{
+			var testUser = CreateUserForAnalitF();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.Cleanup();
+
+				try
+				{
+					helper.SelectActivePrices();
+
+					Assert.Fail("В предыдущем операторе должно быть вызвано исключение, т.к. таблицы CurrentReplicationInfo не существует");
+				}
+				catch (MySqlException mySqlException)
+				{
+					Assert.That(mySqlException.Number, Is.EqualTo(1146), "Неожидаемое исключение: {0}", mySqlException);
+					Assert.That(mySqlException.Message, Is.EqualTo("Table 'usersettings.currentreplicationinfo' doesn't exist").IgnoreCase, "Неожидаемое исключение: {0}", mySqlException);
+				}
+			}
+		}
+
+		[Test(Description = "При несуществовании таблицы CurrentReplicationInfo должно вызываться исключение")]
+		public void GetActivePricesWithCurrentReplicationInfo()
+		{
+			var testUser = CreateUserForAnalitF();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				var SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+
+				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.PreparePricesData(SelProc);
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				var activePriceCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					"select count(*) from ActivePrices"));
+
+				Assert.That(activePriceCount, Is.GreaterThan(0), "Для вновь созданного пользователя обязательно должны существовать активные прайс-листы");
+			}
+		}
 	}
 }

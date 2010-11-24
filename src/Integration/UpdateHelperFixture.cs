@@ -733,6 +733,8 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 				helper.Cleanup();
 
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
 				helper.SelectActivePrices();
 
 				helper.SelectOffers();
