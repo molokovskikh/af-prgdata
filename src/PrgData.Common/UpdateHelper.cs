@@ -473,22 +473,6 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 				}
 		}
 
-		public void SelectActivePricesInMaster()
-		{
-			if (_updateData.IsFutureClient)
-			{
-				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-				command.ExecuteNonQuery();
-			}
-			else
-			{
-				var command = new MySqlCommand("call AFGetActivePricesByUserId(?UserId);", _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-				command.ExecuteNonQuery();
-			}
-		}
-
 		public void SelectPrices()
 		{
 			if (_updateData.EnableImpersonalPrice)
@@ -705,7 +689,9 @@ drop temporary table IF EXISTS CurrentReplicationInfo;";
 			With.DeadlockWraper(() => {
 				Cleanup();
 
-				SelectActivePricesInMaster();
+				SelectPrices();
+				SelectReplicationInfo();
+				SelectActivePrices();
 
 				var commandText = @"
 
