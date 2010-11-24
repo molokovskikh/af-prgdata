@@ -1056,5 +1056,155 @@ where
 			}
 		}
 
+		[Test(Description = "После потери актуальности прайс-листа, он должен быть помечен как свежий")]
+		public void CheckActivePricesFreshAfterUnactual()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+	AnalitFReplicationInfo
+set
+	ForceReplication = 0
+where
+	UserId = ?UserId
+and ForceReplication > 0;",
+					new MySqlParameter("?UserId", _user.Id));
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+
+				var nonActualPricesCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+select 
+ count(*)
+from 
+	Prices 
+where
+	Prices.Actual = 0"));
+
+				var nonActualPrice = MySqlHelper.ExecuteDataset(
+					connection,
+					"select * from Prices where Actual = 1 and DisabledByClient = 0 Order by PriceDate asc limit 1").Tables[0].Rows[0];
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+  usersettings.PricesCosts,
+  usersettings.PriceItems,
+  farm.FormRules
+set
+  PriceItems.PriceDate = PriceItems.PriceDate - interval (FormRules.MaxOld + 1) day
+where
+    PricesCosts.PriceCode = ?PriceId
+and PricesCosts.CostCode = ?CostId
+and PriceItems.Id = PricesCosts.PriceItemId
+and FormRules.Id = PriceItems.FormRuleId;
+",
+					new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
+					new MySqlParameter("?CostId", nonActualPrice["CostCode"]));
+
+
+				var SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+
+				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.PreparePricesData(SelProc);
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				SelProc.CommandText = helper.GetPricesDataCommand();
+				var dataAdapter = new MySqlDataAdapter(SelProc);
+				var prices = new DataTable();
+				dataAdapter.Fill(prices);
+
+				var nonActualPrices = prices.Select("PriceCode = {0}".Format(nonActualPrice["PriceCode"]));
+				Assert.That(nonActualPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
+				Assert.That(nonActualPrices[0]["Fresh"], Is.EqualTo(1), "Неактуальный прайс-лист должен быть помечен как свежий");
+
+				var freshRows = prices.Select("Fresh = 1");
+				Assert.That(freshRows.Length, Is.EqualTo(nonActualPricesCount + 1), "Кол-во свежих прайс-листов должно быть увеличено на один");
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+  usersettings.PricesCosts,
+  usersettings.PriceItems,
+  farm.FormRules
+set
+  PriceItems.PriceDate = ?PriceDate
+where
+    PricesCosts.PriceCode = ?PriceId
+and PricesCosts.CostCode = ?CostId
+and PriceItems.Id = PricesCosts.PriceItemId
+and FormRules.Id = PriceItems.FormRuleId;
+",
+					new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
+					new MySqlParameter("?CostId", nonActualPrice["CostCode"]),
+					new MySqlParameter("?PriceDate", nonActualPrice["PriceDate"]));
+			}
+		}
+
+		[Test(Description = "При кумулятивном обновлении все прайс-листы должны быть свежими")]
+		public void CheckActivePricesFreshOnCumulative()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+	AnalitFReplicationInfo
+set
+	ForceReplication = 0
+where
+	UserId = ?UserId
+and ForceReplication > 0;",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+
+				helper.SetUpdateParameters(SelProc, true, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.PreparePricesData(SelProc);
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				SelProc.CommandText = helper.GetPricesDataCommand();
+				var dataAdapter = new MySqlDataAdapter(SelProc);
+				var prices = new DataTable();
+				dataAdapter.Fill(prices);
+
+				var freshRows = prices.Select("Fresh = 1");
+				Assert.That(freshRows.Length, Is.EqualTo(prices.Rows.Count), "Все прайс-листы должны быть свежими");
+			}
+		}
+
 	}
 }
