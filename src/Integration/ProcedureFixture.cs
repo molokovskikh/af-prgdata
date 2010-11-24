@@ -4,13 +4,16 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web;
 using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using FileHandler;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -398,10 +401,12 @@ limit 6;");
 				{
 					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
 					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+					ProcessFileHandler(cumulativeUpdateId);
 					var cumulativeTime = CommitExchange(cumulativeUpdateId, true);
 
 					var responce = LoadData(false, cumulativeTime, appVersion);
 					var simpleUpdateId = ParseUpdateId(responce);
+					ProcessFileHandler(simpleUpdateId);
 					var simpleTime = CommitExchange(simpleUpdateId, false);
 				}
 				catch
@@ -462,6 +467,26 @@ limit 6;");
 
 			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
 			return 0;
+		}
+
+		private void ProcessFileHandler(uint updateId)
+		{
+			var fileName = "GetFileHandler.asxh";
+
+			var output = new StringBuilder();
+			using (var sw = new StringWriter(output))
+			{
+				var response = new HttpResponse(sw);
+				var request = new HttpRequest(fileName, UpdateHelper.GetDownloadUrl() + fileName, "Id=" + updateId);
+				var context = new HttpContext(request, response);
+
+				var fileHandler = new GetFileHandler();
+				fileHandler.ProcessRequest(context);
+
+				Assert.That(response.StatusCode, Is.EqualTo(200), "Неожидаемый код ответа от сервера для обновления: {0}", updateId);
+
+				Assert.That(context.Error, Is.Null);
+			}
 		}
 
 		private DateTime CommitExchange(uint updateId, bool cumulative)
@@ -544,7 +569,7 @@ where
 			}
 		}
 
-		[Test(Description = "При несуществовании таблицы CurrentReplicationInfo должно вызываться исключение")]
+		[Test(Description = "Проверяем нормальную работу с CurrentReplicationInfo - все прайс-листы должны быть свежими")]
 		public void GetActivePricesWithCurrentReplicationInfo()
 		{
 			var testUser = CreateUserForAnalitF();
@@ -577,5 +602,166 @@ where
 				Assert.That(activePriceCount, Is.GreaterThan(0), "Для вновь созданного пользователя обязательно должны существовать активные прайс-листы");
 			}
 		}
+
+		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного накопительного")]
+		public void GetCumulativeAfterSimple()
+		{
+			var appVersion = "1.1.1.1299"; 
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
+					var simpleUpdateId = ParseUpdateId(responce);
+
+					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", simpleUpdateId)));
+					Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
+
+					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleUpdateId)));
+
+					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
+					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+
+					Assert.That(cumulativeUpdateId, Is.Not.EqualTo(simpleUpdateId));
+
+					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
+					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного кумулятивного")]
+		public void GetResumeDataAfterCumulative()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
+					var firstCumulativeId = ParseUpdateId(responce);
+
+					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", firstCumulativeId)));
+					Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
+
+					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, firstCumulativeId)));
+
+					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
+					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+
+					Assert.That(cumulativeUpdateId, Is.EqualTo(firstCumulativeId));
+
+					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
+					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
 	}
 }

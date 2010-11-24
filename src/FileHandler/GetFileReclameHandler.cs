@@ -52,7 +52,7 @@ namespace FileHandler
 				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
 					Counter.TryLock(UserId, "ReclameFileHandler");
-					var fn = context.Server.MapPath(@"/Results") + @"\r" + UserId + ".zip";
+					var fn = ServiceContext.GetResultPath() + "r" + UserId + ".zip";
 					if (File.Exists(fn))
 					{
 						context.Response.ContentType = "application/octet-stream";

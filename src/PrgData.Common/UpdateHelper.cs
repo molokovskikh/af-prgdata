@@ -347,7 +347,22 @@ FROM
   join usersettings.UserPermissions up          on up.Shortcut = 'AF'
   left join usersettings.AssignedPermissions ap on ap.UserId = u.Id and ap.PermissionId = up.Id
 WHERE 
-   u.Login = ?user"
+   u.Login = ?user;
+select
+	AnalitFUpdates.UpdateId,
+	AnalitFUpdates.RequestTime,
+	AnalitFUpdates.UpdateType,
+	AnalitFUpdates.Commit
+from
+	logs.AnalitFUpdates,
+	future.users u
+where
+	u.Login = ?user
+and AnalitFUpdates.UserId = u.Id
+and AnalitFUpdates.RequestTime > curdate() - interval 1 day
+and AnalitFUpdates.UpdateType IN (1, 2) 
+order by AnalitFUpdates.UpdateId desc
+limit 1;"
 				, 
 				connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?user", userName);
@@ -390,7 +405,22 @@ FROM
   left join usersettings.AssignedPermissions ap on ap.UserId = ouar.rowid and ap.PermissionId = up.Id
   left join usersettings.IncludeRegulation ir   on ir.IncludeClientCode = ouar.ClientCode
 WHERE   
-    ouar.OSUserName = ?user
+    ouar.OSUserName = ?user;
+select
+	AnalitFUpdates.UpdateId,
+	AnalitFUpdates.RequestTime,
+	AnalitFUpdates.UpdateType,
+	AnalitFUpdates.Commit
+from
+	logs.AnalitFUpdates,
+	usersettings.osuseraccessright ouar
+where
+	ouar.OSUserName = ?user
+and AnalitFUpdates.UserId = ouar.RowId
+and AnalitFUpdates.RequestTime > curdate() - interval 1 day
+and AnalitFUpdates.UpdateType IN (1, 2) 
+order by AnalitFUpdates.UpdateId desc
+limit 1;
 ";
 				data = new DataSet();
 				dataAdapter.Fill(data);

@@ -12,6 +12,7 @@ using NHibernate;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
+using Test.Support.Logs;
 
 namespace Integration
 {
@@ -269,6 +270,230 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				updateData.ParseBuildNumber("6.0.0.1261");
 				Assert.That(updateData.BuildNumber, Is.EqualTo(1261));
+			}
+		}
+
+		private void DeleteAllLogs(uint userId)
+		{
+			using (var transaction = new TransactionScope())
+			{
+				TestAnalitFUpdateLog.DeleteAll("UserId = {0}".Format(userId));
+			}
+		}
+
+		private void CheckPreviousRequestOnFirst(string userName, uint userId)
+		{
+			try
+			{
+				using (var connection = new MySqlConnection(Settings.ConnectionString()))
+				{
+					connection.Open();
+
+					var updateData = UpdateHelper.GetUpdateData(connection, userName);
+					Assert.That(updateData, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest.UpdateId, Is.Null);
+				}
+			}
+			finally
+			{
+				DeleteAllLogs(userId);
+			}
+		}
+
+		[Test(Description = "Проверяем установку свойства PreviousRequest при первом обращении для Future")]
+		public void CheckPreviousRequestOnFirstByFuture()
+		{
+			CheckPreviousRequestOnFirst(_user.Login, _user.Id);
+		}
+
+		[Test(Description = "Проверяем установку свойства PreviousRequest при первом обращении для клиента из старой реальности")]
+		public void CheckPreviousRequestOnFirstByOldClient()
+		{
+			CheckPreviousRequestOnFirst(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+		}
+
+		private void CheckPreviousRequestWithOldRequest(string userName, uint userId)
+		{
+			TestAnalitFUpdateLog log;
+			using (var transaction = new TransactionScope())
+			{
+				log = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+				    RequestTime = DateTime.Now.AddDays(-2),
+				    UpdateType = (uint) RequestType.GetData,
+				    Commit = false
+				};
+				log.Save();
+				log = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+					RequestTime = DateTime.Now.AddDays(-2),
+					UpdateType = (uint)RequestType.GetCumulative,
+					Commit = true
+				};
+				log.Save();
+				log = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+					RequestTime = DateTime.Now,
+					UpdateType = (uint)RequestType.SendWaybills,
+					Commit = true
+				};
+				log.Save();
+			}
+
+			try
+			{
+				using (var connection = new MySqlConnection(Settings.ConnectionString()))
+				{
+					connection.Open();
+
+					var updateData = UpdateHelper.GetUpdateData(connection, userName);
+					Assert.That(updateData, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest.UpdateId, Is.Null);
+				}
+			}
+			finally
+			{
+				DeleteAllLogs(userId);
+			}
+		}
+
+		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для Future")]
+		public void CheckPreviousRequestWithOldRequestByFuture()
+		{
+			CheckPreviousRequestWithOldRequest(_user.Login, _user.Id);
+		}
+
+		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности")]
+		public void CheckPreviousRequestWithOldRequestByOldClient()
+		{
+			CheckPreviousRequestWithOldRequest(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+		}
+
+		private void CheckPreviousRequestWithOldRequestExists(string userName, uint userId)
+		{
+			TestAnalitFUpdateLog log;
+			using (var transaction = new TransactionScope())
+			{
+				log = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+					RequestTime = DateTime.Now.AddDays(-2),
+					UpdateType = (uint)RequestType.GetData,
+					Commit = false
+				};
+				log.Save();
+				log = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+					RequestTime = DateTime.Now.AddDays(-2),
+					UpdateType = (uint)RequestType.GetCumulative,
+					Commit = true
+				};
+				log.Save();
+				log = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+					RequestTime = DateTime.Now,
+					UpdateType = (uint)RequestType.GetCumulative,
+					Commit = true
+				};
+				log.Save();
+				var last = new TestAnalitFUpdateLog
+				{
+					UserId = userId,
+					RequestTime = DateTime.Now,
+					UpdateType = (uint)RequestType.GetDocs,
+					Commit = true
+				};
+				last.Save();
+			}
+
+			try
+			{
+				using (var connection = new MySqlConnection(Settings.ConnectionString()))
+				{
+					connection.Open();
+
+					var updateData = UpdateHelper.GetUpdateData(connection, userName);
+					Assert.That(updateData, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest.UpdateId, Is.Not.Null);
+					Assert.That(updateData.PreviousRequest.UpdateId.Value, Is.EqualTo(log.Id));
+					Assert.That(updateData.PreviousRequest.RequestType, Is.EqualTo((RequestType)log.UpdateType));
+					Assert.That(log.RequestTime.Subtract(updateData.PreviousRequest.RequestTime).TotalSeconds, Is.LessThan(1));
+					Assert.That(updateData.PreviousRequest.Commit, Is.EqualTo(log.Commit));
+				}
+			}
+			finally
+			{
+				DeleteAllLogs(userId);
+			}
+		}
+
+		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для Future")]
+		public void CheckPreviousRequestWithOldRequestExistsByFuture()
+		{
+			CheckPreviousRequestWithOldRequestExists(_user.Login, _user.Id);
+		}
+
+		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности")]
+		public void CheckPreviousRequestWithOldRequestExistsByOldClient()
+		{
+			CheckPreviousRequestWithOldRequestExists(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+		}
+
+		[Test(Description = "проверяем методы для работы с именами подготовленными файлами")]
+		public void CheckResultPaths()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+
+				Assert.That(
+					() => updateData.GetReclameFile(),
+					Throws.InstanceOf<Exception>()
+						.And.Property("Message").EqualTo("Не установлено свойство ResultPath"));
+				Assert.That(
+					() => updateData.GetOrdersFile(),
+					Throws.InstanceOf<Exception>()
+						.And.Property("Message").EqualTo("Не установлено свойство ResultPath"));
+				Assert.That(
+					() => updateData.GetPreviousFile(),
+					Throws.InstanceOf<Exception>()
+						.And.Property("Message").EqualTo("Не установлено свойство ResultPath"));
+				Assert.That(
+					() => updateData.GetCurrentTempFile(),
+					Throws.InstanceOf<Exception>()
+						.And.Property("Message").EqualTo("Не установлено свойство ResultPath"));
+				Assert.That(
+					() => updateData.GetCurrentFile(3),
+					Throws.InstanceOf<Exception>()
+						.And.Property("Message").EqualTo("Не установлено свойство ResultPath"));
+				Assert.That(updateData.GetOldFileMask(), Is.EqualTo(String.Format("{0}*.zip", _user.Id)));
+
+				updateData.ResultPath = "result\\";
+
+				Assert.That(updateData.GetReclameFile(), Is.EqualTo(String.Format("{0}r{1}.zip", updateData.ResultPath, _user.Id)));
+				Assert.That(updateData.GetOrdersFile(), Is.EqualTo(String.Format("{0}Orders{1}.zip", updateData.ResultPath, _user.Id)));
+				Assert.That(updateData.GetCurrentFile(3), Is.EqualTo(String.Format("{0}{1}_{2}.zip", updateData.ResultPath, _user.Id, 3)));
+				Assert.That(updateData.GetCurrentTempFile(), Is.StringStarting(String.Format("{0}{1}_{2}", updateData.ResultPath, _user.Id, DateTime.Now.ToString("yyyyMMddHHmm"))));
+				Assert.That(updateData.GetOldFileMask(), Is.EqualTo(String.Format("{0}*.zip", _user.Id)));
+
+				Assert.That(
+					() => updateData.GetPreviousFile(),
+					Throws.InstanceOf<Exception>()
+						.And.Property("Message").EqualTo("Отсутствует предыдущее неподтвержденное обновление"));
+
+				updateData.PreviousRequest.UpdateId = 333;
+				Assert.That(updateData.GetPreviousFile(), Is.EqualTo(String.Format("{0}{1}_{2}.zip", updateData.ResultPath, _user.Id, 333)));
 			}
 		}
 

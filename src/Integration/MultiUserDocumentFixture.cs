@@ -414,7 +414,7 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 
-			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + ".zip";
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";
 			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
 
 			var extractFolder = "ResultExtract";

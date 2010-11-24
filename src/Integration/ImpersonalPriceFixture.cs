@@ -53,6 +53,7 @@ namespace Integration
 			UniqueId = "123";
 			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
+			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 
@@ -395,7 +396,6 @@ and afi.ForceReplication > 0",
 		private string LoadData(bool getEtalonData, DateTime accessTime, string appVersion)
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			responce = service.GetUserData(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false);
 
 			var match = Regex.Match(responce, @"\d+").Value;
@@ -407,7 +407,6 @@ and afi.ForceReplication > 0",
 		private DateTime CommitExchange()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 
 			var updateTime = service.CommitExchange(lastUpdateId, false);
 
