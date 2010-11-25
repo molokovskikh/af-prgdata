@@ -521,6 +521,35 @@ where
 			return updateTime;
 		}
 
+		private void ConfirmUserMessage(uint userId, string appVersion, string confirmedMessage)
+		{
+			var maxUpdateId = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select max(UpdateId) from logs.AnalitFUpdates where UserId = ?UserId",
+				new MySqlParameter("?UserId", userId)));
+
+			var service = new PrgDataEx();
+
+			var responce = service.ConfirmUserMessage(appVersion, UniqueId, confirmedMessage);
+
+			Assert.That(responce, Is.EqualTo("Res=Ok").IgnoreCase, "Неожидаемый ответ от сервера");
+
+			var logsAfterConfirm = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select count(*) from logs.AnalitFUpdates where UserId = ?UserId and UpdateId > ?MaxUpdateId",
+				new MySqlParameter("?UserId", userId),
+				new MySqlParameter("?MaxUpdateId", maxUpdateId))
+				);
+			Assert.That(logsAfterConfirm, Is.EqualTo(1), "Должно быть одно логирующее сообщение с подтверждением");
+
+			var confirmLog = MySqlHelper.ExecuteDataRow(
+				Settings.ConnectionString(),
+				"select * from logs.AnalitFUpdates where UserId = ?UserId order by UpdateId desc limit 1",
+				new MySqlParameter("?UserId", userId));
+			Assert.That(confirmLog["UpdateType"], Is.EqualTo((int)RequestType.ConfirmUserMessage), "Не совпадает тип обновления");
+			Assert.That(confirmLog["Addition"], Is.EqualTo(confirmedMessage), "Не совпадает значение поля Addition");
+		}
+
 		private TestUser CreateUserForAnalitF()
 		{
 			using (var transaction = new TransactionScope())
@@ -739,6 +768,249 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
 					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
 					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Проверка старого механизма передачи пользовательского сообщения")]
+		public void CheckOldTransmitUserMessage()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var userMessage = "test User Message 123";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", userMessage),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var messageStart = "Addition=";
+					var index = responce.IndexOf(messageStart);
+					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+
+					var realMessage = responce.Substring(index + messageStart.Length);
+					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+
+					var messageShowCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					CommitExchange(updateId, true);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Проверка простого подтверждения пользовательского сообщения")]
+		public void CheckSimpleConfirmUserMessage()
+		{
+			var appVersion = "1.1.1.1300";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var userMessage = "test User Message 123";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", userMessage),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var messageStart = "Addition=";
+					var index = responce.IndexOf(messageStart);
+					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+
+					var realMessage = responce.Substring(index + messageStart.Length);
+					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+
+					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					CommitExchange(updateId, true);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					ConfirmUserMessage(_user.Id, appVersion, realMessage);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Проверка подтверждения пользовательского сообщения после изменения сообщения из билинга")]
+		public void CheckConfirmUserMessageAfterChange()
+		{
+			var appVersion = "1.1.1.1300";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var userMessage = "test User Message 123";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", userMessage),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var messageStart = "Addition=";
+					var index = responce.IndexOf(messageStart);
+					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+
+					var realMessage = responce.Substring(index + messageStart.Length);
+					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+
+					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					CommitExchange(updateId, true);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					MySqlHelper.ExecuteNonQuery(
+						Settings.ConnectionString(),
+						@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+						new MySqlParameter("?Message", "это новый текст пользовательского сообщения"),
+						new MySqlParameter("?UserId", _user.Id));
+
+					ConfirmUserMessage(_user.Id, appVersion, realMessage);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено, т.к. текст сообщения уже другой");
 				}
 				catch
 				{

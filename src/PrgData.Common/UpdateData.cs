@@ -15,6 +15,8 @@ namespace PrgData.Common
 
 	public class UpdateData
 	{
+		private static int _versionOfConfirmUserMessage = 1299; 
+
 		public string ShortName;
 		public uint ClientId;
 		public uint UserId;
@@ -213,6 +215,11 @@ namespace PrgData.Common
 				return UpdateExeVersionInfo.FilePrivatePart > 1271;
 
 			return false;
+		}
+
+		public bool IsConfirmUserMessage()
+		{
+			return (BuildNumber > _versionOfConfirmUserMessage || KnownBuildNumber > _versionOfConfirmUserMessage);
 		}
 
 		private FileVersionInfo GetUpdateVersionInfo()

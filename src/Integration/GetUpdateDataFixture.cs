@@ -497,5 +497,35 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
+		[Test(Description = "Проверяем корректность доступности механизма подтверждения пользовательского сообщения")]
+		public void CheckFlagIsConfrimUserMessage()
+		{
+			var login = _user.Login;
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+
+				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(false), "Для неопределенной версии доступен механизм");
+
+				updateData.KnownBuildNumber = 1299;
+				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(false), "Для версии 1299 доступен механизм");
+				updateData.BuildNumber = 1299;
+				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(false), "Для версии 1299 доступен механизм");
+
+				updateData.BuildNumber = null;
+				updateData.KnownBuildNumber = 1300;
+				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(true), "Не доступен механизм для версии > 1299");
+
+				updateData.BuildNumber = 1300;
+				updateData.KnownBuildNumber = null;
+				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(true), "Не доступен механизм для версии > 1299");
+
+				updateData.BuildNumber = 1301;
+				updateData.KnownBuildNumber = 1300;
+				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(true), "Не доступен механизм для версии > 1299");
+			}
+		}
+
 	}
 }

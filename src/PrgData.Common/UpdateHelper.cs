@@ -324,7 +324,7 @@ SELECT
 	rui.UncommitedUpdateDate,
 	rui.AFAppVersion as KnownBuildNumber,
 	rui.AFCopyId as KnownUniqueID,
-	IF(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
+	if(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
 	retclientsset.CheckCopyId,
 	'' Future,
     c.Name as ShortName,
@@ -382,7 +382,7 @@ SELECT  ouar.clientcode as ClientId,
         rui.UncommitedUpdateDate,
 		rui.AFAppVersion as KnownBuildNumber,
 		rui.AFCopyId as KnownUniqueID,
-        IF(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
+        if(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
         retclientsset.CheckCopyID,
         clientsdata.ShortName,
         retclientsset.Spy, 
@@ -2076,7 +2076,7 @@ AND    ForceReplication =2;
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate,
 #CostSessionKey = null,
-       MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
+       MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
 "
 					,
@@ -2166,9 +2166,9 @@ WHERE  UserId           = {0}
 AND    ForceReplication =2;
 
 UPDATE UserUpdateInfo
-SET    UpdateDate      =UncommitedUpdateDate,
+SET    UpdateDate      =UncommitedUpdateDate
 #CostSessionKey = null,
-       MessageShowCount=IF(MessageShowCount > 0, MessageShowCount - 1, 0)
+       {1}
 WHERE  UserId          = {0};
 
 UPDATE AnalitFReplicationInfo
@@ -2182,7 +2182,8 @@ WHERE  UncMaxSynonymCode!=0
 AND    UserId            = {0};
 "
 					,
-					_updateData.UserId);
+					_updateData.UserId,
+					_updateData.IsConfirmUserMessage() ? "" : ", MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) ");
 
 			ProcessCommitCommand(commitCommand);
 		}
@@ -2716,6 +2717,39 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 					throw;
 				}
 			});
+		}
+
+		public void ConfirmUserMessage(string confirmedMessage)
+		{
+			With.DeadlockWraper(() =>
+			{
+				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+				try
+				{
+					MySqlHelper.ExecuteNonQuery(
+						_readWriteConnection,
+						@"
+update 
+  usersettings.UserUpdateInfo 
+set 
+  MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) 
+where
+    UserId = ?UserId
+and Message = ?Message",
+					   new MySqlParameter("?UserId", _updateData.UserId),
+					   new MySqlParameter("?Message", confirmedMessage));
+
+					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.ConfirmUserMessage, confirmedMessage, _updateData.BuildNumber);
+
+					transaction.Commit();
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			});
+
 		}
 
 	}

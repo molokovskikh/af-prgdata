@@ -3443,79 +3443,6 @@ RestartTrans2:
         End Try
     End Function
 
-    Private Sub SetCodesProc()
-        Dim transaction As MySqlTransaction
-        Try
-            SelProc.Connection = readWriteConnection
-
-            SelProc.CommandText = "" & _
-            "UPDATE AnalitFReplicationInfo " & _
-            "SET    ForceReplication    =0 " & _
-            "WHERE  UserId           =" & UserId & _
-            " AND ForceReplication=2; "
-
-            SelProc.CommandText &= "" & _
-              "UPDATE UserUpdateInfo " & _
-              "SET    UpdateDate=UncommitedUpdateDate," & _
-              "       MessageShowCount=if(MessageShowCount > 0, MessageShowCount - 1, 0)" & _
-              "WHERE  UserId    =" & UserId
-
-            If Len(AbsentPriceCodes) > 0 Then
-
-                SelProc.CommandText &= "; " & _
-                 "UPDATE AnalitFReplicationInfo ARI, PricesData Pd " & _
-                 "SET    MaxSynonymFirmCrCode=0, " & _
-                 "MaxSynonymCode=0, " & _
-                 "UncMaxSynonymCode=0, " & _
-                 "UncMaxSynonymFirmCrCode=0 " & _
-                 "WHERE  UserId           =" & UserId & _
-                 " AND Pd.FirmCode=ARI.FirmCode" & _
-                 " AND Pd.PriceCode in (" & AbsentPriceCodes & ")"
-
-                Addition &= "!!! " & AbsentPriceCodes
-
-            Else
-
-                SelProc.CommandText &= "; " & _
-                "UPDATE AnalitFReplicationInfo " & _
-                "SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode " & _
-                "WHERE  UncMaxSynonymFirmCrCode!=0 " & _
-                "   AND UserId                  =" & UserId
-
-
-                SelProc.CommandText &= "; " & _
-                 "UPDATE AnalitFReplicationInfo " & _
-                 "SET    MaxSynonymCode    =UncMaxSynonymCode " & _
-                 "WHERE  UncMaxSynonymCode!=0 " & _
-                 "   AND UserId                  =" & UserId
-
-            End If
-
-
-RestartMaxCodesSet:
-
-            transaction = readWriteConnection.BeginTransaction(IsoLevel)
-            SelProc.Transaction = transaction
-
-            SelProc.ExecuteNonQuery()
-
-            transaction.Commit()
-
-        Catch ex As Exception
-            ConnectionHelper.SafeRollback(transaction)
-            If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-                Me.Log.Info("Deadlock повторяем попытку")
-                Thread.Sleep(1500)
-                GoTo RestartMaxCodesSet
-            End If
-            Me.Log.Error("Присвоение значений максимальных синонимов", ex)
-            Addition = ex.Message
-            UpdateType = RequestType.Error
-            ErrorFlag = True
-        End Try
-
-    End Sub
-
     Private Sub ProcessCommitExchange()
         Try
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
@@ -3952,6 +3879,44 @@ endproc:
             End If
         Next
     End Sub
+
+    <WebMethod()> _
+    Public Function ConfirmUserMessage( _
+        ByVal EXEVersion As String, _
+        ByVal UniqueID As String, _
+        ByVal ConfirmedMessage As String _
+    ) As String
+
+        Try
+            UpdateType = RequestType.ConfirmUserMessage
+            DBConnect()
+            GetClientCode()
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            UpdateData.ParseBuildNumber(EXEVersion)
+
+            If Not UpdateData.Message.Equals(ConfirmedMessage, StringComparison.OrdinalIgnoreCase) Then
+                Me.Log.DebugFormat("Пользовательское сообщение уже подтверждено или изменено: ConfirmedMessage:{0};  Message:{1};", ConfirmedMessage, UpdateData.Message)
+            End If
+
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
+
+            helper.ConfirmUserMessage(ConfirmedMessage)
+
+            Return "Res=OK"
+
+        Catch updateException As UpdateException
+            Return ProcessUpdateException(updateException)
+        Catch ex As Exception
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении пользовательского сообщения", ex)
+            ErrorFlag = True
+        Finally
+            DBDisconnect()
+        End Try
+
+        If ErrorFlag Then
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+        End If
+    End Function
 
 End Class
 
