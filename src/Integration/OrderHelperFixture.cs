@@ -227,14 +227,45 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test(Description = "Не работает, т.к. клиента перенесли в новую реальность: отправляем заказы под старым клиентом c базовым подчинением и проверяем корректность установки полей ClientCode, AddressId и UserId")]
+		[Test(Description = "отправляем заказы под старым клиентом c базовым подчинением и проверяем корректность установки полей ClientCode, AddressId и UserId")]
 		public void check_ClientCode_and_AddressId_in_order_by_old_client_with_subordination()
 		{
+			//Выбираем существующего клиента с необходимыми условиями: он должен быть старым и у него должны быть клиенты в базовом подчинении
+			var clientWithSub = MySqlHelper.ExecuteDataRow(
+				Settings.ConnectionString(),
+				@"
+SELECT 
+cd.FirmCode,
+osu.OSUserName
+FROM 
+`usersettings`.`ClientsData` cd,
+usersettings.RetClientsSet rcs,
+usersettings.OSUserAccessRight osu,
+`usersettings`.`includeregulation` ir
+where
+cd.FirmType = 1
+and cd.FirmCode <= 7103
+and cd.FirmStatus = 1
+and cd.FirmSegment = 0
+and cd.BillingCode <> 921
+and not (cd.ShortName like '%отчет%')
+and rcs.ClientCode = cd.FirmCode
+and rcs.ServiceClient <> 1
+and osu.ClientCode = cd.FirmCode
+and ir.PrimaryClientCode = cd.FirmCode
+and ir.IncludeType = 0
+group by cd.FirmCode
+having count(*) > 1
+limit 1
+;");
+
+			Assert.That(clientWithSub, Is.Not.Null, "Не найден клиент из старой реальности с базовым подчинением");
+
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				//Пользователь "melehina" - это клиент с кодом 1725, он должен быть старым и у него должны быть клиенты в базовом подчинении
-				var updateData = UpdateHelper.GetUpdateData(connection, "melehina");
+
+				var updateData = UpdateHelper.GetUpdateData(connection, clientWithSub["OSUserName"].ToString());
 				var orderHelper = new OrderHelper(updateData, connection);
 				var updateHelper = new UpdateHelper(updateData, connection);
 

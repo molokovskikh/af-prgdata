@@ -121,11 +121,8 @@ Public Class PrgDataEx
             Using connection = _simpleConnectionManager.GetConnection()
                 connection.Open()
 
-                Dim letterUserName = ServiceContext.GetUserName()
-                ThreadContext.Properties("user") = letterUserName
-                If Left(letterUserName, 7) = "ANALIT\" Then
-                    letterUserName = Mid(letterUserName, 8)
-                End If
+                Dim letterUserName = ServiceContext.GetShortUserName()
+                ThreadContext.Properties("user") = ServiceContext.GetUserName()
 
                 updateData = UpdateHelper.GetUpdateData(connection, letterUserName)
 
@@ -482,53 +479,35 @@ Public Class PrgDataEx
             End If
 
             If Documents Then
-
                 CurUpdTime = Now()
 
                 UpdateType = RequestType.GetDocs
-                Try
-                    ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
-                    Log.DebugFormat("При подготовке документов удален предыдущий файл: {0}", ResultFileName & UserId & ".zip")
-                Catch ex As Exception
-                    Addition &= "Не удалось удалить предыдущие данные (получение только документов): " & ex.Message & "; "
-                    UpdateType = RequestType.Forbidden
-                    ErrorFlag = True
-                    GoTo endproc
-                End Try
-
             Else
 
                 PackFinished = False
 
-                If CkeckZipTimeAndExist(GetEtalonData) Then
+                If CheckZipTimeAndExist(GED) Then
 
-                    Log.DebugFormat("Атрибуты подготовленного файла {1}: {0}", ResultFileName & UserId & ".zip", File.GetAttributes(ResultFileName & UserId & ".zip"))
-                    If Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
-
-                        UpdateType = RequestType.ResumeData
-                        Dim fileInfo = New FileInfo(ResultFileName & UserId & ".zip")
-                        Addition &= "Отдаем предыдущие подготовленные данные: " & fileInfo.LastWriteTime.ToString() & "; "
-                        NewZip = False
-                        PackFinished = True
-                        Log.DebugFormat("Файл будет докачиваться: {0}", ResultFileName & UserId & ".zip")
-                        GoTo endproc
-
-                    End If
-                    Log.DebugFormat("Файл будет архивироваться заново: {0}", ResultFileName & UserId & ".zip")
+                    UpdateType = RequestType.ResumeData
+                    Dim fileInfo = New FileInfo(UpdateData.GetPreviousFile())
+                    Addition &= "Отдаем предыдущие подготовленные данные: " & fileInfo.LastWriteTime.ToString() & "; "
+                    NewZip = False
+                    PackFinished = True
+                    Log.DebugFormat("Файл будет докачиваться: {0}", UpdateData.GetPreviousFile())
+                    GoTo endproc
 
                 Else
 
                     Try
-
-                        ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
-                        Log.DebugFormat("Удалили предыдущие подготовленные данные: {0}", ResultFileName & UserId & ".zip")
-
+                        DeletePreviousFiles()
                     Catch ex As Exception
                         Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
                         UpdateType = RequestType.Forbidden
                         ErrorFlag = True
                         GoTo endproc
                     End Try
+
+                    Log.DebugFormat("Файл будет архивироваться заново: {0}", UpdateData.GetCurrentTempFile())
 
                     CurUpdTime = helper.GetCurrentUpdateDate(UpdateType)
 
@@ -603,6 +582,14 @@ endproc:
                 While GUpdateId = 0
                     Thread.Sleep(500)
                 End While
+
+                If UpdateType <> RequestType.ResumeData Then
+                    If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
+                        Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
+                        File.Delete(UpdateData.GetCurrentFile(GUpdateId))
+                    End If
+                    File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
+                End If
 
                 ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED))
 
@@ -688,14 +675,16 @@ endproc:
 
                 If GetHistory Then
                     SevenZipTmpArchive = Path.GetTempPath() & "Orders" & UserId
-                    ShareFileHelper.MySQLFileDelete(ResultFileName & "Orders" & UserId & ".zip")
+                    ShareFileHelper.MySQLFileDelete(UpdateData.GetOrdersFile())
                 ElseIf Reclame Then
                     SevenZipTmpArchive = Path.GetTempPath() & "r" & UserId
-                    ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+                    ShareFileHelper.MySQLFileDelete(UpdateData.GetReclameFile())
                 Else
                     SevenZipTmpArchive = Path.GetTempPath() & UserId
-                    ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
-                    Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", ResultFileName & UserId & ".zip")
+                    If File.Exists(UpdateData.GetCurrentTempFile()) Then
+                        ShareFileHelper.MySQLFileDelete(UpdateData.GetCurrentTempFile())
+                        Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", UpdateData.GetCurrentTempFile())
+                    End If
                 End If
 
                 SevenZipTmpArchive &= "T.zip"
@@ -808,12 +797,9 @@ endproc:
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
-                                'Задержка при удалении локальных файлов не нужна
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-#If DEBUG Then
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
-#End If
 
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -870,10 +856,8 @@ endproc:
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
 
-#If DEBUG Then
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
-#End If
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
                             End If
 
                         End If
@@ -894,10 +878,9 @@ endproc:
                     If Documents Then
                         If File.Exists(SevenZipTmpArchive) Then
 
-                            File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-                            File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.NotContentIndexed)
+                            File.Move(SevenZipTmpArchive, UpdateData.GetCurrentTempFile())
                             PackFinished = True
-                            FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
+                            FileInfo = New FileInfo(UpdateData.GetCurrentTempFile())
                             ResultLenght = Convert.ToUInt32(FileInfo.Length)
                             Exit Sub
 
@@ -1047,30 +1030,23 @@ StartZipping:
 
                         If FileForArchive.FileName.StartsWith("EndOfFiles.txt") Then
                             If GetHistory Then
-                                File.Move(SevenZipTmpArchive, ResultFileName & "Orders" & UserId & ".zip")
+                                File.Move(SevenZipTmpArchive, UpdateData.GetOrdersFile())
 
-                                FileInfo = New FileInfo(ResultFileName & "Orders" & UserId & ".zip")
+                                FileInfo = New FileInfo(UpdateData.GetOrdersFile())
                                 ResultLenght = Convert.ToUInt32(FileInfo.Length)
                             ElseIf Reclame Then
 
-                                'ArchCmd.CommandText &= "1"
-                                File.Move(SevenZipTmpArchive, ResultFileName & "r" & UserId & ".zip")
+                                File.Move(SevenZipTmpArchive, UpdateData.GetReclameFile())
 
                             Else
 
-                                'ArchCmd.CommandText &= "0"
-                                File.Move(SevenZipTmpArchive, ResultFileName & UserId & ".zip")
-                                Log.DebugFormat("Закончено архивирование файла: {0}", ResultFileName & UserId & ".zip")
-                                If (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED)) Then
-                                    File.SetAttributes(ResultFileName & UserId & ".zip", FileAttributes.Normal)
-                                    Log.DebugFormat("Для файла выставлен атрибут Normal: {0}", ResultFileName & UserId & ".zip")
-                                End If
+                                File.Move(SevenZipTmpArchive, UpdateData.GetCurrentTempFile())
+                                Log.DebugFormat("Закончено архивирование файла: {0}", UpdateData.GetCurrentTempFile())
 
-                                FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
+                                FileInfo = New FileInfo(UpdateData.GetCurrentTempFile())
                                 ResultLenght = Convert.ToUInt32(FileInfo.Length)
 
                             End If
-                            'ArchCmd.ExecuteNonQuery()
 
                             PackFinished = True
                             Exit Sub
@@ -1218,7 +1194,7 @@ StartZipping:
             GetClientCode()
             Counter.TryLock(UserId, "MaxSynonymCode")
 
-            If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+            If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
 
                 AbsentPriceCodes = String.Empty
                 If (PriceCode IsNot Nothing) AndAlso (PriceCode.Length > 0) AndAlso (PriceCode(0) <> 0) Then
@@ -1230,7 +1206,10 @@ StartZipping:
                 End If
 
                 ProcessOldCommit(AbsentPriceCodes)
-
+            Else
+                If Not WayBillsOnly Then
+                    Me.Log.DebugFormat("Не смогли обработать подтверждение, т.к. не совпал UpdateId: ClientUpdateId:{0}; ServerUpdateId:{1}", UpdateId, UpdateData.PreviousRequest.UpdateId)
+                End If
             End If
 
             Try
@@ -1259,20 +1238,18 @@ StartZipping:
             MaxSynonymCode = UpdateTime.ToUniversalTime
 
             Try
-
                 Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
                 If Convert.ToBoolean(Cm.ExecuteScalar) Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
-                    File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
+                    File.Copy(UpdateData.GetCurrentFile(UpdateId), ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
 
-                ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
-                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
-                ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
-
+                ShareFileHelper.MySQLFileDelete(UpdateData.GetCurrentFile(UpdateId))
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", UpdateData.GetCurrentFile(UpdateId))
             Catch ex As Exception
                 Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
             End Try
+
             ProtocolUpdatesThread.Start()
         Catch e As Exception
             LogRequestHelper.MailWithRequest(Me.Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
@@ -1299,9 +1276,13 @@ StartZipping:
             GetClientCode()
             Counter.TryLock(UserId, "CommitExchange")
 
-            If Not WayBillsOnly Or Not File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.NotContentIndexed Then
+            If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
                 ' Здесь сбрасывались коды прайс-листов
                 ProcessCommitExchange()
+            Else
+                If Not WayBillsOnly Then
+                    Me.Log.DebugFormat("Не смогли обработать подтверждение, т.к. не совпал UpdateId: ClientUpdateId:{0}; ServerUpdateId:{1}", UpdateId, UpdateData.PreviousRequest.UpdateId)
+                End If
             End If
 
             Try
@@ -1330,20 +1311,18 @@ StartZipping:
             CommitExchange = UpdateTime.ToUniversalTime
 
             Try
-
                 Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
                 If Convert.ToBoolean(Cm.ExecuteScalar) Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
-                    File.Copy(ResultFileName & UserId & ".zip", ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
+                    File.Copy(UpdateData.GetCurrentFile(UpdateId), ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
 
-                ShareFileHelper.MySQLFileDelete(ResultFileName & UserId & ".zip")
-                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", ResultFileName & UserId & ".zip")
-                ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & "Old.zip")
-
+                ShareFileHelper.MySQLFileDelete(UpdateData.GetCurrentFile(UpdateId))
+                Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", UpdateData.GetCurrentFile(UpdateId))
             Catch ex As Exception
-                'MailHelper.MailErr(CCode, "Удаление полученных файлов;", ex.Message)
+                Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
             End Try
+
             ProtocolUpdatesThread.Start()
         Catch e As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении обновления", e)
@@ -1384,17 +1363,15 @@ StartZipping:
     End Function
 
     Private Sub GetClientCode()
-        UserName = ServiceContext.GetUserName()
-        ThreadContext.Properties("user") = UserName
-        If Left(UserName, 7) = "ANALIT\" Then
-            UserName = Mid(UserName, 8)
-        End If
+        UserName = ServiceContext.GetShortUserName()
+        ThreadContext.Properties("user") = ServiceContext.GetUserName()
         UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
             Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
         End If
 
+        UpdateData.ResultPath = ServiceContext.GetResultPath()
         UpdateData.ClientHost = UserHost
         CCode = UpdateData.ClientId
         UserId = UpdateData.UserId
@@ -2233,64 +2210,62 @@ PostLog:
 
     End Sub
 
-    Private Function CkeckZipTimeAndExist(ByVal GetEtalonData As Boolean) As Boolean
+    Private Function CheckZipTimeAndExist(ByVal GetEtalonData As Boolean) As Boolean
 
-        'Todo KO
-        Cm.Connection = readWriteConnection
-        Cm.Transaction = Nothing
-        Cm.CommandText = "" & _
-           "SELECT  count(UpdateId) " & _
-           "FROM    logs.AnalitFUpdates " & _
-           "WHERE   UpdateType IN (1, 2) " & _
-           "    AND Commit    =0 " & _
-           "    AND RequestTime > curdate() - interval 1 DAY " & _
-           "    AND UserId  =" & UserId
-
-        If Convert.ToUInt32(Cm.ExecuteScalar) < 1 Then
-            Log.DebugFormat("Не найден предыдущий неподтвержденный запрос данных: {0}", UserId)
+        If Not UpdateData.PreviousRequest.UpdateId.HasValue Or UpdateData.PreviousRequest.Commit Then
+            Log.DebugFormat( _
+                "Не найден предыдущий неподтвержденный запрос данных: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+                UserId, _
+                UpdateData.PreviousRequest.UpdateId, _
+                UpdateData.PreviousRequest.Commit, _
+                UpdateData.PreviousRequest.RequestTime, _
+                UpdateData.PreviousRequest.RequestType)
             Return False
         Else
-            Log.DebugFormat("Найден предыдущий неподтвержденный запрос данных: {0}", UserId)
+            Log.DebugFormat( _
+                "Найден предыдущий неподтвержденный запрос данных: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+                UserId, _
+                UpdateData.PreviousRequest.UpdateId, _
+                UpdateData.PreviousRequest.Commit, _
+                UpdateData.PreviousRequest.RequestTime, _
+                UpdateData.PreviousRequest.RequestType)
         End If
 
-
-        FileInfo = New FileInfo(ResultFileName & UserId & ".zip")
+        FileInfo = New FileInfo(UpdateData.GetPreviousFile())
 
         If FileInfo.Exists Then
-
-            Log.DebugFormat("Файл с подготовленными данными существует: {0}", ResultFileName & UserId & ".zip")
-            CkeckZipTimeAndExist = _
+            Log.DebugFormat("Файл с подготовленными данными существует: {0}", UpdateData.GetPreviousFile())
+            CheckZipTimeAndExist = _
              (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
              Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
-             Or (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData)
+             Or (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData)
 
             Log.DebugFormat( _
-             "Результат проверки CkeckZipTimeAndExist: {0}  " & vbCrLf & _
+             "Результат проверки CheckZipTimeAndExist: {0}  " & vbCrLf & _
              "Параметры " & vbCrLf & _
              "GetEtalonData  : {1}" & vbCrLf & _
              "UncDT          : {2}" & vbCrLf & _
              "OldUpTime      : {3}" & vbCrLf & _
              "FileName       : {4}" & vbCrLf & _
-             "FileAttributes : {5}" & vbCrLf & _
+             "PreviousType   : {5}" & vbCrLf & _
              "Expression1    : {6}" & vbCrLf & _
              "Expression2    : {7}" & vbCrLf & _
              "Expression3    : {8}" _
              , _
-             CkeckZipTimeAndExist, _
+             CheckZipTimeAndExist, _
              GetEtalonData, _
              UncDT, _
              OldUpTime, _
-             ResultFileName & UserId & ".zip", _
-             File.GetAttributes(ResultFileName & UserId & ".zip"), _
+             UpdateData.GetPreviousFile(), _
+             UpdateData.PreviousRequest.RequestType, _
              (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData), _
              (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
-             (File.GetAttributes(ResultFileName & UserId & ".zip") = FileAttributes.Normal And GetEtalonData))
+             (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData))
         Else
-
-            Log.DebugFormat("Файл с подготовленными данными не существует: {0}", ResultFileName & UserId & ".zip")
-            CkeckZipTimeAndExist = False
-
+            Log.DebugFormat("Файл с подготовленными данными не существует: {0}", UpdateData.GetPreviousFile())
+            CheckZipTimeAndExist = False
         End If
+
     End Function
 
     Private Sub FirebirdProc()
@@ -2326,6 +2301,10 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogFarmGroups" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
+
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -2744,6 +2723,10 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
                 'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
+
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
+                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
 
                 helper.MaintainReplicationInfo()
 
@@ -3342,7 +3325,7 @@ RestartTrans2:
             ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
             If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)
 
-            ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+            ShareFileHelper.MySQLFileDelete(UpdateData.GetReclameFile())
 
             Dim FileList As String()
             Dim FileName As String
@@ -3384,7 +3367,7 @@ RestartTrans2:
 
                 If Log.IsDebugEnabled Then Log.Debug("Успешно завершили архивирование")
 
-                FileInfo = New FileInfo(ResultFileName & "r" & UserId & ".zip")
+                FileInfo = New FileInfo(UpdateData.GetReclameFile())
                 FileInfo.CreationTime = MaxReclameFileDate
 
                 If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
@@ -3429,7 +3412,7 @@ RestartTrans2:
             DBConnect()
             GetClientCode()
 
-            FileInfo = New FileInfo(ResultFileName & "r" & UserId & ".zip")
+            FileInfo = New FileInfo(UpdateData.GetReclameFile())
 
             If FileInfo.Exists Then
 
@@ -3444,11 +3427,11 @@ RestartTrans2:
 
                 If Log.IsDebugEnabled Then Log.Debug("Дата рекламы успешно установлена")
             Else
-                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с рекламой не существует {0}", ResultFileName & "r" & UserId & ".zip")
+                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с рекламой не существует {0}", UpdateData.GetReclameFile())
             End If
 
             Reclame = True
-            ShareFileHelper.MySQLFileDelete(ResultFileName & "r" & UserId & ".zip")
+            ShareFileHelper.MySQLFileDelete(UpdateData.GetReclameFile())
             ReclameComplete = True
             If Log.IsDebugEnabled Then Log.Debug("Успешно завершили ReclameComplete")
         Catch ex As Exception
@@ -3459,79 +3442,6 @@ RestartTrans2:
             DBDisconnect()
         End Try
     End Function
-
-    Private Sub SetCodesProc()
-        Dim transaction As MySqlTransaction
-        Try
-            SelProc.Connection = readWriteConnection
-
-            SelProc.CommandText = "" & _
-            "UPDATE AnalitFReplicationInfo " & _
-            "SET    ForceReplication    =0 " & _
-            "WHERE  UserId           =" & UserId & _
-            " AND ForceReplication=2; "
-
-            SelProc.CommandText &= "" & _
-              "UPDATE UserUpdateInfo " & _
-              "SET    UpdateDate=UncommitedUpdateDate," & _
-              "       MessageShowCount=if(MessageShowCount > 0, MessageShowCount - 1, 0)" & _
-              "WHERE  UserId    =" & UserId
-
-            If Len(AbsentPriceCodes) > 0 Then
-
-                SelProc.CommandText &= "; " & _
-                 "UPDATE AnalitFReplicationInfo ARI, PricesData Pd " & _
-                 "SET    MaxSynonymFirmCrCode=0, " & _
-                 "MaxSynonymCode=0, " & _
-                 "UncMaxSynonymCode=0, " & _
-                 "UncMaxSynonymFirmCrCode=0 " & _
-                 "WHERE  UserId           =" & UserId & _
-                 " AND Pd.FirmCode=ARI.FirmCode" & _
-                 " AND Pd.PriceCode in (" & AbsentPriceCodes & ")"
-
-                Addition &= "!!! " & AbsentPriceCodes
-
-            Else
-
-                SelProc.CommandText &= "; " & _
-                "UPDATE AnalitFReplicationInfo " & _
-                "SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode " & _
-                "WHERE  UncMaxSynonymFirmCrCode!=0 " & _
-                "   AND UserId                  =" & UserId
-
-
-                SelProc.CommandText &= "; " & _
-                 "UPDATE AnalitFReplicationInfo " & _
-                 "SET    MaxSynonymCode    =UncMaxSynonymCode " & _
-                 "WHERE  UncMaxSynonymCode!=0 " & _
-                 "   AND UserId                  =" & UserId
-
-            End If
-
-
-RestartMaxCodesSet:
-
-            transaction = readWriteConnection.BeginTransaction(IsoLevel)
-            SelProc.Transaction = transaction
-
-            SelProc.ExecuteNonQuery()
-
-            transaction.Commit()
-
-        Catch ex As Exception
-            ConnectionHelper.SafeRollback(transaction)
-            If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-                Me.Log.Info("Deadlock повторяем попытку")
-                Thread.Sleep(1500)
-                GoTo RestartMaxCodesSet
-            End If
-            Me.Log.Error("Присвоение значений максимальных синонимов", ex)
-            Addition = ex.Message
-            UpdateType = RequestType.Error
-            ErrorFlag = True
-        End Try
-
-    End Sub
 
     Private Sub ProcessCommitExchange()
         Try
@@ -3926,7 +3836,7 @@ endproc:
             DBConnect()
             GetClientCode()
 
-            FileInfo = New FileInfo(ResultFileName & "Orders" & UserId & ".zip")
+            FileInfo = New FileInfo(UpdateData.GetOrdersFile())
 
             If FileInfo.Exists Then
 
@@ -3943,11 +3853,11 @@ endproc:
 
                 If Log.IsDebugEnabled Then Log.Debug("Архив с заказами успешно подтвержден")
             Else
-                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с историей заказов не существует {0}", ResultFileName & "Orders" & UserId & ".zip")
+                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с историей заказов не существует {0}", UpdateData.GetOrdersFile())
             End If
 
             GetHistory = True
-            ShareFileHelper.MySQLFileDelete(ResultFileName & "Orders" & UserId & ".zip")
+            ShareFileHelper.MySQLFileDelete(UpdateData.GetOrdersFile())
             CommitHistoryOrders = True
             If Log.IsDebugEnabled Then Log.Debug("Успешно завершили CommitHistoryOrders")
         Catch ex As Exception
@@ -3957,6 +3867,55 @@ endproc:
         Finally
             DBDisconnect()
         End Try
+    End Function
+
+    Private Sub DeletePreviousFiles()
+        Dim deleteFiles = Directory.GetFiles(ResultFileName, UpdateData.GetOldFileMask())
+
+        For Each deleteFile In deleteFiles
+            If File.Exists(deleteFile) Then
+                ShareFileHelper.MySQLFileDelete(deleteFile)
+                Log.DebugFormat("Удалили файл с предыдущими подготовленными данными: {0}", deleteFile)
+            End If
+        Next
+    End Sub
+
+    <WebMethod()> _
+    Public Function ConfirmUserMessage( _
+        ByVal EXEVersion As String, _
+        ByVal UniqueID As String, _
+        ByVal ConfirmedMessage As String _
+    ) As String
+
+        Try
+            UpdateType = RequestType.ConfirmUserMessage
+            DBConnect()
+            GetClientCode()
+            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+            UpdateData.ParseBuildNumber(EXEVersion)
+
+            If Not UpdateData.Message.Equals(ConfirmedMessage, StringComparison.OrdinalIgnoreCase) Then
+                Me.Log.DebugFormat("Пользовательское сообщение уже подтверждено или изменено: ConfirmedMessage:{0};  Message:{1};", ConfirmedMessage, UpdateData.Message)
+            End If
+
+            Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
+
+            helper.ConfirmUserMessage(ConfirmedMessage)
+
+            Return "Res=OK"
+
+        Catch updateException As UpdateException
+            Return ProcessUpdateException(updateException)
+        Catch ex As Exception
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении пользовательского сообщения", ex)
+            ErrorFlag = True
+        Finally
+            DBDisconnect()
+        End Try
+
+        If ErrorFlag Then
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+        End If
     End Function
 
 End Class

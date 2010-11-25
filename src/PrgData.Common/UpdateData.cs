@@ -5,8 +5,18 @@ using System.Diagnostics;
 
 namespace PrgData.Common
 {
+	public class UncommittedRequest
+	{
+		public uint? UpdateId;
+		public RequestType RequestType;
+		public DateTime RequestTime;
+		public bool Commit;
+	}
+
 	public class UpdateData
 	{
+		private static int _versionOfConfirmUserMessage = 1299; 
+
 		public string ShortName;
 		public uint ClientId;
 		public uint UserId;
@@ -58,8 +68,27 @@ namespace PrgData.Common
 
 		public uint? NetworkSupplierId;
 
+		public UncommittedRequest PreviousRequest;
+
+		public string ResultPath;
+		private string _currentTempFileName;
+
 		public UpdateData(DataSet data)
 		{
+			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+
+			PreviousRequest = new UncommittedRequest();
+			if (data.Tables.Count < 2)
+				throw new Exception("Не выбрана таблица с предыдущими обновлениями");
+			if (data.Tables[1].Rows.Count > 0)
+			{
+				var previousRequest = data.Tables[1].Rows[0];
+				PreviousRequest.UpdateId = Convert.ToUInt32(previousRequest["UpdateId"]);
+				PreviousRequest.RequestTime = Convert.ToDateTime(previousRequest["RequestTime"]);
+				PreviousRequest.RequestType = (RequestType)Convert.ToInt32(previousRequest["UpdateType"]);
+				PreviousRequest.Commit = Convert.ToBoolean(previousRequest["Commit"]);
+			}
+
 			var row = data.Tables[0].Rows[0];
 			ClientId = Convert.ToUInt32(row["ClientId"]);
 			UserId = Convert.ToUInt32(row["UserId"]);
@@ -188,6 +217,11 @@ namespace PrgData.Common
 			return false;
 		}
 
+		public bool IsConfirmUserMessage()
+		{
+			return (BuildNumber > _versionOfConfirmUserMessage || KnownBuildNumber > _versionOfConfirmUserMessage);
+		}
+
 		private FileVersionInfo GetUpdateVersionInfo()
 		{
 			if (!EnableUpdate)
@@ -204,5 +238,47 @@ namespace PrgData.Common
 			}
 		}
 
+		private void CheckResultPath()
+		{
+			if (String.IsNullOrEmpty(ResultPath))
+				throw new Exception("Не установлено свойство ResultPath");
+		}
+
+		public string GetReclameFile()
+		{
+			CheckResultPath();
+			return String.Format("{0}r{1}.zip", ResultPath, UserId);
+		}
+
+		public string GetOrdersFile()
+		{
+			CheckResultPath();
+			return String.Format("{0}Orders{1}.zip", ResultPath, UserId);
+		}
+
+		public string GetPreviousFile()
+		{
+			CheckResultPath();
+			if (PreviousRequest.UpdateId == null)
+				throw new Exception("Отсутствует предыдущее неподтвержденное обновление");
+			return String.Format("{0}{1}_{2}.zip", ResultPath, UserId, PreviousRequest.UpdateId);
+		}
+
+		public string GetCurrentTempFile()
+		{
+			CheckResultPath();
+			return String.Format("{0}{1}_{2}.zip", ResultPath, UserId, _currentTempFileName);
+		}
+
+		public string GetCurrentFile(uint updateId)
+		{
+			CheckResultPath();
+			return String.Format("{0}{1}_{2}.zip", ResultPath, UserId, updateId);
+		}
+
+		public string GetOldFileMask()
+		{
+			return String.Format("{0}*.zip", UserId);
+		}
 	}
 }

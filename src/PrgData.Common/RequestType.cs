@@ -19,6 +19,7 @@ namespace PrgData.Common
 		PostOrderBatch = 10, //Отправка дефектуры для разбора
 		SendOrders = 11,     //Отправка заказов
 		PostPriceDataSettings = 12, //Отправка настроек прайс-листов
-		GetHistoryOrders = 13 //Получить список архивных заказов
+		GetHistoryOrders = 13, //Получить список архивных заказов
+		ConfirmUserMessage = 14 //Подтвердить прочтение сообщения для пользователя
 	}
 }

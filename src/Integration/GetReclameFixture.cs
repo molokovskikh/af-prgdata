@@ -38,6 +38,7 @@ namespace Integration
 
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
+			ServiceContext.GetResultPath = () => resultsDir;
 
 			using (var transaction = new TransactionScope())
 			{
@@ -82,7 +83,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		private string GetReclame()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = resultsDir;
 
 			return service.GetReclame();
 		}
@@ -90,7 +90,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		private bool ReclameComplete()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = resultsDir;
 			return service.ReclameComplete();
 		}
 
@@ -250,7 +249,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		private void ProcessGetUserData(bool cumulative, DateTime updateTime)
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			var responce = service.GetUserData(updateTime, cumulative, "6.0.0.1183", 50, "123", "", "", false);
 
 			var match = Regex.Match(responce, @"\d+").Value;
@@ -258,7 +256,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			{
 				var lastUpdateId = Convert.ToUInt32(match);
 				service = new PrgDataEx();
-				service.ResultFileName = "results";
 				service.CommitExchange(lastUpdateId, false);
 			}
 			else

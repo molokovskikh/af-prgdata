@@ -36,6 +36,7 @@ namespace Integration
 			UniqueId = "123";
 			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
+			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 
@@ -92,7 +93,6 @@ namespace Integration
 		private string LoadData(string appVersion)
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			responce = service.GetHistoryOrders(appVersion, UniqueId, new ulong[0], 1, 1);
 
 			if (responce.Contains("FullHistory=True"))
@@ -114,7 +114,6 @@ namespace Integration
 		private void CommitExchange()
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 
 			service.CommitHistoryOrders(lastUpdateId);
 		}

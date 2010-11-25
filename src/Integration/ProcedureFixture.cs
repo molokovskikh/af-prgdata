@@ -4,13 +4,16 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Web;
 using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using FileHandler;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -398,10 +401,12 @@ limit 6;");
 				{
 					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
 					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+					ProcessFileHandler(cumulativeUpdateId);
 					var cumulativeTime = CommitExchange(cumulativeUpdateId, true);
 
 					var responce = LoadData(false, cumulativeTime, appVersion);
 					var simpleUpdateId = ParseUpdateId(responce);
+					ProcessFileHandler(simpleUpdateId);
 					var simpleTime = CommitExchange(simpleUpdateId, false);
 				}
 				catch
@@ -464,6 +469,26 @@ limit 6;");
 			return 0;
 		}
 
+		private void ProcessFileHandler(uint updateId)
+		{
+			var fileName = "GetFileHandler.asxh";
+
+			var output = new StringBuilder();
+			using (var sw = new StringWriter(output))
+			{
+				var response = new HttpResponse(sw);
+				var request = new HttpRequest(fileName, UpdateHelper.GetDownloadUrl() + fileName, "Id=" + updateId);
+				var context = new HttpContext(request, response);
+
+				var fileHandler = new GetFileHandler();
+				fileHandler.ProcessRequest(context);
+
+				Assert.That(response.StatusCode, Is.EqualTo(200), "Неожидаемый код ответа от сервера для обновления: {0}", updateId);
+
+				Assert.That(context.Error, Is.Null);
+			}
+		}
+
 		private DateTime CommitExchange(uint updateId, bool cumulative)
 		{
 			var service = new PrgDataEx();
@@ -494,6 +519,35 @@ where
 			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", updateId);
 
 			return updateTime;
+		}
+
+		private void ConfirmUserMessage(uint userId, string appVersion, string confirmedMessage)
+		{
+			var maxUpdateId = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select max(UpdateId) from logs.AnalitFUpdates where UserId = ?UserId",
+				new MySqlParameter("?UserId", userId)));
+
+			var service = new PrgDataEx();
+
+			var responce = service.ConfirmUserMessage(appVersion, UniqueId, confirmedMessage);
+
+			Assert.That(responce, Is.EqualTo("Res=Ok").IgnoreCase, "Неожидаемый ответ от сервера");
+
+			var logsAfterConfirm = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select count(*) from logs.AnalitFUpdates where UserId = ?UserId and UpdateId > ?MaxUpdateId",
+				new MySqlParameter("?UserId", userId),
+				new MySqlParameter("?MaxUpdateId", maxUpdateId))
+				);
+			Assert.That(logsAfterConfirm, Is.EqualTo(1), "Должно быть одно логирующее сообщение с подтверждением");
+
+			var confirmLog = MySqlHelper.ExecuteDataRow(
+				Settings.ConnectionString(),
+				"select * from logs.AnalitFUpdates where UserId = ?UserId order by UpdateId desc limit 1",
+				new MySqlParameter("?UserId", userId));
+			Assert.That(confirmLog["UpdateType"], Is.EqualTo((int)RequestType.ConfirmUserMessage), "Не совпадает тип обновления");
+			Assert.That(confirmLog["Addition"], Is.EqualTo(confirmedMessage), "Не совпадает значение поля Addition");
 		}
 
 		private TestUser CreateUserForAnalitF()
@@ -544,7 +598,7 @@ where
 			}
 		}
 
-		[Test(Description = "При несуществовании таблицы CurrentReplicationInfo должно вызываться исключение")]
+		[Test(Description = "Проверяем нормальную работу с CurrentReplicationInfo - все прайс-листы должны быть свежими")]
 		public void GetActivePricesWithCurrentReplicationInfo()
 		{
 			var testUser = CreateUserForAnalitF();
@@ -577,5 +631,409 @@ where
 				Assert.That(activePriceCount, Is.GreaterThan(0), "Для вновь созданного пользователя обязательно должны существовать активные прайс-листы");
 			}
 		}
+
+		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного накопительного")]
+		public void GetCumulativeAfterSimple()
+		{
+			var appVersion = "1.1.1.1299"; 
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
+					var simpleUpdateId = ParseUpdateId(responce);
+
+					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", simpleUpdateId)));
+					Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
+
+					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleUpdateId)));
+
+					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
+					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+
+					Assert.That(cumulativeUpdateId, Is.Not.EqualTo(simpleUpdateId));
+
+					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
+					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного кумулятивного")]
+		public void GetResumeDataAfterCumulative()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
+					var firstCumulativeId = ParseUpdateId(responce);
+
+					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", firstCumulativeId)));
+					Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
+
+					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, firstCumulativeId)));
+
+					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
+					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+
+					Assert.That(cumulativeUpdateId, Is.EqualTo(firstCumulativeId));
+
+					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
+					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Проверка старого механизма передачи пользовательского сообщения")]
+		public void CheckOldTransmitUserMessage()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var userMessage = "test User Message 123";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", userMessage),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var messageStart = "Addition=";
+					var index = responce.IndexOf(messageStart);
+					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+
+					var realMessage = responce.Substring(index + messageStart.Length);
+					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+
+					var messageShowCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					CommitExchange(updateId, true);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Проверка простого подтверждения пользовательского сообщения")]
+		public void CheckSimpleConfirmUserMessage()
+		{
+			var appVersion = "1.1.1.1300";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var userMessage = "test User Message 123";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", userMessage),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var messageStart = "Addition=";
+					var index = responce.IndexOf(messageStart);
+					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+
+					var realMessage = responce.Substring(index + messageStart.Length);
+					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+
+					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					CommitExchange(updateId, true);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					ConfirmUserMessage(_user.Id, appVersion, realMessage);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Проверка подтверждения пользовательского сообщения после изменения сообщения из билинга")]
+		public void CheckConfirmUserMessageAfterChange()
+		{
+			var appVersion = "1.1.1.1300";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var userMessage = "test User Message 123";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", userMessage),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var messageStart = "Addition=";
+					var index = responce.IndexOf(messageStart);
+					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+
+					var realMessage = responce.Substring(index + messageStart.Length);
+					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+
+					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					CommitExchange(updateId, true);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+
+					MySqlHelper.ExecuteNonQuery(
+						Settings.ConnectionString(),
+						@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+						new MySqlParameter("?Message", "это новый текст пользовательского сообщения"),
+						new MySqlParameter("?UserId", _user.Id));
+
+					ConfirmUserMessage(_user.Id, appVersion, realMessage);
+
+					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+						new MySqlParameter("?UserId", _user.Id)));
+					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено, т.к. текст сообщения уже другой");
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
 	}
 }

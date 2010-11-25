@@ -32,7 +32,7 @@ namespace Integration
 			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ServiceContext.GetResultPath = () => "results";
+			ServiceContext.GetResultPath = () => "results\\";
 
 			using (var transaction = new TransactionScope())
 			{

@@ -136,6 +136,15 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 						});
 		}
 
+		private void ClearLocks()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				MySqlHelper.ExecuteNonQuery(connection, "delete from Logs.PrgDataLogs");
+			}
+		}
+
 		[Test]
 		public void Check_string_field_lengts_for_old_client()
 		{
@@ -287,6 +296,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				helper.Cleanup();
 
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
 				helper.SelectActivePrices();
 
 				helper.SelectOffers();
@@ -375,7 +386,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		{
 			try
 			{
-				Counter.Clear();
+				ClearLocks();
 
 				Counter.TryLock(_user.Id, firstLock);
 
@@ -456,7 +467,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		[Test]
 		public void Check_max_update_client_count()
 		{
-			Counter.Clear();
+			ClearLocks();
 			var maxSessionCount = Convert.ToUInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
 			for (uint i = 0; i <= maxSessionCount; i++)
 				Counter.TryLock(i, "PostOrderBatch");
@@ -793,6 +804,52 @@ drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;"
 			}
 		}
 
+		[Test(Description = "проверка работы метода ClearByUserId")]
+		public void TestClearByUserId()
+		{
+			ClearLocks();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?MethodName", "GetHistoryOrders"),
+					new MySqlParameter("?StartTime", DateTime.Now.AddHours(-1)));
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?MethodName", "HistoryFileHandler"),
+					new MySqlParameter("?StartTime", DateTime.Now.AddHours(-2)));
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?MethodName", "GetUserData"),
+					new MySqlParameter("?StartTime", DateTime.Now));
+			}
+
+			var clearCount = Counter.ClearByUserId(_user.Id);
+
+			Assert.That(clearCount, Is.EqualTo(2), "Некорректное кол-во удаленных блокировок");
+
+			try
+			{
+				Counter.TryLock(_user.Id, "GetUserData");
+
+				Assert.Fail("Блокировка не должна быть наложена");
+			}
+			catch (UpdateException updateException)
+			{
+				if (!updateException.Message.Equals("Обновление данных в настоящее время невозможно."))
+					Assert.Fail("Неожидаемое исключение при превышении максимального кол-ва пользователей: {0}", updateException);
+			}
+		}
+
 		[Test(Description = "Все актуальные прайс-листы при первом подключении к клиенту должны быть свежими")]
 		public void CheckActivePricesFreshAfterCreate()
 		{
@@ -946,8 +1003,6 @@ and ForceReplication > 0;",
 
 				helper.SelectPrices();
 
-				//DisabledByClient
-
 				var disabledPrice = MySqlHelper.ExecuteDataset(
 					connection,
 					"select * from Prices where Actual = 1 and DisabledByClient = 0 limit 1").Tables[0].Rows[0];
@@ -996,11 +1051,160 @@ where
 				Assert.That(disabledPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
 				Assert.That(disabledPrices[0]["Fresh"], Is.EqualTo(1), "Отключенный прайс-лист должен быть помечен как свежий");
 
-
 				var pricesBySupplier = prices.Select("FirmCode = {0}".Format(disabledPrice["FirmCode"]));
 
 				var freshRows = prices.Select("Fresh = 1");
 				Assert.That(freshRows.Length - nonActualPrices, Is.EqualTo(pricesBySupplier.Length), "Кроме неактуальных прайс-листов свежими должны быть помечены все прайс-листы поставщика, у которого отключили прайс-лист");
+			}
+		}
+
+		[Test(Description = "После потери актуальности прайс-листа, он должен быть помечен как свежий")]
+		public void CheckActivePricesFreshAfterUnactual()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+	AnalitFReplicationInfo
+set
+	ForceReplication = 0
+where
+	UserId = ?UserId
+and ForceReplication > 0;",
+					new MySqlParameter("?UserId", _user.Id));
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+
+				var nonActualPricesCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+select 
+ count(*)
+from 
+	Prices 
+where
+	Prices.Actual = 0"));
+
+				var nonActualPrice = MySqlHelper.ExecuteDataset(
+					connection,
+					"select * from Prices where Actual = 1 and DisabledByClient = 0 Order by PriceDate asc limit 1").Tables[0].Rows[0];
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+  usersettings.PricesCosts,
+  usersettings.PriceItems,
+  farm.FormRules
+set
+  PriceItems.PriceDate = PriceItems.PriceDate - interval (FormRules.MaxOld + 1) day
+where
+    PricesCosts.PriceCode = ?PriceId
+and PricesCosts.CostCode = ?CostId
+and PriceItems.Id = PricesCosts.PriceItemId
+and FormRules.Id = PriceItems.FormRuleId;
+",
+					new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
+					new MySqlParameter("?CostId", nonActualPrice["CostCode"]));
+
+
+				var SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+
+				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.PreparePricesData(SelProc);
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				SelProc.CommandText = helper.GetPricesDataCommand();
+				var dataAdapter = new MySqlDataAdapter(SelProc);
+				var prices = new DataTable();
+				dataAdapter.Fill(prices);
+
+				var nonActualPrices = prices.Select("PriceCode = {0}".Format(nonActualPrice["PriceCode"]));
+				Assert.That(nonActualPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
+				Assert.That(nonActualPrices[0]["Fresh"], Is.EqualTo(1), "Неактуальный прайс-лист должен быть помечен как свежий");
+
+				var freshRows = prices.Select("Fresh = 1");
+				Assert.That(freshRows.Length, Is.EqualTo(nonActualPricesCount + 1), "Кол-во свежих прайс-листов должно быть увеличено на один");
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+  usersettings.PricesCosts,
+  usersettings.PriceItems,
+  farm.FormRules
+set
+  PriceItems.PriceDate = ?PriceDate
+where
+    PricesCosts.PriceCode = ?PriceId
+and PricesCosts.CostCode = ?CostId
+and PriceItems.Id = PricesCosts.PriceItemId
+and FormRules.Id = PriceItems.FormRuleId;
+",
+					new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
+					new MySqlParameter("?CostId", nonActualPrice["CostCode"]),
+					new MySqlParameter("?PriceDate", nonActualPrice["PriceDate"]));
+			}
+		}
+
+		[Test(Description = "При кумулятивном обновлении все прайс-листы должны быть свежими")]
+		public void CheckActivePricesFreshOnCumulative()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+update
+	AnalitFReplicationInfo
+set
+	ForceReplication = 0
+where
+	UserId = ?UserId
+and ForceReplication > 0;",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+
+				helper.SetUpdateParameters(SelProc, true, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.PreparePricesData(SelProc);
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				SelProc.CommandText = helper.GetPricesDataCommand();
+				var dataAdapter = new MySqlDataAdapter(SelProc);
+				var prices = new DataTable();
+				dataAdapter.Fill(prices);
+
+				var freshRows = prices.Select("Fresh = 1");
+				Assert.That(freshRows.Length, Is.EqualTo(prices.Rows.Count), "Все прайс-листы должны быть свежими");
 			}
 		}
 

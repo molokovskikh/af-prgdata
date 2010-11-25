@@ -36,7 +36,7 @@ namespace FileHandler
 				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
 					Counter.TryLock(UserId, "HistoryFileHandler");
-					var fn = context.Server.MapPath(@"/Results") + @"\Orders" + UserId + ".zip";
+					var fn = ServiceContext.GetResultPath() + "Orders" + UserId + ".zip";
 					if (File.Exists(fn))
 					{
 						context.Response.ContentType = "application/octet-stream";

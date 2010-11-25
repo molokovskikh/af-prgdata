@@ -70,10 +70,8 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 		public static string GetUserId(HttpContext context)
 		{
-			var UserName = ServiceContext.GetUserName();
-			ThreadContext.Properties["user"] = UserName;
-			if (UserName.StartsWith(@"ANALIT\", StringComparison.OrdinalIgnoreCase))
-				UserName = UserName.Substring(7);
+			var UserName = ServiceContext.GetShortUserName() ;
+			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
 			string userId = null;
 			try
 			{
@@ -133,19 +131,18 @@ where c.Status = 1
 				if (String.IsNullOrEmpty(SUserId) || !UInt32.TryParse(SUserId, out UserId))
 					throw new Exception("Не удалось идентифицировать клиента.");
 
-				var fn = ServiceContext.GetResultPath() + UserId + ".zip";
-				if (!File.Exists(fn))
-				{
-					_log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
-					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
-				}
-
 				if (!String.IsNullOrEmpty(context.Request.QueryString["Id"]))
 					Int64.TryParse(context.Request.QueryString["Id"], out _updateId);
 
 				if (!String.IsNullOrEmpty(context.Request.QueryString["RangeStart"]))
 					Int64.TryParse(context.Request.QueryString["RangeStart"], out _fromByte);
 
+				var fn = ServiceContext.GetResultPath() + UserId + "_" + _updateId + ".zip";
+				if (!File.Exists(fn))
+				{
+					_log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
+					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
+				}
 
 				Counter.TryLock(UserId, "FileHandler");
 				_log.DebugFormat("Успешно наложена блокировка FileHandler для пользователя: {0}", UserId);

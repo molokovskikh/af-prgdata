@@ -34,6 +34,7 @@ namespace Integration
 			UniqueId = "123";
 			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
+			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 
 			using (var transaction = new TransactionScope())
@@ -122,7 +123,6 @@ namespace Integration
 		private string PostSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
 			var service = new PrgDataEx();
-			service.ResultFileName = "results";
 			var responce = service.PostPriceDataSettings(UniqueId, priceIds, regionIds, injobs);
 
 			Assert.That(responce, Is.EqualTo("Res=OK").IgnoreCase, "Отправка настроек прайс-листов завершилась ошибкой.");

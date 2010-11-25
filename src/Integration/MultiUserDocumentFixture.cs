@@ -169,6 +169,10 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 			Confirm();
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
 			using (new SessionScope())
 			{
 				log.Refresh();
@@ -410,7 +414,7 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 
-			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + ".zip";
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";
 			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
 
 			var extractFolder = "ResultExtract";
