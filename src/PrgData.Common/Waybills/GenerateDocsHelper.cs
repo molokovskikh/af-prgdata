@@ -32,6 +32,7 @@ namespace PrgData.Common.Orders
 			var random = new Random();
 			var headerCommand = new MySqlCommand();
 			headerCommand.Connection = _readWriteConnection;
+			headerCommand.Parameters.AddWithValue("?UserId", updateData.UserId);
 			headerCommand.Parameters.Add("?PriceCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?FirmCode", MySqlDbType.UInt64);
 			headerCommand.Parameters.Add("?ClientCode", MySqlDbType.UInt64);
@@ -78,6 +79,14 @@ values
   (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate(), ?AddressId);
 set @LastDocumentId = last_insert_id();
 ";
+
+			if (updateData.IsFutureClient)
+			{
+				headerCommand.CommandText += @"
+insert into logs.documentsendlogs (UserId, DocumentId) values (?UserId, @LastDownloadId);
+update logs.document_logs set Ready = 1 where RowId = @LastDownloadId and Ready = 0;
+";
+			}
 
 			headerCommand.Parameters["?FirmCode"].Value = firmCode;
 			headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
