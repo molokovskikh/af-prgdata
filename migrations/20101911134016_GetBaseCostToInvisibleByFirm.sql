@@ -71,7 +71,7 @@ FROM Future.Users u
   JOIN usersettings.RetClientsSet r ON r.clientcode = drugstore.Id
   JOIN usersettings.PricesData pd ON pd.pricecode = i.PriceId
     join usersettings.SupplierIntersection si on si.SupplierId = pd.FirmCode and i.ClientId = si.ClientId
-  JOIN usersettings.PricesCosts pc on ((r.InvisibleOnFirm > 0 and pc.PriceCode = i.PriceId and pc.BaseCost = 1) or (r.InvisibleOnFirm = 0 and pc.CostCode = i.CostId)) 
+  JOIN usersettings.PricesCosts pc on pc.PriceCode = i.PriceId and ((r.InvisibleOnFirm > 0 and pc.BaseCost = 1) or (r.InvisibleOnFirm = 0 and pc.CostCode = i.CostId))
     JOIN usersettings.PriceItems pi on pi.Id = pc.PriceItemId
     JOIN farm.FormRules f on f.Id = pi.FormRuleId
     JOIN usersettings.ClientsData supplier ON supplier.firmcode = pd.firmcode
@@ -159,7 +159,7 @@ FROM Future.Users u
   JOIN usersettings.RetClientsSet r ON r.clientcode = drugstore.Id
   JOIN usersettings.PricesData pd ON pd.pricecode = i.PriceId
     join usersettings.SupplierIntersection si on si.SupplierId = pd.FirmCode and i.ClientId = si.ClientId
-  JOIN usersettings.PricesCosts pc on ((r.InvisibleOnFirm > 0 and pc.PriceCode = i.PriceId and pc.BaseCost = 1) or (r.InvisibleOnFirm = 0 and pc.CostCode = i.CostId))
+  JOIN usersettings.PricesCosts pc on pc.PriceCode = i.PriceId and ((r.InvisibleOnFirm > 0 and pc.BaseCost = 1) or (r.InvisibleOnFirm = 0 and pc.CostCode = i.CostId))
     JOIN usersettings.PriceItems pi on pi.Id = pc.PriceItemId
     JOIN farm.FormRules f on f.Id = pi.FormRuleId
     JOIN usersettings.ClientsData supplier ON supplier.firmcode = pd.firmcode
