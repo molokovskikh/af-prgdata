@@ -4,6 +4,7 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -1033,6 +1034,92 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			{
 				LogManager.ResetConfiguration();
 			}
+		}
+
+		private string GetTestFileName(string fileName)
+		{
+			return Path.Combine(ServiceContext.GetResultPath(), fileName);
+		}
+
+		private void CreateTestFile(string fileName)
+		{
+			File.WriteAllText(GetTestFileName(fileName), "this is test file");
+		}
+
+		[Test(Description = "Проверяем метод PrgDataEx.DeletePreviousFiles, чтобы он удалял только необходимые файлы")]
+		public void TestDeletePreviousFiles()
+		{
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id)).ToList().ForEach(File.Delete);
+
+					CreateTestFile("{0}3_dsds.zip".Format(_user.Id));
+					CreateTestFile("{0}6.zip".Format(_user.Id));
+					CreateTestFile("{0}.zip".Format(_user.Id));
+					CreateTestFile("r{0}.zip".Format(_user.Id));
+					CreateTestFile("{0}d.zip".Format(_user.Id));
+					CreateTestFile("{0}_.txt".Format(_user.Id));
+
+					CreateTestFile("{0}_.zip".Format(_user.Id));
+					CreateTestFile("{0}_mm.zip".Format(_user.Id));
+					CreateTestFile("{0}_203.zip".Format(_user.Id));
+
+					var service = new PrgDataEx();
+
+					service.SendClientLog(1, null);
+					
+					var methodDeletePreviousFiles = service.GetType().GetMethod("DeletePreviousFiles",
+					                                                            BindingFlags.NonPublic | BindingFlags.Instance);
+
+					methodDeletePreviousFiles.Invoke(service, new object[] {});
+
+					Assert.That(File.Exists(GetTestFileName("{0}3_dsds.zip".Format(_user.Id))));
+					Assert.That(File.Exists(GetTestFileName("{0}6.zip".Format(_user.Id))));
+					Assert.That(File.Exists(GetTestFileName("{0}.zip".Format(_user.Id))));
+					Assert.That(File.Exists(GetTestFileName("r{0}.zip".Format(_user.Id))));
+					Assert.That(File.Exists(GetTestFileName("{0}d.zip".Format(_user.Id))));
+					Assert.That(File.Exists(GetTestFileName("{0}_.txt".Format(_user.Id))));
+
+					Assert.That(!File.Exists(GetTestFileName("{0}_.zip".Format(_user.Id))));
+					Assert.That(!File.Exists(GetTestFileName("{0}_mm.zip".Format(_user.Id))));
+					Assert.That(!File.Exists(GetTestFileName("{0}_203.zip".Format(_user.Id))));
+
+					var eventsWithFiles = memoryAppender.GetEvents();
+					Assert.That(eventsWithFiles.Length, Is.EqualTo(3));
+					Assert.That(eventsWithFiles.ToList().TrueForAll(e => e.RenderedMessage.StartsWith("Удалили файл с предыдущими подготовленными данными:")));
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+
 		}
 
 	}

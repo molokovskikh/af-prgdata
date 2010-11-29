@@ -278,7 +278,7 @@ namespace PrgData.Common
 
 		public string GetOldFileMask()
 		{
-			return String.Format("{0}*.zip", UserId);
+			return String.Format("{0}_*.zip", UserId);
 		}
 	}
 }
