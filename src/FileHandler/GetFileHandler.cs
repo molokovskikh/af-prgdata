@@ -148,6 +148,7 @@ where c.Status = 1
 				_log.DebugFormat("Успешно наложена блокировка FileHandler для пользователя: {0}", UserId);
 
 				context.Response.ContentType = "application/octet-stream";
+				_log.DebugFormat("Начали передачу файла для пользователя: {0}", UserId);
 				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read))
 				{
 					_totalBytes = stmFileStream.Length;
@@ -155,9 +156,12 @@ where c.Status = 1
 						stmFileStream.Position = _fromByte;
 					context.Response.AppendHeader("INFileSize", stmFileStream.Length.ToString());
 					CopyStreams(stmFileStream, context.Response.OutputStream);
-					context.Response.Flush();
-					LogSend();
 				}
+
+				_log.DebugFormat("Производим вызов Flush() для пользователя: {0}", UserId);
+				context.Response.Flush();
+				_log.DebugFormat("Производим протоколирование после передачи файла для пользователя: {0}", UserId);
+				LogSend();
 			}
 			catch (COMException comex)
 			{
