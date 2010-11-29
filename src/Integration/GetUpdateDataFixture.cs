@@ -477,7 +477,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 					() => updateData.GetCurrentFile(3),
 					Throws.InstanceOf<Exception>()
 						.And.Property("Message").EqualTo("Не установлено свойство ResultPath"));
-				Assert.That(updateData.GetOldFileMask(), Is.EqualTo(String.Format("{0}*.zip", _user.Id)));
+				Assert.That(updateData.GetOldFileMask(), Is.EqualTo(String.Format("{0}_*.zip", _user.Id)));
 
 				updateData.ResultPath = "result\\";
 
@@ -485,7 +485,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.That(updateData.GetOrdersFile(), Is.EqualTo(String.Format("{0}Orders{1}.zip", updateData.ResultPath, _user.Id)));
 				Assert.That(updateData.GetCurrentFile(3), Is.EqualTo(String.Format("{0}{1}_{2}.zip", updateData.ResultPath, _user.Id, 3)));
 				Assert.That(updateData.GetCurrentTempFile(), Is.StringStarting(String.Format("{0}{1}_{2}", updateData.ResultPath, _user.Id, DateTime.Now.ToString("yyyyMMddHHmm"))));
-				Assert.That(updateData.GetOldFileMask(), Is.EqualTo(String.Format("{0}*.zip", _user.Id)));
+				Assert.That(updateData.GetOldFileMask(), Is.EqualTo(String.Format("{0}_*.zip", _user.Id)));
 
 				Assert.That(
 					() => updateData.GetPreviousFile(),
