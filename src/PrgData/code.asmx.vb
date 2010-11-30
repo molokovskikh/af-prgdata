@@ -2746,6 +2746,10 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
                 SelProc.ExecuteNonQuery()
 
+                If File.Exists(GetShareFileName("UpdateInfo" & UserId & ".txt")) Then
+                    Log.DebugFormat("В расшаренном каталоге существует файл: {0}", GetShareFileName("UpdateInfo" & UserId & ".txt"))
+                End If
+
                 GetMySQLFileWithDefault( _
                  "UpdateInfo", _
                  SelProc, _
@@ -3055,6 +3059,7 @@ RestartTrans2:
             Catch ex As Exception
                 ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
+                    Log.DebugFormat("Перезапускаем транзакцию из-за deadlock")
                     Thread.Sleep(500)
                     GoTo RestartTrans2
                 End If
@@ -3493,6 +3498,10 @@ RestartTrans2:
             FilesForArchive.Enqueue(New FileForArchive("EndOfFiles.txt", False))
         End SyncLock
     End Sub
+
+    Private Function GetShareFileName(ByVal outFileName As String)
+        Return Path.Combine(MySqlFilePath(), outFileName)
+    End Function
 
     Private Function GetFileNameForMySql(ByVal outFileName As String) As String
         Dim fullName = Path.Combine(MySqlFilePath(), outFileName)
