@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using log4net;
+using log4net.Config;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
@@ -184,6 +189,120 @@ limit 0, 50", conn);
 					command.Parameters.AddWithValue("?UserId", _user.Id);
 					command.ExecuteNonQuery();
 				});
+		}
+
+		public class CostLogInsert
+		{
+			public uint ClientId;
+
+			private ILog _log;
+
+			public Thread Thread;
+
+			//общее кол-во вставляемых записей
+			private int _insertCount = 8000;
+			//кол-во записей вставляемых одной командой
+			private int _packCount = 300;
+
+			public bool Error { get; private set; }
+
+			public CostLogInsert(uint clientId)
+			{
+				_log = LogManager.GetLogger(typeof (CostLogInsert));
+				Thread = new Thread(ThreadMethod);
+				Thread.Start();
+				ClientId = clientId;
+			}
+
+			public string ForMySql(decimal? value)
+			{
+				if (value == null)
+					return "null";
+				return value.Value.ToString(CultureInfo.InvariantCulture);
+			}
+
+			public void ThreadMethod()
+			{
+				try
+				{
+					using (var connection = new MySqlConnection(Settings.ConnectionString()))
+					{
+						connection.Open();
+						var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
+						try
+						{
+							var header = "insert into logs.CostOptimizationLogs(ClientId, SupplierId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost) values";
+							var logCommand = new MySqlCommand(header, connection);
+
+							var begin = 0;
+
+							while (begin < _insertCount)
+							{
+								var commandText = new StringBuilder();
+								commandText.Append(header);
+
+								for (var i = 0; i < _packCount; i++)
+								{
+									if (begin + i >= _insertCount)
+										break;
+
+									commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", 1, 1, ForMySql(1.1m), ForMySql(1.2m), ForMySql(1.3m), ForMySql(1.0m), ClientId, 2));
+									if (i < (_packCount-1) && begin + i < _insertCount - 1)
+										commandText.AppendLine(", ");
+								}
+								logCommand.CommandText = commandText.ToString();
+								logCommand.ExecuteNonQuery();
+								begin += _packCount;
+							}
+
+							transaction.Commit();
+						}
+						catch
+						{
+							ConnectionHelper.SafeRollback(transaction);
+							throw;
+						}
+					}
+				}
+				catch (Exception exception)
+				{
+					Error = true;
+					_log.ErrorFormat("Ошибка для клиента {0}: {1}", ClientId, exception);
+				}
+			}
+
+		}
+
+		[Test(Description = "Проверка множественных вставок в CostOptimizationLogs для воспроизведения ошибки Duplicate entry")]
+		public void TestMultiInsertWithSomeThreads()
+		{
+			BasicConfigurator.Configure();
+			try
+			{
+				var log = LogManager.GetLogger(typeof(CostOptimizationFixture));
+
+				log.Debug("Начали работу теста");
+
+				var list = new List<CostLogInsert>();
+				var clientCount = 10;
+				for (int i = 0; i < clientCount; i++)
+				{
+					list.Add(new CostLogInsert((uint)i+1));
+				}
+
+				do
+				{
+					Thread.Sleep(500);
+				} while (!list.TrueForAll(item => item.Thread.ThreadState == ThreadState.Stopped));
+
+				Assert.That(list.TrueForAll(item => !item.Error), "В одной из ниток возникла ошибка");
+
+				log.Debug("Закончили работу теста");
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
 		}
 
 	}
