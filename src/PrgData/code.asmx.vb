@@ -2746,10 +2746,6 @@ RestartTrans2:
                 SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
                 SelProc.ExecuteNonQuery()
 
-                If File.Exists(GetShareFileName("UpdateInfo" & UserId & ".txt")) Then
-                    Log.DebugFormat("В расшаренном каталоге существует файл: {0}", GetShareFileName("UpdateInfo" & UserId & ".txt"))
-                End If
-
                 GetMySQLFileWithDefault( _
                  "UpdateInfo", _
                  SelProc, _
@@ -3060,7 +3056,7 @@ RestartTrans2:
                 ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
                     Log.DebugFormat("Перезапускаем транзакцию из-за deadlock")
-                    Thread.Sleep(500)
+                    Thread.Sleep(2500)
                     GoTo RestartTrans2
                 End If
                 Throw
