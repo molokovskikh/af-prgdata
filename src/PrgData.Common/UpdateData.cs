@@ -36,9 +36,6 @@ namespace PrgData.Common
 		public bool Spy;
 		public bool SpyAccount;
 
-		public bool EnableUpdate;
-		private readonly bool _updateToTestBuild;
-
 		public bool ClientEnabled;
 		public bool UserEnabled;
 
@@ -48,6 +45,7 @@ namespace PrgData.Common
 
 		public int? BuildNumber;
 		public int? KnownBuildNumber;
+		public int? TargetVersion;
 
 		public string UniqueID;
 		public string KnownUniqueID;
@@ -103,8 +101,6 @@ namespace PrgData.Common
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
-			EnableUpdate = Convert.ToBoolean(row["EnableUpdate"]);
-			_updateToTestBuild = Convert.ToBoolean(row["UpdateToTestBuild"]);
 			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
 			UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
 			BuyingMatrixPriceId = Convert.IsDBNull(row["BuyingMatrixPriceId"])
@@ -115,6 +111,7 @@ namespace PrgData.Common
 			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
 			KnownUniqueID = row["KnownUniqueID"].ToString();
 			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (int?)Convert.ToInt32(row["KnownBuildNumber"]);
+			TargetVersion = Convert.IsDBNull(row["TargetVersion"]) ? null : (int?)Convert.ToInt32(row["TargetVersion"]);
 			NetworkSupplierId = Convert.IsDBNull(row["NetworkSupplierId"])
 			                    	? null
 			                    	: (uint?) Convert.ToUInt32(row["NetworkSupplierId"]);
@@ -137,12 +134,6 @@ namespace PrgData.Common
 
 		private string GetUpdateFilesPath(string result)
 		{
-			if (EnableUpdate && _updateToTestBuild && BuildNumber.HasValue)
-			{
-				var testPath = result + @"Updates\test_" + BuildNumber + @"\";
-				if (Directory.Exists(testPath))
-					return testPath;
-			}
 			return result + @"Updates\Future_" + (BuildNumber.HasValue ? BuildNumber.ToString() : "null") + @"\";
 		}
 
@@ -185,7 +176,7 @@ namespace PrgData.Common
 
 		public bool NeedUpdateTo945()
 		{
-			return (BuildNumber == 945 || (BuildNumber >= 829 && BuildNumber <= 837)) && EnableUpdate;
+			return (BuildNumber == 945 || (BuildNumber >= 829 && BuildNumber <= 837)) && EnableUpdate();
 		}
 
 		private bool CheckNeedUpdateToBuyingMatrix()
@@ -224,7 +215,7 @@ namespace PrgData.Common
 
 		private FileVersionInfo GetUpdateVersionInfo()
 		{
-			if (!EnableUpdate)
+			if (!AllowUpdate())
 				return null;
 
 			try
@@ -280,5 +271,16 @@ namespace PrgData.Common
 		{
 			return String.Format("{0}_*.zip", UserId);
 		}
+
+		private bool AllowUpdate()
+		{
+			return BuildNumber.HasValue && (!TargetVersion.HasValue || BuildNumber < TargetVersion);
+		}
+
+		public bool EnableUpdate()
+		{
+			return AllowUpdate() && UpdateExeVersionInfo != null && (!TargetVersion.HasValue || UpdateExeVersionInfo.FilePrivatePart <= TargetVersion);
+		}
+	
 	}
 }

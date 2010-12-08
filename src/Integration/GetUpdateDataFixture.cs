@@ -175,14 +175,12 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				updateData.EnableUpdate = true;
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1183");
 				Assert.IsTrue(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
 				Assert.IsTrue(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
 
 				updateData = UpdateHelper.GetUpdateData(connection, login);
-				updateData.EnableUpdate = true;
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1263");
 				//Значения будут false, т.к. обновление для версии 1263 не выложено
@@ -197,7 +195,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				updateData.EnableUpdate = true;
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1269");
 				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
@@ -211,7 +208,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				updateData.EnableUpdate = true;
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1271");
 				Assert.IsTrue(updateData.NeedUpdateToNewClientsWithLegalEntity, "Неправильно сработало условие обновления новых клиентов с юр лицами");
@@ -224,7 +220,6 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				updateData.EnableUpdate = true;
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1279");
 				Assert.IsFalse(updateData.NeedUpdateToNewClientsWithLegalEntity, "Неправильно сработало условие обновления новых клиентов с юр лицами");
@@ -524,6 +519,69 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				updateData.BuildNumber = 1301;
 				updateData.KnownBuildNumber = 1300;
 				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(true), "Не доступен механизм для версии > 1299");
+			}
+		}
+
+		[Test(Description = "проверяем корректное чтение TargetVersion")]
+		public void CheckReadTargetVersion()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo set TargetVersion = null where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData.TargetVersion, Is.Null);
+
+				const int targetVersion = 1300;
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo set TargetVersion = ?TargetVersion where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?TargetVersion", targetVersion));
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData.TargetVersion, Is.EqualTo(targetVersion));
+			}
+		}
+
+		[Test(Description = "Проверяем результат функции EnableUpdate при различных значениях TargetVersion")]
+		public void CheckSetEnableUpdate()
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				//Если все в null и BuildNumber не установлен, то неизвестно, что на что обновлять, поэтому обновление запрещено
+				updateData.TargetVersion = null;
+				updateData.BuildNumber = null;
+				Assert.That(updateData.EnableUpdate(), Is.EqualTo(false));
+
+				//Если BuildNumber установлен в 1271, то для нее выложено автообновление в TestData
+				//т.к. TargetVersion = null, то автообновление разрешено
+				updateData.ParseBuildNumber("6.0.0.1271");
+				Assert.That(updateData.EnableUpdate(), Is.EqualTo(true));
+
+				//Если TargetVersion равно BuildNumber, то автообновлять не на что
+				updateData.TargetVersion = 1271;
+				Assert.That(updateData.EnableUpdate(), Is.EqualTo(false));
+
+				//TargetVersion соответствует той версии, что выложена в автообновление,
+				//поэтому автообновление разрешено
+				updateData.TargetVersion = 1279;
+				Assert.That(updateData.EnableUpdate(), Is.EqualTo(true));
+
+				//TargetVersion меньше той версии, что выложена в автообновление,
+				//поэтому автообновление не разрешено
+				updateData.TargetVersion = 1275;
+				Assert.That(updateData.EnableUpdate(), Is.EqualTo(false));
 			}
 		}
 

@@ -432,9 +432,9 @@ Public Class PrgDataEx
                 'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
                 If UpdateData.BuildNumber > 716 Then
                     'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
-                    If ((UpdateData.BuildNumber = 945) And UpdateData.EnableUpdate) Or (UpdateData.BuildNumber > 945) Then
+                    If ((UpdateData.BuildNumber = 945) And UpdateData.EnableUpdate()) Or (UpdateData.BuildNumber > 945) Then
                     Else
-                        If (UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837) And UpdateData.EnableUpdate Then
+                        If (UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837) And UpdateData.EnableUpdate() Then
                             Addition &= "Производится обновление программы с 800-х версий на MySql; "
                         Else
                             'FileCount = 16
@@ -442,7 +442,7 @@ Public Class PrgDataEx
                     End If
                     BaseThread = New Thread(AddressOf MySqlProc)
                 Else
-                    If ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) And UpdateData.EnableUpdate Then
+                    If ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) And UpdateData.EnableUpdate() Then
                         BaseThread = New Thread(AddressOf MySqlProc)
                         'FileCount = 19
                         GED = True
@@ -906,7 +906,7 @@ endproc:
 
                         'Архивирование обновления программы
                         Try
-                            If UpdateData.EnableUpdate Then
+                            If UpdateData.EnableUpdate() Then
 
                                 ef = UpdateData.GetUpdateFiles(ResultFileName)
                                 If ef.Length > 0 Then
@@ -956,7 +956,7 @@ endproc:
 
                         'Архивирование FRF
                         Try
-                            If UpdateData.EnableUpdate Then
+                            If UpdateData.EnableUpdate() Then
                                 ef = UpdateData.GetFrfUpdateFiles(ResultFileName)
                                 If ef.Length > 0 Then
                                     For Each Name In ef
@@ -2778,10 +2778,10 @@ RestartTrans2:
                 ThreadZipStream = New Thread(AddressOf ZipStream)
                 ThreadZipStream.Start()
 
-                If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) _
+                If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) _
                 Then
 
-                    If (UpdateData.BuildNumber >= 1150) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
+                    If (UpdateData.BuildNumber >= 1150) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
                         'Подготовка данных для версии программы >= 1150 или обновление на нее
                         GetMySQLFileWithDefaultEx( _
                          "Catalogs", _
@@ -2798,7 +2798,7 @@ RestartTrans2:
                              False, _
                              GED, _
                              (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN), _
-                         ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate, _
+                         ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate(), _
                          True)
 
                         GetMySQLFileWithDefaultEx( _
@@ -2808,7 +2808,7 @@ RestartTrans2:
                          UpdateData.NeedUpdateTo945(), _
                          True)
 
-                        If (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
+                        If (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
                             'Если производим обновление на версию 1159 и выше, то надо полностью отдать каталог производителей
                             GetMySQLFileWithDefaultEx( _
                              "Producers", _
@@ -2837,7 +2837,7 @@ RestartTrans2:
                          "MNN", _
                          SelProc, _
                          helper.GetMNNCommand(True, GED, False), _
-                         ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate, _
+                         ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate(), _
                          True)
 
                         GetMySQLFileWithDefaultEx( _
@@ -2985,11 +2985,11 @@ RestartTrans2:
                          SelProc, _
                          helper.GetCoreCommand( _
                           False, _
-                          (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
+                          (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
                           (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, _
                           False
                          ), _
-                         (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate, _
+                         (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate(), _
                          True, _
                          debugHelper
                         )
@@ -3001,10 +3001,10 @@ RestartTrans2:
                         GetMySQLFileWithDefault("Core", SelProc, "SELECT * from ActivePrices limit 0")
                     End If
 
-                    If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) Then
+                    If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) Then
                         If helper.DefineMaxProducerCostsCostId() Then
                             If GED _
-                             Or (UpdateData.EnableUpdate And ((UpdateData.BuildNumber < 1049) Or ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150)))) _
+                             Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber < 1049) Or ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150)))) _
                              Or helper.MaxProducerCostIsFresh() _
                             Then
                                 GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand())

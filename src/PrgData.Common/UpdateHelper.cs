@@ -325,6 +325,7 @@ SELECT
 	rui.AFAppVersion as KnownBuildNumber,
 	rui.AFCopyId as KnownUniqueID,
 	if(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
+	rui.TargetVersion,
 	retclientsset.CheckCopyId,
 	'' Future,
     c.Name as ShortName,
@@ -335,10 +336,8 @@ SELECT
     retclientsset.WarningOnBuyingMatrix,
     retclientsset.EnableImpersonalPrice,
 	retclientsset.NetworkSupplierId,
-    u.EnableUpdate,
     c.Status as ClientEnabled,
-    (u.Enabled and ap.UserId is not null) as UserEnabled,
-	0 as UpdateToTestBuild
+    (u.Enabled and ap.UserId is not null) as UserEnabled
 FROM  
   future.users u
   join future.Clients c                         on c.Id = u.ClientId
@@ -383,12 +382,11 @@ SELECT  ouar.clientcode as ClientId,
 		rui.AFAppVersion as KnownBuildNumber,
 		rui.AFCopyId as KnownUniqueID,
         if(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
+        rui.TargetVersion,
         retclientsset.CheckCopyID,
         clientsdata.ShortName,
         retclientsset.Spy, 
         retclientsset.SpyAccount,
-        retclientsset.EnableUpdate,
-		retclientsset.UpdateToTestBuild,
 		retclientsset.BuyingMatrixPriceId,
 		retclientsset.BuyingMatrixType,
 		retclientsset.WarningOnBuyingMatrix,
