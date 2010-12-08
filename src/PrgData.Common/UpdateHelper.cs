@@ -2631,15 +2631,15 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 			}
 		}
 
-		public void UpdateBuildNumber()
+		public static void UpdateBuildNumber(MySqlConnection readWriteConnection, UpdateData updateData)
 		{
-			if (!_updateData.KnownBuildNumber.HasValue || _updateData.KnownBuildNumber < _updateData.BuildNumber)
+			if (!updateData.KnownBuildNumber.HasValue || updateData.KnownBuildNumber < updateData.BuildNumber)
 				With.DeadlockWraper(() =>
 				{
-					var command = new MySqlCommand("update usersettings.UserUpdateInfo set AFAppVersion = ?BuildNumber where UserId = ?UserId", _readWriteConnection);
-					command.Parameters.AddWithValue("?BuildNumber", _updateData.BuildNumber);
-					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-					var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+					var command = new MySqlCommand("update usersettings.UserUpdateInfo set AFAppVersion = ?BuildNumber where UserId = ?UserId", readWriteConnection);
+					command.Parameters.AddWithValue("?BuildNumber", updateData.BuildNumber);
+					command.Parameters.AddWithValue("?UserId", updateData.UserId);
+					var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 					try
 					{
 						command.Transaction = transaction;

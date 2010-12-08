@@ -1208,5 +1208,31 @@ and ForceReplication > 0;",
 			}
 		}
 
+		[Test(Description = "проверяем работу метода UpdateBuildNumber")]
+		public void TestUpdateBuildNumber()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo set AFAppVersion = 0 where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				Assert.That(updateData.KnownBuildNumber, Is.EqualTo(0));
+
+				const int changedBuildNumber = 1300;
+				updateData.BuildNumber = changedBuildNumber;
+				UpdateHelper.UpdateBuildNumber(connection, updateData);
+
+				var changedUpdateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				Assert.That(changedUpdateData.KnownBuildNumber, Is.EqualTo(changedBuildNumber), "Не сохранился номер версии AnalitF");
+			}
+		}
+
 	}
 }

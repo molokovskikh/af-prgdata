@@ -192,7 +192,10 @@ Public Class PrgDataEx
             DBConnect()
             GetClientCode()
             If CheckUIN Then UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
-            If CheckUIN Then UpdateData.ParseBuildNumber(EXEVersion)
+            If CheckUIN Then
+                UpdateData.ParseBuildNumber(EXEVersion)
+                UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+            End If
 
             Dim tmpWaybillFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName())
             Dim tmpWaybillArchive = tmpWaybillFolder + "\waybills.7z"
@@ -396,14 +399,13 @@ Public Class PrgDataEx
                 UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
                 'Присваиваем версии приложения и базы
                 UpdateData.ParseBuildNumber(EXEVersion)
+                UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
             End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
 
             'Если с момента последнего обновления менее установленного времени
             If Not Documents Then
-
-                helper.UpdateBuildNumber()
 
                 'Если несовпадает время последнего обновления на клиете и сервере
                 If Not GED AndAlso (OldUpTime <> AccessTime.ToLocalTime) Then
@@ -1849,7 +1851,10 @@ StartZipping:
             GetClientCode()
             Counter.TryLock(UserId, "PostOrder")
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
-            If Not String.IsNullOrEmpty(EXEVersion) Then UpdateData.ParseBuildNumber(EXEVersion)
+            If Not String.IsNullOrEmpty(EXEVersion) Then
+                UpdateData.ParseBuildNumber(EXEVersion)
+                UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+            End If
 
             Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders)
 
@@ -1936,7 +1941,7 @@ StartZipping:
             Counter.TryLock(UserId, "PostOrderBatch")
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
-
+            UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 
             Dim helper = New SmartOrderHelper(UpdateData, ClientId, MaxOrderId, MaxOrderListId, MaxBatchId)
 
@@ -3209,6 +3214,7 @@ RestartTrans2:
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
             If Not String.IsNullOrEmpty(EXEVersion) Then
                 UpdateData.ParseBuildNumber(EXEVersion)
+                UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
             End If
 
             Dim needSessionKey = False
@@ -3278,7 +3284,10 @@ RestartTrans2:
             DBConnect()
             GetClientCode()
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
-            If Not String.IsNullOrEmpty(EXEVersion) Then UpdateData.ParseBuildNumber(EXEVersion)
+            If Not String.IsNullOrEmpty(EXEVersion) Then
+                UpdateData.ParseBuildNumber(EXEVersion)
+                UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+            End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             helper.UpdatePriceSettings(PriceCodes, RegionCodes, INJobs)
@@ -3625,6 +3634,7 @@ RestartTrans2:
             Counter.TryLock(UserId, "GetHistoryOrders")
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
+            UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 
             Dim historyIds As String = String.Empty
             If (ExistsServerOrderIds.Length > 0) AndAlso (ExistsServerOrderIds(0) <> 0) Then
@@ -3898,6 +3908,7 @@ endproc:
             GetClientCode()
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
+            UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 
             If Not UpdateData.Message.Equals(ConfirmedMessage, StringComparison.OrdinalIgnoreCase) Then
                 Me.Log.DebugFormat("Пользовательское сообщение уже подтверждено или изменено: ConfirmedMessage:{0};  Message:{1};", ConfirmedMessage, UpdateData.Message)
