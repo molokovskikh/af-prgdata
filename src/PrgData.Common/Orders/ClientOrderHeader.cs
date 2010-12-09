@@ -43,7 +43,7 @@ namespace PrgData.Common.Orders
 			ClearOnCreate();
 		}
 
-		public string GetResultToClient(int? buildNumber)
+		public string GetResultToClient(uint? buildNumber)
 		{
 			var result = String.Format(
 				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}{5}",

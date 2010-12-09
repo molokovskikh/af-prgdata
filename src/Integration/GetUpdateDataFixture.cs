@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Castle.ActiveRecord;
+using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Repositories;
 using Common.Models.Tests.Repositories;
@@ -11,6 +13,9 @@ using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
 using PrgData.Common;
+using PrgData.Common.Model;
+using PrgData.Common.Repositories;
+using SmartOrderFactory.Domain;
 using Test.Support;
 using Test.Support.Logs;
 
@@ -31,7 +36,10 @@ namespace Integration
 		public void FixtureSetUp()
 		{
 			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests();
+			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
+			IoC.Container.Register(
+				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
+				);
 
 			using (var transaction = new TransactionScope())
 			{
@@ -171,7 +179,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_ON_flags_for_BuyingMatrix_and_MNN(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -182,8 +190,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
-				updateData.ParseBuildNumber("6.0.0.1263");
-				//Значения будут false, т.к. обновление для версии 1263 не выложено
+				updateData.ParseBuildNumber("6.0.0.1269");
+				//Значения будут false, т.к. версия 1269 не требует обновления МНН и матрицы закупок
 				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix, "Неправильно сработало условие обновления на матрицу закупок");
 				Assert.IsFalse(updateData.NeedUpdateToNewMNN, "Неправильно сработало условие обновления на МНН");
 			}
@@ -191,7 +199,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_OFF_flags_for_BuyingMatrix_and_MNN(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -204,7 +212,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_ON_flags_for_NewClients(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -216,7 +224,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_OFF_flags_for_NewClients(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -231,7 +239,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			var login = _user.Login;
 
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -255,7 +263,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			var login = _user.Login;
 
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -551,7 +559,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		[Test(Description = "Проверяем результат функции EnableUpdate при различных значениях TargetVersion")]
 		public void CheckSetEnableUpdate()
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\TestData\\";
+			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
@@ -575,7 +583,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				//TargetVersion соответствует той версии, что выложена в автообновление,
 				//поэтому автообновление разрешено
-				updateData.TargetVersion = 1279;
+				updateData.TargetVersion = 1317;
 				Assert.That(updateData.EnableUpdate(), Is.EqualTo(true));
 
 				//TargetVersion меньше той версии, что выложена в автообновление,

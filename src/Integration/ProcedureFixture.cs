@@ -24,6 +24,8 @@ using NHibernate;
 using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
+using PrgData.Common.Model;
+using PrgData.Common.Repositories;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using Test.Support;
@@ -53,9 +55,12 @@ namespace Integration
 			ServiceContext.GetResultPath = () => "results\\";
 
 			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
+			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
 			IoC.Container.Register(
 				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
+				);
+			IoC.Container.Register(
+				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
 				);
 
 			repository = IoC.Resolve<ISmartOfferRepository>();

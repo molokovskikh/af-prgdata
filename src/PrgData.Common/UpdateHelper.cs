@@ -2268,7 +2268,7 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 			InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
 		}
 
-		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, int? appVersion)
+		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, uint? appVersion)
 		{
 			MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
 				connection,

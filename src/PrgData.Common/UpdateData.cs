@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Data;
 using System.Diagnostics;
+using PrgData.Common.AnalitFVersions;
 
 namespace PrgData.Common
 {
@@ -43,9 +44,9 @@ namespace PrgData.Common
 		public int BuyingMatrixType;
 		public bool WarningOnBuyingMatrix;
 
-		public int? BuildNumber;
-		public int? KnownBuildNumber;
-		public int? TargetVersion;
+		public uint? BuildNumber;
+		public uint? KnownBuildNumber;
+		public uint? TargetVersion;
 
 		public string UniqueID;
 		public string KnownUniqueID;
@@ -62,7 +63,7 @@ namespace PrgData.Common
 
 		public bool NeedUpdateToNewClientsWithLegalEntity { get; private set; }
 
-		public FileVersionInfo UpdateExeVersionInfo { get; private set; }
+		public VersionInfo UpdateExeVersionInfo { get; private set; }
 
 		public uint? NetworkSupplierId;
 
@@ -110,8 +111,8 @@ namespace PrgData.Common
 			WarningOnBuyingMatrix = Convert.ToBoolean(row["WarningOnBuyingMatrix"]);
 			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
 			KnownUniqueID = row["KnownUniqueID"].ToString();
-			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (int?)Convert.ToInt32(row["KnownBuildNumber"]);
-			TargetVersion = Convert.IsDBNull(row["TargetVersion"]) ? null : (int?)Convert.ToInt32(row["TargetVersion"]);
+			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (uint?)Convert.ToUInt32(row["KnownBuildNumber"]);
+			TargetVersion = Convert.IsDBNull(row["TargetVersion"]) ? null : (uint?)Convert.ToUInt32(row["TargetVersion"]);
 			NetworkSupplierId = Convert.IsDBNull(row["NetworkSupplierId"])
 			                    	? null
 			                    	: (uint?) Convert.ToUInt32(row["NetworkSupplierId"]);
@@ -122,14 +123,12 @@ namespace PrgData.Common
 			return !ClientEnabled || !UserEnabled;
 		}
 
-		public string[] GetUpdateFiles(string result)
+		public string[] GetUpdateFiles()
 		{
-			return GetUpdateFiles(GetUpdateFilesPath(result), "exe");
-		}
+			if (EnableUpdate())
+				return GetUpdateFiles(UpdateExeVersionInfo.ExeFolder(), String.Empty);
 
-		private string GetUpdateFilesPath(string result)
-		{
-			return result + @"Updates\Future_" + (BuildNumber.HasValue ? BuildNumber.ToString() : "null") + @"\";
+			return new string[]{};
 		}
 
 		private string[] GetUpdateFiles(string path, string sufix)
@@ -145,8 +144,8 @@ namespace PrgData.Common
 			var numbers = exeVersion.Split('.');
 			if (numbers.Length > 0 && !String.IsNullOrEmpty(numbers[numbers.Length-1]))
 			{
-				int buildNumber;
-				if (int.TryParse(numbers[numbers.Length - 1], out buildNumber))
+				uint buildNumber;
+				if (uint.TryParse(numbers[numbers.Length - 1], out buildNumber))
 				{
 					BuildNumber = buildNumber;
 					if (!NetworkSupplierId.HasValue)
@@ -177,7 +176,7 @@ namespace PrgData.Common
 		private bool CheckNeedUpdateToBuyingMatrix()
 		{
 			if (UpdateExeVersionInfo != null && BuildNumber >= 1183 && BuildNumber <= 1229)
-				return UpdateExeVersionInfo.FilePrivatePart >= 1249;
+				return UpdateExeVersionInfo.VersionNumber >= 1249;
 
 			return false;
 		}
@@ -185,7 +184,7 @@ namespace PrgData.Common
 		private bool CheckNeedUpdateToNewMNN()
 		{
 			if (UpdateExeVersionInfo != null && BuildNumber >= 1183 && BuildNumber <= 1263)
-				return UpdateExeVersionInfo.FilePrivatePart > 1263;
+				return UpdateExeVersionInfo.VersionNumber > 1263;
 
 			return false;
 		}
@@ -198,7 +197,7 @@ namespace PrgData.Common
 		private bool CheckNeedUpdateToNewClientsWithLegalEntity()
 		{
 			if (UpdateExeVersionInfo != null && BuildNumber <= 1271)
-				return UpdateExeVersionInfo.FilePrivatePart > 1271;
+				return UpdateExeVersionInfo.VersionNumber > 1271;
 
 			return false;
 		}
@@ -208,20 +207,12 @@ namespace PrgData.Common
 			return (BuildNumber > _versionOfConfirmUserMessage || KnownBuildNumber > _versionOfConfirmUserMessage);
 		}
 
-		private FileVersionInfo GetUpdateVersionInfo()
+		private VersionInfo GetUpdateVersionInfo()
 		{
 			if (!AllowUpdate())
 				return null;
 
-			try
-			{
-				var exeName = Array.Find(GetUpdateFiles(ServiceContext.GetResultPath()), item => item.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase));
-				return FileVersionInfo.GetVersionInfo(exeName);
-			}
-			catch
-			{
-				return null;
-			}
+			return VersionUpdaterFactory.GetUpdater().GetVersionInfo(BuildNumber.Value, TargetVersion);
 		}
 
 		private void CheckResultPath()
@@ -274,7 +265,7 @@ namespace PrgData.Common
 
 		public bool EnableUpdate()
 		{
-			return AllowUpdate() && UpdateExeVersionInfo != null && (!TargetVersion.HasValue || UpdateExeVersionInfo.FilePrivatePart <= TargetVersion);
+			return AllowUpdate() && UpdateExeVersionInfo != null && (!TargetVersion.HasValue || UpdateExeVersionInfo.VersionNumber <= TargetVersion);
 		}
 	
 	}

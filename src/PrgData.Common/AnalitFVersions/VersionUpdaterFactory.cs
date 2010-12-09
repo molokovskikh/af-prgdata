@@ -33,31 +33,35 @@ namespace PrgData.Common.AnalitFVersions
 			var infos = new List<VersionInfo>();
 
 			var dirInfo = new DirectoryInfo(Path.Combine(ServiceContext.GetResultPath(), "Updates"));
-			var releaseInfos = dirInfo.GetDirectories("Release*");
 
-			foreach (var releaseInfo in releaseInfos)
+			if (dirInfo.Exists)
 			{
-				try
-				{
-					var info = new VersionInfo(releaseInfo.FullName);
-					infos.Add(info);
-				}
-				catch (Exception exception)
-				{
-					stringBuilder.AppendLine(exception.ToString());
-					stringBuilder.AppendLine();
-				}
-			}
+				var releaseInfos = dirInfo.GetDirectories("Release*");
 
-			var currentErrorMessage = stringBuilder.ToString();
-			if (String.IsNullOrEmpty(currentErrorMessage))
-				_lastVersionErrorMessage = null;
-			else
-				if (!currentErrorMessage.Equals(_lastVersionErrorMessage))
+				foreach (var releaseInfo in releaseInfos)
 				{
-					_logger.ErrorFormat("При разборе версий возникли ошибки:\r\n{0}", currentErrorMessage);
-					_lastVersionErrorMessage = currentErrorMessage;
+					try
+					{
+						var info = new VersionInfo(releaseInfo.FullName);
+						infos.Add(info);
+					}
+					catch (Exception exception)
+					{
+						stringBuilder.AppendLine(exception.ToString());
+						stringBuilder.AppendLine();
+					}
 				}
+
+				var currentErrorMessage = stringBuilder.ToString();
+				if (String.IsNullOrEmpty(currentErrorMessage))
+					_lastVersionErrorMessage = null;
+				else
+					if (!currentErrorMessage.Equals(_lastVersionErrorMessage))
+					{
+						_logger.ErrorFormat("При разборе версий возникли ошибки:\r\n{0}", currentErrorMessage);
+						_lastVersionErrorMessage = currentErrorMessage;
+					}
+			}
 
 			return infos;
 		}

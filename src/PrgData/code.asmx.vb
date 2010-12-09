@@ -908,7 +908,7 @@ endproc:
                         Try
                             If UpdateData.EnableUpdate() Then
 
-                                ef = UpdateData.GetUpdateFiles(ResultFileName)
+                                ef = UpdateData.GetUpdateFiles()
                                 If ef.Length > 0 Then
                                     Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
 

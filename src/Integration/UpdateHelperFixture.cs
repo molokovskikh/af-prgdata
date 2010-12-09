@@ -3,13 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Configuration;
 using System.Data;
+using System.Reflection;
 using Castle.ActiveRecord;
+using Castle.MicroKernel.Registration;
+using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
 using PrgData.Common.Counters;
+using PrgData.Common.Model;
+using PrgData.Common.Repositories;
+using SmartOrderFactory.Domain;
 using Test.Support;
 
 
@@ -28,7 +34,10 @@ namespace Integration
 		public void SetUp()
 		{
 			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests();
+			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
+			IoC.Container.Register(
+				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
+				);
 
 			using (var transaction = new TransactionScope())
 			{
