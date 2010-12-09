@@ -98,6 +98,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnalitFVersionsFixture.cs" />
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="FileHandlerFixture.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />

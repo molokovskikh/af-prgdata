@@ -141,6 +141,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AnalitFVersions\ExeVersionUpdater.cs" />
+    <Compile Include="AnalitFVersions\VersionInfo.cs" />
+    <Compile Include="AnalitFVersions\VersionUpdaterFactory.cs" />
     <Compile Include="ConnectionHelper.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="CostOptimizer.cs" />
@@ -150,8 +153,11 @@
     <Compile Include="FileForArchive.cs" />
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="MailHelper.cs" />
+    <Compile Include="Model\AnalitFVersionRule.cs" />
     <Compile Include="OrderHelper.cs" />
     <Compile Include="Orders\ClientOrderPosition.cs" />
+    <Compile Include="Repositories\IVersionRuleRepository.cs" />
+    <Compile Include="Repositories\VersionRuleRepository.cs" />
     <Compile Include="RequestType.cs" />
     <Compile Include="ShareFileHelper.cs" />
     <Compile Include="SmartOrderHelper.cs" />
@@ -184,6 +190,7 @@
       <Name>SmartOrderFactory</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

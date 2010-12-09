@@ -14,6 +14,8 @@ using Castle.Windsor;
 using Castle.MicroKernel.Registration;
 using Common.Models.Repositories;
 using NHibernate;
+using PrgData.Common.Model;
+using PrgData.Common.Repositories;
 using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
@@ -301,7 +303,8 @@ namespace PrgData.Common
 			sessionFactoryHolder
 				.Configuration
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))
-				.AddInputStream(HbmSerializer.Default.Serialize(typeof(SmartOrderRule).Assembly));
+				.AddInputStream(HbmSerializer.Default.Serialize(typeof(SmartOrderRule).Assembly))
+				.AddInputStream(HbmSerializer.Default.Serialize(typeof(AnalitFVersionRule).Assembly));
 			IoC.Initialize(new WindsorContainer()
 			               .Register(
 							Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
@@ -310,7 +313,8 @@ namespace PrgData.Common
 							Component.For<IOfferRepository>().ImplementedBy<OfferRepository>(),
 							Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
 							Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
-							Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>()
+							Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
+							Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
 			               	));
 		}
 	}
