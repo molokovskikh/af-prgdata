@@ -2,10 +2,11 @@ insert into usersettings.AnalitFVersionRules
 (SourceVersion, DestinationVersion)
 values
 (705, 716),
-(705, 1011),
-(716, 1011),
+(705, 1101),
+(716, 1101),
 (1011, 1065),
 (1065, 1106),
+(1101, 1161),
 (1106, 1161),
 (1161, 1183),
 (1183, 1317),
