@@ -953,57 +953,6 @@ endproc:
                         ArchTrans = Nothing
                         ArchCmd.Transaction = Nothing
 
-
-                        'Архивирование FRF
-                        Try
-                            If UpdateData.EnableUpdate() Then
-                                ef = UpdateData.GetFrfUpdateFiles(ResultFileName)
-                                If ef.Length > 0 Then
-                                    For Each Name In ef
-                                        FileInfo = New FileInfo(Name)
-                                        If FileInfo.Extension = ".frf" And FileInfo.LastWriteTime.Subtract(OldUpTime).TotalSeconds > 0 Then
-                                            Pr = System.Diagnostics.Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & FileInfo.FullName & """  " & SevenZipParam)
-
-
-                                            '#If Not Debug Then
-                                            '                                            Try
-                                            '                                                Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
-                                            '                                            Catch
-                                            '                                            End Try
-                                            '#End If
-
-                                            Pr.WaitForExit()
-
-                                            If Pr.ExitCode <> 0 Then
-                                                MailHelper.MailErr(CCode, "Архивирование Frf", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
-                                                Addition &= " Архивирование Frf, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-                                                ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-                                            End If
-                                        End If
-                                    Next
-                                End If
-                            End If
-
-                        Catch ex As ThreadAbortException
-
-                            If Not Pr Is Nothing Then
-                                If Not Pr.HasExited Then Pr.Kill()
-                                Pr.WaitForExit()
-                            End If
-                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-
-                        Catch ex As Exception
-
-                            Addition &= " Архивирование Frf: " & ex.Message & "; "
-                            MailHelper.MailErr(CCode, "Архивирование Frf", ex.Source & ": " & ex.Message)
-
-                            If Not Pr Is Nothing Then
-                                If Not Pr.HasExited Then Pr.Kill()
-                                Pr.WaitForExit()
-                            End If
-                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-
-                        End Try
                     End If
                 End If
 

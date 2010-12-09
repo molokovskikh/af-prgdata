@@ -127,11 +127,6 @@ namespace PrgData.Common
 			return GetUpdateFiles(GetUpdateFilesPath(result), "exe");
 		}
 
-		public string[] GetFrfUpdateFiles(string result)
-		{
-			return GetUpdateFiles(GetUpdateFilesPath(result), "frf");
-		}
-
 		private string GetUpdateFilesPath(string result)
 		{
 			return result + @"Updates\Future_" + (BuildNumber.HasValue ? BuildNumber.ToString() : "null") + @"\";
