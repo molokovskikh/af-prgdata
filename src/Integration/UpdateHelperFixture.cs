@@ -574,27 +574,27 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				}
 
 				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
-				//Установили несуществующего поставщика
-				updateData.NetworkSupplierId = 10100;
+				//Установили прайс поставщика Инфорум
+				updateData.NetworkPriceId = 2647;
 				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
 				DataRow row = clients.Rows[0];
-				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
-				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
+				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
+					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
 			}
 		}
 
-		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkSupplierId")]
-		public void Check_SelfClientId_by_NetworkSupplierId()
+		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkPriceId")]
+		public void Check_SelfClientId_by_NetworkPriceId()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				//Установили поставщика Инфорум
-				updateData.NetworkSupplierId = 3514;
+				//Установили прайс поставщика Инфорум
+				updateData.NetworkPriceId = 2647;
 
 				var helper = new UpdateHelper(updateData, connection);
 
@@ -609,17 +609,8 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
 					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
 
-				//Установили несуществующего поставщика
-				updateData.NetworkSupplierId = 10100;
-				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
-				clients = new DataTable();
-				dataAdapter.Fill(clients);
-				row = clients.Rows[0];
-				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
-				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
-
 				//Установили параметр в null
-				updateData.NetworkSupplierId = null;
+				updateData.NetworkPriceId = null;
 				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
@@ -627,7 +618,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			}
 		}
 
-		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkSupplierId для клиентов с несколькими юридическими лицами")]
+		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkPriceId для клиентов с несколькими юридическими лицами")]
 		public void Check_SelfClientId_for_future_client_with_version_greater_than_1271_and_same_LegalEntities()
 		{
 			TestAddress newAddress;
@@ -658,8 +649,8 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				updateData.BuildNumber = 1272;
 
 				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
-				//Установили несуществующего поставщика
-				updateData.NetworkSupplierId = 10100;
+				//Установили прайс поставщика Инфорум
+				updateData.NetworkPriceId = 2647;
 
 				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
@@ -669,11 +660,11 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				dataAdapter.Fill(clients);
 
 				var row = clients.Rows[0];
-				Assert.IsNotNullOrEmpty(row["SelfClientId"].ToString());
-				Assert.That(row["FirmCode"].ToString(), Is.EqualTo(row["SelfClientId"].ToString()));
+				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
+					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
 
 				//Установили параметр в null
-				updateData.NetworkSupplierId = null;
+				updateData.NetworkPriceId = null;
 				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
 				clients = new DataTable();
 				dataAdapter.Fill(clients);

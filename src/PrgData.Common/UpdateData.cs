@@ -65,7 +65,7 @@ namespace PrgData.Common
 
 		public VersionInfo UpdateExeVersionInfo { get; private set; }
 
-		public uint? NetworkSupplierId;
+		public uint? NetworkPriceId;
 
 		public UncommittedRequest PreviousRequest;
 
@@ -113,9 +113,9 @@ namespace PrgData.Common
 			KnownUniqueID = row["KnownUniqueID"].ToString();
 			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (uint?)Convert.ToUInt32(row["KnownBuildNumber"]);
 			TargetVersion = Convert.IsDBNull(row["TargetVersion"]) ? null : (uint?)Convert.ToUInt32(row["TargetVersion"]);
-			NetworkSupplierId = Convert.IsDBNull(row["NetworkSupplierId"])
+			NetworkPriceId = Convert.IsDBNull(row["NetworkPriceId"])
 			                    	? null
-			                    	: (uint?) Convert.ToUInt32(row["NetworkSupplierId"]);
+			                    	: (uint?) Convert.ToUInt32(row["NetworkPriceId"]);
 		}
 
 		public bool Disabled()
@@ -148,7 +148,7 @@ namespace PrgData.Common
 				if (uint.TryParse(numbers[numbers.Length - 1], out buildNumber))
 				{
 					BuildNumber = buildNumber;
-					if (!NetworkSupplierId.HasValue)
+					if (!NetworkPriceId.HasValue)
 						CheckBuildNumber();
 					UpdateExeVersionInfo = GetUpdateVersionInfo();
 					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();

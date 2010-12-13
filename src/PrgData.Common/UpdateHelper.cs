@@ -335,7 +335,7 @@ SELECT
     retclientsset.BuyingMatrixType,
     retclientsset.WarningOnBuyingMatrix,
     retclientsset.EnableImpersonalPrice,
-	retclientsset.NetworkSupplierId,
+	retclientsset.NetworkPriceId,
     c.Status as ClientEnabled,
     (u.Enabled and ap.UserId is not null) as UserEnabled
 FROM  
@@ -391,7 +391,7 @@ SELECT  ouar.clientcode as ClientId,
 		retclientsset.BuyingMatrixType,
 		retclientsset.WarningOnBuyingMatrix,
         retclientsset.EnableImpersonalPrice,
-		retclientsset.NetworkSupplierId,
+		retclientsset.NetworkPriceId,
         clientsdata.firmstatus as ClientEnabled,
         (ap.UserId is not null and IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3))) as UserEnabled
 FROM    
@@ -994,40 +994,13 @@ WHERE RowId =" + _updateData.UserId;
 			uint? networkPriceId = null;
 			var networkSelfClientIdColumn = String.Empty;
 			var networkSelfClientIdJoin = String.Empty; 
-			if (_updateData.NetworkSupplierId.HasValue && _updateData.IsFutureClient)
+			if (_updateData.NetworkPriceId.HasValue && _updateData.IsFutureClient)
 			{
-				//Берем первый попавшийся прайс-лист поставщика NetworkSupplierId, по которому будут существовать пересечения в условиях работы пользователя
-				var value = MySqlHelper.ExecuteScalar(
-					_readWriteConnection,
-					@"
-select
-  pd.PriceCode
-from
-	future.Users u
-	join future.Clients c on u.ClientId = c.Id
-	join Future.UserAddresses ua on ua.UserId = u.Id
-	join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-	join future.UserPrices up on up.UserId = u.Id
-	join future.Intersection i on i.ClientId = c.Id and i.RegionId = c.RegionCode and i.PriceId = up.PriceId and i.LegalEntityId = a.LegalEntityId
-	join future.AddressIntersection ai on ai.AddressId = a.Id and ai.IntersectionId = i.Id
-	join usersettings.PricesData pd on pd.PriceCode = up.PriceId and pd.AgencyEnabled = 1
-	join usersettings.PricesRegionalData prd on prd.PriceCode = pd.PriceCode and prd.RegionCode = c.RegionCode and prd.Enabled = 1
-where
-    u.Id = ?UserId
-and pd.FirmCode = ?NetworkSupplierId
-order by pd.PriceCode
-limit 1
-"
-					,
-					new MySqlParameter("?UserId", _updateData.UserId),
-					new MySqlParameter("?NetworkSupplierId", _updateData.NetworkSupplierId));
-				if (value != null)
-					networkPriceId = Convert.ToUInt32(value);
-				networkSelfClientIdColumn = networkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId";
-				networkSelfClientIdJoin = 
-					networkPriceId.HasValue
+				networkSelfClientIdColumn = _updateData.NetworkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId";
+				networkSelfClientIdJoin =
+					_updateData.NetworkPriceId.HasValue
 						? " left join future.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " +
-							networkPriceId +
+							_updateData.NetworkPriceId +
 							" left join future.AddressIntersection ai on ai.IntersectionId = i.Id and ai.AddressId = a.Id  "
 						: "";
 			}

@@ -258,8 +258,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test(Description = "Версия программы не проверяется, если установлен параметр NetworkSupplierId")]
-		public void Check_old_version_after_new_version_with_NetworkSupplierId()
+		[Test(Description = "Версия программы не проверяется, если установлен параметр NetworkPriceId")]
+		public void Check_old_version_after_new_version_with_NetworkPriceId()
 		{
 			var login = _user.Login;
 
@@ -267,8 +267,8 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				//Устанавливаем любого поставщика, в данном случае это поставщик Инфорум
-				updateData.NetworkSupplierId = 3514;
+				//Устанавливаем любой прайс-лист, в данном случае это прайс поставщика Инфорум
+				updateData.NetworkPriceId = 2647;
 				updateData.KnownBuildNumber = 1279;
 
 				updateData.ParseBuildNumber("6.0.0.1261");
