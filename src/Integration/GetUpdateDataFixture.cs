@@ -572,7 +572,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				updateData.BuildNumber = null;
 				Assert.That(updateData.EnableUpdate(), Is.EqualTo(false));
 
-				//Если BuildNumber установлен в 1271, то для нее выложено автообновление в TestData
+				//Если BuildNumber установлен в 1271, то для нее выложено автообновление в Data\EtalonUpdates
 				//т.к. TargetVersion = null, то автообновление разрешено
 				updateData.ParseBuildNumber("6.0.0.1271");
 				Assert.That(updateData.EnableUpdate(), Is.EqualTo(true));
