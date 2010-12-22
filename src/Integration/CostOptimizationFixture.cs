@@ -34,9 +34,6 @@ namespace Integration
 		[SetUp]
 		public void SetUp()
 		{
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests();
-
 			using (var transaction = new TransactionScope())
 			{
 				_client = TestClient.CreateSimple();

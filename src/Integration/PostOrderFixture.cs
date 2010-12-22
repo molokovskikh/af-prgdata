@@ -35,12 +35,6 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
-			IoC.Container.Register(
-				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
-				);
-		
 			UniqueId = "123";
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";

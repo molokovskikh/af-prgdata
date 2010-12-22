@@ -1,18 +1,26 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Reflection;
 using Castle.ActiveRecord;
+using Castle.MicroKernel.Registration;
+using Common.Models;
+using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
+using log4net.Filter;
 using log4net.Layout;
 using LumiSoft.Net.IMAP;
 using LumiSoft.Net.Mail;
 using NUnit.Framework;
 using PrgData.Common;
+using PrgData.Common.Model;
+using PrgData.Common.Repositories;
+using SmartOrderFactory.Domain;
 using Test.Support;
 using PrgData;
 using System;
@@ -51,7 +59,7 @@ namespace Integration
 		public void Setup()
 		{
 			UniqueId = "123";
-			Test.Support.Setup.Initialize();
+
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
@@ -365,8 +373,9 @@ and afi.ForceReplication > 0",
 					var textAppender = new TextWriterAppender()
 										{
 											Writer = writer,
-											Layout = new PatternLayout("%d{dd.MM.yyyy HH:mm:ss.fff} %property{user} [%t] %-5p %c - %m%n")
+											Layout = new PatternLayout("%d{dd.MM.yyyy HH:mm:ss.fff} %property{user} [%t] %-5p %c - %m%n"),
 										};
+					textAppender.AddFilter(new LoggerMatchFilter{ AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter()});
 					BasicConfigurator.Configure(textAppender);
 
 					SetCurrentUser(login);
@@ -503,6 +512,7 @@ where
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 				SetCurrentUser("dsdsdsdsds");

@@ -33,15 +33,6 @@ namespace Integration
 		[SetUp]
 		public void SetUp()
 		{
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
-			IoC.Container.Register(
-				Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
-				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
-				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>()
-				);
-
-
 			using (new TransactionScope())
 			{
 				client = TestClient.CreateSimple();

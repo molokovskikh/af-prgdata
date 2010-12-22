@@ -18,6 +18,7 @@ using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
+using log4net.Filter;
 using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
@@ -53,15 +54,6 @@ namespace Integration
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
-
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
-			IoC.Container.Register(
-				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
-				);
-			IoC.Container.Register(
-				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
-				);
 
 			repository = IoC.Resolve<ISmartOfferRepository>();
 
@@ -400,6 +392,7 @@ limit 6;");
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 
@@ -668,6 +661,7 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 
@@ -748,6 +742,7 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 
@@ -820,6 +815,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 				try
@@ -893,6 +889,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 				try
@@ -974,6 +971,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 				try
@@ -1062,6 +1060,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 				try

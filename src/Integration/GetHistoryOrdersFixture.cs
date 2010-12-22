@@ -34,7 +34,6 @@ namespace Integration
 		public void Setup()
 		{
 			UniqueId = "123";
-			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";

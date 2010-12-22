@@ -29,7 +29,6 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";

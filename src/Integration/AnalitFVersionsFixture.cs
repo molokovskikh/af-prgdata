@@ -32,19 +32,9 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			Test.Support.Setup.Initialize();
-
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
-
-			ContainerInitializer.InitializerContainerForTests(new Assembly[]{typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly});
-			//IoC.Container.Register(
-			//    Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
-			//    );
-			IoC.Container.Register(
-				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
-			    );
 
 			//ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 			//if (Directory.Exists("FtpRoot"))

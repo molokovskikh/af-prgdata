@@ -8,6 +8,7 @@ using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
+using log4net.Filter;
 using NHibernate;
 using NHibernate.Criterion;
 using NUnit.Framework;
@@ -143,12 +144,7 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			Test.Support.Setup.Initialize();
 			ServiceContext.GetUserHost = () => "127.0.0.1";
-			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
-			IoC.Container.Register(
-				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
-				);
 
 			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 			if (Directory.Exists("FtpRoot"))
@@ -934,6 +930,7 @@ where
 				try
 				{
 					var memoryAppender = new MemoryAppender();
+					memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 					BasicConfigurator.Configure(memoryAppender);
 
 					var firstOrderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);

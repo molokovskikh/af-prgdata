@@ -38,13 +38,6 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests(typeof(SmartOrderRule).Assembly);
-			IoC.Container.Register(
-				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>()
-				);
-
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 			if (Directory.Exists("FtpRoot"))

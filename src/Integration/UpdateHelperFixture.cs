@@ -33,12 +33,6 @@ namespace Integration
 		[SetUp]
 		public void SetUp()
 		{
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
-			IoC.Container.Register(
-				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
-				);
-
 			using (var transaction = new TransactionScope())
 			{
 				_client = TestClient.CreateSimple();

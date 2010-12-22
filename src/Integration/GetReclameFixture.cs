@@ -7,6 +7,7 @@ using Inforoom.Common;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
+using log4net.Filter;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
@@ -33,9 +34,6 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
-			Test.Support.Setup.Initialize();
-			ContainerInitializer.InitializerContainerForTests();
-
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => resultsDir;
@@ -178,6 +176,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 				GetReclameForErrorUser("dsdsdsdsdsds");
 				var events = memoryAppender.GetEvents();
@@ -198,6 +197,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			try
 			{
 				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 				GetReclameForErrorUser(_disabledUser.Login);
 				var events = memoryAppender.GetEvents();
