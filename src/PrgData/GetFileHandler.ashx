@@ -1,1 +1,1 @@
-<%@ WebHandler Language="C#"  Class="FileHandler.GetFileHandler" %>
+<%@ WebHandler Language="C#"  Class="PrgData.FileHandlers.GetFileHandler" %>

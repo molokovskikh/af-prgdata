@@ -9,13 +9,13 @@ using Common.Tools;
 using Inforoom.Common;
 using NUnit.Framework;
 using PrgData.Common;
+using PrgData.FileHandlers;
 using Test.Support;
 using PrgData;
 using System.Text.RegularExpressions;
 using MySql.Data.MySqlClient;
 using System.Data;
 using NHibernate.Criterion;
-using FileHandler;
 using System.Web;
 
 namespace Integration

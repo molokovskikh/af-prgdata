@@ -1,1 +1,1 @@
-<%@ WebHandler Class="FileHandler.GetFileHistoryHandler" %>
+<%@ WebHandler Class="PrgData.FileHandlers.GetFileHistoryHandler" %>

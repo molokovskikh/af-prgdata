@@ -8,7 +8,7 @@ using MySql.Data.MySqlClient;
 using PrgData.Common;
 using PrgData.Common.Counters;
 
-namespace FileHandler
+namespace PrgData.FileHandlers
 {
 	public class GetFileHandler : IHttpHandler
 	{
@@ -75,7 +75,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			string userId = null;
 			try
 			{
-				using (var connection = new Common.MySql.SimpleConnectionManager().GetConnection())
+				using (var connection = new global::Common.MySql.SimpleConnectionManager().GetConnection())
 				{
 					var command = new MySqlCommand(@"SELECT ouar.RowId
 FROM clientsdata cd

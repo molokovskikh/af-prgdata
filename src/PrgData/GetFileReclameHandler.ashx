@@ -1,1 +1,1 @@
-<%@ WebHandler Class="FileHandler.GetFileReclameHandler" %>
+<%@ WebHandler Class="PrgData.FileHandlers.GetFileReclameHandler" %>

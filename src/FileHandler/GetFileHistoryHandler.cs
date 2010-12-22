@@ -5,7 +5,7 @@ using System.Web;
 using PrgData.Common;
 using PrgData.Common.Counters;
 
-namespace FileHandler
+namespace PrgData.FileHandlers
 {
 	public class GetFileHistoryHandler : IHttpHandler
 	{
