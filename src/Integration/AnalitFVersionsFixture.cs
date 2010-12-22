@@ -141,7 +141,7 @@ values
 		[Test(Description = "Проверка создания VersionInfo")]
 		public void ReadVersionInfos()
 		{
-			var dirInfo = new DirectoryInfo("..\\..\\EtalonUpdates\\Updates");
+			var dirInfo = new DirectoryInfo("..\\..\\Data\\EtalonUpdates\\Updates");
 			var releaseInfos = dirInfo.GetDirectories("Release*");
 			Assert.That(releaseInfos.Length, Is.EqualTo(7));
 			var infos = new List<VersionInfo>();
@@ -162,7 +162,7 @@ values
 
 			Assert.That(infos.Count, Is.EqualTo(releaseInfos.Length));
 
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			var factoryInfos = VersionUpdaterFactory.GetVersionInfos();
 			Assert.That(factoryInfos.Count, Is.EqualTo(infos.Count));
 		}
@@ -170,7 +170,7 @@ values
 		[Test(Description = "проверяем работу ExeVersionUpdater")]
 		public void TestVersionUpdater()
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			var updater = VersionUpdaterFactory.GetUpdater();
 
 			Assert.That(updater, Is.Not.Null);

@@ -179,7 +179,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_ON_flags_for_BuyingMatrix_and_MNN(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -199,7 +199,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_OFF_flags_for_BuyingMatrix_and_MNN(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -212,7 +212,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_ON_flags_for_NewClients(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -224,7 +224,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 		private void Check_OFF_flags_for_NewClients(string login)
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -239,7 +239,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			var login = _user.Login;
 
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -263,7 +263,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		{
 			var login = _user.Login;
 
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -559,7 +559,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 		[Test(Description = "Проверяем результат функции EnableUpdate при различных значениях TargetVersion")]
 		public void CheckSetEnableUpdate()
 		{
-			ServiceContext.GetResultPath = () => "..\\..\\EtalonUpdates\\";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
