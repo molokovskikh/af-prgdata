@@ -13,6 +13,7 @@ Global(
 	Platform : "x64"
 )
 
+#добавил комментарий
 Task @default, [@buildWebService]
 
 Task @deploy, [@CheckScmChanges, @buildWebService, @Production, @Migrate, @DeployWebService, @SendDeployNotification]
