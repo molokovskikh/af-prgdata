@@ -254,9 +254,12 @@ namespace Integration
 		[Test]
 		public void Check_AnalitFReplicationInfo_after_GetUserData()
 		{
-			var ExistsFirms = MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
-				@"
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var ExistsFirms = MySqlHelper.ExecuteScalar(
+					connection,
+					@"
 call future.GetPrices(?OffersClientCode);
 select
   count(*)
@@ -265,16 +268,17 @@ from
   left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
   afi.UserId is null;",
-				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
-				new MySqlParameter("?UserId", user.Id));
+					new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
+					new MySqlParameter("?UserId", user.Id));
 
-			Assert.That(
-				ExistsFirms,
-				Is.GreaterThan(0),
-				"’от€ клиент {0} создан в другом регионе {1} у него в AnalitFReplicationInfo добавлены все фирмы из региона {2}",
-				client.Id,
-				client.RegionCode,
-				offersFutureClient.RegionCode);
+				Assert.That(
+					ExistsFirms,
+					Is.GreaterThan(0),
+					"’от€ клиент {0} создан в другом регионе {1} у него в AnalitFReplicationInfo добавлены все фирмы из региона {2}",
+					client.Id,
+					client.RegionCode,
+					offersFutureClient.RegionCode);
+			}
 
 			CheckGetUserData(user.Login);
 
@@ -328,9 +332,12 @@ and afi.ForceReplication = 0",
 
 			CommitExchange();
 
-			var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
-				@"
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
+					connection,
+					@"
 call future.GetPrices(?OffersClientCode);
 select
   count(*)
@@ -340,15 +347,16 @@ from
 where
 	afi.UserId is not null
 and afi.ForceReplication > 0",
-				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
-				new MySqlParameter("?UserId", user.Id));
+					new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
+					new MySqlParameter("?UserId", user.Id));
 
-			Assert.That(
-				nonExistsForceGt0,
-				Is.EqualTo(0),
-				"” клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication > 0 дл€ фирм из региона {1}",
-				client.Id,
-				offersFutureClient.RegionCode);
+				Assert.That(
+					nonExistsForceGt0,
+					Is.EqualTo(0),
+					"” клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication > 0 дл€ фирм из региона {1}",
+					client.Id,
+					offersFutureClient.RegionCode);
+			}
 		}
 
 		[Test(Description = "ѕроверка на используемую версию программы AnalitF")]
