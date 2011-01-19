@@ -831,7 +831,7 @@ where ds.UserId = ?UserId
 	and ds.Committed = 0
 	and d.LogTime > curdate() - interval 30 day
 order by d.LogTime desc
-limit 100;
+limit 200;
 ";
 			}
 			else
