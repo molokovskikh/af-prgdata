@@ -359,7 +359,7 @@ where
 	u.Login = ?user
 and AnalitFUpdates.UserId = u.Id
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2) 
+and AnalitFUpdates.UpdateType IN (1, 2, 10) 
 order by AnalitFUpdates.UpdateId desc
 limit 1;"
 				, 
@@ -416,7 +416,7 @@ where
 	ouar.OSUserName = ?user
 and AnalitFUpdates.UserId = ouar.RowId
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2) 
+and AnalitFUpdates.UpdateType IN (1, 2, 10) 
 order by AnalitFUpdates.UpdateId desc
 limit 1;
 ";

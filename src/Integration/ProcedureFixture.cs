@@ -458,6 +458,16 @@ limit 6;");
 			return responce;
 		}
 
+		private string PostOrderBatch(bool getEtalonData, DateTime accessTime, string appVersion, uint adresssId, string batchFileName)
+		{
+			var service = new PrgDataEx();
+			var responce = service.PostOrderBatch(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", new uint[] { }, adresssId, batchFileName, 1, 1, 1);
+
+			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
+
+			return responce;
+		}
+
 		private uint ParseUpdateId(string responce)
 		{
 			var match = Regex.Match(responce, @"\d+").Value;
@@ -490,6 +500,11 @@ limit 6;");
 
 		private DateTime CommitExchange(uint updateId, bool cumulative)
 		{
+			return CommitExchange(updateId, cumulative, false);
+		}
+
+		private DateTime CommitExchange(uint updateId, bool cumulative, bool postOrderBatch)
+		{
 			var service = new PrgDataEx();
 
 			var updateTime = service.CommitExchange(updateId, false);
@@ -513,7 +528,10 @@ where
 			if (cumulative)
 				Assert.That(updateType, Is.EqualTo((int)RequestType.GetCumulative), "Не совпадает тип обновления");
 			else
-				Assert.That(updateType, Is.EqualTo((int)RequestType.GetData), "Не совпадает тип обновления");
+				if (postOrderBatch)
+					Assert.That(updateType, Is.EqualTo((int)RequestType.PostOrderBatch), "Не совпадает тип обновления");
+				else
+					Assert.That(updateType, Is.EqualTo((int)RequestType.GetData), "Не совпадает тип обновления");
 
 			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", updateId);
 
@@ -1124,6 +1142,269 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				LogManager.ResetConfiguration();
 			}
 
+		}
+
+		[Test(Description = "После выполнения BatchOrder должно обновиться UserUpdateInfo.UpdateTime")]
+		public void TestUpdateTimeAfterBatchOrder()
+		{
+			var appVersion = "1.1.1.1300";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+			}
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, DateTime.Now, appVersion);
+					var updateId = ParseUpdateId(responce);
+
+					var previosUpdateTime = CommitExchange(updateId, true);
+
+					var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
+					Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+
+					var batchFile = Convert.ToBase64String(batchFileBytes);
+
+					var postBatchResponce = PostOrderBatch(false, previosUpdateTime, appVersion, _user.AvaliableAddresses[0].Id, batchFile);
+					var postBatchUpdateId = ParseUpdateId(postBatchResponce);
+					var postBatchUpdateTime = CommitExchange(postBatchUpdateId, false, true);
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Производим запрос данных накопительного обновления после неподтвержденного автозаказа")]
+		public void GetSimpleDataAfterPostOrderBatch()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			var postBatchId = Convert.ToUInt32(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					@"
+insert into logs.AnalitFUpdates
+  (RequestTime, UpdateType, UserId, Commit, AppVersion) 
+values 
+  (now(), ?UpdateType, ?UserId, 0, ?AppVersion);
+set @postBatchId = last_insert_id();
+update usersettings.UserUpdateInfo, logs.AnalitFUpdates 
+set 
+  UserUpdateInfo.UncommitedUpdateDate = AnalitFUpdates.RequestTime
+where AnalitFUpdates.UpdateId = @postBatchId and UserUpdateInfo.UserId = ?UserId;
+select @postBatchId;"
+					,
+					new MySqlParameter("?UpdateType", (int)RequestType.PostOrderBatch),
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?AppVersion", appVersion)));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					//Создаем файл с подготовленными данными
+					File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
+
+					var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
+					var simpleId = ParseUpdateId(responce);
+
+					Assert.That(simpleId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
+
+					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", simpleId)));
+					Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
+
+					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleId)));
+
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного автозаказа")]
+		public void GetCumulativeDataAfterPostOrderBatch()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			var postBatchId = Convert.ToUInt32(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					@"
+insert into logs.AnalitFUpdates
+  (RequestTime, UpdateType, UserId, Commit, AppVersion) 
+values 
+  (now(), ?UpdateType, ?UserId, 0, ?AppVersion);
+set @postBatchId = last_insert_id();
+update usersettings.UserUpdateInfo, logs.AnalitFUpdates 
+set 
+  UserUpdateInfo.UncommitedUpdateDate = AnalitFUpdates.RequestTime
+where AnalitFUpdates.UpdateId = @postBatchId and UserUpdateInfo.UserId = ?UserId;
+select @postBatchId;"
+					,
+					new MySqlParameter("?UpdateType", (int)RequestType.PostOrderBatch),
+					new MySqlParameter("?UserId", _user.Id),
+					new MySqlParameter("?AppVersion", appVersion)));
+
+			SetCurrentUser(_user.Login);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					//Создаем файл с подготовленными данными
+					File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
+
+					var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
+					var cumulativeId = ParseUpdateId(responce);
+
+					Assert.That(cumulativeId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
+
+					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", cumulativeId)));
+					Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
+
+					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeId)));
+
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
 		}
 
 	}

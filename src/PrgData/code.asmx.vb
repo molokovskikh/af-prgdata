@@ -2176,13 +2176,24 @@ PostLog:
                 UpdateData.PreviousRequest.RequestType)
             Return False
         Else
-            Log.DebugFormat( _
-                "Найден предыдущий неподтвержденный запрос данных: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
-                UserId, _
-                UpdateData.PreviousRequest.UpdateId, _
-                UpdateData.PreviousRequest.Commit, _
-                UpdateData.PreviousRequest.RequestTime, _
-                UpdateData.PreviousRequest.RequestType)
+            If UpdateData.PreviousRequest.UpdateId.HasValue AndAlso Not UpdateData.PreviousRequest.Commit AndAlso UpdateData.PreviousRequest.RequestType = RequestType.PostOrderBatch Then
+                Log.DebugFormat( _
+                    "Предыдущим неподтвержденным запрос данных является автозаказ, поэтому заново будем готовить данные: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+                    UserId, _
+                    UpdateData.PreviousRequest.UpdateId, _
+                    UpdateData.PreviousRequest.Commit, _
+                    UpdateData.PreviousRequest.RequestTime, _
+                    UpdateData.PreviousRequest.RequestType)
+                Return False
+            Else
+                Log.DebugFormat( _
+                    "Найден предыдущий неподтвержденный запрос данных: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+                    UserId, _
+                    UpdateData.PreviousRequest.UpdateId, _
+                    UpdateData.PreviousRequest.Commit, _
+                    UpdateData.PreviousRequest.RequestTime, _
+                    UpdateData.PreviousRequest.RequestType)
+            End If
         End If
 
         FileInfo = New FileInfo(UpdateData.GetPreviousFile())
@@ -2190,31 +2201,31 @@ PostLog:
         If FileInfo.Exists Then
             Log.DebugFormat("Файл с подготовленными данными существует: {0}", UpdateData.GetPreviousFile())
             CheckZipTimeAndExist = _
-             (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
-             Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
-             Or (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData)
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
+                Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
+                Or (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData)
 
             Log.DebugFormat( _
-             "Результат проверки CheckZipTimeAndExist: {0}  " & vbCrLf & _
-             "Параметры " & vbCrLf & _
-             "GetEtalonData  : {1}" & vbCrLf & _
-             "UncDT          : {2}" & vbCrLf & _
-             "OldUpTime      : {3}" & vbCrLf & _
-             "FileName       : {4}" & vbCrLf & _
-             "PreviousType   : {5}" & vbCrLf & _
-             "Expression1    : {6}" & vbCrLf & _
-             "Expression2    : {7}" & vbCrLf & _
-             "Expression3    : {8}" _
-             , _
-             CheckZipTimeAndExist, _
-             GetEtalonData, _
-             UncDT, _
-             OldUpTime, _
-             UpdateData.GetPreviousFile(), _
-             UpdateData.PreviousRequest.RequestType, _
-             (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData), _
-             (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
-             (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData))
+                "Результат проверки CheckZipTimeAndExist: {0}  " & vbCrLf & _
+                "Параметры " & vbCrLf & _
+                "GetEtalonData  : {1}" & vbCrLf & _
+                "UncDT          : {2}" & vbCrLf & _
+                "OldUpTime      : {3}" & vbCrLf & _
+                "FileName       : {4}" & vbCrLf & _
+                "PreviousType   : {5}" & vbCrLf & _
+                "Expression1    : {6}" & vbCrLf & _
+                "Expression2    : {7}" & vbCrLf & _
+                "Expression3    : {8}" _
+                , _
+                CheckZipTimeAndExist, _
+                GetEtalonData, _
+                UncDT, _
+                OldUpTime, _
+                UpdateData.GetPreviousFile(), _
+                UpdateData.PreviousRequest.RequestType, _
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData), _
+                (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
+                (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData))
         Else
             Log.DebugFormat("Файл с подготовленными данными не существует: {0}", UpdateData.GetPreviousFile())
             CheckZipTimeAndExist = False
