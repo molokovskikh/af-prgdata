@@ -239,7 +239,7 @@ namespace Integration
 											{
 												Code = "456", 
 												ProductName = "test1", 
-												Item = new ItemToOrder(1, null, 1)
+												Item = new ItemToOrder(1, 1, null, 1)
 												       	{
 												       		OrderItem = firstOrderItem, 
 															Status = ItemToOrderStatus.Ordered,
@@ -250,7 +250,7 @@ namespace Integration
 											{
 												Code = "789", 
 												ProductName = "test2", 
-												Item = new ItemToOrder(2, null, 1)
+												Item = new ItemToOrder(2, 1, null, 1)
 												       	{
 												       		OrderItem = secondOrderItem, 
 															Status = ItemToOrderStatus.Ordered,

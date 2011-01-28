@@ -64,7 +64,7 @@ namespace PrgData.Common
 
 			using(var unitOfWork = new UnitOfWork())
 			{
-				_orderRule = IoC.Resolve<IRepository<OrderRules>>().Load(updateData.ClientId);
+				_orderRule = IoC.Resolve<IOrderFactoryRepository>().GetOrderRule(updateData.ClientId);
 				if (!_orderRule.EnableSmartOrder)
 					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
 
@@ -310,6 +310,7 @@ namespace PrgData.Common
 							Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
 							Component.For<RepositoryInterceptor>(),
 							Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)),
+							Component.For<IOrderFactoryRepository>().ImplementedBy<OrderFactoryRepository>(),
 							Component.For<IOfferRepository>().ImplementedBy<OfferRepository>(),
 							Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
 							Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
