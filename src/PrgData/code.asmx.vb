@@ -116,6 +116,12 @@ Public Class PrgDataEx
     'Получает письмо и отправляет его
     <WebMethod()> _
     Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
+        Return SendLetterEx(subject, body, attachment, 0)
+    End Function
+
+    'Получает письмо и отправляет его
+    <WebMethod()> _
+    Public Function SendLetterEx(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte, ByVal emailGroup As Byte) As String
         Try
             Dim updateData As UpdateData
             Using connection = _simpleConnectionManager.GetConnection()
@@ -132,9 +138,21 @@ Public Class PrgDataEx
 
                 updateData.ClientHost = ServiceContext.GetUserHost()
 
+                Dim groupMail As String
+                If EmailGroup = 2 Then
+                    groupMail = ConfigurationManager.AppSettings("OfficeMail")
+                Else
+                    If EmailGroup = 1 Then
+                        groupMail = ConfigurationManager.AppSettings("BillingMail")
+                    Else
+                        groupMail = ConfigurationManager.AppSettings("TechMail")
+                    End If
+                End If
+
+
                 Dim mess As MailMessage = New MailMessage( _
                  New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
-                 New MailAddress(ConfigurationManager.AppSettings("TechMail")))
+                 New MailAddress(groupMail))
                 mess.Body = body
                 mess.IsBodyHtml = False
                 mess.BodyEncoding = Encoding.UTF8

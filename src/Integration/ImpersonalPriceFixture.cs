@@ -539,6 +539,26 @@ where
 				LogManager.ResetConfiguration();
 			}
 		}
-		
+
+
+		private void SendLetterToGroup(byte emailGroup)
+		{
+			SetCurrentUser(user.Login);
+			var service = new PrgDataEx();
+			var letterResponse = service.SendLetterEx("Test subject to " + emailGroup, "test body to " + emailGroup, null, emailGroup);
+			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+		}
+
+		[Test]
+		public void CheckSendLetterToBilling()
+		{
+			SendLetterToGroup(1);
+		}
+
+		[Test]
+		public void CheckSendLetterToOffice()
+		{
+			SendLetterToGroup(2);
+		}
 	}
 }
