@@ -40,6 +40,11 @@ namespace PrgData.Common
 
 		private string _tmpBatchFileName;
 
+		public string ExtractBatchFileName
+		{
+			get { return Path.GetFileName(_tmpBatchFileName); }
+		}
+
 		public string BatchReportFileName;
 		public string BatchOrderFileName;
 		public string BatchOrderItemsFileName;

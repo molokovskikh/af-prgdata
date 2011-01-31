@@ -373,7 +373,12 @@ Public Class PrgDataEx
      ByVal PriceCodes As UInt32(),
      ByVal ProcessBatch As Boolean) As String
         Dim ResStr As String = String.Empty
-        Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
+
+        If (Not ProcessBatch) Then
+            Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
+        Else
+            Addition &= " ОС: " & WINVersion & " " & WINDesc & "; "
+        End If
 
         Try
 
@@ -1897,6 +1902,7 @@ StartZipping:
             Try
                 helper.PrepareBatchFile(BatchFile)
 
+                Addition &= "Файл-дефектура: " & helper.ExtractBatchFileName & "; "
                 If UpdateData.SaveAFDataFiles Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
                     currentBatchFile = ResultFileName & "\Archive\" & UserId & "\" & DateTime.Now.ToString("yyyyMMddHHmmssfff") & ".7z"
