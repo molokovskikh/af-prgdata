@@ -533,7 +533,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update usersettings.UserUpdateInfo set TargetVersion = null where UserId = ?UserId",
+					"update future.Users set TargetVersion = null where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id));
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -542,7 +542,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				const int targetVersion = 1300;
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update usersettings.UserUpdateInfo set TargetVersion = ?TargetVersion where UserId = ?UserId",
+					"update future.Users set TargetVersion = ?TargetVersion where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id),
 					new MySqlParameter("?TargetVersion", targetVersion));
 				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);

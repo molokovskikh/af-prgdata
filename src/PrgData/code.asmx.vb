@@ -1189,8 +1189,7 @@ StartZipping:
             MaxSynonymCode = UpdateTime.ToUniversalTime
 
             Try
-                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
-                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                If UpdateData.SaveAFDataFiles Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
                     File.Copy(UpdateData.GetCurrentFile(UpdateId), ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
@@ -1262,8 +1261,7 @@ StartZipping:
             CommitExchange = UpdateTime.ToUniversalTime
 
             Try
-                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
-                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                If UpdateData.SaveAFDataFiles Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
                     File.Copy(UpdateData.GetCurrentFile(UpdateId), ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If

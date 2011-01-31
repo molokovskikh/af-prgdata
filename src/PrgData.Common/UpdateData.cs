@@ -44,6 +44,8 @@ namespace PrgData.Common
 		public int BuyingMatrixType;
 		public bool WarningOnBuyingMatrix;
 
+		public bool SaveAFDataFiles;
+ 
 		public uint? BuildNumber;
 		public uint? KnownBuildNumber;
 		public uint? TargetVersion;
@@ -116,6 +118,7 @@ namespace PrgData.Common
 			NetworkPriceId = Convert.IsDBNull(row["NetworkPriceId"])
 			                    	? null
 			                    	: (uint?) Convert.ToUInt32(row["NetworkPriceId"]);
+			SaveAFDataFiles = Convert.ToBoolean(row["SaveAFDataFiles"]);
 		}
 
 		public bool Disabled()
