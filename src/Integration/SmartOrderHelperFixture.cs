@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
@@ -14,6 +15,7 @@ using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
+using PrgData;
 using PrgData.Common;
 using SmartOrderFactory;
 using SmartOrderFactory.Domain;
@@ -30,9 +32,17 @@ namespace Integration
 		TestUser user;
 		TestAddress address;
 
+		private string UniqueId;
+
 		[SetUp]
 		public void SetUp()
 		{
+			UniqueId = "123";
+
+			ServiceContext.GetUserHost = () => "127.0.0.1";
+			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
+			ServiceContext.GetResultPath = () => "results\\";
+
 			using (new TransactionScope())
 			{
 				client = TestClient.CreateSimple();
@@ -292,6 +302,80 @@ namespace Integration
 				}
 			}
 		}
+
+
+		[Test]
+		public void CheckBatchSave()
+		{
+			var appVersion = "1.1.1.1300";
+			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
+
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				SetCurrentUser(user.Login);
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					"update future.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+
+				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
+
+				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
+				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+
+				var batchFile = Convert.ToBase64String(batchFileBytes);
+
+				var postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, user.AvaliableAddresses[0].Id, batchFile);
+				var postBatchUpdateId = ParseUpdateId(postBatchResponce);
+				Assert.That(File.Exists(Path.Combine("results", "Archive", user.Id.ToString(), postBatchUpdateId + "_Batch.7z")), Is.True);
+			}
+		}
+
+		private void SetCurrentUser(string login)
+		{
+			ServiceContext.GetUserName = () => login;
+		}
+
+		private string PostOrderBatch(bool getEtalonData, DateTime accessTime, string appVersion, uint adresssId, string batchFileName)
+		{
+			var service = new PrgDataEx();
+			var responce = service.PostOrderBatch(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", new uint[] { }, adresssId, batchFileName, 1, 1, 1);
+
+			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
+
+			return responce;
+		}
+
+		private uint ParseUpdateId(string responce)
+		{
+			var match = Regex.Match(responce, @"\d+").Value;
+			if (match.Length > 0)
+				return Convert.ToUInt32(match);
+
+			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
+			return 0;
+		}
+
 
 	}
 }

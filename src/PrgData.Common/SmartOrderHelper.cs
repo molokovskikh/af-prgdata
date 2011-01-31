@@ -35,6 +35,9 @@ namespace PrgData.Common
 
 		private string _tmpBatchFolder;
 		private string _tmpBatchArchive;
+
+		public string TmpBatchArchiveFileName { get { return _tmpBatchArchive; } }
+
 		private string _tmpBatchFileName;
 
 		public string BatchReportFileName;

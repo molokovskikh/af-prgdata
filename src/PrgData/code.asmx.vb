@@ -1879,6 +1879,8 @@ StartZipping:
         ByVal MaxBatchId As UInt32) As String
 
         Dim ResStr As String = String.Empty
+        Dim currentBatchFile As String = String.Empty
+        Dim currentUpdateId As UInt32? = Nothing
 
         Try
             UpdateType = RequestType.PostOrderBatch
@@ -1895,6 +1897,12 @@ StartZipping:
             Try
                 helper.PrepareBatchFile(BatchFile)
 
+                If UpdateData.SaveAFDataFiles Then
+                    If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
+                    currentBatchFile = ResultFileName & "\Archive\" & UserId & "\" & DateTime.Now.ToString("yyyyMMddHHmmssfff") & ".7z"
+                    File.Copy(helper.TmpBatchArchiveFileName, currentBatchFile)
+                End If
+
                 'UpdateHelper.GenerateSessionKey(readWriteConnection, UpdateData)
 
                 helper.ProcessBatchFile()
@@ -1908,21 +1916,38 @@ StartZipping:
 
                 ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True)
 
+                currentUpdateId = GUpdateId
+
             Finally
                 helper.DeleteTemporaryFiles()
             End Try
-
-
+            
             Return ResStr
         Catch updateException As UpdateException
-            Return ProcessUpdateException(updateException)
+            Dim updateExceptionMessage = ProcessUpdateException(updateException, True)
+            currentUpdateId = GUpdateId
+            Return updateExceptionMessage
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке дефектуры", ex)
             Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
+
+            Try
+                If UpdateData.SaveAFDataFiles Then
+                    If currentUpdateId IsNot Nothing Then
+                        File.Move(currentBatchFile, ResultFileName & "\Archive\" & UserId & "\" & currentUpdateId & "_Batch.7z")
+                    Else
+                        Log.DebugFormat("При разборе дефектуры не был установлен UpdateId: {0}  FileName: {1}", currentUpdateId, currentBatchFile)
+                    End If
+                End If
+            Catch onSaveBatch As Exception
+                Log.Error("Ошибка при сохранении файла-дефектуры", onSaveBatch)
+            End Try
+
             Counter.ReleaseLock(UserId, "PostOrderBatch")
             DBDisconnect()
         End Try
+
     End Function
 
     Private Sub ProtocolUpdates()
@@ -3560,12 +3585,24 @@ RestartTrans2:
     End Function
 
     Private Function ProcessUpdateException(ByVal updateException As UpdateException) As String
+        Return ProcessUpdateException(updateException, False)
+    End Function
+
+    Private Function ProcessUpdateException(ByVal updateException As UpdateException, ByVal wait As Boolean) As String
         UpdateType = updateException.UpdateType
         Addition += updateException.Addition & "; IP:" & UserHost & "; "
         ErrorFlag = True
         If UpdateData IsNot Nothing Then
             Log.Warn(updateException)
             ProtocolUpdatesThread.Start()
+
+            If wait Then
+                Dim waitCount = 0
+                While GUpdateId = 0 AndAlso waitCount < 30
+                    waitCount += 1
+                    Thread.Sleep(500)
+                End While
+            End If
         Else
             Log.Error(updateException)
         End If
