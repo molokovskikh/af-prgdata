@@ -2238,27 +2238,30 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 			});
 		}
 
-		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
+		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
 		{
-			InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
+			return InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
 		}
 
-		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, uint? appVersion)
+		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, uint? appVersion)
 		{
-			MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
+			var uid = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
 				connection,
 				@"
 insert into logs.AnalitFUpdates 
   (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion, ClientHost) 
 values 
   (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion, ?ClientHost);
+select last_insert_id()
 "
 				,
 				new MySqlParameter("?UpdateType", (int)request),
 				new MySqlParameter("?UserId", updateData.UserId),
 				new MySqlParameter("?Addition", addition),
 				new MySqlParameter("?AppVersion", appVersion),
-				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()));
+				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()))
+				);
+			return uid;
 		}
 
 		public void SetForceReplication()
