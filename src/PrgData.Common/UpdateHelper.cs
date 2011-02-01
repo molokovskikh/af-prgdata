@@ -325,7 +325,8 @@ SELECT
 	rui.AFAppVersion as KnownBuildNumber,
 	rui.AFCopyId as KnownUniqueID,
 	if(rui.MessageShowCount < 1, '', rui.MESSAGE) Message,
-	rui.TargetVersion,
+	u.TargetVersion,
+	u.SaveAFDataFiles,
 	retclientsset.CheckCopyId,
 	'' Future,
     c.Name as ShortName,
@@ -337,7 +338,8 @@ SELECT
     retclientsset.EnableImpersonalPrice,
 	retclientsset.NetworkPriceId,
     c.Status as ClientEnabled,
-    (u.Enabled and ap.UserId is not null) as UserEnabled
+	u.Enabled as UserEnabled,
+	ap.UserId is not null as AFPermissionExists
 FROM  
   future.users u
   join future.Clients c                         on c.Id = u.ClientId
@@ -383,6 +385,7 @@ SELECT  ouar.clientcode as ClientId,
 		rui.AFCopyId as KnownUniqueID,
         if(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
         rui.TargetVersion,
+        rui.SaveAFDataFiles,
         retclientsset.CheckCopyID,
         clientsdata.ShortName,
         retclientsset.Spy, 
@@ -393,7 +396,8 @@ SELECT  ouar.clientcode as ClientId,
         retclientsset.EnableImpersonalPrice,
 		retclientsset.NetworkPriceId,
         clientsdata.firmstatus as ClientEnabled,
-        (ap.UserId is not null and IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3))) as UserEnabled
+	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
+	    ap.UserId is not null as AFPermissionExists
 FROM    
   usersettings.osuseraccessright ouar
   join usersettings.clientsdata                 on clientsdata.firmcode = ouar.clientcode
@@ -2236,27 +2240,30 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 			});
 		}
 
-		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
+		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
 		{
-			InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
+			return InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
 		}
 
-		public static void InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, uint? appVersion)
+		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, uint? appVersion)
 		{
-			MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
+			var uid = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
 				connection,
 				@"
 insert into logs.AnalitFUpdates 
   (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion, ClientHost) 
 values 
   (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion, ?ClientHost);
+select last_insert_id()
 "
 				,
 				new MySqlParameter("?UpdateType", (int)request),
 				new MySqlParameter("?UserId", updateData.UserId),
 				new MySqlParameter("?Addition", addition),
 				new MySqlParameter("?AppVersion", appVersion),
-				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()));
+				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()))
+				);
+			return uid;
 		}
 
 		public void SetForceReplication()

@@ -191,7 +191,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test(Description = "пытаемся получить рекламу для отключенного пользователя")]
+		[Test(Description = "пытаемся получить рекламу для пользователя без права обновлять AnalitF")]
 		public void Get_reclame_for_disabled_user()
 		{
 			try
@@ -204,7 +204,9 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				var lastEvent = events[events.Length - 1];
 				Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
 				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
-				Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("Доступ закрыт."));
+				var updateException = (UpdateException) lastEvent.MessageObject;
+				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
+				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + _disabledUser.Login + " услуга не предоставляется: пользователю не разрешено обновлять AnalitF;"));
 			}
 			finally
 			{

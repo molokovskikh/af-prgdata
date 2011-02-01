@@ -47,7 +47,7 @@ namespace PrgData.Common.Orders
 
 			using (var unitOfWork = new UnitOfWork())
 			{
-				_orderRule = IoC.Resolve<IRepository<OrderRules>>().Load(data.ClientId);
+				_orderRule = IoC.Resolve<IOrderFactoryRepository>().GetOrderRule(data.ClientId);
 				NHibernateUtil.Initialize(_orderRule);
 
 				if (data.IsFutureClient)

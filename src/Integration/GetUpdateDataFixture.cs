@@ -27,7 +27,6 @@ namespace Integration
 
 		TestClient _client;
 		TestUser _user;
-		TestUser _userWithoutAF;
 
 		TestOldClient _oldClient;
 		TestOldClient _oldClientWithoutAF;
@@ -35,9 +34,13 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
+			_client = TestClient.CreateSimple();
+
+			_oldClient = TestOldClient.CreateTestClient();
+			_oldClientWithoutAF = TestOldClient.CreateTestClient();
+
 			using (var transaction = new TransactionScope())
 			{
-				_client = TestClient.CreateSimple();
 				_user = _client.Users[0];
 
 				var permission = TestUserPermission.ByShortcut("AF");
@@ -48,11 +51,6 @@ namespace Integration
 					u.SendWaybills = true;
 				});
 				_user.Update();
-
-				_userWithoutAF = _client.CreateUser();
-
-				_oldClient = TestOldClient.CreateTestClient();
-				_oldClientWithoutAF = TestOldClient.CreateTestClient();
 
 				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof (ActiveRecordBase));
 				try
@@ -83,7 +81,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.That(updateData.ShortName, Is.Not.Null);
 				Assert.That(updateData.ShortName, Is.Not.Empty);
 				Assert.That(updateData.ShortName, Is.EqualTo(_oldClient.ShortName));
-				Assert.IsFalse(updateData.Disabled(), "Пользотель отключен");
+				Assert.IsFalse(updateData.Disabled(), "Пользователь отключен");
 			}
 		}
 
@@ -99,7 +97,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.That(updateData.ShortName, Is.Not.Null);
 				Assert.That(updateData.ShortName, Is.Not.Empty);
 				Assert.That(updateData.ShortName, Is.EqualTo(_oldClientWithoutAF.ShortName));
-				Assert.IsTrue(updateData.Disabled(), "Пользотель включен");
+				Assert.IsTrue(updateData.Disabled(), "Пользователь включен");
 			}
 		}
 
@@ -115,13 +113,22 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.That(updateData.ShortName, Is.Not.Null);
 				Assert.That(updateData.ShortName, Is.Not.Empty);
 				Assert.That(updateData.ShortName, Is.EqualTo(_client.Name));
-				Assert.IsFalse(updateData.Disabled(), "Пользотель отключен");
+				Assert.That(updateData.Disabled(), Is.False, "Пользователь отключен");
+				Assert.That(updateData.ClientEnabled, Is.True);
+				Assert.That(updateData.UserEnabled, Is.True);
+				Assert.That(updateData.AFPermissionExists, Is.True);
 			}
 		}
 
 		[Test]
-		public void Get_update_data_for_disabled_future_client()
+		public void Get_update_data_for_future_client_for_user_without_AF()
 		{
+			TestUser _userWithoutAF;
+			using (var transaction = new TransactionScope())
+			{
+				_userWithoutAF = _client.CreateUser();
+			}
+
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				var updateData = UpdateHelper.GetUpdateData(connection, _userWithoutAF.Login);
@@ -131,7 +138,77 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				Assert.That(updateData.ShortName, Is.Not.Null);
 				Assert.That(updateData.ShortName, Is.Not.Empty);
 				Assert.That(updateData.ShortName, Is.EqualTo(_client.Name));
-				Assert.IsTrue(updateData.Disabled(), "Пользотель включен");
+				Assert.That(updateData.Disabled(), Is.True, "Пользователь включен");
+				Assert.That(updateData.ClientEnabled, Is.True);
+				Assert.That(updateData.UserEnabled, Is.True);
+				Assert.That(updateData.AFPermissionExists, Is.False);
+				Assert.That(updateData.DisabledMessage(), Is.EqualTo("пользователю не разрешено обновлять AnalitF"));
+			}
+		}
+
+		[Test]
+		public void Get_update_data_for_future_client_for_disabled_user()
+		{
+			TestUser disabledUser;
+			using (var transaction = new TransactionScope())
+			{
+				disabledUser = _client.CreateUser();
+				var permission = TestUserPermission.ByShortcut("AF");
+				disabledUser.SendRejects = true;
+				disabledUser.SendWaybills = true;
+				disabledUser.AssignedPermissions.Add(permission);
+				disabledUser.Enabled = false;
+				disabledUser.Update();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, disabledUser.Login);
+				Assert.That(updateData, Is.Not.Null);
+				Assert.That(updateData.UserId, Is.EqualTo(disabledUser.Id));
+				Assert.That(updateData.ClientId, Is.EqualTo(_client.Id));
+				Assert.That(updateData.ShortName, Is.Not.Null);
+				Assert.That(updateData.ShortName, Is.Not.Empty);
+				Assert.That(updateData.ShortName, Is.EqualTo(_client.Name));
+				Assert.That(updateData.Disabled(), Is.True, "Пользователь включен");
+				Assert.That(updateData.ClientEnabled, Is.True);
+				Assert.That(updateData.UserEnabled, Is.False);
+				Assert.That(updateData.AFPermissionExists, Is.True);
+				Assert.That(updateData.DisabledMessage(), Is.EqualTo("пользователь отключен"));
+			}
+		}
+
+		[Test]
+		public void Get_update_data_for_disabled_future_client()
+		{
+			var disabledClient = TestClient.CreateSimple();
+			var disabledUser = disabledClient.Users[0];
+			using (var transaction = new TransactionScope())
+			{
+				var permission = TestUserPermission.ByShortcut("AF");
+				disabledUser.SendRejects = true;
+				disabledUser.SendWaybills = true;
+				disabledUser.AssignedPermissions.Add(permission);
+				disabledUser.Update();
+
+				disabledClient.Status = ClientStatus.Off;
+				disabledClient.Update();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, disabledUser.Login);
+				Assert.That(updateData, Is.Not.Null);
+				Assert.That(updateData.UserId, Is.EqualTo(disabledUser.Id));
+				Assert.That(updateData.ClientId, Is.EqualTo(disabledClient.Id));
+				Assert.That(updateData.ShortName, Is.Not.Null);
+				Assert.That(updateData.ShortName, Is.Not.Empty);
+				Assert.That(updateData.ShortName, Is.EqualTo(disabledClient.Name));
+				Assert.That(updateData.Disabled(), Is.True, "Пользователь включен");
+				Assert.That(updateData.ClientEnabled, Is.False);
+				Assert.That(updateData.UserEnabled, Is.True);
+				Assert.That(updateData.AFPermissionExists, Is.True);
+				Assert.That(updateData.DisabledMessage(), Is.EqualTo("клиент отключен"));
 			}
 		}
 
@@ -533,7 +610,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update usersettings.UserUpdateInfo set TargetVersion = null where UserId = ?UserId",
+					"update future.Users set TargetVersion = null where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id));
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -542,7 +619,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				const int targetVersion = 1300;
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update usersettings.UserUpdateInfo set TargetVersion = ?TargetVersion where UserId = ?UserId",
+					"update future.Users set TargetVersion = ?TargetVersion where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id),
 					new MySqlParameter("?TargetVersion", targetVersion));
 				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);

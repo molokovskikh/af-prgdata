@@ -116,6 +116,12 @@ Public Class PrgDataEx
     'Получает письмо и отправляет его
     <WebMethod()> _
     Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
+        Return SendLetterEx(subject, body, attachment, 0)
+    End Function
+
+    'Получает письмо и отправляет его
+    <WebMethod()> _
+    Public Function SendLetterEx(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte, ByVal emailGroup As Byte) As String
         Try
             Dim updateData As UpdateData
             Using connection = _simpleConnectionManager.GetConnection()
@@ -132,9 +138,21 @@ Public Class PrgDataEx
 
                 updateData.ClientHost = ServiceContext.GetUserHost()
 
+                Dim groupMail As String
+                If EmailGroup = 2 Then
+                    groupMail = ConfigurationManager.AppSettings("OfficeMail")
+                Else
+                    If EmailGroup = 1 Then
+                        groupMail = ConfigurationManager.AppSettings("BillingMail")
+                    Else
+                        groupMail = ConfigurationManager.AppSettings("TechMail")
+                    End If
+                End If
+
+
                 Dim mess As MailMessage = New MailMessage( _
                  New MailAddress("afmail@analit.net", String.Format("{0} [{1}]", updateData.ShortName, updateData.ClientId)), _
-                 New MailAddress(ConfigurationManager.AppSettings("TechMail")))
+                 New MailAddress(groupMail))
                 mess.Body = body
                 mess.IsBodyHtml = False
                 mess.BodyEncoding = Encoding.UTF8
@@ -373,7 +391,12 @@ Public Class PrgDataEx
      ByVal PriceCodes As UInt32(),
      ByVal ProcessBatch As Boolean) As String
         Dim ResStr As String = String.Empty
-        Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
+
+        If (Not ProcessBatch) Then
+            Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
+        Else
+            Addition &= " ОС: " & WINVersion & " " & WINDesc & "; "
+        End If
 
         Try
 
@@ -1189,8 +1212,7 @@ StartZipping:
             MaxSynonymCode = UpdateTime.ToUniversalTime
 
             Try
-                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
-                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                If UpdateData.SaveAFDataFiles Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
                     File.Copy(UpdateData.GetCurrentFile(UpdateId), ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
@@ -1262,8 +1284,7 @@ StartZipping:
             CommitExchange = UpdateTime.ToUniversalTime
 
             Try
-                Cm.CommandText = "select SaveAFDataFiles from UserUpdateInfo  where UserId=" & UserId & "; "
-                If Convert.ToBoolean(Cm.ExecuteScalar) Then
+                If UpdateData.SaveAFDataFiles Then
                     If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
                     File.Copy(UpdateData.GetCurrentFile(UpdateId), ResultFileName & "\Archive\" & UserId & "\" & UpdateId & ".zip")
                 End If
@@ -1319,7 +1340,17 @@ StartZipping:
         UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
-            Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
+            If UpdateData Is Nothing Then
+                Throw New UpdateException( _
+                    "Доступ закрыт.", _
+                    "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", _
+                    RequestType.Forbidden)
+            Else
+                Throw New UpdateException( _
+                    "Доступ закрыт.", _
+                    "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
+                    RequestType.Forbidden)
+            End If
         End If
 
         UpdateData.ResultPath = ServiceContext.GetResultPath()
@@ -1881,6 +1912,8 @@ StartZipping:
         ByVal MaxBatchId As UInt32) As String
 
         Dim ResStr As String = String.Empty
+        Dim currentBatchFile As String = String.Empty
+        Dim currentUpdateId As UInt32? = Nothing
 
         Try
             UpdateType = RequestType.PostOrderBatch
@@ -1897,6 +1930,13 @@ StartZipping:
             Try
                 helper.PrepareBatchFile(BatchFile)
 
+                Addition &= "Файл-дефектура: " & helper.ExtractBatchFileName & "; "
+                If UpdateData.SaveAFDataFiles Then
+                    If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
+                    currentBatchFile = ResultFileName & "\Archive\" & UserId & "\" & DateTime.Now.ToString("yyyyMMddHHmmssfff") & ".7z"
+                    File.Copy(helper.TmpBatchArchiveFileName, currentBatchFile)
+                End If
+
                 'UpdateHelper.GenerateSessionKey(readWriteConnection, UpdateData)
 
                 helper.ProcessBatchFile()
@@ -1910,21 +1950,41 @@ StartZipping:
 
                 ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True)
 
+                currentUpdateId = GUpdateId
+
             Finally
                 helper.DeleteTemporaryFiles()
             End Try
-
-
+            
             Return ResStr
         Catch updateException As UpdateException
-            Return ProcessUpdateException(updateException)
+            Dim updateExceptionMessage = ProcessUpdateException(updateException, True)
+            currentUpdateId = GUpdateId
+            Return updateExceptionMessage
+        Catch OnEmpty As EmptyDefectureException
+            currentUpdateId = UpdateHelper.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "Представленная дефектура не содержит данных.", UpdateData.BuildNumber)
+            Return "Error=Представленная дефектура не содержит данных.;Desc=Пожалуйста, выберите другой файл."
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке дефектуры", ex)
             Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
+
+            Try
+                If UpdateData.SaveAFDataFiles Then
+                    If currentUpdateId IsNot Nothing Then
+                        File.Move(currentBatchFile, ResultFileName & "\Archive\" & UserId & "\" & currentUpdateId & "_Batch.7z")
+                    Else
+                        Log.DebugFormat("При разборе дефектуры не был установлен UpdateId: {0}  FileName: {1}", currentUpdateId, currentBatchFile)
+                    End If
+                End If
+            Catch onSaveBatch As Exception
+                Log.Error("Ошибка при сохранении файла-дефектуры", onSaveBatch)
+            End Try
+
             Counter.ReleaseLock(UserId, "PostOrderBatch")
             DBDisconnect()
         End Try
+
     End Function
 
     Private Sub ProtocolUpdates()
@@ -3562,12 +3622,24 @@ RestartTrans2:
     End Function
 
     Private Function ProcessUpdateException(ByVal updateException As UpdateException) As String
+        Return ProcessUpdateException(updateException, False)
+    End Function
+
+    Private Function ProcessUpdateException(ByVal updateException As UpdateException, ByVal wait As Boolean) As String
         UpdateType = updateException.UpdateType
         Addition += updateException.Addition & "; IP:" & UserHost & "; "
         ErrorFlag = True
         If UpdateData IsNot Nothing Then
             Log.Warn(updateException)
             ProtocolUpdatesThread.Start()
+
+            If wait Then
+                Dim waitCount = 0
+                While GUpdateId = 0 AndAlso waitCount < 30
+                    waitCount += 1
+                    Thread.Sleep(500)
+                End While
+            End If
         Else
             Log.Error(updateException)
         End If
