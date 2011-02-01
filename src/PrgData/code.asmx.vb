@@ -798,10 +798,12 @@ endproc:
 
                                             Else
 
-                                                MailHelper.Mail("Архивирование документов", "Вышли из 7Z с ошибкой: " & ": " & _
+                                                MailHelper.Mail( _
+                                                    "Вышли из 7Z с ошибкой: " & ": " & _
                                                   Вывод7Z & _
                                                  "-" & _
-                                                  Ошибка7Z)
+                                                  Ошибка7Z, _
+                                                  "Архивирование документов")
                                             End If
                                         End If
                                     ElseIf ListOfDocs.Length = 0 Then
