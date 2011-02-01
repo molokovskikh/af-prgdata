@@ -39,7 +39,7 @@ namespace PrgData.Common
 		public UpdateHelper(UpdateData updateData, MySqlConnection readWriteConnection)
 		{
 			MaxProducerCostsPriceId = 4863;
-			maxProducerCostsCostId = 8317;
+			maxProducerCostsCostId = 8148;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
 		}
