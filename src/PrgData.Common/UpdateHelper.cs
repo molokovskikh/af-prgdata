@@ -338,7 +338,8 @@ SELECT
     retclientsset.EnableImpersonalPrice,
 	retclientsset.NetworkPriceId,
     c.Status as ClientEnabled,
-    (u.Enabled and ap.UserId is not null) as UserEnabled
+	u.Enabled as UserEnabled,
+	ap.UserId is not null as AFPermissionExists
 FROM  
   future.users u
   join future.Clients c                         on c.Id = u.ClientId
@@ -395,7 +396,8 @@ SELECT  ouar.clientcode as ClientId,
         retclientsset.EnableImpersonalPrice,
 		retclientsset.NetworkPriceId,
         clientsdata.firmstatus as ClientEnabled,
-        (ap.UserId is not null and IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3))) as UserEnabled
+	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
+	    ap.UserId is not null as AFPermissionExists
 FROM    
   usersettings.osuseraccessright ouar
   join usersettings.clientsdata                 on clientsdata.firmcode = ouar.clientcode

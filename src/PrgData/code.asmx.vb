@@ -1340,7 +1340,17 @@ StartZipping:
         UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
 
         If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
-            Throw New UpdateException("Доступ закрыт.", "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", RequestType.Forbidden)
+            If UpdateData Is Nothing Then
+                Throw New UpdateException( _
+                    "Доступ закрыт.", _
+                    "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", _
+                    RequestType.Forbidden)
+            Else
+                Throw New UpdateException( _
+                    "Доступ закрыт.", _
+                    "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
+                    RequestType.Forbidden)
+            End If
         End If
 
         UpdateData.ResultPath = ServiceContext.GetResultPath()

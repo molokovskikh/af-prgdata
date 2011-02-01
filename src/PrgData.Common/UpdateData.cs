@@ -39,6 +39,7 @@ namespace PrgData.Common
 
 		public bool ClientEnabled;
 		public bool UserEnabled;
+		public bool AFPermissionExists;
 
 		public uint? BuyingMatrixPriceId;
 		public int BuyingMatrixType;
@@ -106,6 +107,7 @@ namespace PrgData.Common
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
 			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
 			UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
+			AFPermissionExists = Convert.ToBoolean(row["AFPermissionExists"]);
 			BuyingMatrixPriceId = Convert.IsDBNull(row["BuyingMatrixPriceId"])
 									? null
 									: (uint?)Convert.ToUInt32(row["BuyingMatrixPriceId"]);
@@ -123,7 +125,18 @@ namespace PrgData.Common
 
 		public bool Disabled()
 		{
-			return !ClientEnabled || !UserEnabled;
+			return !ClientEnabled || !UserEnabled || !AFPermissionExists;
+		}
+
+		public string DisabledMessage()
+		{
+			if (!AFPermissionExists)
+				return "пользователю не разрешено обновлять AnalitF";
+			if (!UserEnabled)
+				return "пользователь отключен";
+			if (!ClientEnabled)
+				return "клиент отключен";
+			return null;
 		}
 
 		public string[] GetUpdateFiles()
