@@ -19,7 +19,10 @@ namespace PrgData.Common
 				var message = new MailMessage("service@analit.net", ConfigurationManager.AppSettings["ErrorMail"]);
 				var SC = new SmtpClient("box.analit.net");
 				message.From = MailAddress;
-				message.Subject = subject;
+				if (!String.IsNullOrEmpty(subject))
+					message.Subject = "Ошибка в сервисе подготовки данных: " + subject;
+				else
+					message.Subject = "Ошибка в сервисе подготовки данных";
 				message.SubjectEncoding = Encoding.UTF8;
 				message.BodyEncoding = Encoding.UTF8;
 				message.Body = messageText;
@@ -51,11 +54,5 @@ namespace PrgData.Common
 			Mail(messageText, subject, null);
 		}
 
-		public static void MailErr(uint ClientId, string ErrSource, string ErrDesc)
-		{
-			Mail(
-				"Клиент: " + ClientId + Environment.NewLine + "Процесс: " + ErrSource + Environment.NewLine + "Описание: " + ErrDesc,
-				"Ошибка в сервисе подготовки данных");
-		}
 	}
 }

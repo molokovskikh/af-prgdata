@@ -224,7 +224,7 @@ group by at.PriceCode, at.regioncode
 					_reasons.Implode("\r\n"));
 			var attachment = DumpTables();
 
-			MailHelper.Mail(body, "При подготовке данных возникли различия во Fresh между PricesData и Core", attachment);
+			MailHelper.Mail(body, "при подготовке данных возникли различия во Fresh между PricesData и Core", attachment);
 		}
 	}
 }

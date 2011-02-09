@@ -36,11 +36,17 @@ namespace PrgData.FileHandlers
 				output.Write(bytes, 0, numBytes);
 		}
 
-		void MailErr(string ErrSource, string ErrDesc)
+		void MailErr(string ErrSource, Exception exception)
 		{
-			var sBody = "Код пользователя : " + SUserId + Environment.NewLine + "Процесс : " + ErrSource + Environment.NewLine +
-			            "Описание : " + ErrDesc;
-			MailHelper.Mail(sBody, "Сервис: ошибка в GetReclameHadler");
+			var sBody =
+				"Код пользователя : " + SUserId + Environment.NewLine +
+				"Процесс : " + ErrSource + Environment.NewLine +
+				"Описание : " + Environment.NewLine;
+			if (exception is HttpException)
+				sBody +=
+					"ErrCode : " + ((HttpException)exception).ErrorCode + Environment.NewLine;
+			sBody += exception.ToString();
+			MailHelper.Mail(sBody, null);
 		}
 
 		public void ProcessRequest(HttpContext context)
@@ -80,14 +86,14 @@ namespace PrgData.FileHandlers
 			catch (HttpException wex)
 			{
 				if (!wex.IsWellKnownException())
-					MailErr("Запрос на получение файла с рекламой, пользователь: " + SUserId, "ErrCode: " + wex.ErrorCode + " Message: " + wex.Message);
+					MailErr("Запрос на получение файла с рекламой", wex);
 			}
 			catch (Exception ex)
 			{
 				if  (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					MailErr("Запрос на получение файла с рекламой, пользователь: " + SUserId, ex.ToString());
+					MailErr("Запрос на получение файла с рекламой", ex);
 					context.Response.StatusCode = 500;
 				}
 			}

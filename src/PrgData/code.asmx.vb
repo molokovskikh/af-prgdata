@@ -439,7 +439,7 @@ Public Class PrgDataEx
                             OldUpTime = AccessTime.ToLocalTime()
                             helper.PrepareLimitedCumulative(OldUpTime)
                         Catch err As Exception
-                            MailHelper.MailErr(CCode, "Подготовка к частичному КО", err.ToString())
+                            Log.Error("Подготовка к частичному КО", err)
                             Addition = err.Message
                             UpdateType = RequestType.Error
                             ErrorFlag = True
@@ -626,7 +626,7 @@ endproc:
                     Try
                         ResStr &= HostsFileHelper.ProcessDNS(SpyHostsFile)
                     Catch HostsException As Exception
-                        MailHelper.MailErr(CCode, "Ошибка во время обработки DNS", HostsException.ToString())
+                        Log.Error("Ошибка во время обработки DNS", HostsException)
                     End Try
                 End If
 
@@ -797,13 +797,9 @@ endproc:
                                                  Ошибка7Z))
 
                                             Else
-
-                                                MailHelper.Mail( _
-                                                    "Вышли из 7Z с ошибкой: " & ": " & _
-                                                  Вывод7Z & _
-                                                 "-" & _
-                                                  Ошибка7Z, _
-                                                  "Архивирование документов")
+                                                Log.Error( _
+                                                    "Архивирование документов" & vbCrLf & _
+                                                    "Вышли из 7Z с ошибкой: " & Вывод7Z & "-" & Ошибка7Z)
                                             End If
                                         End If
                                     ElseIf ListOfDocs.Length = 0 Then
@@ -892,7 +888,6 @@ endproc:
 
                     Catch ex As Exception
                         Log.Error("Ошибка при архивировании документов", ex)
-                        MailHelper.MailErr(CCode, "Архивирование документов", ex.Source & ": " & ex.Message)
                         Addition &= "Архивирование документов" & ": " & ex.Message & "; "
 
                         If Documents Then ErrorFlag = True
@@ -947,7 +942,7 @@ endproc:
                                     Pr.WaitForExit()
 
                                     If Pr.ExitCode <> 0 Then
-                                        MailHelper.MailErr(CCode, "Архивирование EXE", "Вышли из 7Z с кодом " & ": " & Pr.ExitCode)
+                                        Log.ErrorFormat("Архивирование EXE" & vbCrLf & "Вышли из 7Z с кодом : {0}", Pr.ExitCode)
                                         Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
                                         ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                                     Else
@@ -966,7 +961,7 @@ endproc:
                             End If
                             ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
                         Catch ex As Exception
-                            MailHelper.MailErr(CCode, "Архивирование Exe", ex.Source & ": " & ex.Message)
+                            Log.Error("Архивирование Exe", ex)
                             Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
                             If Not Pr Is Nothing Then
                                 If Not Pr.HasExited Then Pr.Kill()
@@ -1121,7 +1116,7 @@ StartZipping:
                     If Not TypeOf ex.InnerException Is ThreadAbortException Then
                         ErrorFlag = True
                         UpdateType = RequestType.Error
-                        MailHelper.MailErr(CCode, "Архивирование", ex.Source & ": " & ex.ToString())
+                        Log.Error("Архивирование", ex)
                     End If
                     Addition &= " Архивирование: " & ex.ToString() & "; "
 
@@ -1135,7 +1130,7 @@ StartZipping:
                     End If
                     Addition &= " Архивирование: " & Unhandled.ToString()
                     ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-                    MailHelper.MailErr(CCode, "Архивирование", Unhandled.Source & ": " & Unhandled.ToString())
+                    Log.Error("Архивирование", Unhandled)
                     Addition &= " Архивирование: " & Unhandled.ToString() & "; "
                     'If Not ArchTrans Is Nothing Then ArchTrans.Rollback()
                 End Try
@@ -1144,7 +1139,7 @@ StartZipping:
         Catch tae As ThreadAbortException
 
         Catch Unhandled As Exception
-            MailHelper.MailErr(CCode, "Архивирование general", Unhandled.Source & ": " & Unhandled.ToString())
+            Log.Error("Архивирование general", Unhandled)
             ErrorFlag = True
         End Try
     End Sub
@@ -1207,7 +1202,7 @@ StartZipping:
                 End If
 
             Catch ex As Exception
-                MailHelper.MailErr(CCode, "Выборка даты обновления ", ex.Message & ex.Source)
+                Me.Log.Error("Выборка даты обновления", ex)
                 UpdateTime = Now().ToUniversalTime
             End Try
 
@@ -1279,7 +1274,7 @@ StartZipping:
                 End If
 
             Catch ex As Exception
-                MailHelper.MailErr(CCode, "Выборка даты обновления ", ex.Message & ex.Source)
+                Me.Log.Error("Выборка даты обновления", ex)
                 UpdateTime = Now().ToUniversalTime
             End Try
 
@@ -3268,7 +3263,7 @@ RestartTrans2:
                 End If
                 Return S
             Else
-                MailHelper.MailErr(CCode, "Ошибка при получении паролей", "У клиента не заданы пароли для шифрации данных")
+                Log.Error("Ошибка при получении паролей" & vbCrLf & "У клиента не заданы пароли для шифрации данных")
                 Addition = "Не заданы пароли для шифрации данных"
                 ErrorFlag = True
             End If
@@ -3480,7 +3475,7 @@ RestartTrans2:
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
             helper.CommitExchange()
         Catch err As Exception
-            MailHelper.MailErr(CCode, "Присвоение значений максимальных синонимов", err.Message)
+            Log.Error("Присвоение значений максимальных синонимов", err)
             Addition = err.Message
             UpdateType = RequestType.Error
             ErrorFlag = True
@@ -3493,7 +3488,7 @@ RestartTrans2:
             helper.OldCommit(AbsentPriceCodes)
             Addition &= "!!! " & AbsentPriceCodes
         Catch err As Exception
-            MailHelper.MailErr(CCode, "Присвоение значений максимальных синонимов", err.Message)
+            Log.Error("Присвоение значений максимальных синонимов", err)
             Addition = err.Message
             UpdateType = RequestType.Error
             ErrorFlag = True
@@ -3506,7 +3501,7 @@ RestartTrans2:
             helper.ResetAbsentPriceCodes(AbsentPriceCodes)
             Addition &= "!!! " & AbsentPriceCodes
         Catch err As Exception
-            MailHelper.MailErr(CCode, "Сброс информации по прайс-листам с недостающими синонимами", err.Message)
+            Log.Error("Сброс информации по прайс-листам с недостающими синонимами", err)
             Addition = err.Message
             UpdateType = RequestType.Error
             ErrorFlag = True
