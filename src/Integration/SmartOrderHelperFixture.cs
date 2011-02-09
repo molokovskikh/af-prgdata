@@ -184,9 +184,6 @@ namespace Integration
 				newAddress.LegalEntity = address.LegalEntity;
 				user.JoinAddress(newAddress);
 
-				newAddress.Save();
-
-				//Почему для сохранения изменений не достаточно вызвать newAddress.Save(), а надо еще вызывать _client.Update()?
 				client.Update();
 
 				var smartRule = new TestSmartOrderRule();

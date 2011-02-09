@@ -1023,8 +1023,7 @@ WHERE RowId =" + _updateData.UserId;
 	FROM 
 	Future.Users u
 	  join future.Clients c on u.ClientId = c.Id
-	  join Future.UserAddresses ua on ua.UserId = u.Id
-	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	  join future.Addresses a on c.Id = a.ClientId
       join billing.LegalEntities le on le.Id = a.LegalEntityId
 	WHERE 
 		u.Id = ?UserId
