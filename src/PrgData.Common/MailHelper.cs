@@ -11,7 +11,7 @@ namespace PrgData.Common
 	{
 		private static ILog logger = LogManager.GetLogger(typeof(MailHelper));
 
-		public static void Mail(string messageText, string subject, string attachment)
+		public static void Mail(string messageText, string subject, string attachment, string attachmentName)
 		{
 			try
 			{
@@ -34,7 +34,9 @@ namespace PrgData.Common
 					writer.Write(attachment);
 					writer.Flush();
 					stream.Position = 0;
-					message.Attachments.Add(new Attachment(stream, "Attachment.txt"));
+					if (String.IsNullOrEmpty(attachmentName))
+						attachmentName = "Attachment.txt";
+					message.Attachments.Add(new Attachment(stream, attachmentName));
 				}
 				SC.Send(message);
 			}
@@ -51,7 +53,7 @@ namespace PrgData.Common
 
 		public static void Mail(string messageText, string subject)
 		{
-			Mail(messageText, subject, null);
+			Mail(messageText, subject, null, null);
 		}
 
 	}

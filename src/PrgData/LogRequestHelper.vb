@@ -39,23 +39,9 @@ Public Class LogRequestHelper
                     ServiceContext.GetUserName(), _
                     MessageText)
 
-                Dim MailAddress As New MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8)
-                Dim message As New MailMessage("service@analit.net", ConfigurationManager.AppSettings("ErrorMail"))
-                message.From = MailAddress
-                message.Subject = "Ошибка в сервисе подготовки данных"
-                message.SubjectEncoding = Encoding.UTF8
-                message.BodyEncoding = Encoding.UTF8
-                message.Body = MessageText
+                Dim httpRequestContent = File.ReadAllText(tmpRequestFileName)
 
-
-                Using stream = File.Open(tmpRequestFileName, FileMode.Open)
-
-                    message.Attachments.Add(New Attachment(stream, "HTTPReguest.txt"))
-
-                    Dim SC As New SmtpClient("box.analit.net")
-                    SC.Send(message)
-
-                End Using
+                MailHelper.Mail(MessageText, Nothing, httpRequestContent, "HTTPReguest.txt")
 
             Finally
                 Try
