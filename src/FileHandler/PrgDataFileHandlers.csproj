@@ -112,6 +112,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AbstractHttpHandler.cs" />
+    <Compile Include="ExceptionExtention.cs" />
     <Compile Include="GetFileHandler.cs" />
     <Compile Include="GetFileHistoryHandler.cs" />
     <Compile Include="GetFileReclameHandler.cs" />

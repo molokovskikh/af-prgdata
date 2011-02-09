@@ -7,37 +7,14 @@ using PrgData.Common.Counters;
 
 namespace PrgData.FileHandlers
 {
-	public class GetFileHistoryHandler : IHttpHandler
+	public class GetFileHistoryHandler : AbstractHttpHandler, IHttpHandler
 	{
-		private string SUserId;
-
-		static void CopyStreams(Stream input, Stream output)
-		{
-			const int size = 4096;
-			var bytes = new byte[4096];
-			int numBytes;
-			while ((numBytes = input.Read(bytes, 0, size)) > 0)
-				output.Write(bytes, 0, numBytes);
-		}
-
-		void MailErr(string ErrSource, Exception exception)
-		{
-			var sBody = 
-				"Код пользователя : " + SUserId + Environment.NewLine + 
-				"Процесс : " + ErrSource + Environment.NewLine +
-				"Описание : " + Environment.NewLine;
-			if (exception is HttpException)
-				sBody +=
-					"ErrCode : " + ((HttpException) exception).ErrorCode + Environment.NewLine;
-			sBody += exception.ToString();
-			MailHelper.Mail(sBody, null);
-		}
 
 		public void ProcessRequest(HttpContext context)
 		{
 			try
 			{
-				SUserId = GetFileHandler.GetUserId(context);
+				SUserId = GetUserId(context);
 				UInt32 UserId;
 				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
@@ -70,14 +47,14 @@ namespace PrgData.FileHandlers
 			catch (HttpException wex)
 			{
 				if (!wex.IsWellKnownException())
-					MailErr("Запрос на получение файла с историей заказов", wex);
+					Log.ErrorFormat("Запрос на получение файла с историей заказов\r\nErrCode : {0}\r\n{1}", wex.ErrorCode, wex);
 			}
 			catch (Exception ex)
 			{
 				if (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					MailErr("Запрос на получение файла с историей заказов", ex);
+					Log.Error("Запрос на получение файла с историей заказов", ex);
 					context.Response.StatusCode = 500;
 				}
 			}
