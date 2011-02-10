@@ -3998,7 +3998,8 @@ RestartTrans2:
                  "  OrderedOffers.Quantity as CoreQuantity, " & _
                  "  OrderedOffers.RegistryCost, " & _
                  "  OrderedOffers.ProducerCost, " & _
-                 "  OrderedOffers.NDS " & _
+                 "  OrderedOffers.NDS, " & _
+                 "  OrdersList.RetailCost " & _
                  "from " & _
                     " HistoryIds " & _
                     " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _
