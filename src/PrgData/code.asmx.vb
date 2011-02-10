@@ -1871,11 +1871,11 @@ StartZipping:
           Period, _
           Doc, _
           RegistryCost, _
-          VitallyImportant,
-          RetailMarkup,
+          VitallyImportant, _
+          RetailMarkup, _
           ProducerCost, _
           NDS, _
-          RetailCost _
+          RetailCost.ToArray() _
           )
     End Function
 
@@ -1971,8 +1971,8 @@ StartZipping:
           Period, _
           Doc, _
           RegistryCost, _
-          VitallyImportant,
-          RetailMarkup,
+          VitallyImportant, _
+          RetailMarkup.ToArray(), _
           ProducerCost, _
           NDS, _
           RetailCost _
