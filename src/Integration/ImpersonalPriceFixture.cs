@@ -573,5 +573,16 @@ where
 			SendLetterToGroup(1);
 			SendLetterToGroup(2);
 		}
+
+		[Test(Description = "Для копий с обезличенным прайс-листом недоступна загрузка истории заказов")]
+		public void CheckGetHistoryOrders()
+		{
+			SetCurrentUser(user.Login);
+			var service = new PrgDataEx();
+			var historyResponse = service.GetHistoryOrders("6.0.7.1183", UniqueId, new ulong[0], 1, 1);
+			Assert.That(historyResponse, Is.StringContaining("Error=Для копии с обезличенным прайс-листом недоступна загрузка истории заказов.").IgnoreCase);
+			Assert.That(historyResponse, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
+		}
+
 	}
 }

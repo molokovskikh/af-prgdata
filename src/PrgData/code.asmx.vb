@@ -3872,6 +3872,14 @@ RestartTrans2:
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 
+            If UpdateData.EnableImpersonalPrice Then
+                Throw New UpdateException( _
+                    "Доступ закрыт.", _
+                    "Для копии с обезличенным прайс-листом недоступна загрузка истории заказов.", _
+                    "Логин " & UserName & " с обезличенным прайс-листом недоступна загрузка истории заказов; ", _
+                    RequestType.Forbidden)
+            End If
+
             Dim historyIds As String = String.Empty
             If (ExistsServerOrderIds.Length > 0) AndAlso (ExistsServerOrderIds(0) <> 0) Then
                 Dim d = ExistsServerOrderIds.Select(Function(item) item.ToString())
