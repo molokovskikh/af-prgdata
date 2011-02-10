@@ -35,6 +35,7 @@ namespace PrgData.Common.Orders
 		public uint OrderedQuantity { get; set; }
 		public float? SupplierPriceMarkup { get; set; }
 		public float? RetailMarkup { get; set; }
+		public float? RetailCost { get; set; }
 		public ushort? NDS { get; set; }
 
 		public ClientOrderPosition()

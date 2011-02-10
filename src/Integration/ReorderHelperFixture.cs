@@ -456,7 +456,8 @@ limit 1
 					new bool[] { false }, //vitallyImportant,
 					new string[] { "" }, //retailMarkup,
 					new string[] { "" }, //producerCost,
-					new string[] { "" } //nds
+					new string[] { "" }, //nds
+					new string[] { "" } //retailCost,
 					);
 		}
 
@@ -501,7 +502,8 @@ limit 1
 					new bool[] { false, false }, //vitallyImportant,
 					new string[] { "", "" }, //retailMarkup,
 					new string[] { "", "" }, //producerCost,
-					new string[] { "", "" } //nds
+					new string[] { "", "" }, //nds
+					new string[] { "", "" } //retailCost,
 					);
 		}
 
@@ -546,7 +548,8 @@ limit 1
 					new bool[] { false, false }, //vitallyImportant,
 					new string[] { "", "" }, //retailMarkup,
 					new string[] { "", "" }, //producerCost,
-					new string[] { "", "" } //nds
+					new string[] { "", "" }, //nds
+					new string[] { "", "" } //retailCost,
 					);
 		}
 
@@ -591,7 +594,8 @@ limit 1
 					new bool[] { false, false, false }, //vitallyImportant,
 					new string[] { "", "", "" }, //retailMarkup,
 					new string[] { "", "", "" }, //producerCost,
-					new string[] { "", "", "" } //nds
+					new string[] { "", "", "" }, //nds
+					new string[] { "", "", "" } //retailCost,
 					);
 		}
 
@@ -1030,9 +1034,9 @@ and orderslist.Coreid is not null",
 					connection,
 					@"
 insert into Orders.OrdersList 
-(`OrderID`, `CoreId`, `ProductId`, `CodeFirmCr`, `SynonymCode`, `SynonymFirmCrCode`, `Code`, `CodeCr`, `Quantity`, `Junk`, `Await`, `RequestRatio`, `OrderCost`, `MinOrderCount`, `Cost`, `SupplierPriceMarkup`, `RetailMarkup`) 
+(`OrderID`, `CoreId`, `ProductId`, `CodeFirmCr`, `SynonymCode`, `SynonymFirmCrCode`, `Code`, `CodeCr`, `Quantity`, `Junk`, `Await`, `RequestRatio`, `OrderCost`, `MinOrderCount`, `Cost`, `SupplierPriceMarkup`, `RetailMarkup`, `RetailCost`) 
 select 
-  `OrdersList`.`OrderID`, `OrdersList`.`CoreId`, `OrdersList`.`ProductId`, `OrdersList`.`CodeFirmCr`, `OrdersList`.`SynonymCode`, `OrdersList`.`SynonymFirmCrCode`, `OrdersList`.`Code`, `OrdersList`.`CodeCr`, `OrdersList`.`Quantity`, `OrdersList`.`Junk`, `OrdersList`.`Await`, `OrdersList`.`RequestRatio`, `OrdersList`.`OrderCost`, `OrdersList`.`MinOrderCount`, `OrdersList`.`Cost`, `OrdersList`.`SupplierPriceMarkup`, `OrdersList`.`RetailMarkup`
+  `OrdersList`.`OrderID`, `OrdersList`.`CoreId`, `OrdersList`.`ProductId`, `OrdersList`.`CodeFirmCr`, `OrdersList`.`SynonymCode`, `OrdersList`.`SynonymFirmCrCode`, `OrdersList`.`Code`, `OrdersList`.`CodeCr`, `OrdersList`.`Quantity`, `OrdersList`.`Junk`, `OrdersList`.`Await`, `OrdersList`.`RequestRatio`, `OrdersList`.`OrderCost`, `OrdersList`.`MinOrderCount`, `OrdersList`.`Cost`, `OrdersList`.`SupplierPriceMarkup`, `OrdersList`.`RetailMarkup`, `OrdersList`.`RetailCost`
 from Orders.OrdersList where OrderId = ?OrderId limit 1;
 update Orders.OrdersHead set RowCount = RowCount + 1 where RowId = ?OrderId;",
 					new MySqlParameter("?OrderId", firstResponse.ServerOrderId));

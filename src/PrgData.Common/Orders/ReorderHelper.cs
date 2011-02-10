@@ -272,6 +272,7 @@ values
 								orderPosition.CoreId = null;
 
 							orderPosition.RetailMarkup = position.RetailMarkup;
+							orderPosition.RetailCost = position.RetailCost;
 							orderPosition.SupplierPriceMarkup = position.SupplierPriceMarkup;
 							orderPosition.OfferInfo.NDS = position.NDS;
 
@@ -597,7 +598,8 @@ AND    RCS.clientcode          = ?ClientCode"
 			bool[] vitallyImportant,
 			string[] retailMarkup,
 			string[] producerCost,
-			string[] nds
+			string[] nds,
+			string[] retailCost
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -642,6 +644,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, vitallyImportant.Length, "vitallyImportant");
 
 			CheckArrayCount(allPositionCount, retailMarkup.Length, "retailMarkup");
+			CheckArrayCount(allPositionCount, retailCost.Length, "retailCost");
 
 			CheckArrayCount(allPositionCount, producerCost.Length, "producerCost");
 			CheckArrayCount(allPositionCount, nds.Length, "nds");
@@ -782,6 +785,14 @@ AND    RCS.clientcode          = ?ClientCode"
 												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 									NDS =
 										String.IsNullOrEmpty(nds[detailIndex]) ? null : (ushort?)ushort.Parse(nds[detailIndex]),
+									RetailCost = 
+										String.IsNullOrEmpty(retailCost[detailIndex])
+											? null
+											: (float?)float
+															.Parse(
+																retailCost[detailIndex],
+																System.Globalization.NumberStyles.Currency,
+																System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 								};
 
 						clientOrder.Positions.Add(position);
