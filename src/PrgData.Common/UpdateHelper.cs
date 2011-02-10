@@ -2681,7 +2681,7 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 							}
 
 							throw new UpdateException(description,
-							   "Пожалуйста, обратитесь в АК «Инфорум».[2]",
+							   "Пожалуйста, обратитесь в АК \"Инфорум\".[2]",
 							   "Несоответствие UIN.",
 							   RequestType.Forbidden);
 						}

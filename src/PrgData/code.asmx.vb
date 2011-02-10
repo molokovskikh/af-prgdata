@@ -1340,13 +1340,20 @@ StartZipping:
             If UpdateData Is Nothing Then
                 Throw New UpdateException( _
                     "Доступ закрыт.", _
-                    "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется; ", _
+                    "Пожалуйста, обратитесь в АК ""Инфорум"".[1]", "Для логина " & UserName & " услуга не предоставляется; ", _
                     RequestType.Forbidden)
             Else
-                Throw New UpdateException( _
-                    "Доступ закрыт.", _
-                    "Пожалуйста, обратитесь в АК «Инфорум».[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
-                    RequestType.Forbidden)
+                If UpdateData.BillingDisabled() Then
+                    Throw New UpdateException( _
+                        "В связи с неоплатой услуг доступ закрыт.", _
+                        "Пожалуйста, обратитесь в бухгалтерию АК ""Инфорум"".[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
+                        RequestType.Forbidden)
+                Else
+                    Throw New UpdateException( _
+                        "Доступ закрыт.", _
+                        "Пожалуйста, обратитесь в АК ""Инфорум"".[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
+                        RequestType.Forbidden)
+                End If
             End If
         End If
 

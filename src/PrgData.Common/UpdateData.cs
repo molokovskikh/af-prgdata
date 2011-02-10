@@ -139,6 +139,11 @@ namespace PrgData.Common
 			return null;
 		}
 
+		public bool BillingDisabled()
+		{
+			return !UserEnabled || !ClientEnabled;
+		}
+
 		public string[] GetUpdateFiles()
 		{
 			if (EnableUpdate())

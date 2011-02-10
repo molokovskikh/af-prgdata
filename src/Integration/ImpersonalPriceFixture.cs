@@ -560,5 +560,18 @@ where
 		{
 			SendLetterToGroup(2);
 		}
+
+		[Test(Description = "Отправляем письмо для отключенного пользователя")]
+		public void SendLetterOnDisabledUser()
+		{
+			using (var transaction = new TransactionScope())
+			{
+				user.Enabled = false;
+				user.Update();
+			}
+			SendLetterToGroup(0);
+			SendLetterToGroup(1);
+			SendLetterToGroup(2);
+		}
 	}
 }

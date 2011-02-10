@@ -1407,5 +1407,46 @@ select @postBatchId;"
 			}
 		}
 
+		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
+		public void CheckGetUserDataOnDisabledUser()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+			using (var transaction = new TransactionScope())
+			{
+				_user.Enabled = false;
+				_user.Update();
+			}
+
+			SetCurrentUser(_user.Login);
+
+			var service = new PrgDataEx();
+			var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
+			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
+		}
+
+		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
+		public void CheckGetUserDataOnDisabledClient()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+			using (var transaction = new TransactionScope())
+			{
+				_client.Status = ClientStatus.Off;
+				_client.Update();
+			}
+
+			SetCurrentUser(_user.Login);
+
+			var service = new PrgDataEx();
+			var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
+			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
+		}
 	}
 }
