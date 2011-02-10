@@ -485,6 +485,43 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "Документы, отправленные пользователем для разбора, не возвращаются в архиве")]
+		public void SendedWaybillsNotReturned()
+		{
+			CreateUser();
+			document.Delete();
+			fakeDocument.Delete();
+
+			SendWaybill();
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId + ".zip";
+			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+
+			var extractFolder = "ResultExtract";
+			if (Directory.Exists(extractFolder))
+				FileHelper.DeleteDir(extractFolder);
+			Directory.CreateDirectory(extractFolder);
+
+			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
+			var files = Directory.GetFiles(extractFolder);
+
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+
+			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
+
+			if (Directory.Exists(Path.Combine(extractFolder, "Waybills")))
+			{
+				var waybillsFiles = Directory.GetFiles(Path.Combine(extractFolder, "Waybills"));
+				Assert.That(waybillsFiles.Length, Is.EqualTo(0), "В папке с накладными имеются файлы, хотя там не должно быть файлов, которые пользователь отправил для разбора: {0}", waybillsFiles.Implode());
+			}
+
+			Confirm();
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));

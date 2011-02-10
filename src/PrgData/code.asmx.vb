@@ -745,7 +745,7 @@ endproc:
                                 xRow.Item("DocumentId") = Row.Item("RowId").ToString
                                 DS.Tables("ProcessingDocuments").Rows.Add(xRow)
 
-                                If Not Convert.ToBoolean(Row.Item("IsFake")) Then
+                                If Not Convert.ToBoolean(Row.Item("IsFake")) AndAlso Convert.IsDBNull(Row.Item("SendUpdateId")) Then
 
                                     ListOfDocs = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
                                      Row.Item("ClientCode").ToString & _

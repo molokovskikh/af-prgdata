@@ -828,7 +828,8 @@ AND     AFDP.UpdateId = ?updateId";
 select d.AddressId as ClientCode,
 	d.RowId,
 	d.DocumentType,
-	d.IsFake
+	d.IsFake,
+	d.SendUpdateId
 from Logs.DocumentSendLogs ds
 	join Logs.Document_logs d on d.RowId = ds.DocumentId
 where ds.UserId = ?UserId 
@@ -844,7 +845,8 @@ limit 200;
 SELECT  RCS.ClientCode,
         d.RowId,
         d.DocumentType,
-		d.IsFake
+		d.IsFake,
+		d.SendUpdateId
 FROM    logs.document_logs d,
         retclientsset RCS
 WHERE   RCS.ClientCode = ?ClientCode
@@ -859,7 +861,8 @@ UNION
 SELECT  ir.IncludeClientCode,
 		d.RowId,
         d.DocumentType,
-		d.IsFake
+		d.IsFake,
+		d.SendUpdateId
 FROM    logs.document_logs d,
         retclientsset RCS,
         includeregulation ir
