@@ -1057,6 +1057,53 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			}
 		}
 
+		private void CheckConfirmUserMessage(MySqlConnection connection, uint userId, UpdateHelper helper, string dbMessage, string fromUserMessage)
+		{
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"
+update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
+",
+				new MySqlParameter("?Message", dbMessage),
+				new MySqlParameter("?UserId", userId));
+
+			helper.ConfirmUserMessage(fromUserMessage);
+
+			var messageShowCount = Convert.ToInt32(
+				MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
+					,
+					new MySqlParameter("?UserId", userId)));
+			Assert.That(messageShowCount, Is.EqualTo(0), "Неподтвердились сообщения\r\nв базе:{0}\r\nот пользователя:{1}", dbMessage, fromUserMessage);
+		}
+
+		[Test(Description = "надо потверждать пользовательское сообщение по совпадению начала строк")]
+		public void ConfirmUserMessageByMatchingStringStarting()
+		{
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				CheckConfirmUserMessage(connection, _user.Id, helper, "aaa", "aaa");
+
+				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250), new string('a', 250));
+
+				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250) + new string('b', 5), new string('a', 250) + new string('b', 5));
+
+				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250) + new string('b', 5) + "c", new string('a', 250) + new string('b', 5) + "d");
+
+				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250) + new string('b', 5) + new string('m', 10), new string('a', 250) + new string('b', 5) + new string('l', 10));
+			}
+		}
+
 		private string GetTestFileName(string fileName)
 		{
 			return Path.Combine(ServiceContext.GetResultPath(), fileName);

@@ -2717,7 +2717,7 @@ set
   MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) 
 where
     UserId = ?UserId
-and Message = ?Message",
+and left(Message, 255) = left(?Message, 255)",
 					   new MySqlParameter("?UserId", _updateData.UserId),
 					   new MySqlParameter("?Message", confirmedMessage));
 
