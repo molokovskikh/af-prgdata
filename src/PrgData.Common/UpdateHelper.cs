@@ -972,7 +972,8 @@ SELECT
 	u.Id as RowId,
 	'',
     (u.InheritPricesFrom is not null) as InheritPrices,
-    1 as IsFutureClient
+    1 as IsFutureClient,
+	u.UseAdjustmentOrders
 FROM 
   Future.Users u
   join future.Clients c on u.ClientId = c.Id
@@ -989,7 +990,8 @@ SELECT ClientCode,
 	RowId,
 	'',
     0 as InheritPrices,
-    0 as IsFutureClient
+    0 as IsFutureClient,
+	0 as UseAdjustmentOrders
 FROM OsUserAccessRight O
 WHERE RowId =" + _updateData.UserId;
 

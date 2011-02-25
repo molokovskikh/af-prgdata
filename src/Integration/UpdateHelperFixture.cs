@@ -1278,5 +1278,44 @@ and ForceReplication > 0;",
 			}
 		}
 
+		[Test(Description = "Получаем данные для пользователя, которому не назначен ни один адрес доставки")]
+		public void CheckChangeUseAdjustmentOrders()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update Future.Users set UseAdjustmentOrders = 0 where Id = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+				var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
+				var dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
+				Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
+				Assert.That(dataTable.Columns.Contains("UseAdjustmentOrders"), Is.EqualTo(true), "Не найден столбец UseAdjustmentOrders");
+				Assert.That(Convert.ToBoolean(dataTable.Rows[0]["UseAdjustmentOrders"]), Is.EqualTo(false), "Свойство UseAdjustmentOrders не соответствует значению в базе");
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update Future.Users set UseAdjustmentOrders = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				helper = new UpdateHelper(updateData, connection);
+				dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
+				Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
+				Assert.That(dataTable.Columns.Contains("UseAdjustmentOrders"), Is.EqualTo(true), "Не найден столбец UseAdjustmentOrders");
+				Assert.That(Convert.ToBoolean(dataTable.Rows[0]["UseAdjustmentOrders"]), Is.EqualTo(true), "Свойство UseAdjustmentOrders не соответствует значению в базе");
+			}
+		}
+
 	}
 }
