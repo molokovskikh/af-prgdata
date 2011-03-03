@@ -445,7 +445,7 @@ limit 1
 					new string[] { firstOffer["Cost"].ToString() },  //leaderMinCost
 					new string[] { activePrice["PriceCode"].ToString() },  //leaderMinPriceCode
 					new string[] { "" },  //supplierPriceMarkup
-					new string[] { "" }, //delayOfPayment,
+					new string[] { "-90.0" }, //delayOfPayment,
 					new string[] { firstOffer["Quantity"].ToString() }, //coreQuantity,
 					new string[] { "" }, //unit,
 					new string[] { "" }, //volume,
@@ -1218,6 +1218,47 @@ and (i.PriceId = :PriceId)
 				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы заказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}
 		}
+
+		[Test(Description = "Проверяем сохранение отсрочки платежа в заказе для клиентов из новой реальности")]
+		public void CheckSimpleOrderWithDelayOfPaymentForFutureClient()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				ParseSimpleOrder(orderHelper);
+
+				var result = orderHelper.PostSomeOrders();
+
+				var firstServerOrderId = CheckServiceResponse(result);
+
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+
+				var delayOfPayment =
+					Convert.ToDecimal(MySqlHelper
+					                  	.ExecuteScalar(
+					                  		connection,
+											@"
+select 
+  DelayOfPayment 
+from 
+  orders.ordershead 
+where 
+  ordershead.RowId = ?OrderId",
+					                  		new MySqlParameter("?OrderId", firstServerOrderId))
+						);
+
+				Assert.That(delayOfPayment, Is.EqualTo(-90.0m));
+			}
+		}
+
 
 	}
 }
