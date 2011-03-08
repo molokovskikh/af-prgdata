@@ -896,6 +896,14 @@ endproc:
 
                     End Try
 
+                    Log.DebugFormat("Not Documents: {0}", Not Documents)
+                    Log.DebugFormat("UpdateData.SupplierPromotions.Count > 0: {0}", UpdateData.SupplierPromotions.Count > 0)
+                    Log.DebugFormat("UpdateData.AllowSupplierPromotions(): {0}", UpdateData.AllowSupplierPromotions())
+                    Log.DebugFormat("UpdateData.NeedUpdateToSupplierPromotions(): {0}", UpdateData.NeedUpdateToSupplierPromotions())
+                    Log.DebugFormat("All djskdjskd : {0}", Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() or UpdateData.NeedUpdateToSupplierPromotions()))
+                    If Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() or UpdateData.NeedUpdateToSupplierPromotions()) then
+                        helper.ArchivePromotions(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
+                    End If
 
                     If Documents Then
                         If File.Exists(SevenZipTmpArchive) Then
@@ -2951,6 +2959,7 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SupplierPromotions" & UserId & ".txt")
                 'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
 
                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
@@ -2982,6 +2991,9 @@ RestartTrans2:
                  "  date_sub(?LastUpdateTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)," & _
                  "  ?Cumulative " & _
                  "from UserUpdateInfo where UserId=" & UserId)
+
+                UpdateData.SupplierPromotions = helper.GetPromotionsList(SelProc)
+                Log.DebugFormat("PromotionsList: {0}", UpdateData.SupplierPromotions.Implode())
 
                 If helper.NeedClientToAddressMigration() Then
                     GetMySQLFileWithDefault("ClientToAddressMigrations", SelProc, helper.GetClientToAddressMigrationCommand())
@@ -3141,6 +3153,9 @@ RestartTrans2:
                     GetMySQLFileWithDefault("Synonyms", SelProc, helper.GetSynonymCommand(GED))
                 End If
 
+                'If UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions() then
+                '    GetMySQLFileWithDefaultEx("SupplierPromotions", SelProc, helper.GetPromotionsCommand(), UpdateData.NeedUpdateToSupplierPromotions(), True)
+                'End If
 
                 If Not UpdateData.EnableImpersonalPrice Then
 

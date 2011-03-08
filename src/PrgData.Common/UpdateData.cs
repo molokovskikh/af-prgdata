@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Data;
 using System.Diagnostics;
@@ -16,7 +17,8 @@ namespace PrgData.Common
 
 	public class UpdateData
 	{
-		private static int _versionOfConfirmUserMessage = 1299; 
+		private static int _versionOfConfirmUserMessage = 1299;
+		private static int _versionOfSupplierPromotions = 1359;
 
 		public string ShortName;
 		public uint ClientId;
@@ -66,6 +68,8 @@ namespace PrgData.Common
 
 		public bool NeedUpdateToNewClientsWithLegalEntity { get; private set; }
 
+		public bool NeedUpdateToSupplierPromotions { get; private set; }
+
 		public VersionInfo UpdateExeVersionInfo { get; private set; }
 
 		public uint? NetworkPriceId;
@@ -74,6 +78,8 @@ namespace PrgData.Common
 
 		public string ResultPath;
 		private string _currentTempFileName;
+
+		public List<SupplierPromotion> SupplierPromotions = new List<SupplierPromotion>();
 
 		public UpdateData(DataSet data)
 		{
@@ -176,6 +182,7 @@ namespace PrgData.Common
 					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();
 					//NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
 					NeedUpdateToNewClientsWithLegalEntity = CheckNeedUpdateToNewClientsWithLegalEntity();
+					NeedUpdateToSupplierPromotions = CheckNeedUpdateToSupplierPromotions();
 				}
 			}
 		}
@@ -226,6 +233,19 @@ namespace PrgData.Common
 		public bool IsConfirmUserMessage()
 		{
 			return (BuildNumber > _versionOfConfirmUserMessage || KnownBuildNumber > _versionOfConfirmUserMessage);
+		}
+
+		public bool AllowSupplierPromotions()
+		{
+			return (BuildNumber > _versionOfSupplierPromotions || KnownBuildNumber > _versionOfSupplierPromotions);
+		}
+
+		private bool CheckNeedUpdateToSupplierPromotions()
+		{
+			if (UpdateExeVersionInfo != null && BuildNumber <= _versionOfSupplierPromotions)
+				return UpdateExeVersionInfo.VersionNumber > _versionOfSupplierPromotions;
+
+			return false;
 		}
 
 		private VersionInfo GetUpdateVersionInfo()

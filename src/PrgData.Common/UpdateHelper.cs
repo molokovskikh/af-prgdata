@@ -1,15 +1,19 @@
 ﻿using System;
+using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
 using log4net;
+using PrgData.Common.SevenZip;
 using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 using System.Collections.Generic;
+using Common.Tools;
 
 namespace PrgData.Common
 {
@@ -1425,6 +1429,195 @@ and (DescriptionLogs.Operation = 2)
         (ProducerLogs.LogTime >= ?UpdateTime) 
     and (ProducerLogs.Operation = 2)        
       ";
+		}
+
+		private string GetAbstractPromotionsCommand()
+		{
+			return
+				@"
+select
+	SupplierPromotions.Id,
+	SupplierPromotions.Enabled,
+	SupplierPromotions.CatalogId,
+	SupplierPromotions.SupplierId,
+	SupplierPromotions.Annotation
+from
+	usersettings.SupplierPromotions	
+where";
+		}
+
+		public string GetPromotionsCommand()
+		{
+			return GetAbstractPromotionsCommand() +
+@"
+	if(not ?Cumulative, SupplierPromotions.UpdateTime > ?UpdateTime, SupplierPromotions.Enabled)
+    ";
+		}
+
+		public string GetPromotionsCommandById(List<uint> promotionIds)
+		{
+			return 
+				GetAbstractPromotionsCommand() +
+				string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
+		}
+
+		public List<SupplierPromotion> GetPromotionsList(MySqlCommand sqlCommand)
+		{
+			var list = new List<SupplierPromotion>();
+			var dataAdapter = new MySqlDataAdapter(sqlCommand);
+			sqlCommand.CommandText = GetPromotionsCommand();
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			foreach (DataRow row in dataTable.Rows)
+			{
+				list.Add(
+					new SupplierPromotion 
+					{ 
+						Id = Convert.ToUInt32(row["Id"]),
+						Enabled = Convert.ToBoolean(row["Enabled"])
+					});
+			}
+			return list;
+		}
+
+		private string MySqlLocalFilePath()
+		{
+    		return System.Configuration.ConfigurationManager.AppSettings["MySqlLocalFilePath"];
+		}
+
+    private string MySqlFilePath()
+    {
+#if DEBUG
+    	return System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"] + @"\";
+#else
+    	return
+    		Path.Combine(@"\\" + Environment.MachineName,
+    		             System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"]) + @"\";
+#endif
+    }
+
+		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
+		{
+			var log = LogManager.GetLogger(typeof(UpdateHelper));
+
+			try
+			{
+				log.Debug("Будем выгружать акции");
+
+				var command = new MySqlCommand();
+				command.Connection = connection;
+				SetUpdateParameters(command, cumulative, oldUpdateTime, currentUpdateTime);
+
+				ExportSupplierPromotions(archiveFileName, command, filesForArchive);
+
+				ArchivePromoFiles(archiveFileName, command);
+			}
+			catch (Exception exception)
+			{
+				log.Error("Ошибка при архивировании акций поставщиков", exception);
+				addition += "Архивирование акций поставщиков: " + exception.Message + "; ";
+
+				ShareFileHelper.MySQLFileDelete(archiveFileName);
+			}
+		}
+
+		private void ArchivePromoFiles(string archiveFileName, MySqlCommand command)
+		{
+			var promotionsFolder = "Promotions";
+			var promotionsPath = Path.Combine(_updateData.ResultPath, promotionsFolder);
+			if (!Directory.Exists(promotionsPath))
+				Directory.CreateDirectory(promotionsPath);
+
+			foreach (var supplierPromotion in _updateData.SupplierPromotions)
+			{
+				if (supplierPromotion.Enabled)
+				{
+					//var fileMask = Path.Combine(promotionsPath, supplierPromotion.Id + "*");
+					var files = Directory.GetFiles(promotionsPath, supplierPromotion.Id + "*");
+					if (files.Length > 0)
+					{
+						SevenZipHelper.ArchiveFilesWithNames(
+							archiveFileName,
+							Path.Combine(promotionsFolder, supplierPromotion.Id + "*"),
+							_updateData.ResultPath);
+					}
+				}
+			}
+		}
+
+
+		private void GetMySQLFileWithDefaultEx(string FileName, MySqlCommand MyCommand, string SQLText, bool SetCumulative, bool AddToQueue, Queue<FileForArchive> filesForArchive)
+	{
+		var log = LogManager.GetLogger(typeof(UpdateHelper));
+		var SQL = SQLText;
+		bool oldCumulative = false;
+
+		try
+		{
+			if(SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
+			{
+				oldCumulative = Convert.ToBoolean(MyCommand.Parameters["?Cumulative"].Value);
+				MyCommand.Parameters["?Cumulative"].Value = true;
+			}
+
+			var fullName = Path.Combine(MySqlFilePath(), FileName + _updateData.UserId + ".txt");
+			fullName = MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName);
+
+			SQL += " INTO OUTFILE '" + fullName + "' ";
+
+			log.DebugFormat("SQL команда для выгрузки акций: {0}", SQL);
+
+			MyCommand.CommandText = SQL;
+			MyCommand.ExecuteNonQuery();
+		}
+		finally
+		{
+            if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
+            	MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
+			
+		}
+
+        if (AddToQueue)
+        {
+        	lock (filesForArchive)
+        	{
+        		filesForArchive.Enqueue(new FileForArchive(FileName, false));
+        	}
+        }
+	}
+
+
+		private void ExportSupplierPromotions(string archiveFileName, MySqlCommand command, Queue<FileForArchive> filesForArchive)
+		{
+			var supplierFile = "SupplierPromotions" + _updateData.UserId + ".txt";
+			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + supplierFile);
+
+			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + supplierFile);
+
+			var ids = _updateData.SupplierPromotions.Select(promotion => promotion.Id).ToList();
+
+
+			GetMySQLFileWithDefaultEx("SupplierPromotions", command, GetPromotionsCommandById(ids), false, false, filesForArchive);
+
+#if DEBUG
+			ShareFileHelper.WaitFile(MySqlLocalFilePath() + supplierFile);
+#endif
+
+			try
+			{
+				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + supplierFile);
+				var log = LogManager.GetLogger(typeof(UpdateHelper));
+				log.DebugFormat("файл для архивации: {0}", MySqlLocalFilePath() + supplierFile);
+			}
+			catch
+			{
+				ShareFileHelper.MySQLFileDelete(archiveFileName);
+				throw;
+			}
+
+			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + supplierFile);
+
+			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + supplierFile);
 		}
 
 		public string GetCatalogCommand(bool before1150, bool Cumulative)

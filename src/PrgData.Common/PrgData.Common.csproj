@@ -160,8 +160,11 @@
     <Compile Include="Repositories\IVersionRuleRepository.cs" />
     <Compile Include="Repositories\VersionRuleRepository.cs" />
     <Compile Include="RequestType.cs" />
+    <Compile Include="SevenZip\SevenZipArchiveException.cs" />
+    <Compile Include="SevenZip\SevenZipHelper.cs" />
     <Compile Include="ShareFileHelper.cs" />
     <Compile Include="SmartOrderHelper.cs" />
+    <Compile Include="SupplierPromotion.cs" />
     <Compile Include="UpdateData.cs" />
     <Compile Include="UpdateException.cs" />
     <Compile Include="Waybills\GenerateDocsHelper.cs" />

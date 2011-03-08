@@ -1317,5 +1317,44 @@ and ForceReplication > 0;",
 			}
 		}
 
+		[Test(Description = "Проверяем выполенение sql-команды, работающей с акциями поставщиков")]
+		public void CheckPromotionsCommand()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var promotionCount = Convert.ToInt32(
+					MySqlHelper.ExecuteScalar(
+						connection,
+						"select count(*) from usersettings.SupplierPromotions where Enabled = 1"));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+				helper.SetUpdateParameters(SelProc, true, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				SelProc.CommandText = helper.GetPromotionsCommand();
+				var dataAdapter = new MySqlDataAdapter(SelProc);
+				var dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(promotionCount));
+
+				SelProc = new MySqlCommand();
+				SelProc.Connection = connection;
+				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				SelProc.CommandText = helper.GetPromotionsCommand();
+				dataAdapter = new MySqlDataAdapter(SelProc);
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(0));
+			}
+		}
+
 	}
 }
