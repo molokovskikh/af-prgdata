@@ -17,8 +17,8 @@ namespace PrgData.Common
 
 	public class UpdateData
 	{
-		private static int _versionOfConfirmUserMessage = 1299;
-		private static int _versionOfSupplierPromotions = 1359;
+		private static int _versionBeforeConfirmUserMessage = 1299;
+		private static int _versionBeforeSupplierPromotions = 1363;
 
 		public string ShortName;
 		public uint ClientId;
@@ -232,18 +232,18 @@ namespace PrgData.Common
 
 		public bool IsConfirmUserMessage()
 		{
-			return (BuildNumber > _versionOfConfirmUserMessage || KnownBuildNumber > _versionOfConfirmUserMessage);
+			return (BuildNumber > _versionBeforeConfirmUserMessage || KnownBuildNumber > _versionBeforeConfirmUserMessage);
 		}
 
 		public bool AllowSupplierPromotions()
 		{
-			return (BuildNumber > _versionOfSupplierPromotions || KnownBuildNumber > _versionOfSupplierPromotions);
+			return (BuildNumber > _versionBeforeSupplierPromotions || KnownBuildNumber > _versionBeforeSupplierPromotions);
 		}
 
 		private bool CheckNeedUpdateToSupplierPromotions()
 		{
-			if (UpdateExeVersionInfo != null && BuildNumber <= _versionOfSupplierPromotions)
-				return UpdateExeVersionInfo.VersionNumber > _versionOfSupplierPromotions;
+			if (UpdateExeVersionInfo != null && BuildNumber <= _versionBeforeSupplierPromotions)
+				return UpdateExeVersionInfo.VersionNumber > _versionBeforeSupplierPromotions;
 
 			return false;
 		}

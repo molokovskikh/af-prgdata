@@ -1327,7 +1327,7 @@ and ForceReplication > 0;",
 				var promotionCount = Convert.ToInt32(
 					MySqlHelper.ExecuteScalar(
 						connection,
-						"select count(*) from usersettings.SupplierPromotions where Enabled = 1"));
+						"select count(*) from usersettings.SupplierPromotions where Status = 1"));
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);

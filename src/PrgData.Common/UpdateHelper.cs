@@ -1437,8 +1437,7 @@ and (DescriptionLogs.Operation = 2)
 				@"
 select
 	SupplierPromotions.Id,
-	SupplierPromotions.Enabled,
-	SupplierPromotions.CatalogId,
+	SupplierPromotions.Status,
 	SupplierPromotions.SupplierId,
 	SupplierPromotions.Annotation
 from
@@ -1450,7 +1449,7 @@ where";
 		{
 			return GetAbstractPromotionsCommand() +
 @"
-	if(not ?Cumulative, SupplierPromotions.UpdateTime > ?UpdateTime, SupplierPromotions.Enabled)
+	if(not ?Cumulative, SupplierPromotions.UpdateTime > ?UpdateTime, SupplierPromotions.Status)
     ";
 		}
 
@@ -1459,6 +1458,21 @@ where";
 			return 
 				GetAbstractPromotionsCommand() +
 				string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
+		}
+
+		public string GetPromotionCatalogsCommandById(List<uint> promotionIds)
+		{
+			return
+				String.Format(
+				@"
+select 
+  CatalogId,
+  PromotionId,
+  0 as Hidden
+from
+  usersettings.PromotionCatalogs
+where
+  PromotionId in ({0})", promotionIds.Implode());
 		}
 
 		public List<SupplierPromotion> GetPromotionsList(MySqlCommand sqlCommand)
@@ -1474,7 +1488,7 @@ where";
 					new SupplierPromotion 
 					{ 
 						Id = Convert.ToUInt32(row["Id"]),
-						Enabled = Convert.ToBoolean(row["Enabled"])
+						Status = Convert.ToBoolean(row["Status"])
 					});
 			}
 			return list;
@@ -1530,7 +1544,7 @@ where";
 
 			foreach (var supplierPromotion in _updateData.SupplierPromotions)
 			{
-				if (supplierPromotion.Enabled)
+				if (supplierPromotion.Status)
 				{
 					//var fileMask = Path.Combine(promotionsPath, supplierPromotion.Id + "*");
 					var files = Directory.GetFiles(promotionsPath, supplierPromotion.Id + "*");
@@ -1547,55 +1561,61 @@ where";
 
 
 		private void GetMySQLFileWithDefaultEx(string FileName, MySqlCommand MyCommand, string SQLText, bool SetCumulative, bool AddToQueue, Queue<FileForArchive> filesForArchive)
-	{
-		var log = LogManager.GetLogger(typeof(UpdateHelper));
-		var SQL = SQLText;
-		bool oldCumulative = false;
-
-		try
 		{
-			if(SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
+			var log = LogManager.GetLogger(typeof(UpdateHelper));
+			var SQL = SQLText;
+			bool oldCumulative = false;
+
+			try
 			{
-				oldCumulative = Convert.ToBoolean(MyCommand.Parameters["?Cumulative"].Value);
-				MyCommand.Parameters["?Cumulative"].Value = true;
+				if(SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
+				{
+					oldCumulative = Convert.ToBoolean(MyCommand.Parameters["?Cumulative"].Value);
+					MyCommand.Parameters["?Cumulative"].Value = true;
+				}
+
+				var fullName = Path.Combine(MySqlFilePath(), FileName + _updateData.UserId + ".txt");
+				fullName = MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName);
+
+				SQL += " INTO OUTFILE '" + fullName + "' ";
+
+				log.DebugFormat("SQL команда для выгрузки акций: {0}", SQL);
+
+				MyCommand.CommandText = SQL;
+				MyCommand.ExecuteNonQuery();
+			}
+			finally
+			{
+				if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
+            		MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
+			
 			}
 
-			var fullName = Path.Combine(MySqlFilePath(), FileName + _updateData.UserId + ".txt");
-			fullName = MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName);
-
-			SQL += " INTO OUTFILE '" + fullName + "' ";
-
-			log.DebugFormat("SQL команда для выгрузки акций: {0}", SQL);
-
-			MyCommand.CommandText = SQL;
-			MyCommand.ExecuteNonQuery();
+			if (AddToQueue)
+			{
+        		lock (filesForArchive)
+        		{
+        			filesForArchive.Enqueue(new FileForArchive(FileName, false));
+        		}
+			}
 		}
-		finally
+		
+		private string DeleteFileByPrefix(string prefix)
 		{
-            if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
-            	MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
-			
+			var deletedFile = prefix + _updateData.UserId + ".txt";
+			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + deletedFile);
+
+			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + deletedFile);
+
+			return deletedFile;
 		}
-
-        if (AddToQueue)
-        {
-        	lock (filesForArchive)
-        	{
-        		filesForArchive.Enqueue(new FileForArchive(FileName, false));
-        	}
-        }
-	}
-
 
 		private void ExportSupplierPromotions(string archiveFileName, MySqlCommand command, Queue<FileForArchive> filesForArchive)
 		{
-			var supplierFile = "SupplierPromotions" + _updateData.UserId + ".txt";
-			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + supplierFile);
-
-			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + supplierFile);
+			var supplierFile = DeleteFileByPrefix("SupplierPromotions");
+			var catalogFile = DeleteFileByPrefix("PromotionCatalogs");
 
 			var ids = _updateData.SupplierPromotions.Select(promotion => promotion.Id).ToList();
-
 
 			GetMySQLFileWithDefaultEx("SupplierPromotions", command, GetPromotionsCommandById(ids), false, false, filesForArchive);
 
@@ -1618,6 +1638,26 @@ where";
 			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + supplierFile);
 
 			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + supplierFile);
+
+
+
+			GetMySQLFileWithDefaultEx("PromotionCatalogs", command, GetPromotionCatalogsCommandById(ids), false, false, filesForArchive);
+
+			try
+			{
+				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + catalogFile);
+				var log = LogManager.GetLogger(typeof(UpdateHelper));
+				log.DebugFormat("файл для архивации: {0}", MySqlLocalFilePath() + catalogFile);
+			}
+			catch
+			{
+				ShareFileHelper.MySQLFileDelete(archiveFileName);
+				throw;
+			}
+
+			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + catalogFile);
+
+			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + catalogFile);
 		}
 
 		public string GetCatalogCommand(bool before1150, bool Cumulative)

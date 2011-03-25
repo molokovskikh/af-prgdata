@@ -2960,6 +2960,8 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SupplierPromotions" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PromotionCatalogs" & UserId & ".txt")
+                
                 'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
 
                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
