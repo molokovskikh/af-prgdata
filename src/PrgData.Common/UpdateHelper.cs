@@ -1439,7 +1439,9 @@ select
 	SupplierPromotions.Id,
 	SupplierPromotions.Status,
 	SupplierPromotions.SupplierId,
-	SupplierPromotions.Annotation
+	SupplierPromotions.Name,
+	SupplierPromotions.Annotation,
+	SupplierPromotions.PromoFile
 from
 	usersettings.SupplierPromotions	
 where";
