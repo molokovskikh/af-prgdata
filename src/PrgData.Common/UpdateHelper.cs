@@ -1458,6 +1458,22 @@ where";
 		public string GetPromotionsCommandById(List<uint> promotionIds)
 		{
 			return 
+				@"
+select
+	log.PromotionId,
+	0 as Status,
+	log.SupplierId,
+	log.Name,
+	log.Annotation,
+	log.PromoFile
+from
+	logs.SupplierPromotionLogs log
+where
+	log.LogTime > ?UpdateTime
+and log.Operation = 2
+union
+ " 
+				+				
 				GetAbstractPromotionsCommand() +
 				string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
 		}
@@ -1474,7 +1490,18 @@ select
 from
   usersettings.PromotionCatalogs
 where
-  PromotionId in ({0})", promotionIds.Implode());
+  PromotionId in ({0})
+union
+select 
+  CatalogId,
+  PromotionId,
+  1 as Hidden
+from
+  logs.PromotionCatalogLogs
+where
+	LogTime > ?UpdateTime
+and Operation = 2
+", promotionIds.Implode());
 		}
 
 		public List<SupplierPromotion> GetPromotionsList(MySqlCommand sqlCommand)
