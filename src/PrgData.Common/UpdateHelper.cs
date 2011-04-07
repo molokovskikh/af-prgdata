@@ -1441,7 +1441,9 @@ select
 	SupplierPromotions.SupplierId,
 	SupplierPromotions.Name,
 	SupplierPromotions.Annotation,
-	SupplierPromotions.PromoFile
+	SupplierPromotions.PromoFile,
+	SupplierPromotions.Begin,
+	SupplierPromotions.End
 from
 	usersettings.SupplierPromotions	
 where";
@@ -1457,7 +1459,7 @@ where";
 
 		public string GetPromotionsCommandById(List<uint> promotionIds)
 		{
-			return 
+			return
 				@"
 select
 	log.PromotionId,
@@ -1465,14 +1467,16 @@ select
 	log.SupplierId,
 	log.Name,
 	log.Annotation,
-	log.PromoFile
+	log.PromoFile,
+	log.Begin,
+	log.End
 from
 	logs.SupplierPromotionLogs log
 where
 	log.LogTime > ?UpdateTime
 and log.Operation = 2
 union
- " 
+ "
 				+				
 				GetAbstractPromotionsCommand() +
 				string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
