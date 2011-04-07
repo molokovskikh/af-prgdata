@@ -16,7 +16,7 @@ Global(
 #добавил комментарий
 Task @default, [@buildWebService]
 
-Task @deploy, [@CheckScmChanges, @buildWebService, @Production, @Migrate, @DeployWebService, @SendDeployNotification]
+Task @deploy, [@CheckScmChanges, @buildWebService, @Production, @Migrate, @Backup, @DeployWebService, @SendDeployNotification]
 
 Task @deployTest, [@buildWebService, @Production, @Migrate]:
 	Cp("src/${Globals.Project}/Web.release.PrgDataTest.config", "${Path.GetFullPath('build')}/Web.config", true)
