@@ -901,7 +901,7 @@ endproc:
                     Log.DebugFormat("UpdateData.AllowSupplierPromotions(): {0}", UpdateData.AllowSupplierPromotions())
                     Log.DebugFormat("UpdateData.NeedUpdateToSupplierPromotions(): {0}", UpdateData.NeedUpdateToSupplierPromotions())
                     Log.DebugFormat("All djskdjskd : {0}", Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() or UpdateData.NeedUpdateToSupplierPromotions()))
-                    If Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() or UpdateData.NeedUpdateToSupplierPromotions()) then
+                    If Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() or UpdateData.NeedUpdateToSupplierPromotions) then
                         helper.ArchivePromotions(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
                     End If
 

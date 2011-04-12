@@ -1475,6 +1475,7 @@ from
 where
 	log.LogTime > ?UpdateTime
 and log.Operation = 2
+and not ?Cumulative
 union
  "
 				+				
@@ -1490,21 +1491,22 @@ union
 select 
   CatalogId,
   PromotionId,
-  0 as Hidden
-from
-  usersettings.PromotionCatalogs
-where
-  PromotionId in ({0})
-union
-select 
-  CatalogId,
-  PromotionId,
   1 as Hidden
 from
   logs.PromotionCatalogLogs
 where
 	LogTime > ?UpdateTime
 and Operation = 2
+and not ?Cumulative
+union
+select 
+  CatalogId,
+  PromotionId,
+  0 as Hidden
+from
+  usersettings.PromotionCatalogs
+where
+  PromotionId in ({0})
 ", promotionIds.Implode());
 		}
 
@@ -1512,9 +1514,26 @@ and Operation = 2
 		{
 			var list = new List<SupplierPromotion>();
 			var dataAdapter = new MySqlDataAdapter(sqlCommand);
-			sqlCommand.CommandText = GetPromotionsCommand();
 			var dataTable = new DataTable();
-			dataAdapter.Fill(dataTable);
+			bool oldCumulative = false;
+
+			try
+			{
+				if (sqlCommand.Parameters.Contains("?Cumulative"))
+				{
+					oldCumulative = Convert.ToBoolean(sqlCommand.Parameters["?Cumulative"].Value);
+					if (_updateData.NeedUpdateToSupplierPromotions)
+						sqlCommand.Parameters["?Cumulative"].Value = true;
+				}
+				sqlCommand.CommandText = GetPromotionsCommand();
+				dataAdapter.Fill(dataTable);
+			}
+			finally
+			{
+				if (sqlCommand.Parameters.Contains("?Cumulative"))
+					sqlCommand.Parameters["?Cumulative"].Value = oldCumulative;
+			}
+
 			foreach (DataRow row in dataTable.Rows)
 			{
 				list.Add(
