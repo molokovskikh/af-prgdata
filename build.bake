@@ -9,7 +9,7 @@ import file from Tools.bake
 Global(
 	Project : "PrgData",
 	humanReadableName : "Служба подготовки данных",
-	deployTo : """\\ACDCSERV.ADC.ANALIT.NET\WebApps\PrgDataService\PrgData\""",
+	deployTo : """\\adc.analit.net\Inforoom\WebApps\PrgDataService\PrgData\""",
 	Platform : "x64"
 )
 
