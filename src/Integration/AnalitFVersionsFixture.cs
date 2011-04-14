@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
@@ -13,6 +15,7 @@ using Common.Tools;
 using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
+using PrgData;
 using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Model;
@@ -29,9 +32,12 @@ namespace Integration
 		private TestUser user;
 		private TestAddress address;
 
+		private string UniqueId;
+
 		[SetUp]
 		public void Setup()
 		{
+			UniqueId = "123";
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
@@ -40,11 +46,12 @@ namespace Integration
 			//if (Directory.Exists("FtpRoot"))
 			//    FileHelper.DeleteDir("FtpRoot");
 
+			client = TestClient.CreateSimple();
+
 			using (var transaction = new TransactionScope())
 			{
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				client = TestClient.CreateSimple();
 				user = client.Users[0];
 
 				client.Users.Each(u =>
@@ -188,6 +195,131 @@ values
 			Assert.That(updater.GetVersionInfo(1299, 1299), Is.Null);
 			Assert.That(updater.GetVersionInfo(1317, 1317), Is.Null);
 		}
+
+		[Test(Description = "проверяем работу ExeVersionUpdater для 'сетевой' версии")]
+		public void TestVersionUpdaterForNetwork()
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\NetworkUpdates\\";
+			var updater = VersionUpdaterFactory.GetUpdater();
+
+			Assert.That(updater, Is.Not.Null);
+
+			Assert.That(updater.VersionInfos, Is.Not.Null);
+			Assert.That(updater.VersionInfos.Count, Is.EqualTo(1));
+
+			var info = updater.VersionInfos[0];
+			Assert.That(info.VersionNumber, Is.EqualTo(1380));
+			Assert.That(info.ExeVersionNumber(), Is.EqualTo(1380));
+			Assert.That(info.Folder, Is.StringEnding("Release1380"));
+		}
+
+		private void SetCurrentUser(string login)
+		{
+			ServiceContext.GetUserName = () => login;
+		}
+
+		private uint ParseUpdateId(string responce)
+		{
+			var match = Regex.Match(responce, @"\d+").Value;
+			if (match.Length > 0)
+				return Convert.ToUInt32(match);
+
+			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
+			return 0;
+		}
+
+		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
+		public void CheckGetUserDataOnDisabledClient()
+		{
+			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\NetworkUpdates\\";
+			
+			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
+			if (Directory.Exists(extractFolder))
+				Directory.Delete(extractFolder, true);
+			Directory.CreateDirectory(extractFolder);
+
+			var appVersion = "1.1.1.1378";
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+delete from usersettings.AnalitFVersionRules
+where
+    SourceVersion = 1378
+and DestinationVersion = 1380;
+insert into usersettings.AnalitFVersionRules
+(SourceVersion, DestinationVersion)
+values
+(1378, 1380);
+update future.Users
+set
+  TargetVersion = null
+where
+  Id = ?UserId;
+"
+				,
+				new MySqlParameter("?UserId", user.Id));
+
+			try
+			{
+				SetCurrentUser(user.Login);
+
+				var service = new PrgDataEx();
+				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+				Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
+				var updateId = ParseUpdateId(responce);
+
+				var updateFile = Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(user.Id, updateId));
+				Assert.That(File.Exists(updateFile), Is.True, "Не найден файл с подготовленными данными");
+
+				ArchiveHelper.Extract(updateFile, "*.*", extractFolder);
+
+				var exeFolder = Path.Combine(extractFolder, "Exe");
+				Assert.That(Directory.Exists(exeFolder), Is.True, "На найден каталог с обновлением exe");
+
+				var rootFiles = Directory.GetFiles(exeFolder);
+				Assert.That(rootFiles.Length, Is.EqualTo(2));
+				Assert.That(
+					rootFiles.Contains(file => file.EndsWith("AnalitFService.exe", StringComparison.OrdinalIgnoreCase)),
+					Is.True,
+					"Не найден файл с сервисом");
+				Assert.That(
+					rootFiles.Contains(file => file.EndsWith("testRoot.txt", StringComparison.OrdinalIgnoreCase)),
+					Is.True,
+					"Не найден текстовый файл");
+
+				var analitFFolder = Path.Combine(exeFolder, "AnalitF");
+				Assert.That(Directory.Exists(analitFFolder), Is.True, "На найден каталог с обновлением AnalitF");
+
+				var analitFFiles = Directory.GetFiles(analitFFolder);
+				Assert.That(analitFFiles.Length, Is.EqualTo(2));
+				Assert.That(
+					analitFFiles.Contains(file => file.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase)),
+					Is.True,
+					"Не найден файл с AnalitF");
+				Assert.That(
+					analitFFiles.Contains(file => file.EndsWith("testSub.txt", StringComparison.OrdinalIgnoreCase)),
+					Is.True,
+					"Не найден текстовый файл");
+
+			}
+			finally
+			{
+				var files = Directory.GetFiles(ServiceContext.GetResultPath());
+				files.Each(file => File.Delete(file));
+
+				var dirs = Directory.GetDirectories(ServiceContext.GetResultPath());
+				dirs.Each(dir =>
+				          	{
+				          		var info = new DirectoryInfo(dir);
+								if (!info.Name.Equals("Updates", StringComparison.OrdinalIgnoreCase))
+									Directory.Delete(dir, true);
+							});
+			}
+		}
+
 
 	}
 }

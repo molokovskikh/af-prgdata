@@ -39,9 +39,12 @@ namespace PrgData.Common.AnalitFVersions
 			if (exeFolder.Length < 0)
 				throw new Exception(String.Format("Не найдена вложенная директория Exe: {0}", folder));
 
-			var exeFile = exeFolder[0].GetFiles("AnalitF.exe");
+			var exeFile = exeFolder[0].GetFiles("*.exe");
 			if (exeFile.Length < 0)
-				throw new Exception(String.Format("Во вложенной директории Exe не найден файл AnalitF.Exe: {0}", folder));
+				throw new Exception(String.Format("Во вложенной директории Exe не найден файл с расширением .exe: {0}", folder));
+
+			if (exeFile.Length > 1)
+				throw new Exception(String.Format("Во вложенной директории Exe не найдено более одного файла с расширением .exe: {0}", folder));
 
 			try
 			{
@@ -53,7 +56,7 @@ namespace PrgData.Common.AnalitFVersions
 			}
 
 			if (VersionNumber != ExeVersionNumber())
-				throw new Exception("Не совпадают номера версий в названии папки = {0} и файла AnalitF.exe = {1}".Format(VersionNumber, ExeVersionNumber()));
+				throw new Exception("Не совпадают номера версий в названии папки = {0} и файла {2} = {1}".Format(VersionNumber, ExeVersionNumber(), Path.GetFileName(exeFile[0].FullName)));
 		}
 
 		public uint ExeVersionNumber()
