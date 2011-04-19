@@ -19,6 +19,8 @@ namespace PrgData.Common
 	{
 		private static int _versionBeforeConfirmUserMessage = 1299;
 		private static int _versionBeforeSupplierPromotions = 1363;
+		//версия AnalitF до поддержки отсрочек платежа с разделением на ЖНВЛС и прочий ассортимент
+		private static int _versionBeforeDelayWithVitallyImportant = 1385;
 
 		public string ShortName;
 		public uint ClientId;
@@ -246,6 +248,11 @@ namespace PrgData.Common
 				return UpdateExeVersionInfo.VersionNumber > _versionBeforeSupplierPromotions;
 
 			return false;
+		}
+
+		public bool AllowDelayWithVitallyImportant()
+		{
+			return (BuildNumber > _versionBeforeDelayWithVitallyImportant || KnownBuildNumber > _versionBeforeDelayWithVitallyImportant);
 		}
 
 		private VersionInfo GetUpdateVersionInfo()

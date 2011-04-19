@@ -1,6 +1,8 @@
 using System;
+using System.Data;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.Tools;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData.Common;
@@ -11,6 +13,8 @@ namespace Integration
 	[TestFixture]
 	public class DelayOfPaymentsFixture
 	{
+		TestClient _client;
+		TestUser _user;
 
 		private string UniqueId;
 
@@ -21,6 +25,23 @@ namespace Integration
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
+
+			_client = TestClient.CreateSimple();
+
+			using (var transaction = new TransactionScope())
+			{
+				_user = _client.Users[0];
+
+				var permission = TestUserPermission.ByShortcut("AF");
+				_client.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				_user.Update();
+			}
+
 		}
 
 		[Test(Description = "Получаем значения DayOfWeek")]
@@ -87,6 +108,57 @@ namespace Integration
 			}
 
 		}
+
+		private MySqlDataAdapter CreateAdapter(MySqlConnection connection, string sqlCommand, UpdateData updateData)
+		{
+			var dataAdapter = new MySqlDataAdapter(sqlCommand, connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", updateData.ClientId);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", updateData.UserId);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersClientCode", updateData.OffersClientCode);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+			return dataAdapter;
+		}
+
+		[Test]
+		public void GetOldDelayOfPayments()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1385;
+				var helper = new UpdateHelper(updateData, connection);
+
+				var dataAdapter = CreateAdapter(connection, helper.GetDelayOfPaymentsCommand(), updateData);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+				Assert.That(table.Columns.Count, Is.EqualTo(2));
+				Assert.That(table.Columns.Contains("SupplierId"), Is.True);
+				Assert.That(table.Columns.Contains("DelayOfPayment"), Is.True);
+			}
+		}
+
+		[Test]
+		public void GetDelayOfPaymentsWithVitallyImportant()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1386;
+				var helper = new UpdateHelper(updateData, connection);
+
+				var dataAdapter = CreateAdapter(connection, helper.GetDelayOfPaymentsCommand(), updateData);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+				Assert.That(table.Columns.Count, Is.EqualTo(4));
+				Assert.That(table.Columns.Contains("SupplierId"), Is.True);
+				Assert.That(table.Columns.Contains("DayOfWeek"), Is.True);
+				Assert.That(table.Columns.Contains("VitallyImportantDelay"), Is.True);
+				Assert.That(table.Columns.Contains("OtherDelay"), Is.True);
+			}
+		}
+
 	
 	}
 }

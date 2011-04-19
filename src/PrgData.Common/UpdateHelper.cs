@@ -1192,9 +1192,42 @@ WHERE  clientsdata.firmcode    = ?ClientCode";
 			if (_updateData.EnableImpersonalPrice)
 				return "select null from usersettings.clientsdata limit 0";
 			else
-			if (_updateData.IsFutureClient)
-			{
-				return @"
+				if (_updateData.AllowDelayWithVitallyImportant())
+				{
+					if (_updateData.IsFutureClient)
+					{
+						return @"
+select
+	d.SupplierId,
+    d.DayOfWeek,
+	d.VitallyImportantDelay,
+	d.OtherDelay
+from
+       Future.Users u
+       join future.Clients c on u.ClientId = c.Id
+       join Usersettings.DelayOfPayments d on d.ClientId = c.Id
+where
+       u.Id = ?UserId";
+					}
+					else
+					{
+						return @"
+select
+	d.SupplierId,
+    d.DayOfWeek,
+	d.VitallyImportantDelay,
+	d.OtherDelay
+from
+       Usersettings.DelayOfPayments d 
+where
+       d.ClientId = ?ClientCode";
+					}
+				}
+				else
+				{
+					if (_updateData.IsFutureClient)
+					{
+						return @"
 select
        si.SupplierId   ,
        si.DelayOfPayment
@@ -1204,10 +1237,10 @@ from
        join Usersettings.SupplierIntersection si on si.ClientId = c.Id
 where
        u.Id = ?UserId";
-			}
-			else
-			{
-				return @"
+					}
+					else
+					{
+						return @"
 select
        si.SupplierId,
        si.DelayOfPayment
@@ -1215,7 +1248,8 @@ from
        Usersettings.SupplierIntersection si 
 where
        si.ClientId = ?ClientCode";
-			}
+					}
+				}
 		}
 
 		public string GetMNNCommand(bool before1150, bool Cumulative, bool after1263)
