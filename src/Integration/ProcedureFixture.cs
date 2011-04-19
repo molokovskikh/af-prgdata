@@ -1496,13 +1496,5 @@ select @postBatchId;"
 			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
 		}
 
-		[Test(Description = "Получаем значения DayOfWeek")]
-		public void CheckDayOfWeek()
-		{
-			foreach (var value in Enum.GetValues(typeof(DayOfWeek)))
-			{
-				Console.WriteLine("{0} = {1}", value, (int)value);
-			}
-		}
 	}
 }
