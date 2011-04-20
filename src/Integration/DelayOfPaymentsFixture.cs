@@ -159,6 +159,47 @@ namespace Integration
 			}
 		}
 
-	
+		[Test(Description = "ѕровер€ем создание записей в отсрочках платежа при создании новых клиентов")]
+		public void CheckInsertToDelayOfPayments()
+		{
+			var beforeNewClientCount = TestDelayOfPayment.Queryable.Count();
+			var newClient = TestClient.CreateSimple();
+			var afterNewClientCount = TestDelayOfPayment.Queryable.Count();
+			Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "ѕосле создани€ нового клиента не были создано записи в отсрочках платежей, возможно, не работает триггер");
+
+			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.ClientId == newClient.Id).FirstOrDefault();
+			Assert.That(firstDelayRule, Is.Not.Null, "Ќе найдена кака€-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
+
+			var rulesBySupplier =
+				TestDelayOfPayment.Queryable.Where(r => r.ClientId == newClient.Id && r.SupplierId == firstDelayRule.SupplierId).
+					ToList();
+			Assert.That(
+				rulesBySupplier.Count, 
+				Is.EqualTo(7), 
+				"«аписи в отсрочках платежей созданы не по всем дн€м недели дл€ клиента {0} и поставщика {1}", 
+				newClient.Id, 
+				firstDelayRule.SupplierId);
+			Assert.That(
+				rulesBySupplier.Select(r => r.DayOfWeek), 
+				Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))), 
+				"«аписи в отсрочках платежей дублируютс€ по некоторым дн€м недели дл€ клиента {0} и поставщика {1}", 
+				newClient.Id, 
+				firstDelayRule.SupplierId);
+
+			var newSupplier = TestOldClient.CreateTestSupplier();
+			var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
+			Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "ѕосле создани€ нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
+
+			var rulesByNewSupplier =
+				TestDelayOfPayment.Queryable.Where(r => r.ClientId == newClient.Id && r.SupplierId == newSupplier.Id).
+					ToList();
+			Assert.That(
+				rulesByNewSupplier.Count,
+				Is.EqualTo(7),
+				"«аписи в отсрочках платежей созданы не по всем дн€м недели дл€ клиента {0} и поставщика {1}",
+				newClient.Id,
+				newSupplier.Id);
+		}
+
 	}
 }
