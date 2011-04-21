@@ -954,7 +954,9 @@ select
   DocumentBodies.Quantity, 
   DocumentBodies.VitallyImportant, 
   DocumentBodies.NDS,
-  DocumentBodies.SerialNumber
+  DocumentBodies.SerialNumber,
+  DocumentBodies.Amount,
+  DocumentBodies.NdsAmount
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
