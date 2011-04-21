@@ -76,6 +76,8 @@ namespace PrgData.Common
 
 		public uint? NetworkPriceId;
 
+		public bool ShowAdvertising;
+
 		public UncommittedRequest PreviousRequest;
 
 		public string ResultPath;
@@ -129,6 +131,7 @@ namespace PrgData.Common
 			                    	? null
 			                    	: (uint?) Convert.ToUInt32(row["NetworkPriceId"]);
 			SaveAFDataFiles = Convert.ToBoolean(row["SaveAFDataFiles"]);
+			ShowAdvertising = Convert.ToBoolean(row["ShowAdvertising"]);
 		}
 
 		public bool Disabled()

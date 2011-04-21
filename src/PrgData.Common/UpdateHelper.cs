@@ -341,6 +341,7 @@ SELECT
     retclientsset.WarningOnBuyingMatrix,
     retclientsset.EnableImpersonalPrice,
 	retclientsset.NetworkPriceId,
+	retclientsset.ShowAdvertising,
     c.Status as ClientEnabled,
 	u.Enabled as UserEnabled,
 	ap.UserId is not null as AFPermissionExists
@@ -399,6 +400,7 @@ SELECT  ouar.clientcode as ClientId,
 		retclientsset.WarningOnBuyingMatrix,
         retclientsset.EnableImpersonalPrice,
 		retclientsset.NetworkPriceId,
+		retclientsset.ShowAdvertising,
         clientsdata.firmstatus as ClientEnabled,
 	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
 	    ap.UserId is not null as AFPermissionExists
@@ -1549,6 +1551,10 @@ where
 		public List<SupplierPromotion> GetPromotionsList(MySqlCommand sqlCommand)
 		{
 			var list = new List<SupplierPromotion>();
+
+			if (!_updateData.ShowAdvertising)
+				return list;
+
 			var dataAdapter = new MySqlDataAdapter(sqlCommand);
 			var dataTable = new DataTable();
 			bool oldCumulative = false;
