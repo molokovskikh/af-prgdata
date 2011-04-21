@@ -956,9 +956,9 @@ select
   DocumentBodies.Quantity, 
   DocumentBodies.VitallyImportant, 
   DocumentBodies.NDS,
-  DocumentBodies.SerialNumber,
-  DocumentBodies.Amount,
-  DocumentBodies.NdsAmount
+  DocumentBodies.SerialNumber
+  {1}
+
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
@@ -967,7 +967,13 @@ where
 and DocumentBodies.DocumentId = DocumentHeaders.Id
 "
 				,
-				downloadIds);
+				downloadIds,
+				!_updateData.AllowDelayWithVitallyImportant() 
+					? String.Empty 
+					: @"
+  ,
+  DocumentBodies.Amount,
+  DocumentBodies.NdsAmount");
 		}
 
 		public string GetUserCommand()
