@@ -257,6 +257,7 @@ values
 
 					order.ClientAddition = clientOrder.ClientAddition;
 					order.ClientOrderId = clientOrder.ClientOrderId;
+					order.VitallyImportantDelayOfPayment = clientOrder.VitallyImportantDelayOfPayment;
 					order.CalculateLeader = false;
 
 					clientOrder.Order = order;
@@ -274,6 +275,7 @@ values
 							orderPosition.RetailMarkup = position.RetailMarkup;
 							orderPosition.RetailCost = position.RetailCost;
 							orderPosition.SupplierPriceMarkup = position.SupplierPriceMarkup;
+							orderPosition.CostWithDelayOfPayment = position.CostWithDelayOfPayment;
 							orderPosition.OfferInfo.NDS = position.NDS;
 
 							if (position.LeaderInfo != null)
@@ -599,7 +601,9 @@ AND    RCS.clientcode          = ?ClientCode"
 			string[] retailMarkup,
 			string[] producerCost,
 			string[] nds,
-			string[] retailCost
+			string[] retailCost,
+			string[] vitallyImportantDelayOfPayment,
+			decimal[] costWithDelayOfPayment
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -608,7 +612,8 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(orderCount, priceDate.Length, "priceDate");
 			CheckArrayCount(orderCount, clientAddition.Length, "clientAddition");
 			CheckArrayCount(orderCount, rowCount.Length, "rowCount");
-			CheckArrayCount(orderCount, delayOfPayment.Length, "delayOfPayment");						
+			CheckArrayCount(orderCount, delayOfPayment.Length, "delayOfPayment");
+			CheckArrayCount(orderCount, vitallyImportantDelayOfPayment.Length, "vitallyImportantDelayOfPayment");
 
 			int allPositionCount = rowCount.Sum(item => item);
 
@@ -628,6 +633,7 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, quantity.Length, "quantity");
 
 			CheckArrayCount(allPositionCount, cost.Length, "cost");
+			CheckArrayCount(allPositionCount, costWithDelayOfPayment.Length, "costWithDelayOfPayment");
 			CheckArrayCount(allPositionCount, minCost.Length, "minCost");
 			CheckArrayCount(allPositionCount, minPriceCode.Length, "minPriceCode");
 			CheckArrayCount(allPositionCount, leaderMinCost.Length, "leaderMinCost");
@@ -674,6 +680,12 @@ AND    RCS.clientcode          = ?ClientCode"
 							ActivePrice = activePrice,
 							ClientAddition = DecodedDelphiString(clientAddition[i]),
 							ClientOrderId = Convert.ToUInt32(clientOrderId[i]),
+							VitallyImportantDelayOfPayment =
+								String.IsNullOrEmpty(vitallyImportantDelayOfPayment[i]) ? 0m : decimal
+									.Parse(
+										vitallyImportantDelayOfPayment[i],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
 						};
 
 					var currentRowCount = rowCount[i];
@@ -793,6 +805,7 @@ AND    RCS.clientcode          = ?ClientCode"
 																retailCost[detailIndex],
 																System.Globalization.NumberStyles.Currency,
 																System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+									CostWithDelayOfPayment = Convert.ToSingle(costWithDelayOfPayment[detailIndex]),
 								};
 
 						clientOrder.Positions.Add(position);
@@ -801,6 +814,38 @@ AND    RCS.clientcode          = ?ClientCode"
 					detailsPosition += currentRowCount;
 				}
 			}
+		}
+
+		public static decimal[] PrepareCostWithDelayOfPayment(
+			decimal[] cost,
+			ushort orderCount,
+			string[] delayOfPayment,
+			ushort[] rowCount
+			)
+		{
+			var results = (decimal[])cost.Clone();
+
+			if (delayOfPayment.Length > 0 && delayOfPayment.Length == orderCount && delayOfPayment.Length == rowCount.Length)
+			{
+				var detailsPosition = 0u;
+				for (int i = 0; i < orderCount; i++)
+				{
+					var delay = String.IsNullOrEmpty(delayOfPayment[i])
+					            	? 0m
+					            	: decimal
+					            	  	.Parse(
+					            	  		delayOfPayment[i],
+					            	  		System.Globalization.NumberStyles.Currency,
+					            	  		System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+					for (uint detailIndex = detailsPosition; detailIndex < (detailsPosition + rowCount[i]); detailIndex++)
+					{
+						results[detailIndex] = cost[detailIndex]*(1m + delay/100m);
+					}
+					detailsPosition += rowCount[i];
+				}
+			}
+
+			return results;
 		}
 
 		public void ParseOldOrder(

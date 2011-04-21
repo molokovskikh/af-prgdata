@@ -39,6 +39,7 @@ namespace Integration
 		public void Setup()
 		{
 			ServiceContext.GetUserHost = () => "127.0.0.1";
+			ServiceContext.GetResultPath = () => "results\\";
 			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
@@ -547,5 +548,352 @@ and orderslist.SynonymCode = ?SynonymCode",
 
 			Assert.That(insertPosition["CoreQuantity"], Is.EqualTo(offer["Quantity"]), "Не сопадает значение столбца {0}", "Quantity");
 		}
+
+		[Test(Description = "Отправляем заказы с указанием отсрочки платежа")]
+		public void SendOrdersWithDelays()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+
+				string serverResponse;
+				using (var prgData = new PrgDataEx())
+				{
+					serverResponse = prgData.PostSomeOrdersWithDelays(
+						UniqueId,
+						"7.0.0.1385",
+						true,         //ForceSend
+						false,        //UseCorrectOrders
+						oldClient.Id, //ClientId
+						1,            //OrderCount
+						new ulong[] { 1L },  //ClientOrderId
+						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+						new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
+						new DateTime[] { DateTime.Now }, //PriceDate
+						new string[] { "" },             //ClientAddition
+						new ushort[] { 1 },              //RowCount
+						new string[] { "-10.0" },             //DelayOfPayment
+						new ulong[] { 1 },               //ClientPositionId
+						new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) },  //ClientServerCoreId
+						new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },
+						new string[] { firstOffer["CodeFirmCr"].ToString() },
+						new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) },
+						new string[] { firstOffer["SynonymFirmCrCode"].ToString() },
+						new string[] { firstOffer["Code"].ToString() },
+						new string[] { firstOffer["CodeCr"].ToString() },
+						new bool[] { Convert.ToBoolean(firstOffer["Junk"]) },
+						new bool[] { Convert.ToBoolean(firstOffer["Await"]) },
+						new string[] { firstOffer["RequestRatio"].ToString() },
+						new string[] { firstOffer["OrderCost"].ToString() },
+						new string[] { firstOffer["MinOrderCount"].ToString() },
+						new ushort[] { 1 }, //Quantity
+						new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
+						new string[] { firstOffer["Cost"].ToString() },        //minCost
+						new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
+						new string[] { firstOffer["Cost"].ToString() },        //leaderMinCost
+						new string[] { activePrice["PriceCode"].ToString() }, //leaderMinPriceCode
+						new string[] { "3.0" },        //SupplierPriceMarkup
+						new string[] { firstOffer["Quantity"].ToString() },        //CoreQuantity
+						new string[] { firstOffer["Unit"].ToString() },        //Unit
+						new string[] { firstOffer["Volume"].ToString() },        //Volume
+						new string[] { firstOffer["Note"].ToString() },        //Note
+						new string[] { firstOffer["Period"].ToString() },        //Period
+						new string[] { firstOffer["Doc"].ToString() },        //Doc
+						new string[] { firstOffer["RegistryCost"].ToString() },        //RegistryCost
+						new bool[] { Convert.ToBoolean(firstOffer["VitallyImportant"]) },        //VitallyImportant
+						new string[] { "" },        //RetailCost
+						new string[] { "" },        //ProducerCost
+						new string[] { "" },        //NDS
+						new string[] { "-20.0" },             //VitallyImportantDelayOfPayment
+						new decimal[] { Convert.ToDecimal(firstOffer["Cost"])+ 3 } //CostWithDelayOfPayment
+						);
+				}
+
+				Assert.That(serverResponse, Is.Not.Null);
+				Assert.That(serverResponse, Is.Not.Empty);
+				var serverParams = serverResponse.Split(';');
+				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
+				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
+				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
+				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
+				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+
+				var postResult = serverParams[1].Substring(serverParams[1].IndexOf('=') + 1);
+				Assert.That(postResult, Is.EqualTo("0"));
+
+				var serverOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				Assert.That(serverOrderId, Is.Not.Null);
+				Assert.That(serverOrderId, Is.Not.Empty);
+
+				var realOrderId = MySqlHelper.ExecuteScalar(connection, "select RowId from orders.ordershead where RowId = " + serverOrderId);
+				Assert.That(realOrderId, Is.Not.Null);
+				Assert.That(realOrderId.ToString(), Is.Not.Empty);
+
+				var vitallyImportantDelayOfPayment =
+					Convert.ToDecimal(MySqlHelper
+										.ExecuteScalar(
+											connection,
+											@"
+select 
+  VitallyImportantDelayOfPayment 
+from 
+  orders.ordershead 
+where 
+  ordershead.RowId = ?OrderId",
+											new MySqlParameter("?OrderId", serverOrderId))
+						);
+
+				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(-20.0m));
+
+				var orderItem = MySqlHelper.ExecuteDataRow(
+					Settings.ConnectionString(),
+					@"
+select 
+  orderslist.* 
+from 
+  orders.orderslist 
+where 
+  orderslist.OrderId = ?OrderId
+limit 1
+"
+					,
+					new MySqlParameter("?OrderId", serverOrderId));
+				Assert.That(Convert.ToDecimal(orderItem["Cost"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"])));
+				Assert.That(Convert.ToDecimal(orderItem["CostWithDelayOfPayment"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"]) + 3));
+			}
+		}
+
+		[Test(Description = "Отправляем заказы без указания отсрочки платежа")]
+		public void SendOrdersWithRetailCostAndNullDelayOfPayment()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+
+				string serverResponse;
+				using (var prgData = new PrgDataEx())
+				{
+					serverResponse = prgData.PostSomeOrdersFullExtend(
+						UniqueId,
+						"7.0.0.1385",
+						true,         //ForceSend
+						false,        //UseCorrectOrders
+						oldClient.Id, //ClientId
+						1,            //OrderCount
+						new ulong[] { 1L },  //ClientOrderId
+						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+						new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
+						new DateTime[] { DateTime.Now }, //PriceDate
+						new string[] { "" },             //ClientAddition
+						new ushort[] { 1 },              //RowCount
+						new string[] { "" },             //DelayOfPayment
+						new ulong[] { 1 },               //ClientPositionId
+						new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) },  //ClientServerCoreId
+						new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },
+						new string[] { firstOffer["CodeFirmCr"].ToString() },
+						new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) },
+						new string[] { firstOffer["SynonymFirmCrCode"].ToString() },
+						new string[] { firstOffer["Code"].ToString() },
+						new string[] { firstOffer["CodeCr"].ToString() },
+						new bool[] { Convert.ToBoolean(firstOffer["Junk"]) },
+						new bool[] { Convert.ToBoolean(firstOffer["Await"]) },
+						new string[] { firstOffer["RequestRatio"].ToString() },
+						new string[] { firstOffer["OrderCost"].ToString() },
+						new string[] { firstOffer["MinOrderCount"].ToString() },
+						new ushort[] { 1 }, //Quantity
+						new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
+						new string[] { firstOffer["Cost"].ToString() },        //minCost
+						new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
+						new string[] { firstOffer["Cost"].ToString() },        //leaderMinCost
+						new string[] { activePrice["PriceCode"].ToString() }, //leaderMinPriceCode
+						new string[] { "3.0" },        //SupplierPriceMarkup
+						new string[] { firstOffer["Quantity"].ToString() },        //CoreQuantity
+						new string[] { firstOffer["Unit"].ToString() },        //Unit
+						new string[] { firstOffer["Volume"].ToString() },        //Volume
+						new string[] { firstOffer["Note"].ToString() },        //Note
+						new string[] { firstOffer["Period"].ToString() },        //Period
+						new string[] { firstOffer["Doc"].ToString() },        //Doc
+						new string[] { firstOffer["RegistryCost"].ToString() },        //RegistryCost
+						new bool[] { Convert.ToBoolean(firstOffer["VitallyImportant"]) },        //VitallyImportant
+						new string[] { "" },        //RetailCost
+						new string[] { "" },        //ProducerCost
+						new string[] { "" }        //NDS
+						);
+				}
+
+				Assert.That(serverResponse, Is.Not.Null);
+				Assert.That(serverResponse, Is.Not.Empty);
+				var serverParams = serverResponse.Split(';');
+				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
+				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
+				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
+				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
+				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+
+				var postResult = serverParams[1].Substring(serverParams[1].IndexOf('=') + 1);
+				Assert.That(postResult, Is.EqualTo("0"));
+
+				var serverOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				Assert.That(serverOrderId, Is.Not.Null);
+				Assert.That(serverOrderId, Is.Not.Empty);
+
+				var realOrderId = MySqlHelper.ExecuteScalar(connection, "select RowId from orders.ordershead where RowId = " + serverOrderId);
+				Assert.That(realOrderId, Is.Not.Null);
+				Assert.That(realOrderId.ToString(), Is.Not.Empty);
+
+				var vitallyImportantDelayOfPayment =
+					Convert.ToDecimal(MySqlHelper
+										.ExecuteScalar(
+											connection,
+											@"
+select 
+  VitallyImportantDelayOfPayment 
+from 
+  orders.ordershead 
+where 
+  ordershead.RowId = ?OrderId",
+											new MySqlParameter("?OrderId", serverOrderId))
+						);
+
+				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(0m));
+
+				var orderItem = MySqlHelper.ExecuteDataRow(
+					Settings.ConnectionString(),
+					@"
+select 
+  orderslist.* 
+from 
+  orders.orderslist 
+where 
+  orderslist.OrderId = ?OrderId
+limit 1
+"
+					,
+					new MySqlParameter("?OrderId", serverOrderId));
+				Assert.That(Convert.ToDecimal(orderItem["Cost"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"])));
+				Assert.That(Convert.ToDecimal(orderItem["CostWithDelayOfPayment"]), Is.EqualTo(Convert.ToDecimal(orderItem["Cost"])));
+			}
+		}
+
+		[Test(Description = "Отправляем заказы с указанием отсрочки платежа")]
+		public void SendOrdersWithRetailCost()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+
+				string serverResponse;
+				using (var prgData = new PrgDataEx())
+				{
+					serverResponse = prgData.PostSomeOrdersFullExtend(
+						UniqueId,
+						"7.0.0.1385",
+						true,         //ForceSend
+						false,        //UseCorrectOrders
+						oldClient.Id, //ClientId
+						1,            //OrderCount
+						new ulong[] { 1L },  //ClientOrderId
+						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+						new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
+						new DateTime[] { DateTime.Now }, //PriceDate
+						new string[] { "" },             //ClientAddition
+						new ushort[] { 1 },              //RowCount
+						new string[] { "-10.0" },             //DelayOfPayment
+						new ulong[] { 1 },               //ClientPositionId
+						new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) },  //ClientServerCoreId
+						new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },
+						new string[] { firstOffer["CodeFirmCr"].ToString() },
+						new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) },
+						new string[] { firstOffer["SynonymFirmCrCode"].ToString() },
+						new string[] { firstOffer["Code"].ToString() },
+						new string[] { firstOffer["CodeCr"].ToString() },
+						new bool[] { Convert.ToBoolean(firstOffer["Junk"]) },
+						new bool[] { Convert.ToBoolean(firstOffer["Await"]) },
+						new string[] { firstOffer["RequestRatio"].ToString() },
+						new string[] { firstOffer["OrderCost"].ToString() },
+						new string[] { firstOffer["MinOrderCount"].ToString() },
+						new ushort[] { 1 }, //Quantity
+						new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
+						new string[] { firstOffer["Cost"].ToString() },        //minCost
+						new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
+						new string[] { firstOffer["Cost"].ToString() },        //leaderMinCost
+						new string[] { activePrice["PriceCode"].ToString() }, //leaderMinPriceCode
+						new string[] { "3.0" },        //SupplierPriceMarkup
+						new string[] { firstOffer["Quantity"].ToString() },        //CoreQuantity
+						new string[] { firstOffer["Unit"].ToString() },        //Unit
+						new string[] { firstOffer["Volume"].ToString() },        //Volume
+						new string[] { firstOffer["Note"].ToString() },        //Note
+						new string[] { firstOffer["Period"].ToString() },        //Period
+						new string[] { firstOffer["Doc"].ToString() },        //Doc
+						new string[] { firstOffer["RegistryCost"].ToString() },        //RegistryCost
+						new bool[] { Convert.ToBoolean(firstOffer["VitallyImportant"]) },        //VitallyImportant
+						new string[] { "" },        //RetailCost
+						new string[] { "" },        //ProducerCost
+						new string[] { "" }        //NDS
+						);
+				}
+
+				Assert.That(serverResponse, Is.Not.Null);
+				Assert.That(serverResponse, Is.Not.Empty);
+				var serverParams = serverResponse.Split(';');
+				Assert.That(serverParams[0], Is.StringStarting("ClientOrderId=").IgnoreCase);
+				Assert.That(serverParams[1], Is.StringStarting("PostResult=").IgnoreCase);
+				Assert.That(serverParams[2], Is.StringStarting("ServerOrderId=").IgnoreCase);
+				Assert.That(serverParams[3], Is.StringStarting("ErrorReason=").IgnoreCase);
+				Assert.That(serverParams[4], Is.StringStarting("ServerMinReq=").IgnoreCase);
+
+				var postResult = serverParams[1].Substring(serverParams[1].IndexOf('=') + 1);
+				Assert.That(postResult, Is.EqualTo("0"));
+
+				var serverOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+				Assert.That(serverOrderId, Is.Not.Null);
+				Assert.That(serverOrderId, Is.Not.Empty);
+
+				var realOrderId = MySqlHelper.ExecuteScalar(connection, "select RowId from orders.ordershead where RowId = " + serverOrderId);
+				Assert.That(realOrderId, Is.Not.Null);
+				Assert.That(realOrderId.ToString(), Is.Not.Empty);
+
+				var vitallyImportantDelayOfPayment =
+					Convert.ToDecimal(MySqlHelper
+										.ExecuteScalar(
+											connection,
+											@"
+select 
+  VitallyImportantDelayOfPayment 
+from 
+  orders.ordershead 
+where 
+  ordershead.RowId = ?OrderId",
+											new MySqlParameter("?OrderId", serverOrderId))
+						);
+
+				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(0m));
+
+				var orderItem = MySqlHelper.ExecuteDataRow(
+					Settings.ConnectionString(),
+					@"
+select 
+  orderslist.* 
+from 
+  orders.orderslist 
+where 
+  orderslist.OrderId = ?OrderId
+limit 1
+"
+					,
+					new MySqlParameter("?OrderId", serverOrderId));
+				Assert.That(Convert.ToDecimal(orderItem["Cost"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"])));
+				Assert.That(
+					Convert.ToDecimal(orderItem["CostWithDelayOfPayment"]), 
+					Is.EqualTo( Math.Round((decimal)(Convert.ToDecimal(orderItem["Cost"]) * (1m + -10.0m / 100m)), 2)) );
+			}
+		}
+
 	}
 }

@@ -1752,7 +1752,7 @@ StartZipping:
           PriceDate, _
           ClientAddition, _
           RowCount, _
-          DelayOfPayment.ToArray(), _
+          DelayOfPayment, _
           ClientPositionID, _
           ClientServerCoreID, _
           ProductID, _
@@ -1836,6 +1836,8 @@ StartZipping:
   ByVal NDS As String()) As String
 
         Dim RetailCost As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim VitallyImportantDelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
+        Dim CostWithDelayOfPayment = ReorderHelper.PrepareCostWithDelayOfPayment(Cost, OrderCount, DelayOfPayment, RowCount)
 
         Return _
          InternalPostSomeOrdersFullEx( _
@@ -1851,7 +1853,7 @@ StartZipping:
           PriceDate, _
           ClientAddition, _
           RowCount, _
-          DelayOfPayment.ToArray(), _
+          DelayOfPayment, _
           ClientPositionID, _
           ClientServerCoreID, _
           ProductID, _
@@ -1883,7 +1885,9 @@ StartZipping:
           RetailMarkup, _
           ProducerCost, _
           NDS, _
-          RetailCost.ToArray() _
+          RetailCost.ToArray(), _
+          VitallyImportantDelayOfPayment.ToArray(), _
+          CostWithDelayOfPayment _
           )
     End Function
 
@@ -1936,6 +1940,112 @@ StartZipping:
   ByVal NDS As String()) As String
 
         Dim RetailMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
+        Dim VitallyImportantDelayOfPayment As IEnumerable(Of String) = Enumerable.Repeat("", OrderCount)
+        Dim CostWithDelayOfPayment = ReorderHelper.PrepareCostWithDelayOfPayment(Cost, OrderCount, DelayOfPayment, RowCount)
+
+        Return _
+         InternalPostSomeOrdersFullEx( _
+          UniqueID, _
+          EXEVersion, _
+          ForceSend, _
+          UseCorrectOrders, _
+          ClientCode, _
+          OrderCount, _
+          ClientOrderID, _
+          PriceCode, _
+          RegionCode, _
+          PriceDate, _
+          ClientAddition, _
+          RowCount, _
+          DelayOfPayment, _
+          ClientPositionID, _
+          ClientServerCoreID, _
+          ProductID, _
+          CodeFirmCr, _
+          SynonymCode, _
+          SynonymFirmCrCode, _
+          Code, _
+          CodeCr, _
+          Junk, _
+          Await, _
+          RequestRatio, _
+          OrderCost, _
+          MinOrderCount, _
+          Quantity, _
+          Cost, _
+          MinCost, _
+          MinPriceCode, _
+          LeaderMinCost, _
+          LeaderMinPriceCode, _
+          SupplierPriceMarkup, _
+          CoreQuantity, _
+          Unit, _
+          Volume, _
+          Note, _
+          Period, _
+          Doc, _
+          RegistryCost, _
+          VitallyImportant, _
+          RetailMarkup.ToArray(), _
+          ProducerCost, _
+          NDS, _
+          RetailCost, _
+          VitallyImportantDelayOfPayment.ToArray(), _
+          CostWithDelayOfPayment _
+          )
+    End Function
+
+    'Отправляем несколько заказов скопом и по ним все формируем ответ
+    <WebMethod()> _
+    Public Function PostSomeOrdersWithDelays( _
+  ByVal UniqueID As String, _
+  ByVal EXEVersion As String, _
+  ByVal ForceSend As Boolean, _
+  ByVal UseCorrectOrders As Boolean, _
+  ByVal ClientCode As UInt32, _
+  ByVal OrderCount As UInt16, _
+  ByVal ClientOrderID As UInt64(), _
+  ByVal PriceCode As UInt64(), _
+  ByVal RegionCode As UInt64(), _
+  ByVal PriceDate As Date(), _
+  ByVal ClientAddition As String(), _
+  ByVal RowCount As UInt16(), _
+  ByVal DelayOfPayment As String(), _
+  ByVal ClientPositionID As UInt64(), _
+  ByVal ClientServerCoreID As UInt64(), _
+  ByVal ProductID As UInt64(), _
+  ByVal CodeFirmCr As String(), _
+  ByVal SynonymCode As UInt64(), _
+  ByVal SynonymFirmCrCode As String(), _
+  ByVal Code As String(), _
+  ByVal CodeCr As String(), _
+  ByVal Junk As Boolean(), _
+  ByVal Await As Boolean(), _
+  ByVal RequestRatio As String(), _
+  ByVal OrderCost As String(), _
+  ByVal MinOrderCount As String(), _
+  ByVal Quantity As UInt16(), _
+  ByVal Cost As Decimal(), _
+  ByVal MinCost As String(), _
+  ByVal MinPriceCode As String(), _
+  ByVal LeaderMinCost As String(), _
+  ByVal LeaderMinPriceCode As String(), _
+  ByVal SupplierPriceMarkup As String(), _
+  ByVal CoreQuantity As String(), _
+  ByVal Unit As String(), _
+  ByVal Volume As String(), _
+  ByVal Note As String(), _
+  ByVal Period As String(), _
+  ByVal Doc As String(), _
+  ByVal RegistryCost As String(), _
+  ByVal VitallyImportant As Boolean(), _
+  ByVal RetailCost As String(), _
+  ByVal ProducerCost As String(), _
+  ByVal NDS As String(), _
+  ByVal VitallyImportantDelayOfPayment As String(), _
+  ByVal CostWithDelayOfPayment As Decimal()) As String
+
+        Dim RetailMarkup As IEnumerable(Of String) = Enumerable.Repeat("", New List(Of UInt16)(RowCount).Sum(Function(item) item))
 
         Return _
          InternalPostSomeOrdersFullEx( _
@@ -1983,7 +2093,9 @@ StartZipping:
           RetailMarkup.ToArray(), _
           ProducerCost, _
           NDS, _
-          RetailCost _
+          RetailCost, _
+          VitallyImportantDelayOfPayment, _
+          CostWithDelayOfPayment _
           )
     End Function
 
@@ -2032,7 +2144,9 @@ StartZipping:
   ByVal RetailMarkup As String(), _
   ByVal ProducerCost As String(), _
   ByVal NDS As String(), _
-  ByVal RetailCost As String()) As String
+  ByVal RetailCost As String(), _
+  ByVal VitallyImportantDelayOfPayment As String(), _
+  ByVal CostWithDelayOfPayment As Decimal()) As String
 
         Dim ResStr As String = String.Empty
 
@@ -2089,7 +2203,9 @@ StartZipping:
              RetailMarkup, _
              ProducerCost, _
              NDS, _
-             RetailCost
+             RetailCost, _
+             VitallyImportantDelayOfPayment, _
+             CostWithDelayOfPayment _
             )
 
             Return helper.PostSomeOrders()

@@ -457,7 +457,9 @@ limit 1
 					new string[] { "" }, //retailMarkup,
 					new string[] { "" }, //producerCost,
 					new string[] { "" }, //nds
-					new string[] { "" } //retailCost,
+					new string[] { "" }, //retailCost,
+					new string[] { "-10.0" }, //vitallyImportantDelayOfPayment,
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 } //costWithDelayOfPayment
 					);
 		}
 
@@ -503,7 +505,9 @@ limit 1
 					new string[] { "", "" }, //retailMarkup,
 					new string[] { "", "" }, //producerCost,
 					new string[] { "", "" }, //nds
-					new string[] { "", "" } //retailCost,
+					new string[] { "", "" }, //retailCost,
+					new string[] { "" }, //vitallyImportantDelayOfPayment,
+					new decimal[] { 100m, 200m } //costWithDelayOfPayment
 					);
 		}
 
@@ -549,7 +553,9 @@ limit 1
 					new string[] { "", "" }, //retailMarkup,
 					new string[] { "", "" }, //producerCost,
 					new string[] { "", "" }, //nds
-					new string[] { "", "" } //retailCost,
+					new string[] { "", "" }, //retailCost,
+					new string[] { "" }, //vitallyImportantDelayOfPayment,
+					new decimal[] { 100m, 200m } //costWithDelayOfPayment
 					);
 		}
 
@@ -595,7 +601,9 @@ limit 1
 					new string[] { "", "", "" }, //retailMarkup,
 					new string[] { "", "", "" }, //producerCost,
 					new string[] { "", "", "" }, //nds
-					new string[] { "", "", "" } //retailCost,
+					new string[] { "", "", "" }, //retailCost,
+					new string[] { "" }, //vitallyImportantDelayOfPayment,
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]), Convert.ToDecimal(firstOffer["Cost"]) } //costWithDelayOfPayment
 					);
 		}
 
@@ -1259,6 +1267,77 @@ where
 			}
 		}
 
+		[Test(Description = "Проверяем сохранение значений отсрочек платежа и цен в заказе для клиентов из новой реальности")]
+		public void CheckSimpleOrderWithDelayOfPaymentsForFutureClient()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				ParseSimpleOrder(orderHelper);
+
+				var result = orderHelper.PostSomeOrders();
+
+				var firstServerOrderId = CheckServiceResponse(result);
+
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+
+				var delayOfPayment =
+					Convert.ToDecimal(MySqlHelper
+										.ExecuteScalar(
+											connection,
+											@"
+select 
+  DelayOfPayment 
+from 
+  orders.ordershead 
+where 
+  ordershead.RowId = ?OrderId",
+											new MySqlParameter("?OrderId", firstServerOrderId))
+						);
+
+				Assert.That(delayOfPayment, Is.EqualTo(-90.0m));
+
+				var vitallyImportantDelayOfPayment =
+					Convert.ToDecimal(MySqlHelper
+										.ExecuteScalar(
+											connection,
+											@"
+select 
+  VitallyImportantDelayOfPayment 
+from 
+  orders.ordershead 
+where 
+  ordershead.RowId = ?OrderId",
+											new MySqlParameter("?OrderId", firstServerOrderId))
+						);
+
+				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(-10.0m));
+
+				var orderItem = MySqlHelper.ExecuteDataRow(
+					Settings.ConnectionString(),
+					@"
+select 
+  orderslist.* 
+from 
+  orders.orderslist 
+where 
+  orderslist.OrderId = ?OrderId
+limit 1
+"
+					,
+					new MySqlParameter("?OrderId", firstServerOrderId));
+				Assert.That(Convert.ToDecimal(orderItem["Cost"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"])));
+				Assert.That(Convert.ToDecimal(orderItem["CostWithDelayOfPayment"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"]) + 3));
+			}
+		}
 
 	}
 }

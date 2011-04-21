@@ -37,6 +37,8 @@ namespace PrgData.Common.Orders
 		public float? RetailMarkup { get; set; }
 		public float? RetailCost { get; set; }
 		public ushort? NDS { get; set; }
+		public float CostWithDelayOfPayment { get; set; }
+
 
 		public ClientOrderPosition()
 		{

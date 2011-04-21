@@ -37,6 +37,8 @@ namespace PrgData.Common.Orders
 
 		public uint? ClientOrderId { get; set; }
 
+		public decimal VitallyImportantDelayOfPayment { get; set; }
+
 		public ClientOrderHeader()
 		{
 			Positions = new List<ClientOrderPosition>();
