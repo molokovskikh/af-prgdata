@@ -66,47 +66,15 @@ namespace Integration
 			}
 			Assert.That(delay, Is.Not.Null);
 			Assert.That(delay.Id, Is.GreaterThan(0));
-			var oldValue = delay.DayOfWeek;
 
-			try
-			{
-				MySqlHelper.ExecuteNonQuery(
-					Settings.ConnectionString(),
-					"update usersettings.DelayOfPayments set DayOfWeek = 'Sunday' where Id = ?Id",
-					new MySqlParameter("?Id", delay.Id));
+			var dayOfWeek = MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select DayOfWeek from usersettings.DelayOfPayments where Id = ?Id",
+				new MySqlParameter("?Id", delay.Id));
 
-				using (new SessionScope())
-				{
-					delay.Refresh();
-				}
-				Assert.That(delay.DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
-
-				using (var transaction = new TransactionScope())
-				{
-					delay.DayOfWeek = DayOfWeek.Friday;
-					delay.SaveAndFlush();
-					transaction.VoteCommit();
-				}
-
-				var dayOfWeek = MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select DayOfWeek from usersettings.DelayOfPayments where Id = ?Id",
-					new MySqlParameter("?Id", delay.Id));
-
-				Assert.That(dayOfWeek, Is.Not.Null);
-				Assert.That(dayOfWeek, Is.TypeOf<string>());
-				Assert.That(dayOfWeek, Is.EqualTo(Enum.GetName(typeof(DayOfWeek), DayOfWeek.Friday)));
-			}
-			finally
-			{
-				using (var transaction = new TransactionScope())
-				{
-					delay.DayOfWeek = oldValue;
-					delay.SaveAndFlush();
-					transaction.VoteCommit();
-				}
-			}
-
+			Assert.That(dayOfWeek, Is.Not.Null);
+			Assert.That(dayOfWeek, Is.TypeOf<string>());
+			Assert.That(dayOfWeek, Is.EqualTo(Enum.GetName(typeof(DayOfWeek), delay.DayOfWeek)));
 		}
 
 		private MySqlDataAdapter CreateAdapter(MySqlConnection connection, string sqlCommand, UpdateData updateData)
@@ -167,31 +135,38 @@ namespace Integration
 			var afterNewClientCount = TestDelayOfPayment.Queryable.Count();
 			Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "ѕосле создани€ нового клиента не были создано записи в отсрочках платежей, возможно, не работает триггер");
 
-			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.ClientId == newClient.Id).FirstOrDefault();
+			var firstIntersection = TestSupplierIntersection.Queryable.Where(i => i.Client == newClient).FirstOrDefault();
+			Assert.That(firstIntersection, Is.Not.Null, "Ќе найдена кака€-либо запись в SupplierIntersection по клиенту: {0}", newClient.Id);
+
+			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.SupplierIntersectionId == firstIntersection.Id).FirstOrDefault();
 			Assert.That(firstDelayRule, Is.Not.Null, "Ќе найдена кака€-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
 
 			var rulesBySupplier =
-				TestDelayOfPayment.Queryable.Where(r => r.ClientId == newClient.Id && r.SupplierId == firstDelayRule.SupplierId).
+				TestDelayOfPayment.Queryable.Where(r => r.SupplierIntersectionId == firstIntersection.Id).
 					ToList();
 			Assert.That(
 				rulesBySupplier.Count, 
 				Is.EqualTo(7), 
 				"«аписи в отсрочках платежей созданы не по всем дн€м недели дл€ клиента {0} и поставщика {1}", 
 				newClient.Id, 
-				firstDelayRule.SupplierId);
+				firstIntersection.Supplier.Id);
 			Assert.That(
 				rulesBySupplier.Select(r => r.DayOfWeek), 
 				Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))), 
 				"«аписи в отсрочках платежей дублируютс€ по некоторым дн€м недели дл€ клиента {0} и поставщика {1}", 
 				newClient.Id, 
-				firstDelayRule.SupplierId);
+				firstIntersection.Supplier.Id);
 
 			var newSupplier = TestOldClient.CreateTestSupplier();
 			var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
 			Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "ѕосле создани€ нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
 
+			var intersectionByNewSupplier =
+				TestSupplierIntersection.Queryable.Where(i => i.Client == newClient && i.Supplier == newSupplier).FirstOrDefault();
+			Assert.That(intersectionByNewSupplier, Is.Not.Null, "Ќе найдена кака€-либо запись в SupplierIntersection после создани€ нового поставщика по клиенту: {0}", newClient.Id);
+
 			var rulesByNewSupplier =
-				TestDelayOfPayment.Queryable.Where(r => r.ClientId == newClient.Id && r.SupplierId == newSupplier.Id).
+				TestDelayOfPayment.Queryable.Where(r => r.SupplierIntersectionId == intersectionByNewSupplier.Id).
 					ToList();
 			Assert.That(
 				rulesByNewSupplier.Count,

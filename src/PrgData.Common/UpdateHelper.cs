@@ -1208,14 +1208,15 @@ WHERE  clientsdata.firmcode    = ?ClientCode";
 					{
 						return @"
 select
-	d.SupplierId,
+	si.SupplierId,
     d.DayOfWeek,
 	d.VitallyImportantDelay,
 	d.OtherDelay
 from
-       Future.Users u
-       join future.Clients c on u.ClientId = c.Id
-       join Usersettings.DelayOfPayments d on d.ClientId = c.Id
+	Future.Users u
+	join future.Clients c on u.ClientId = c.Id
+	join UserSettings.SupplierIntersection si on si.ClientId = c.Id
+	join Usersettings.DelayOfPayments d on d.SupplierIntersectionId = si.Id
 where
        u.Id = ?UserId";
 					}
