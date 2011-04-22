@@ -150,13 +150,15 @@ namespace Integration
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 
+			client = TestClient.CreateSimple();
+			oldClient = TestOldClient.CreateTestClient();
+
 			using (var transaction = new TransactionScope())
 			{
 
 				var permission = TestUserPermission.ByShortcut("AF");
 
 
-				client = TestClient.CreateSimple();
 				user = client.Users[0];
 
 				client.Users.Each(u =>
@@ -169,7 +171,6 @@ namespace Integration
 
 				address = user.AvaliableAddresses[0];
 
-				oldClient = TestOldClient.CreateTestClient();
 				oldUser = oldClient.Users[0];
 
 				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
@@ -1336,6 +1337,148 @@ limit 1
 					new MySqlParameter("?OrderId", firstServerOrderId));
 				Assert.That(Convert.ToDecimal(orderItem["Cost"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"])));
 				Assert.That(Convert.ToDecimal(orderItem["CostWithDelayOfPayment"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"]) + 3));
+			}
+		}
+
+		[Test(Description = "Пытаемся отправить заказ на прайс-лист поставщика, работающий в нескольких регионах")]
+		public void CheckSimpleOrderWithCorrectOnMultiRegion()
+		{
+			var vrnRegion = TestRegion.Find(1ul);
+			Assert.That(vrnRegion.Name, Is.EqualTo("Воронеж"));
+			var blgRegion = TestRegion.FindFirst(Restrictions.Eq("Name", "Белгород"));
+			Assert.That(blgRegion.Name, Is.EqualTo("Белгород"));
+
+			var maskRegion = vrnRegion.Id | blgRegion.Id;
+
+			client = TestClient.Create(vrnRegion.Id, maskRegion);
+
+			using (var transaction = new TransactionScope())
+			{
+				var permission = TestUserPermission.ByShortcut("AF");
+
+				user = client.Users[0];
+
+				client.Users.Each(u =>
+				{
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				user.Update();
+
+				address = user.AvaliableAddresses[0];
+			}
+
+			Assert.That(user.OrderRegionMask, Is.EqualTo(maskRegion));
+			Assert.That(user.WorkRegionMask, Is.EqualTo(maskRegion));
+			Assert.That(client.MaskRegion, Is.EqualTo(maskRegion));
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
+call future.GetOffers(?UserId)",
+					new MySqlParameter("?UserId", user.Id));
+
+				var priceCode =
+					MySqlHelper.ExecuteScalar(
+						connection,
+						@"
+select 
+	PriceCode 
+from 
+	ActivePrices 
+where
+  exists(select * from Core where Core.PriceCode = ActivePrices.PriceCode and Core.RegionCode = ActivePrices.RegionCode limit 1)
+group by PriceCode 
+having count(*) > 1 
+limit 1");
+				Assert.That(priceCode, Is.Not.Null);
+				Assert.That(priceCode, Is.GreaterThan(0));
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+delete from future.UserPrices where UserId = ?UserId and PriceId <> ?PriceId;
+drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
+call future.GetOffers(?UserId)",
+					new MySqlParameter("?UserId", user.Id),
+					new MySqlParameter("?PriceId", priceCode));
+
+
+				activePrice = ExecuteDataRow(
+					connection, @"
+select 
+* 
+from 
+  ActivePrices 
+where 
+    PriceCode = ?PriceCode
+limit 1"
+					,
+					new MySqlParameter("?PriceCode", priceCode));
+
+				var firstProductId = MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+select 
+  c.ProductId 
+from 
+  Core 
+  inner join farm.Core0 c on c.Id = Core.Id
+where
+	Core.PriceCode = ?PriceCode
+and Core.RegionCode = ?RegionCode
+group by c.ProductId
+having count(distinct c.SynonymCode) > 2
+limit 1
+"
+					,
+					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
+					new MySqlParameter("?RegionCode", activePrice["RegionCode"]));
+
+				firstOffer = ExecuteDataRow(
+					connection,
+					@"
+select
+  Core.Cost,
+  Core.RegionCode,
+  c.*
+from
+  Core 
+  inner join farm.Core0 c on c.Id = Core.Id
+where
+	Core.PriceCode = ?PriceCode
+and Core.RegionCode = ?RegionCode
+and C.ProductId = ?ProductId
+limit 1
+"
+					,
+					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
+					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
+					new MySqlParameter("?ProductId", firstProductId));
+				Assert.IsNotNull(firstOffer, "Не найдено предложение");
+
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+
+				var orderHelper = new ReorderHelper(updateData, connection, false, address.Id, true);
+
+				ParseSimpleOrder(orderHelper);
+
+				BasicConfigurator.Configure();
+
+				var result = orderHelper.PostSomeOrders();
+
+				var firstServerOrderId = CheckServiceResponse(result);
+
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 			}
 		}
 
