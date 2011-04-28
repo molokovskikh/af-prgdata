@@ -250,7 +250,7 @@ namespace Integration
 												       	{
 												       		OrderItem = firstOrderItem, 
 															Status = ItemToOrderStatus.Ordered,
-															Offer = new ReducedOffer{ProductId = firstOffer.ProductId}
+															Offer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = firstOffer.ProductId}
 												       	}
 											},
 										new OrderBatchItem(null)
@@ -261,7 +261,7 @@ namespace Integration
 												       	{
 												       		OrderItem = secondOrderItem, 
 															Status = ItemToOrderStatus.Ordered,
-															Offer = new ReducedOffer{ProductId = secondOffer.ProductId}
+															Offer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = secondOffer.ProductId}
 												       	}
 											},
 					            	};

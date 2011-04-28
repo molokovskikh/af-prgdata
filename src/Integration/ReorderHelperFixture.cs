@@ -1157,7 +1157,7 @@ and (i.PriceId = :PriceId)
 					OrderedQuantity = 1,
 					Offer = new Offer
 					        	{
-					        		Id = core.Id, 
+									Id = new OfferKey(core.Id, firstOrder.ActivePrice.Id.RegionCode), 
 									ProductId = core.Product.Id,
 									CodeFirmCr = core.Producer != null ? (uint?)core.Producer.Id : null,
 									SynonymCode = core.ProductSynonym.Id,
@@ -1182,7 +1182,7 @@ and (i.PriceId = :PriceId)
 					OrderedQuantity = 1,
 					Offer = new Offer
 					{
-						Id = minReqCore.Id,
+						Id = new OfferKey(minReqCore.Id, minReqOrder.ActivePrice.Id.RegionCode),
 						ProductId = minReqCore.Product.Id,
 						CodeFirmCr = minReqCore.Producer != null ? (uint?)minReqCore.Producer.Id : null,
 						SynonymCode = minReqCore.ProductSynonym.Id,

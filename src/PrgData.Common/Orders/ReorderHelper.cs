@@ -429,7 +429,7 @@ values
 							return
 								order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
 								order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
-								item.Id.ToString().Equals(position.ClientServerCoreID.ToString()); 
+								item.Id.CoreId.ToString().Equals(position.ClientServerCoreID.ToString()); 
 						});
 				else
 					//Если длина в символах = 9, то ищем с конца
@@ -439,7 +439,7 @@ values
 							return
 								order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
 								order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
-								item.Id.ToString().EndsWith(position.ClientServerCoreID.ToString());
+								item.Id.CoreId.ToString().EndsWith(position.ClientServerCoreID.ToString());
 						});
 
 			if (clientServerCoreIdOffers.Count == 1)
@@ -695,6 +695,7 @@ AND    RCS.clientcode          = ?ClientCode"
 					{
 						var offer = new Offer()
 						{
+							Id = new OfferKey(0, regionCode[i]),
 							ProductId = Convert.ToUInt32(productID[detailIndex]),
 							CodeFirmCr =
 								String.IsNullOrEmpty(codeFirmCr[detailIndex]) ? null : (uint?) uint.Parse(codeFirmCr[detailIndex]),
