@@ -40,7 +40,7 @@ namespace Integration
 		{
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ServiceContext.GetResultPath = () => "results\\";
-			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
+			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 			Directory.CreateDirectory("FtpRoot");

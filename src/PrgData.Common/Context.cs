@@ -11,7 +11,6 @@ namespace PrgData.Common
 		public static Func<string> GetUserHost = () => HttpContext.Current.Request.UserHostAddress;
 		public static Func<String> GetResultPath = () => HttpContext.Current.Server.MapPath(@"/Results") + @"\";
 		public static Func<String> GetDocumentsPath = () => ConfigurationManager.AppSettings["DocumentsPath"];
-		public static Func<String> GetWaybillPath = () => ConfigurationManager.AppSettings["WaybillPath"];
 
 		public static string GetShortUserName()
 		{

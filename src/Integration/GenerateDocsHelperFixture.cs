@@ -26,7 +26,7 @@ namespace Integration
 				ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
 
-				var waybillDirectory = Path.Combine(ConfigurationManager.AppSettings["WaybillPath"], String.Format(@"{0}\Waybills", updateData.ClientId));
+				var waybillDirectory = Path.Combine(ConfigurationManager.AppSettings["DocumentsPath"], String.Format(@"{0}\Waybills", updateData.ClientId));
 				if (Directory.Exists(waybillDirectory))
 					Directory.Delete(waybillDirectory, true);                           
 				Directory.CreateDirectory(waybillDirectory);
@@ -67,7 +67,7 @@ namespace Integration
 					Assert.IsTrue(String.Equals(Path.GetFileName(files[0]), name, StringComparison.OrdinalIgnoreCase));
 				}
 
-				FileHelper.DeleteDir(ConfigurationManager.AppSettings["WaybillPath"]);
+				FileHelper.DeleteDir(ConfigurationManager.AppSettings["DocumentsPath"]);
 				FileHelper.DeleteDir(@"..\..\Data\WaybillExtract");
 			}
 		}

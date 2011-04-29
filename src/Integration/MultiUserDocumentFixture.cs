@@ -40,7 +40,7 @@ namespace Integration
 			ServiceContext.GetResultPath = () => "results\\";
 			using (new TransactionScope())
 			{
-				ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
+				ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 				client = TestClient.CreateSimple();
 				var user = client.Users[0];
 				var permission = TestUserPermission.ByShortcut("AF");

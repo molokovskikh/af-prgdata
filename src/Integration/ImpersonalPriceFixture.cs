@@ -63,7 +63,7 @@ namespace Integration
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
+			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 
 			using (var transaction = new TransactionScope())
 			{

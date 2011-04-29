@@ -28,7 +28,6 @@ Public Class Global_asax
             parentDir = Path.Combine(parentDir, "bin")
         End If
         ConfigurationManager.AppSettings("DocumentsPath") = Path.Combine(parentDir, "FtpRoot") & "\"
-        ConfigurationManager.AppSettings("WaybillPath") = Path.Combine(parentDir, "FtpRoot")
         For Each dir As String In dirs
             dir = Path.Combine(parentDir, dir)
             If Not Directory.Exists(dir) Then Directory.CreateDirectory(dir)

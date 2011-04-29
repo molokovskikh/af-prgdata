@@ -42,10 +42,6 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
 
-			//ConfigurationManager.AppSettings["WaybillPath"] = "FtpRoot\\";
-			//if (Directory.Exists("FtpRoot"))
-			//    FileHelper.DeleteDir("FtpRoot");
-
 			client = TestClient.CreateSimple();
 
 			using (var transaction = new TransactionScope())

@@ -392,7 +392,7 @@ values (?UserId, @LastDownloadId);";
 				Path.Combine(
 					Path.Combine(
 						Path.Combine(
-							ConfigurationManager.AppSettings["WaybillPath"],
+							ConfigurationManager.AppSettings["DocumentsPath"],
 						addressId.ToString().PadLeft(3, '0')),
 						DocumentType.Waybills.ToString()),
 					resultFileName
