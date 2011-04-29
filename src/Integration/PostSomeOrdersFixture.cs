@@ -45,11 +45,12 @@ namespace Integration
 				FileHelper.DeleteDir("FtpRoot");
 			Directory.CreateDirectory("FtpRoot");
 
+			oldClient = TestOldClient.CreateTestClient();
+
 			using (var transaction = new TransactionScope())
 			{
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				oldClient = TestOldClient.CreateTestClient();
 				oldUser = oldClient.Users[0];
 
 				ServiceContext.GetUserName = () => oldUser.OSUserName;

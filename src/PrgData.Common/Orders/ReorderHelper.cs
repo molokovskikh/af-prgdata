@@ -920,6 +920,7 @@ AND    RCS.clientcode          = ?ClientCode"
 				{
 					var offer = new Offer()
 					{
+						Id = new OfferKey(0, regionCode),
 						ProductId = Convert.ToUInt32(productID[detailIndex]),
 						CodeFirmCr =
 							String.IsNullOrEmpty(codeFirmCr[detailIndex]) ? null : (uint?)uint.Parse(codeFirmCr[detailIndex]),
