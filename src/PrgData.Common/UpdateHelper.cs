@@ -1202,13 +1202,12 @@ WHERE  clientsdata.firmcode    = ?ClientCode";
 			if (_updateData.EnableImpersonalPrice)
 				return "select null from usersettings.clientsdata limit 0";
 			else
-				if (_updateData.AllowDelayWithVitallyImportant())
+				if (_updateData.AllowDelayByPrice())
 				{
 					if (_updateData.IsFutureClient)
-					{
 						return @"
 select
-	si.SupplierId,
+	pi.PriceId,
     d.DayOfWeek,
 	d.VitallyImportantDelay,
 	d.OtherDelay
@@ -1216,23 +1215,57 @@ from
 	Future.Users u
 	join future.Clients c on u.ClientId = c.Id
 	join UserSettings.SupplierIntersection si on si.ClientId = c.Id
-	join Usersettings.DelayOfPayments d on d.SupplierIntersectionId = si.Id
+	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
+	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
        u.Id = ?UserId";
-					}
 					else
-					{
 						return @"
 select
-	d.SupplierId,
+	pi.PriceId,
     d.DayOfWeek,
 	d.VitallyImportantDelay,
 	d.OtherDelay
 from
-       Usersettings.DelayOfPayments d 
+	UserSettings.SupplierIntersection si
+	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
+	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
-       d.ClientId = ?ClientCode";
-					}
+       si.ClientId = ?ClientCode";
+				}
+				else
+				if (_updateData.AllowDelayWithVitallyImportant())
+				{
+					if (_updateData.IsFutureClient)
+						return @"
+select
+	si.SupplierId,
+    d.DayOfWeek,
+	min(d.VitallyImportantDelay) as VitallyImportantDelay,
+	min(d.OtherDelay) as OtherDelay
+from
+	Future.Users u
+	join future.Clients c on u.ClientId = c.Id
+	join UserSettings.SupplierIntersection si on si.ClientId = c.Id
+	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
+	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
+where
+       u.Id = ?UserId
+group by si.SupplierId, d.DayOfWeek";
+					else
+						return @"
+select
+	si.SupplierId,
+    d.DayOfWeek,
+	min(d.VitallyImportantDelay) as VitallyImportantDelay,
+	min(d.OtherDelay) as OtherDelay
+from
+	UserSettings.SupplierIntersection si
+	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
+	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
+where
+       si.ClientId = ?ClientCode
+group by si.SupplierId, d.DayOfWeek";
 				}
 				else
 				{

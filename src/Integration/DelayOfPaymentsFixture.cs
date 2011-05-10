@@ -6,6 +6,7 @@ using Common.Tools;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData.Common;
+using PrgData.Common.AnalitFVersions;
 using Test.Support;
 
 namespace Integration
@@ -107,6 +108,28 @@ namespace Integration
 		}
 
 		[Test]
+		public void GetDelayOfPaymentsWithVitallyImportantForUpdate()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1385;
+				updateData.UpdateExeVersionInfo = new VersionInfo(1386);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var dataAdapter = CreateAdapter(connection, helper.GetDelayOfPaymentsCommand(), updateData);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+				Assert.That(table.Columns.Count, Is.EqualTo(4));
+				Assert.That(table.Columns.Contains("SupplierId"), Is.True);
+				Assert.That(table.Columns.Contains("DayOfWeek"), Is.True);
+				Assert.That(table.Columns.Contains("VitallyImportantDelay"), Is.True);
+				Assert.That(table.Columns.Contains("OtherDelay"), Is.True);
+			}
+		}
+
+		[Test]
 		public void GetDelayOfPaymentsWithVitallyImportant()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -127,6 +150,71 @@ namespace Integration
 			}
 		}
 
+		[Test]
+		public void GetDelayOfPaymentsByPrice()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1405;
+				var helper = new UpdateHelper(updateData, connection);
+
+				var dataAdapter = CreateAdapter(connection, helper.GetDelayOfPaymentsCommand(), updateData);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+				Assert.That(table.Columns.Count, Is.EqualTo(4));
+				Assert.That(table.Columns.Contains("PriceId"), Is.True);
+				Assert.That(table.Columns.Contains("DayOfWeek"), Is.True);
+				Assert.That(table.Columns.Contains("VitallyImportantDelay"), Is.True);
+				Assert.That(table.Columns.Contains("OtherDelay"), Is.True);
+			}
+		}
+
+		[Test]
+		public void GetDelayOfPaymentsByPriceForUpdateFrom1385()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1385;
+				updateData.UpdateExeVersionInfo = new VersionInfo(1405);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var dataAdapter = CreateAdapter(connection, helper.GetDelayOfPaymentsCommand(), updateData);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+				Assert.That(table.Columns.Count, Is.EqualTo(4));
+				Assert.That(table.Columns.Contains("PriceId"), Is.True);
+				Assert.That(table.Columns.Contains("DayOfWeek"), Is.True);
+				Assert.That(table.Columns.Contains("VitallyImportantDelay"), Is.True);
+				Assert.That(table.Columns.Contains("OtherDelay"), Is.True);
+			}
+		}
+
+		[Test]
+		public void GetDelayOfPaymentsByPriceForUpdateFrom1403()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1403;
+				updateData.UpdateExeVersionInfo = new VersionInfo(1405);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var dataAdapter = CreateAdapter(connection, helper.GetDelayOfPaymentsCommand(), updateData);
+				var table = new DataTable();
+				dataAdapter.FillSchema(table, SchemaType.Source);
+				Assert.That(table.Columns.Count, Is.EqualTo(4));
+				Assert.That(table.Columns.Contains("PriceId"), Is.True);
+				Assert.That(table.Columns.Contains("DayOfWeek"), Is.True);
+				Assert.That(table.Columns.Contains("VitallyImportantDelay"), Is.True);
+				Assert.That(table.Columns.Contains("OtherDelay"), Is.True);
+			}
+		}
+
 		[Test(Description = "ѕровер€ем создание записей в отсрочках платежа при создании новых клиентов")]
 		public void CheckInsertToDelayOfPayments()
 		{
@@ -137,12 +225,13 @@ namespace Integration
 
 			var firstIntersection = TestSupplierIntersection.Queryable.Where(i => i.Client == newClient).FirstOrDefault();
 			Assert.That(firstIntersection, Is.Not.Null, "Ќе найдена кака€-либо запись в SupplierIntersection по клиенту: {0}", newClient.Id);
+			Assert.That(firstIntersection.PriceIntersections.Count, Is.GreaterThan(0), "Ќе найдены записи в PriceIntersections по SupplierIntersectionId: {0}", firstIntersection.Id);
 
-			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.SupplierIntersectionId == firstIntersection.Id).FirstOrDefault();
+			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).FirstOrDefault();
 			Assert.That(firstDelayRule, Is.Not.Null, "Ќе найдена кака€-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
 
 			var rulesBySupplier =
-				TestDelayOfPayment.Queryable.Where(r => r.SupplierIntersectionId == firstIntersection.Id).
+				TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).
 					ToList();
 			Assert.That(
 				rulesBySupplier.Count, 
@@ -164,9 +253,10 @@ namespace Integration
 			var intersectionByNewSupplier =
 				TestSupplierIntersection.Queryable.Where(i => i.Client == newClient && i.Supplier == newSupplier).FirstOrDefault();
 			Assert.That(intersectionByNewSupplier, Is.Not.Null, "Ќе найдена кака€-либо запись в SupplierIntersection после создани€ нового поставщика по клиенту: {0}", newClient.Id);
+			Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "Ќе найдены записи в PriceIntersections по SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
 
 			var rulesByNewSupplier =
-				TestDelayOfPayment.Queryable.Where(r => r.SupplierIntersectionId == intersectionByNewSupplier.Id).
+				TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == intersectionByNewSupplier.PriceIntersections[0].Id).
 					ToList();
 			Assert.That(
 				rulesByNewSupplier.Count,

@@ -13,6 +13,11 @@ namespace PrgData.Common.AnalitFVersions
 
 		public FileVersionInfo ExeVersionInfo { get; private set; }
 
+		public VersionInfo(uint versionNumber)
+		{
+			VersionNumber = versionNumber;
+		}
+
 		public VersionInfo(string folder)
 		{
 			if(!Directory.Exists(folder))

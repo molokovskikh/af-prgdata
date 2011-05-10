@@ -21,6 +21,8 @@ namespace PrgData.Common
 		private static int _versionBeforeSupplierPromotions = 1363;
 		//версия AnalitF до поддержки отсрочек платежа с разделением на ЖНВЛС и прочий ассортимент
 		private static int _versionBeforeDelayWithVitallyImportant = 1385;
+		//версия AnalitF до поддержки отсрочек платежа по прайс-листам
+		private static int _versionBeforeDelayByPrice = 1403;
 
 		public string ShortName;
 		public uint ClientId;
@@ -72,7 +74,7 @@ namespace PrgData.Common
 
 		public bool NeedUpdateToSupplierPromotions { get; private set; }
 
-		public VersionInfo UpdateExeVersionInfo { get; private set; }
+		public VersionInfo UpdateExeVersionInfo { get; set; }
 
 		public uint? NetworkPriceId;
 
@@ -255,7 +257,18 @@ namespace PrgData.Common
 
 		public bool AllowDelayWithVitallyImportant()
 		{
-			return (BuildNumber > _versionBeforeDelayWithVitallyImportant || KnownBuildNumber > _versionBeforeDelayWithVitallyImportant);
+			return (BuildNumber > _versionBeforeDelayWithVitallyImportant 
+				|| KnownBuildNumber > _versionBeforeDelayWithVitallyImportant 
+				|| (UpdateExeVersionInfo != null 
+						&& UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayWithVitallyImportant
+						&& UpdateExeVersionInfo.VersionNumber <= _versionBeforeDelayByPrice));
+		}
+
+		public bool AllowDelayByPrice()
+		{
+			return (BuildNumber > _versionBeforeDelayByPrice
+				|| KnownBuildNumber > _versionBeforeDelayByPrice
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice));
 		}
 
 		private VersionInfo GetUpdateVersionInfo()
