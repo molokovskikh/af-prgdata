@@ -11,6 +11,7 @@ _resharper.*
 *.resharper.user
 *.resharper
 *.suo
+*.docstates
 *.cache
 /src/PrgData/Logs/PrgData.txt
 /src/PrgData/Logs/PrgDataDebug*
