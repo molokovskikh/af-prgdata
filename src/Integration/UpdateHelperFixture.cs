@@ -27,15 +27,15 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		TestOldClient _oldClient;
-		TestOldUser _oldUser;
+		//TestOldClient _oldClient;
+		//TestOldUser _oldUser;
 
 		[SetUp]
 		public void SetUp()
 		{
+			_client = TestClient.CreateSimple();
 			using (var transaction = new TransactionScope())
 			{
-				_client = TestClient.CreateSimple();
 				_user = _client.Users[0];
 
 				var permission = TestUserPermission.ByShortcut("AF");
@@ -48,22 +48,22 @@ namespace Integration
 				_user.Update();
 
 
-				_oldClient = TestOldClient.CreateTestClient();
-				_oldUser = _oldClient.Users[0];
+//                _oldClient = TestOldClient.CreateTestClient();
+//                _oldUser = _oldClient.Users[0];
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", _oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", _oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 
 			}
 		}
@@ -148,16 +148,16 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test]
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Check_string_field_lengts_for_old_client()
 		{
-			using(var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
-				var helper = new UpdateHelper(updateData, connection);
-				CheckFields(updateData, helper, connection);
-			}
+			//using(var connection = new MySqlConnection(Settings.ConnectionString()))
+			//{
+			//    connection.Open();
+			//    var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
+			//    var helper = new UpdateHelper(updateData, connection);
+			//    CheckFields(updateData, helper, connection);
+			//}
 		}
 
 		[Test]
@@ -292,7 +292,7 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _oldUser.OSUserName);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
 
 				helper.MaintainReplicationInfo();
@@ -1356,5 +1356,109 @@ and ForceReplication > 0;",
 			}
 		}
 
+		[Test]
+		public void CheckCoreForRetailVitallyImportant()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1405;
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var coreSql = helper.GetCoreCommand(false, true, false, false);
+
+				var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				var coreTable = new DataTable();
+
+				dataAdapter.Fill(coreTable);
+				Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
+				var index = coreTable.Columns.IndexOf("RetailVitallyImportant");
+				Assert.That(index, Is.EqualTo(coreTable.Columns.Count-1));
+			}
+		}
+
+		[Test]
+		public void CheckCoreForBuyingMatrixType()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var coreSql = helper.GetCoreCommand(false, true, true, false);
+
+				var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				var coreTable = new DataTable();
+
+				dataAdapter.Fill(coreTable);
+				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+				Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.False);
+				var index = coreTable.Columns.IndexOf("BuyingMatrixType");
+				Assert.That(index, Is.EqualTo(coreTable.Columns.Count - 1));
+			}
+		}
+
+		[Test]
+		public void CheckCoreForBuyingMatrixTypeWithRetailVitallyImportant()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1405;
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var coreSql = helper.GetCoreCommand(false, true, true, false);
+
+				var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				var coreTable = new DataTable();
+
+				dataAdapter.Fill(coreTable);
+
+				Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
+				var indexRetail = coreTable.Columns.IndexOf("RetailVitallyImportant");
+
+				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+				var indexBuying = coreTable.Columns.IndexOf("BuyingMatrixType");
+
+				Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1));
+				Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
+			}
+		}
 	}
 }

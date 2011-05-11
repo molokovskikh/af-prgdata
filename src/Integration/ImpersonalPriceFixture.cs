@@ -38,17 +38,17 @@ namespace Integration
 		private TestClient client;
 		private TestUser user;
 
-		private TestOldClient offersOldClient;
+		//private TestOldClient offersOldClient;
 		private TestClient offersFutureClient;
 		private TestUser offersFutureUser;
 
-		private TestSmartOrderRule smartRuleOld;
+		//private TestSmartOrderRule smartRuleOld;
 		private TestSmartOrderRule smartRuleFuture;
 		private TestDrugstoreSettings orderRuleFuture;
-		private TestDrugstoreSettings orderRuleOld;
+		//private TestDrugstoreSettings orderRuleOld;
 
-		TestOldClient oldClient;
-		TestOldUser oldUser;
+		//TestOldClient oldClient;
+		//TestOldUser oldUser;
 
 		private uint lastUpdateId;
 		private string responce;
@@ -65,17 +65,18 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 
+			var permission = TestUserPermission.ByShortcut("AF");
+
+			var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
+			Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
+
+			//offersOldClient = TestOldClient.CreateTestClient(offersRegion.Id);
+			offersFutureClient = TestClient.Create(offersRegion.Id);
+
+			client = TestClient.Create(offersRegion.Id);
+
 			using (var transaction = new TransactionScope())
 			{
-
-				var permission = TestUserPermission.ByShortcut("AF");
-
-				var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
-				Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
-
-				offersOldClient = TestOldClient.CreateTestClient(offersRegion.Id);
-
-				offersFutureClient = TestClient.Create(offersRegion.Id);
 				offersFutureUser = offersFutureClient.Users[0];
 				offersFutureClient.Users.Each(u =>
 				{
@@ -85,9 +86,7 @@ namespace Integration
 				});
 				offersFutureUser.Update();
 
-				client = TestClient.Create(offersRegion.Id);
 				user = client.Users[0];
-
 				client.Users.Each(u =>
 									{
 										u.AssignedPermissions.Add(permission);
@@ -96,30 +95,30 @@ namespace Integration
 									});
 				user.Update();
 
-				oldClient = TestOldClient.CreateTestClient(offersRegion.Id);
-				oldUser = oldClient.Users[0];
+				//oldClient = TestOldClient.CreateTestClient(offersRegion.Id);
+				//oldUser = oldClient.Users[0];
 
-				smartRuleOld = new TestSmartOrderRule();
-				smartRuleOld.OffersClientCode = offersOldClient.Id;
-				smartRuleOld.SaveAndFlush();
+				//smartRuleOld = new TestSmartOrderRule();
+				//smartRuleOld.OffersClientCode = offersOldClient.Id;
+				//smartRuleOld.SaveAndFlush();
 
 				smartRuleFuture = new TestSmartOrderRule();
 				smartRuleFuture.OffersClientCode = offersFutureUser.Id;
 				smartRuleFuture.SaveAndFlush();
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 
 			using (var transaction = new TransactionScope())
@@ -129,10 +128,10 @@ namespace Integration
 				orderRuleFuture.EnableImpersonalPrice = true;
 				orderRuleFuture.UpdateAndFlush();
 
-				orderRuleOld = TestDrugstoreSettings.Find(oldClient.Id);
-				orderRuleOld.SmartOrderRule = smartRuleOld;
-				orderRuleOld.EnableImpersonalPrice = true;
-				orderRuleOld.UpdateAndFlush();
+				//orderRuleOld = TestDrugstoreSettings.Find(oldClient.Id);
+				//orderRuleOld.SmartOrderRule = smartRuleOld;
+				//orderRuleOld.EnableImpersonalPrice = true;
+				//orderRuleOld.UpdateAndFlush();
 			}
 
 			if (Directory.Exists("FtpRoot"))
@@ -147,10 +146,10 @@ namespace Integration
 			CheckUpdateHelper(user.Login, offersFutureUser.Id, offersFutureClient.RegionCode);
 		}
 
-		[Test]
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Check_update_helper_for_old()
 		{
-			CheckUpdateHelper(oldUser.OSUserName, offersOldClient.Id, offersOldClient.RegionCode);
+			//CheckUpdateHelper(oldUser.OSUserName, offersOldClient.Id, offersOldClient.RegionCode);
 		}
 
 		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId)
@@ -245,10 +244,10 @@ namespace Integration
 			CheckGetUserData(user.Login);
 		}
 
-		[Test]
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Check_GetUserData_for_Old()
 		{
-			CheckGetUserData(oldUser.OSUserName);
+			//CheckGetUserData(oldUser.OSUserName);
 		}
 
 		[Test]

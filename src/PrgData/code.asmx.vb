@@ -3346,7 +3346,7 @@ RestartTrans2:
                           (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, _
                           False
                          ), _
-                         (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate(), _
+                         ((UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate()) or UpdateData.NeedUpdateForRetailVitallyImportant(), _
                          True, _
                          debugHelper
                         )

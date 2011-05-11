@@ -271,6 +271,13 @@ namespace PrgData.Common
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice));
 		}
 
+		public bool NeedUpdateForRetailVitallyImportant()
+		{
+			return (BuildNumber <= _versionBeforeDelayByPrice
+				|| KnownBuildNumber <= _versionBeforeDelayByPrice
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice));
+		}
+
 		private VersionInfo GetUpdateVersionInfo()
 		{
 			if (!AllowUpdate())

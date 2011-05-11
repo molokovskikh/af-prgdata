@@ -2054,6 +2054,7 @@ SELECT CT.PriceCode               ,
        OrderCost                  ,
        MinOrderCount
        {0}
+	   {4}
        {1}
 FROM   
        (
@@ -2061,6 +2062,8 @@ FROM
        ActivePrices AT,
        farm.core0 Core
        )
+		left join catalogs.Products on Products.Id = CT.ProductId
+		left join catalogs.catalog on catalog.Id = Products.CatalogId
        {2}
 WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
@@ -2084,9 +2087,9 @@ Core.ProducerCost,
 Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
-  left join catalogs.Products on Products.Id = CT.ProductId
   left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
-				cryptCost ? "CT.CryptCost" : "CT.Cost"
+				cryptCost ? "CT.CryptCost" : "CT.Cost",
+				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : ""
 				);
 		}
 
