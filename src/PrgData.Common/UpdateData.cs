@@ -273,9 +273,8 @@ namespace PrgData.Common
 
 		public bool NeedUpdateForRetailVitallyImportant()
 		{
-			return (BuildNumber <= _versionBeforeDelayByPrice
-				|| KnownBuildNumber <= _versionBeforeDelayByPrice
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice));
+			return (BuildNumber <= _versionBeforeDelayByPrice)
+				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice);
 		}
 
 		private VersionInfo GetUpdateVersionInfo()

@@ -497,7 +497,7 @@ Public Class PrgDataEx
                     End If
                     If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
 
-                    If UpdateData.NeedUpdateToBuyingMatrix Then helper.SetForceReplication()
+                    If UpdateData.NeedUpdateToBuyingMatrix or UpdateData.NeedUpdateForRetailVitallyImportant() Then helper.SetForceReplication()
 
                 End If
 
@@ -3346,7 +3346,7 @@ RestartTrans2:
                           (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, _
                           False
                          ), _
-                         ((UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate()) or UpdateData.NeedUpdateForRetailVitallyImportant(), _
+                         (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate(), _
                          True, _
                          debugHelper
                         )

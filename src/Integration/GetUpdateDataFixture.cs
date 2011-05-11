@@ -13,6 +13,7 @@ using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
 using PrgData.Common;
+using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Model;
 using PrgData.Common.Repositories;
 using SmartOrderFactory.Domain;
@@ -28,16 +29,16 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		TestOldClient _oldClient;
-		TestOldClient _oldClientWithoutAF;
+		//TestOldClient _oldClient;
+		//TestOldClient _oldClientWithoutAF;
 
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
 			_client = TestClient.CreateSimple();
 
-			_oldClient = TestOldClient.CreateTestClient();
-			_oldClientWithoutAF = TestOldClient.CreateTestClient();
+			//_oldClient = TestOldClient.CreateTestClient();
+			//_oldClientWithoutAF = TestOldClient.CreateTestClient();
 
 			using (var transaction = new TransactionScope())
 			{
@@ -52,53 +53,52 @@ namespace Integration
 				});
 				_user.Update();
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof (ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", _oldClient.Users[0].Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
-
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof (ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", _oldClient.Users[0].Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 		}
-	
-		[Test]
+
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Get_update_data_for_enabled_old_client()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
-				Assert.That(updateData, Is.Not.Null);
-				Assert.That(updateData.UserId, Is.EqualTo(_oldClient.Users[0].Id));
-				Assert.That(updateData.ClientId, Is.EqualTo(_oldClient.Id));
-				Assert.That(updateData.ShortName, Is.Not.Null);
-				Assert.That(updateData.ShortName, Is.Not.Empty);
-				Assert.That(updateData.ShortName, Is.EqualTo(_oldClient.ShortName));
-				Assert.IsFalse(updateData.Disabled(), "Пользователь отключен");
-			}
+			//using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			//{
+			//    var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
+			//    Assert.That(updateData, Is.Not.Null);
+			//    Assert.That(updateData.UserId, Is.EqualTo(_oldClient.Users[0].Id));
+			//    Assert.That(updateData.ClientId, Is.EqualTo(_oldClient.Id));
+			//    Assert.That(updateData.ShortName, Is.Not.Null);
+			//    Assert.That(updateData.ShortName, Is.Not.Empty);
+			//    Assert.That(updateData.ShortName, Is.EqualTo(_oldClient.ShortName));
+			//    Assert.IsFalse(updateData.Disabled(), "Пользователь отключен");
+			//}
 		}
 
-		[Test]
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Get_update_data_for_disabled_old_client()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				var updateData = UpdateHelper.GetUpdateData(connection, _oldClientWithoutAF.Users[0].OSUserName);
-				Assert.That(updateData, Is.Not.Null);
-				Assert.That(updateData.UserId, Is.EqualTo(_oldClientWithoutAF.Users[0].Id));
-				Assert.That(updateData.ClientId, Is.EqualTo(_oldClientWithoutAF.Id));
-				Assert.That(updateData.ShortName, Is.Not.Null);
-				Assert.That(updateData.ShortName, Is.Not.Empty);
-				Assert.That(updateData.ShortName, Is.EqualTo(_oldClientWithoutAF.ShortName));
-				Assert.IsTrue(updateData.Disabled(), "Пользователь включен");
-			}
+			//using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			//{
+			//    var updateData = UpdateHelper.GetUpdateData(connection, _oldClientWithoutAF.Users[0].OSUserName);
+			//    Assert.That(updateData, Is.Not.Null);
+			//    Assert.That(updateData.UserId, Is.EqualTo(_oldClientWithoutAF.Users[0].Id));
+			//    Assert.That(updateData.ClientId, Is.EqualTo(_oldClientWithoutAF.Id));
+			//    Assert.That(updateData.ShortName, Is.Not.Null);
+			//    Assert.That(updateData.ShortName, Is.Not.Empty);
+			//    Assert.That(updateData.ShortName, Is.EqualTo(_oldClientWithoutAF.ShortName));
+			//    Assert.IsTrue(updateData.Disabled(), "Пользователь включен");
+			//}
 		}
 
 		[Test]
@@ -212,10 +212,10 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test]
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Check_ON_flags_for_BuyingMatrix_and_MNN_for_old_client()
 		{
-			Check_ON_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
+			//Check_ON_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
 		}
 
 		[Test]
@@ -224,10 +224,10 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			Check_ON_flags_for_BuyingMatrix_and_MNN(_user.Login);
 		}
 
-		[Test]
+		[Test, Ignore("Тест для старых клиентов")]
 		public void Check_OFF_flags_for_BuyingMatrix_and_MNN_for_old_client()
 		{
-			Check_OFF_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
+			//Check_OFF_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
 		}
 
 		[Test]
@@ -381,10 +381,11 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			CheckPreviousRequestOnFirst(_user.Login, _user.Id);
 		}
 
-		[Test(Description = "Проверяем установку свойства PreviousRequest при первом обращении для клиента из старой реальности")]
+		[Test(Description = "Проверяем установку свойства PreviousRequest при первом обращении для клиента из старой реальности"),
+		Ignore("Тест для старых клиентов")]
 		public void CheckPreviousRequestOnFirstByOldClient()
 		{
-			CheckPreviousRequestOnFirst(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+			//CheckPreviousRequestOnFirst(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
 		}
 
 		private void CheckPreviousRequestWithOldRequest(string userName, uint userId)
@@ -442,10 +443,11 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			CheckPreviousRequestWithOldRequest(_user.Login, _user.Id);
 		}
 
-		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности")]
+		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности"),
+		Ignore("Тест для старых клиентов")]
 		public void CheckPreviousRequestWithOldRequestByOldClient()
 		{
-			CheckPreviousRequestWithOldRequest(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+			//CheckPreviousRequestWithOldRequest(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
 		}
 
 		private void CheckPreviousRequestWithOldRequestExists(string userName, uint userId)
@@ -515,10 +517,11 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			CheckPreviousRequestWithOldRequestExists(_user.Login, _user.Id);
 		}
 
-		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности")]
+		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности"),
+		Ignore("Тест для старых клиентов")]
 		public void CheckPreviousRequestWithOldRequestExistsByOldClient()
 		{
-			CheckPreviousRequestWithOldRequestExists(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+			//CheckPreviousRequestWithOldRequestExists(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
 		}
 
 		[Test(Description = "проверяем методы для работы с именами подготовленными файлами")]
@@ -661,6 +664,53 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 				//поэтому автообновление не разрешено
 				updateData.TargetVersion = 1275;
 				Assert.That(updateData.EnableUpdate(), Is.EqualTo(false));
+			}
+		}
+
+		[Test(Description = "Проверяем условие обновление на версию, поддерживающую столбец RetailVitallyImportant в Core")]
+		public void CheckNeedUpdateForRetailVitallyImportant()
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1183");
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.False, "Если обновление не выложено, то обновлять нельзя");
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1403");
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.False, "Если обновление не выложено, то обновлять нельзя");
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1385");
+				updateData.UpdateExeVersionInfo = new VersionInfo(1403);
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.False, "Если обновление не на версию старше 1403, то обновлять нельзя");
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1405");
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.False, "Если обновление текущая версия > 1403, то незачем обновлять");
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1405");
+				updateData.UpdateExeVersionInfo = new VersionInfo(1407);
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.False, "Если обновление текущая версия > 1403, то незачем обновлять");
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1385");
+				updateData.UpdateExeVersionInfo = new VersionInfo(1405);
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.True, "Должны обновиться с версии 1385 на 1405 и выше");
+
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				Assert.That(updateData, Is.Not.Null);
+				updateData.ParseBuildNumber("6.0.0.1403");
+				updateData.UpdateExeVersionInfo = new VersionInfo(1405);
+				Assert.That(updateData.NeedUpdateForRetailVitallyImportant(), Is.True, "Должны обновиться с версии 1403 на 1405 и выше");
 			}
 		}
 
