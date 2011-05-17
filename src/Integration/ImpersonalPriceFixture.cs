@@ -71,9 +71,9 @@ namespace Integration
 			Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
 
 			//offersOldClient = TestOldClient.CreateTestClient(offersRegion.Id);
-			offersFutureClient = TestClient.Create(offersRegion.Id);
+			offersFutureClient = TestClient.Create(offersRegion.Id, offersRegion.Id);
 
-			client = TestClient.Create(offersRegion.Id);
+			client = TestClient.Create(offersRegion.Id, offersRegion.Id);
 
 			using (var transaction = new TransactionScope())
 			{
