@@ -35,7 +35,7 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
-			_client = TestClient.CreateSimple();
+			_client = TestClient.Create();
 
 			//_oldClient = TestOldClient.CreateTestClient();
 			//_oldClientWithoutAF = TestOldClient.CreateTestClient();
@@ -181,7 +181,7 @@ namespace Integration
 		[Test]
 		public void Get_update_data_for_disabled_future_client()
 		{
-			var disabledClient = TestClient.CreateSimple();
+			var disabledClient = TestClient.Create();
 			var disabledUser = disabledClient.Users[0];
 			using (var transaction = new TransactionScope())
 			{

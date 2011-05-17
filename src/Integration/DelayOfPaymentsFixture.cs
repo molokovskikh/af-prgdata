@@ -8,6 +8,7 @@ using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using Test.Support;
+using Test.Support.Suppliers;
 
 namespace Integration
 {
@@ -27,7 +28,7 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
 
-			_client = TestClient.CreateSimple();
+			_client = TestClient.Create();
 
 			using (var transaction = new TransactionScope())
 			{
@@ -219,7 +220,7 @@ namespace Integration
 		public void CheckInsertToDelayOfPayments()
 		{
 			var beforeNewClientCount = TestDelayOfPayment.Queryable.Count();
-			var newClient = TestClient.CreateSimple();
+			var newClient = TestClient.Create();
 			var afterNewClientCount = TestDelayOfPayment.Queryable.Count();
 			Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "После создания нового клиента не были создано записи в отсрочках платежей, возможно, не работает триггер");
 
@@ -246,7 +247,7 @@ namespace Integration
 				newClient.Id, 
 				firstIntersection.Supplier.Id);
 
-			var newSupplier = TestOldClient.CreateTestSupplier();
+			var newSupplier = TestSupplier.Create();
 			var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
 			Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "После создания нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
 

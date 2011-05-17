@@ -43,9 +43,10 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
 
+			client = TestClient.Create();
+
 			using (new TransactionScope())
 			{
-				client = TestClient.CreateSimple();
 				user = client.Users[0];
 				address = client.Addresses[0];
 

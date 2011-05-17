@@ -33,12 +33,12 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
 
+			client = TestClient.Create();
+
 			using (var transaction = new TransactionScope())
 			{
-
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				client = TestClient.CreateSimple();
 				user = client.Users[0];
 
 				client.Users.Each(u =>

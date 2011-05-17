@@ -33,7 +33,7 @@ namespace Integration
 		[SetUp]
 		public void SetUp()
 		{
-			_client = TestClient.CreateSimple();
+			_client = TestClient.Create();
 			using (var transaction = new TransactionScope())
 			{
 				_user = _client.Users[0];
