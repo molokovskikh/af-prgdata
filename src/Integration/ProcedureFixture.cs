@@ -30,6 +30,7 @@ using PrgData.FileHandlers;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using Test.Support;
+using Test.Support.Helpers;
 
 namespace Integration
 {
@@ -37,9 +38,9 @@ namespace Integration
 	public class ProcedureFixture
 	{
 		private ISmartOfferRepository repository;
-		private TestOldClient testOldClient;
+		//private TestOldClient testOldClient;
 		private TestClient testClient;
-		private Client client;
+		//private Client client;
 		private User futureUser;
 		private Address futureAddress;
 
@@ -61,7 +62,7 @@ namespace Integration
 			//testOldClient = TestOldClient.CreateTestClient();
 			//testClient = TestClient.CreateSimple();
 
-			testOldClient = new TestOldClient() { Id = 1349 };
+			//testOldClient = new TestOldClient() { Id = 1349 };
 			testClient = new TestClient() { Id = 10005 };
 
 			testClient.Users = new List<TestUser>() { new TestUser() { Id = 10081, Login = "10081"} };
@@ -77,7 +78,7 @@ namespace Integration
 			//    NHibernateUtil.Initialize(testClient.Addresses);
 			//}
 
-			client = new Client { FirmCode = testOldClient.Id };
+			//client = new Client { FirmCode = testOldClient.Id };
 			futureUser = new User
 			             	{
 			             		Id = testClient.Users[0].Id,
@@ -176,10 +177,10 @@ call usersettings.GetOffers(1349, 2);");
 			Assert.That(reducedOffers.Count, Is.GreaterThan(0), "Нулевое кол-во предложений");
 		}
 
-		public void FindAllReducedForSmartOrder()
-		{
-			InteralFindAllReducedForSmartOrder(client, null);
-		}
+		//public void FindAllReducedForSmartOrder()
+		//{
+		//    InteralFindAllReducedForSmartOrder(client, null);
+		//}
 
 		public void FutureFindAllReducedForSmartOrder()
 		{
@@ -191,7 +192,7 @@ call usersettings.GetOffers(1349, 2);");
 		{
 			for (int i = 0; i < 10; i++)
 			{
-				FindAllReducedForSmartOrder();
+				//FindAllReducedForSmartOrder();
 				FutureFindAllReducedForSmartOrder();
 			}
 		}
@@ -357,12 +358,12 @@ limit 6;");
 
 		private TestClient CreateClient()
 		{
+			var createSimple = TestClient.Create();
+
 			using (var transaction = new TransactionScope())
 			{
-
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				var createSimple = TestClient.CreateSimple();
 				var user = createSimple.Users[0];
 
 				createSimple.Users.Each(u =>
@@ -372,9 +373,9 @@ limit 6;");
 				                  		u.SendWaybills = true;
 				                  	});
 				user.Update();
-
-				return createSimple;
 			}
+
+			return createSimple;
 		}
 
 		private void TestGetUserData(string appVersion)
@@ -569,9 +570,9 @@ where
 
 		private TestUser CreateUserForAnalitF()
 		{
+			var client = TestClient.Create();
 			using (var transaction = new TransactionScope())
 			{
-				var client = TestClient.CreateSimple();
 				var user = client.Users[0];
 
 				var permission = TestUserPermission.ByShortcut("AF");
@@ -1494,6 +1495,115 @@ select @postBatchId;"
 
 			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
 			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
+		}
+
+		private bool GetForceReplication(uint firmCode, uint userId)
+		{
+			var forceReplication = SessionHelper.WithSession<byte>(
+				s =>
+				{
+					return s.CreateSQLQuery(
+						@"
+select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode = :firmCode and UserId = :parentUserId
+"
+						)
+						.SetParameter("firmCode", firmCode)
+						.SetParameter("parentUserId", userId)
+						.UniqueResult<byte>();
+				});
+			return forceReplication > 0;
+		}
+
+		[Test(Description = "Флаг ForceReplication должен установиться после подключения прайс-листа родительскому пользователю")]
+		public void ForceReplicationOnInheritPrices()
+		{
+			var client = CreateClient();
+			var parentUser = client.Users[0];
+			TestUser childUser;
+
+			using (var transaction = new TransactionScope())
+			{
+				childUser = client.CreateUser();
+
+				var permission = TestUserPermission.ByShortcut("AF");
+
+				childUser.AssignedPermissions.Add(permission);
+				childUser.SendRejects = true;
+				childUser.SendWaybills = true;
+				childUser.InheritPricesFrom = parentUser;
+				childUser.Update();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var parentUpdateData = UpdateHelper.GetUpdateData(connection, parentUser.Login);
+				var parentHelper = new UpdateHelper(parentUpdateData, connection);
+				parentHelper.MaintainReplicationInfo();
+
+				var childUpdateData = UpdateHelper.GetUpdateData(connection, childUser.Login);
+				var childHelper = new UpdateHelper(childUpdateData, connection);
+				childHelper.MaintainReplicationInfo();
+			}
+
+			var deletedPrice = parentUser.GetActivePrices().First();
+			Assert.That(childUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента не найден прайс-лист: {0}", deletedPrice);
+
+			//Отключаем прайс-лист
+			SessionHelper.WithSession(
+				s =>
+					{
+						s.CreateSQLQuery(
+							@"
+update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :parentUserId;
+update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :childUserId;
+delete from future.UserPrices where UserId = :parentUserId and PriceId = :priceId;
+"
+							)
+							.SetParameter("firmCode", deletedPrice.Supplier.Id)
+							.SetParameter("priceId", deletedPrice.Id)
+							.SetParameter("parentUserId", parentUser.Id)
+							.SetParameter("childUserId", childUser.Id)
+							.ExecuteUpdate();
+					});
+
+			Assert.That(parentUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.False, "У родительского клиента найден отключенный прайс-лист: {0}", deletedPrice);
+			Assert.That(childUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.False, "У подчиненного клиента найден отключенный прайс-лист: {0}", deletedPrice);
+
+			var parentForceReplication = GetForceReplication(deletedPrice.Supplier.Id, parentUser.Id);
+			Assert.That(parentForceReplication, Is.True, "При удалении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", parentUser);
+
+			var childForceReplication = GetForceReplication(deletedPrice.Supplier.Id, childUser.Id);
+			Assert.That(childForceReplication, Is.True, "При удалении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", childUser);
+
+			//Включаем прайс-лист
+			SessionHelper.WithSession(
+				s =>
+				{
+					s.CreateSQLQuery(
+						@"
+update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :parentUserId;
+update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :childUserId;
+insert into future.UserPrices (UserId, PriceId, RegionId) values (:parentUserId, :priceId, :regionId);
+"
+						)
+						.SetParameter("firmCode", deletedPrice.Supplier.Id)
+						.SetParameter("priceId", deletedPrice.Id)
+						.SetParameter("parentUserId", parentUser.Id)
+						.SetParameter("childUserId", childUser.Id)
+						.SetParameter("regionId", client.RegionCode)
+						.ExecuteUpdate();
+				});
+
+			Assert.That(parentUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.True, "У родительского клиента найден включенный прайс-лист: {0}", deletedPrice);
+			Assert.That(childUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента найден включенный прайс-лист: {0}", deletedPrice);
+
+			parentForceReplication = GetForceReplication(deletedPrice.Supplier.Id, parentUser.Id);
+			Assert.That(parentForceReplication, Is.True, "При включении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", parentUser);
+
+			childForceReplication = GetForceReplication(deletedPrice.Supplier.Id, childUser.Id);
+			Assert.That(childForceReplication, Is.True, "При включении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", childUser);
 		}
 
 	}
