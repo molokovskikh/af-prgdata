@@ -2182,7 +2182,7 @@ WHERE
 		{
 			With.DeadlockWraper(() =>
 			{
-				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.RepeatableRead);
 				try
 				{
 					MySqlHelper.ExecuteNonQuery(
