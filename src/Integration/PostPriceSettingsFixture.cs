@@ -21,8 +21,8 @@ namespace Integration
 		private TestClient client;
 		private TestUser user;
 
-		private TestOldClient oldClient;
-		private TestOldUser oldUser;
+		//private TestOldClient oldClient;
+		//private TestOldUser oldUser;
 
 		private DataTable offers;
 
@@ -36,12 +36,13 @@ namespace Integration
 			ServiceContext.GetResultPath = () => "results\\";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 
+			client = TestClient.Create();
+			//oldClient = TestOldClient.CreateTestClient();
+
 			using (var transaction = new TransactionScope())
 			{
-
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				client = TestClient.CreateSimple();
 				user = client.Users[0];
 
 				client.Users.Each(u =>
@@ -52,24 +53,21 @@ namespace Integration
 				});
 				user.Update();
 
-				oldClient = TestOldClient.CreateTestClient();
-				oldUser = oldClient.Users[0];
-
-				ServiceContext.GetUserName = () => oldUser.OSUserName;
-
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                oldUser = oldClient.Users[0];
+//                ServiceContext.GetUserName = () => oldUser.OSUserName;
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 
 		}
@@ -108,11 +106,11 @@ namespace Integration
 			PostPriceSettings(user.Login);
 		}
 
-		[Test]
-		public void Post_settings_for_old()
-		{
-			PostPriceSettings(oldUser.OSUserName);
-		}
+		//[Test]
+		//public void Post_settings_for_old()
+		//{
+		//    PostPriceSettings(oldUser.OSUserName);
+		//}
 
 		private void SetCurrentUser(string login)
 		{

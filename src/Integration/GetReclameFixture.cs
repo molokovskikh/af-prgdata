@@ -24,7 +24,7 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		TestOldClient _oldClient;
+		//TestOldClient _oldClient;
 
 		private string resultsDir = "results\\";
 
@@ -38,11 +38,14 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => resultsDir;
 
+			_client = TestClient.Create();
+			_disabledClient = TestClient.Create();
+			//_oldClient = TestOldClient.CreateTestClient();
+
 			using (var transaction = new TransactionScope())
 			{
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				_client = TestClient.CreateSimple();
 				_user = _client.Users[0];
 				_client.Users.Each(u =>
 				{
@@ -52,24 +55,21 @@ namespace Integration
 				});
 				_user.Update();
 
-				_disabledClient = TestClient.CreateSimple();
 				_disabledUser = _disabledClient.Users[0];
 
-				_oldClient = TestOldClient.CreateTestClient();
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", _oldClient.Users[0].Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
-
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", _oldClient.Users[0].Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 		}
 
@@ -158,11 +158,11 @@ insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:per
 			}
 		}
 
-		[Test]
-		public void Get_reclame_for_old_client()
-		{
-			GetReclameForUser(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
-		}
+		//[Test]
+		//public void Get_reclame_for_old_client()
+		//{
+		//    GetReclameForUser(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
+		//}
 
 		[Test]
 		public void Get_reclame_for_future_client()

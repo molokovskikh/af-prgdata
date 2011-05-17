@@ -24,8 +24,9 @@ namespace Integration
 	[TestFixture]
 	public class PostSomeOrdersFixture
 	{
-		private TestOldClient oldClient;
-		private TestOldUser oldUser;
+		private TestClient _client;
+		private TestUser _user;
+		private TestAddress _address;
 
 
 		private bool getOffers;
@@ -45,32 +46,27 @@ namespace Integration
 				FileHelper.DeleteDir("FtpRoot");
 			Directory.CreateDirectory("FtpRoot");
 
-			oldClient = TestOldClient.CreateTestClient();
+			_client = TestClient.Create();
 
 			using (var transaction = new TransactionScope())
 			{
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				oldUser = oldClient.Users[0];
+				_user = _client.Users[0];
+				_address = _client.Addresses[0];
 
-				ServiceContext.GetUserName = () => oldUser.OSUserName;
+				ServiceContext.GetUserName = () => _user.Login;
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
+				_client.Users.Each(u =>
 				{
-					session.CreateSQLQuery(@"
-				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+					u.AssignedPermissions.Add(permission);
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				_user.Update();
 			}
 
-			CreateFolders(oldClient.Id.ToString());
+			CreateFolders(_address.Id.ToString());
 
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
@@ -79,7 +75,7 @@ where
     ClientCode = ?ClientCode 
 and WriteTime > now() - interval 2 week"
 				,
-				new MySqlParameter("?ClientCode", oldClient.Id));
+				new MySqlParameter("?ClientCode", _client.Id));
 
 			GetOffers();
 		}
@@ -95,8 +91,8 @@ and WriteTime > now() - interval 2 week"
 						connection,
 						@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call usersettings.GetOffers(?ClientCode, 0)",
-						new MySqlParameter("?ClientCode", oldClient.Id));
+call future.GetOffers(?UserId)",
+						new MySqlParameter("?UserId", _user.Id));
 
 					activePrice = ExecuteDataRow(
 						connection, @"
@@ -284,7 +280,7 @@ limit 1
 			{
 				connection.Open();
 
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
 
 				string serverResponse;
 				using (var prgData = new PrgDataEx())
@@ -293,7 +289,7 @@ limit 1
 						UniqueId,
 						true,         //ForceSend
 						false,        //UseCorrectOrders
-						oldClient.Id, //ClientId
+						_address.Id, //ClientId => AddressId
 						1,            //OrderCount
 						new ulong[] { 1L },  //ClientOrderId
 						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
@@ -374,7 +370,7 @@ where ordersList.OrderId = " + serverOrderId);
 			{
 				connection.Open();
 
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
 
 				string serverResponse;
 				using (var prgData = new PrgDataEx())
@@ -382,7 +378,7 @@ where ordersList.OrderId = " + serverOrderId);
 					serverResponse = prgData.PostOrder(
 						UniqueId,
 						0,
-						oldClient.Id, //ClientId
+						_address.Id, //ClientId => AddressId
 						Convert.ToUInt32(activePrice["PriceCode"]),
 						Convert.ToUInt64(activePrice["RegionCode"]),
 						DateTime.Now, //PriceDate
@@ -453,7 +449,7 @@ where ordersList.OrderId = " + serverOrderId);
 			{
 				connection.Open();
 
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
 
 				string serverResponse;
 				using (var prgData = new PrgDataEx())
@@ -461,7 +457,7 @@ where ordersList.OrderId = " + serverOrderId);
 					serverResponse = prgData.PostOrder(
 						UniqueId,
 						0,
-						oldClient.Id, //ClientId
+						_address.Id, //ClientId => AddressId
 						Convert.ToUInt32(activePrice["PriceCode"]),
 						Convert.ToUInt64(activePrice["RegionCode"]),
 						DateTime.Now, //PriceDate
@@ -557,7 +553,7 @@ and orderslist.SynonymCode = ?SynonymCode",
 			{
 				connection.Open();
 
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
 
 				string serverResponse;
 				using (var prgData = new PrgDataEx())
@@ -567,7 +563,7 @@ and orderslist.SynonymCode = ?SynonymCode",
 						"7.0.0.1385",
 						true,         //ForceSend
 						false,        //UseCorrectOrders
-						oldClient.Id, //ClientId
+						_address.Id, //ClientId => AddressId
 						1,            //OrderCount
 						new ulong[] { 1L },  //ClientOrderId
 						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
@@ -673,7 +669,7 @@ limit 1
 			{
 				connection.Open();
 
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
 
 				string serverResponse;
 				using (var prgData = new PrgDataEx())
@@ -683,7 +679,7 @@ limit 1
 						"7.0.0.1385",
 						true,         //ForceSend
 						false,        //UseCorrectOrders
-						oldClient.Id, //ClientId
+						_address.Id, //ClientId => AddressId
 						1,            //OrderCount
 						new ulong[] { 1L },  //ClientOrderId
 						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
@@ -787,7 +783,7 @@ limit 1
 			{
 				connection.Open();
 
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + oldUser.Id).ToString();
+				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
 
 				string serverResponse;
 				using (var prgData = new PrgDataEx())
@@ -797,7 +793,7 @@ limit 1
 						"7.0.0.1385",
 						true,         //ForceSend
 						false,        //UseCorrectOrders
-						oldClient.Id, //ClientId
+						_address.Id, //ClientId => AddressId
 						1,            //OrderCount
 						new ulong[] { 1L },  //ClientOrderId
 						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },

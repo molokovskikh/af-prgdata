@@ -21,8 +21,8 @@ namespace Integration
 		private TestClient client;
 		private TestUser user;
 
-		TestOldClient oldClient;
-		TestOldUser oldUser;
+		//TestOldClient oldClient;
+		//TestOldUser oldUser;
 
 		private uint lastUpdateId;
 		private bool fullHistory;
@@ -39,12 +39,12 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 
+			client = TestClient.Create();
+			//oldClient = TestOldClient.CreateTestClient();
 			using (var transaction = new TransactionScope())
 			{
-
 				var permission = TestUserPermission.ByShortcut("AF");
 
-				client = TestClient.CreateSimple();
 				user = client.Users[0];
 
 				client.Users.Each(u =>
@@ -55,22 +55,21 @@ namespace Integration
 				});
 				user.Update();
 
-				oldClient = TestOldClient.CreateTestClient();
-				oldUser = oldClient.Users[0];
+//                oldUser = oldClient.Users[0];
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 
 			if (Directory.Exists("FtpRoot"))

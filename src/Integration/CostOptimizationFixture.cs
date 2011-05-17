@@ -28,15 +28,16 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		TestOldClient _oldClient;
-		TestOldUser _oldUser;
+		//TestOldClient _oldClient;
+		//TestOldUser _oldUser;
 
 		[SetUp]
 		public void SetUp()
 		{
+			_client = TestClient.Create();
+			//_oldClient = TestOldClient.CreateTestClient();
 			using (var transaction = new TransactionScope())
 			{
-				_client = TestClient.CreateSimple();
 				_user = _client.Users[0];
 
 				var permission = TestUserPermission.ByShortcut("AF");
@@ -49,22 +50,20 @@ namespace Integration
 				_user.Update();
 
 
-				_oldClient = TestOldClient.CreateTestClient();
-				_oldUser = _oldClient.Users[0];
-
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", _oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                _oldUser = _oldClient.Users[0];
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", _oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -97,14 +96,14 @@ order by 2 desc",
 insert into usersettings.costoptimizationrules (SupplierId) values (?OptimizationSupplierId);
 set @LastRuleId = last_insert_id();
 insert into usersettings.costoptimizationconcurrents (RuleId, SupplierId) values (@LastRuleId, ?ConcurentSupplierId);
-insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?OldClientId);
+#insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?OldClientId);
 insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?NewClientId);
 select @LastRuleId;
 "
 						,
 						new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId),
 						new MySqlParameter("?ConcurentSupplierId", _concurentSupplierId),
-						new MySqlParameter("?OldClientId", _oldClient.Id),
+						//new MySqlParameter("?OldClientId", _oldClient.Id),
 						new MySqlParameter("?NewClientId", _client.Id)));
 			}
 		}
@@ -161,19 +160,19 @@ limit 0, 50", conn);
 			}
 		}
 
-		[Test(Description = "проверяем создание записей в логах оптимизации для клиента из старой реальности")]
-		public void CostOptimizerShouldCreateLogsWithSupplierForOldClient()
-		{
-			CostOptimizerShouldCreateLogsWithSupplier(
-				_oldClient.Id, 
-				command =>
-					{
-						command.CommandText = "call usersettings.GetOffers(?ClientCodeParam, ?FreshOnly);";
-						command.Parameters.AddWithValue("?ClientCodeParam", _oldClient.Id);
-						command.Parameters.AddWithValue("?FreshOnly", false);
-						command.ExecuteNonQuery();
-					});
-		}
+		//[Test(Description = "проверяем создание записей в логах оптимизации для клиента из старой реальности")]
+		//public void CostOptimizerShouldCreateLogsWithSupplierForOldClient()
+		//{
+		//    CostOptimizerShouldCreateLogsWithSupplier(
+		//        _oldClient.Id, 
+		//        command =>
+		//            {
+		//                command.CommandText = "call usersettings.GetOffers(?ClientCodeParam, ?FreshOnly);";
+		//                command.Parameters.AddWithValue("?ClientCodeParam", _oldClient.Id);
+		//                command.Parameters.AddWithValue("?FreshOnly", false);
+		//                command.ExecuteNonQuery();
+		//            });
+		//}
 
 		[Test(Description = "проверяем создание записей в логах оптимизации для клиента из новой реальности")]
 		public void CostOptimizerShouldCreateLogsWithSupplierForFuture()

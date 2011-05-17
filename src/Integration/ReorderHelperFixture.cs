@@ -130,8 +130,8 @@ namespace Integration
 		private TestUser user;
 		private TestAddress address;
 
-		private TestOldClient oldClient;
-		private TestOldUser oldUser;
+		//private TestOldClient oldClient;
+		//private TestOldUser oldUser;
 
 
 		private bool getOffers;
@@ -150,17 +150,14 @@ namespace Integration
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 
-			client = TestClient.CreateSimple();
-			oldClient = TestOldClient.CreateTestClient();
+			client = TestClient.Create();
+			//oldClient = TestOldClient.CreateTestClient();
 
 			using (var transaction = new TransactionScope())
 			{
-
 				var permission = TestUserPermission.ByShortcut("AF");
 
-
 				user = client.Users[0];
-
 				client.Users.Each(u =>
 				{
 					u.AssignedPermissions.Add(permission);
@@ -171,36 +168,36 @@ namespace Integration
 
 				address = user.AvaliableAddresses[0];
 
-				oldUser = oldClient.Users[0];
+//                oldUser = oldClient.Users[0];
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 			}
 
 
 			Directory.CreateDirectory("FtpRoot");
-			CreateFolders(oldClient.Id.ToString());
+			//CreateFolders(oldClient.Id.ToString());
 			CreateFolders(address.Id.ToString());
 
-			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
-delete 
-from orders.OrdersHead 
-where 
-	ClientCode = ?ClientCode 
-and WriteTime > now() - interval 2 week"
-				,
-				new MySqlParameter("?ClientCode", oldClient.Id));
+//            MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
+//delete 
+//from orders.OrdersHead 
+//where 
+//	ClientCode = ?ClientCode 
+//and WriteTime > now() - interval 2 week"
+//                ,
+//                new MySqlParameter("?ClientCode", oldClient.Id));
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
 from orders.OrdersHead 
@@ -224,8 +221,8 @@ and WriteTime > now() - interval 2 week"
 					connection,
 					@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call usersettings.GetOffers(?ClientCode, 0)",
-					new MySqlParameter("?ClientCode", oldClient.Id));
+call future.GetOffers(?UserId)",
+					new MySqlParameter("?UserId", user.Id));
 
 				activePrice = ExecuteDataRow(
 					connection, @"
@@ -652,11 +649,11 @@ limit 1
 			}
 		}
 
-		[Test]
-		public void Check_double_order_for_old_client()
-		{
-			Check_simple_double_order(oldUser.OSUserName, oldClient.Id);
-		}
+		//[Test]
+		//public void Check_double_order_for_old_client()
+		//{
+		//    Check_simple_double_order(oldUser.OSUserName, oldClient.Id);
+		//}
 
 		[Test]
 		public void Check_double_order_for_future_client()
@@ -698,11 +695,11 @@ limit 1
 			}
 		}
 
-		[Test]
-		public void Check_double_order_without_FullDuplicated_for_old_client()
-		{
-			Check_double_order_without_FullDuplicated(oldUser.OSUserName, oldClient.Id);
-		}
+		//[Test]
+		//public void Check_double_order_without_FullDuplicated_for_old_client()
+		//{
+		//    Check_double_order_without_FullDuplicated(oldUser.OSUserName, oldClient.Id);
+		//}
 
 		[Test]
 		public void Check_double_order_without_FullDuplicated_for_future_client()
@@ -742,11 +739,11 @@ limit 1
 			}
 		}
 
-		[Test]
-		public void Check_duplicate_order_and_useCorrectOrders()
-		{
-			Check_simple_double_order_with_correctorders(oldUser.OSUserName, oldClient.Id);
-		}
+		//[Test]
+		//public void Check_duplicate_order_and_useCorrectOrders()
+		//{
+		//    Check_simple_double_order_with_correctorders(oldUser.OSUserName, oldClient.Id);
+		//}
 
 		public void Check_order_with_ImpersonalPrice(string userName, uint orderedClientId)
 		{
@@ -778,11 +775,11 @@ limit 1
 			}
 		}
 
-		[Test]
-		public void Check_order_with_ImpersonalPrice_for_old_client()
-		{
-			Check_order_with_ImpersonalPrice(oldUser.OSUserName, oldClient.Id);
-		}
+		//[Test]
+		//public void Check_order_with_ImpersonalPrice_for_old_client()
+		//{
+		//    Check_order_with_ImpersonalPrice(oldUser.OSUserName, oldClient.Id);
+		//}
 
 		private string CheckServiceResponse(string response)
 		{
@@ -875,11 +872,11 @@ where
 			}
 		}
 
-		[Test(Description = "Проверяем создание информации о лидерах в заказе для старых клиентов")]
-		public void Check_simple_order_with_leaders_for_old_client()
-		{
-			Check_simple_order_with_leaders(oldUser.OSUserName, oldClient.Id);
-		}
+		//[Test(Description = "Проверяем создание информации о лидерах в заказе для старых клиентов")]
+		//public void Check_simple_order_with_leaders_for_old_client()
+		//{
+		//    Check_simple_order_with_leaders(oldUser.OSUserName, oldClient.Id);
+		//}
 
 		[Test(Description = "Проверяем создание информации о лидерах в заказе для клиентов из новой реальности")]
 		public void Check_simple_order_with_leaders_for_future_client()
@@ -1144,7 +1141,7 @@ and (i.PriceId = :PriceId)
 			                 	{
 									ActivePrice = new ActivePrice
 									{
-										Id = new PriceKey(new PriceList{PriceCode = price.Id, Firm = new Firm{FirmCode = price.Supplier.Id, ShortName = price.Supplier.ShortName}}) { RegionCode = client.RegionCode },
+										Id = new PriceKey(new PriceList{PriceCode = price.Id, Firm = new Firm{FirmCode = price.Supplier.Id, ShortName = price.Supplier.Name}}) { RegionCode = client.RegionCode },
 										PriceDate = DateTime.Now,
 									},
 			                 		ClientOrderId = 1,
@@ -1169,7 +1166,7 @@ and (i.PriceId = :PriceId)
 			{
 				ActivePrice = new ActivePrice
 				{
-					Id = new PriceKey(new PriceList { PriceCode = minReqPrice.Id, Firm = new Firm { FirmCode = minReqPrice.Supplier.Id, ShortName = minReqPrice.Supplier.ShortName } }) { RegionCode = client.RegionCode },
+					Id = new PriceKey(new PriceList { PriceCode = minReqPrice.Id, Firm = new Firm { FirmCode = minReqPrice.Supplier.Id, ShortName = minReqPrice.Supplier.Name } }) { RegionCode = client.RegionCode },
 					PriceDate = DateTime.Now,
 				},
 				ClientOrderId = 2,

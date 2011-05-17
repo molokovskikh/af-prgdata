@@ -38,10 +38,12 @@ namespace Integration
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
+			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
+
+			client = TestClient.Create();
+
 			using (new TransactionScope())
 			{
-				ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
-				client = TestClient.CreateSimple();
 				var user = client.Users[0];
 				var permission = TestUserPermission.ByShortcut("AF");
 				client.Users.Each(u => {
@@ -310,82 +312,82 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Написал тест для проверки выгрузки документа с признаком IsFake, чтобы проверить, что он корректно подтверждается")]
-		public void Check_Fake_for_old_user()
-		{
-			TestDocumentLog fakeDoc;
-			TestOldClient _oldClient;
-			TestOldUser _oldUser;
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
-				var permission = TestUserPermission.ByShortcut("AF");
+//        [Test(Description = "Написал тест для проверки выгрузки документа с признаком IsFake, чтобы проверить, что он корректно подтверждается")]
+//        public void Check_Fake_for_old_user()
+//        {
+//            TestDocumentLog fakeDoc;
+//            TestOldClient _oldClient;
+//            TestOldUser _oldUser;
+//            using (var transaction = new TransactionScope(OnDispose.Rollback))
+//            {
+//                var permission = TestUserPermission.ByShortcut("AF");
 
-				_oldClient = TestOldClient.CreateTestClient();
-				_oldUser = _oldClient.Users[0];
+//                _oldClient = TestOldClient.CreateTestClient();
+//                _oldUser = _oldClient.Users[0];
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					session.CreateSQLQuery(@"
-				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-						.SetParameter("permissionid", permission.Id)
-						.SetParameter("userid", _oldUser.Id)
-						.ExecuteUpdate();
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    session.CreateSQLQuery(@"
+//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
+//                        .SetParameter("permissionid", permission.Id)
+//                        .SetParameter("userid", _oldUser.Id)
+//                        .ExecuteUpdate();
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 
-				var supplierId = _oldClient.GetActivePrices()[0].Supplier.Id;
-				fakeDoc = new TestDocumentLog
-				{
-					LogTime = DateTime.Now,
-					FirmCode = supplierId,
-					DocumentType = DocumentType.Waybill,
-					ClientCode = _oldClient.Id,
-					Ready = true,
-					IsFake = true
-				};
-				fakeDoc.Save();
+//                var supplierId = _oldClient.GetActivePrices()[0].Supplier.Id;
+//                fakeDoc = new TestDocumentLog
+//                {
+//                    LogTime = DateTime.Now,
+//                    FirmCode = supplierId,
+//                    DocumentType = DocumentType.Waybill,
+//                    ClientCode = _oldClient.Id,
+//                    Ready = true,
+//                    IsFake = true
+//                };
+//                fakeDoc.Save();
 
-				transaction.VoteCommit();
-			}
+//                transaction.VoteCommit();
+//            }
 
-			var waybillsFolder = Path.Combine("FtpRoot", _oldClient.Id.ToString(), "Waybills");
-			Directory.CreateDirectory(waybillsFolder);
+//            var waybillsFolder = Path.Combine("FtpRoot", _oldClient.Id.ToString(), "Waybills");
+//            Directory.CreateDirectory(waybillsFolder);
 
-			SetCurrentUser(_oldUser.OSUserName);
-			LoadDocuments();
-			ShouldBeSuccessfull();
-			Confirm();
+//            SetCurrentUser(_oldUser.OSUserName);
+//            LoadDocuments();
+//            ShouldBeSuccessfull();
+//            Confirm();
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-			Thread.Sleep(2000);
+//            //Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+//            Thread.Sleep(2000);
 
-			using (new SessionScope())
-			{
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == _oldUser.Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
-				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
-				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
-				Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
+//            using (new SessionScope())
+//            {
+//                var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == _oldUser.Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
+//                var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
+//                Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+//                Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
 
-				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-				try
-				{
-					var commited = session.CreateSQLQuery(@"select Committed from usersettings.AnalitFDocumentsProcessing where DocumentId = :DocumentId and UpdateId = :UpdateId")
-						.SetParameter("DocumentId", fakeDoc.Id)
-						.SetParameter("UpdateId", lastUpdateId)
-						.UniqueResult();
-					Assert.That(commited, Is.Null, "Ненастоящий документ не подтвержден.");
-				}
-				finally
-				{
-					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-				}
+//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+//                try
+//                {
+//                    var commited = session.CreateSQLQuery(@"select Committed from usersettings.AnalitFDocumentsProcessing where DocumentId = :DocumentId and UpdateId = :UpdateId")
+//                        .SetParameter("DocumentId", fakeDoc.Id)
+//                        .SetParameter("UpdateId", lastUpdateId)
+//                        .UniqueResult();
+//                    Assert.That(commited, Is.Null, "Ненастоящий документ не подтвержден.");
+//                }
+//                finally
+//                {
+//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+//                }
 
-			}
-		}
+//            }
+//        }
 
 		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом")]
 		public void Get_parsed_fake_docs()
