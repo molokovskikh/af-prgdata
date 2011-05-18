@@ -51,6 +51,9 @@ namespace PrgData.Common
 		public int BuyingMatrixType;
 		public bool WarningOnBuyingMatrix;
 
+		public uint? OfferMatrixPriceId;
+		public int OfferMatrixType;
+
 		public bool SaveAFDataFiles;
  
 		public uint? BuildNumber;
@@ -134,6 +137,10 @@ namespace PrgData.Common
 			                    	: (uint?) Convert.ToUInt32(row["NetworkPriceId"]);
 			SaveAFDataFiles = Convert.ToBoolean(row["SaveAFDataFiles"]);
 			ShowAdvertising = Convert.ToBoolean(row["ShowAdvertising"]);
+			OfferMatrixPriceId = Convert.IsDBNull(row["OfferMatrixPriceId"])
+									? null
+									: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
+			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
 		}
 
 		public bool Disabled()

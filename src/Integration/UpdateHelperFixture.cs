@@ -1396,7 +1396,7 @@ and ForceReplication > 0;",
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.BuyingMatrixPriceId = 4597;
+				updateData.BuyingMatrixPriceId = 4957;
 				var helper = new UpdateHelper(updateData, connection);
 
 				helper.MaintainReplicationInfo();
@@ -1430,7 +1430,7 @@ and ForceReplication > 0;",
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.BuyingMatrixPriceId = 4597;
+				updateData.BuyingMatrixPriceId = 4957;
 				updateData.BuildNumber = 1405;
 				var helper = new UpdateHelper(updateData, connection);
 
@@ -1462,5 +1462,110 @@ and ForceReplication > 0;",
 				Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
 			}
 		}
+
+		[Test]
+		public void CheckCoreForWhiteOfferMatrix()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.OfferMatrixPriceId = 4957;
+				updateData.OfferMatrixType = 0;
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var existsProductId = MySqlHelper.ExecuteScalar(
+					connection,
+					"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
+					new MySqlParameter("?PriceId", 4957));
+
+				var nonExistsProductId = MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+select 
+	core.ProductId 
+from 
+	core 
+	left join farm.BuyingMatrix bm on bm.ProductId = core.ProductId and bm.PriceId = ?PriceId
+where 
+	bm.Id is null
+limit 1",
+					new MySqlParameter("?PriceId", 4957));
+
+				var coreSql = helper.GetCoreCommand(false, true, true, false);
+
+				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+				Assert.That(coreSql, Is.StringContaining("and offerList.Id is not null"));
+
+				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				var coreTable = new DataTable();
+
+				dataAdapter.Fill(coreTable);
+
+				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+
+				var existsOffers = coreTable.Select("ProductId = " + existsProductId);
+				Assert.That(existsOffers.Length, Is.GreaterThan(0), "Все предложения по ProductId {0} должны быть в белом списке и присутствовать в доступных предложениях", existsProductId);
+
+				var nonExistsOffers = coreTable.Select("ProductId = " + nonExistsProductId);
+				Assert.That(nonExistsOffers.Length, Is.EqualTo(0), "Все предложения по ProductId {0} не существуют в белом списке и не должны присутствовать в доступных предложениях", nonExistsProductId);
+			}
+		}
+
+		[Test]
+		public void CheckCoreForBlackOfferMatrix()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.OfferMatrixPriceId = 4957;
+				updateData.OfferMatrixType = 1;
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+				helper.SelectOffers();
+
+				var coreSql = helper.GetCoreCommand(false, true, true, false);
+
+				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+				Assert.That(coreSql, Is.StringContaining("and offerList.Id is null"));
+
+				var productId = MySqlHelper.ExecuteScalar(
+					connection,
+					"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
+					new MySqlParameter("?PriceId", 4957));
+
+				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				var coreTable = new DataTable();
+
+				dataAdapter.Fill(coreTable);
+
+				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+
+				var offers = coreTable.Select("ProductId = " + productId);
+				Assert.That(offers.Length, Is.EqualTo(0), "Все предложения по ProductId {0} должны быть в черном списке и не должны присутствовать в доступных предложениях", productId);
+			}
+		}
+
 	}
 }

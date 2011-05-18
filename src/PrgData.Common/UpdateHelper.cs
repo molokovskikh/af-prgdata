@@ -342,6 +342,8 @@ SELECT
     retclientsset.EnableImpersonalPrice,
 	retclientsset.NetworkPriceId,
 	retclientsset.ShowAdvertising,
+    retclientsset.OfferMatrixPriceId,
+    retclientsset.OfferMatrixType,
     c.Status as ClientEnabled,
 	u.Enabled as UserEnabled,
 	ap.UserId is not null as AFPermissionExists
@@ -401,6 +403,8 @@ SELECT  ouar.clientcode as ClientId,
         retclientsset.EnableImpersonalPrice,
 		retclientsset.NetworkPriceId,
 		retclientsset.ShowAdvertising,
+	    retclientsset.OfferMatrixPriceId,
+		retclientsset.OfferMatrixType,
         clientsdata.firmstatus as ClientEnabled,
 	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
 	    ap.UserId is not null as AFPermissionExists
@@ -1871,6 +1875,7 @@ AND
 		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool cryptCost)
 		{
 			string buyingMatrixCondition;
+			string offerMatrixCondition;
 			if (_updateData.BuyingMatrixPriceId.HasValue)
 			{
 				if (_updateData.BuyingMatrixType == 0)
@@ -1883,6 +1888,19 @@ AND
 			else
 				//разрешено все
 				buyingMatrixCondition = ", 0 as BuyingMatrixType";
+
+			if (_updateData.OfferMatrixPriceId.HasValue)
+			{
+				if (_updateData.OfferMatrixType == 0)
+					//белый список - попал в список => попал в предложения
+					offerMatrixCondition = " and offerList.Id is not null ";
+				else
+					//черный список - не попал в список => попал в предложения
+					offerMatrixCondition = " and offerList.Id is null ";
+			}
+			else
+				//разрешено все - матрица не работает
+				offerMatrixCondition = " ";
 
 			if (exportInforoomPrice)
 				if (!exportSupplierPriceMarkup)
@@ -2065,10 +2083,12 @@ FROM
 		left join catalogs.Products on Products.Id = CT.ProductId
 		left join catalogs.catalog on catalog.Id = Products.CatalogId
        {2}
+       {5}
 WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
 AND    IF(?Cumulative, 1, fresh)
+{6}
 group by CT.id, CT.regioncode "
 				,
 				exportSupplierPriceMarkup ? @"
@@ -2089,7 +2109,10 @@ Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
 				cryptCost ? "CT.CryptCost" : "CT.Cost",
-				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : ""
+				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
+				_updateData.OfferMatrixPriceId.HasValue ? @" 
+  left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId : "",
+				offerMatrixCondition
 				);
 		}
 
