@@ -2022,10 +2022,10 @@ FROM
 		exportBuyingMatrix ? buyingMatrixCondition : "",
 		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(a.CodeFirmCr is null, 0, list.ProducerId = a.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(a.CodeFirmCr is null, 0, list.ProducerId = a.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
 		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, 0) and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, 0) and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
 	 );
 			else
 				return 
@@ -2087,7 +2087,7 @@ Core.ProducerCost,
 Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
-  left join farm.BuyingMatrix list on list.CatalogId = Products.CatalogId and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
 				cryptCost ? "CT.CryptCost" : "CT.Cost",
 				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : ""
 				);

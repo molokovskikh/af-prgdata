@@ -1396,6 +1396,7 @@ and ForceReplication > 0;",
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuyingMatrixPriceId = 4597;
 				var helper = new UpdateHelper(updateData, connection);
 
 				helper.MaintainReplicationInfo();
@@ -1429,6 +1430,7 @@ and ForceReplication > 0;",
 			{
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuyingMatrixPriceId = 4597;
 				updateData.BuildNumber = 1405;
 				var helper = new UpdateHelper(updateData, connection);
 
