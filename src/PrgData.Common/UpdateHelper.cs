@@ -1893,10 +1893,10 @@ AND
 			{
 				if (_updateData.OfferMatrixType == 0)
 					//белый список - попал в список => попал в предложения
-					offerMatrixCondition = " and offerList.Id is not null ";
+					offerMatrixCondition = " and (oms.Id is not null or offerList.Id is not null) ";
 				else
 					//черный список - не попал в список => попал в предложения
-					offerMatrixCondition = " and offerList.Id is null ";
+					offerMatrixCondition = " and (oms.Id is not null or offerList.Id is null) ";
 			}
 			else
 				//разрешено все - матрица не работает
@@ -2111,7 +2111,9 @@ Core.NDS " : "",
 				cryptCost ? "CT.CryptCost" : "CT.Cost",
 				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 				_updateData.OfferMatrixPriceId.HasValue ? @" 
-  left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId : "",
+  left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
+  left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode "
+																																																					   : "",
 				offerMatrixCondition
 				);
 		}

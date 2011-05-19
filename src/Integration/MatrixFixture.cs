@@ -167,6 +167,7 @@ limit 1
 			settings.WarningOnBuyingMatrix = false;
 			settings.UpdateAndFlush();
 
+			ClearOfferMatrixSuppliers();
 			ClearMatrix(_buyingPrice);
 			ClearMatrix(_offerPrice);
 		}
@@ -185,7 +186,6 @@ limit 1
 
 		private void InsertMatrix(TestActivePrice price)
 		{
-			ClearMatrix(price);
 			SessionHelper.WithSession(
 				s =>
 				{
@@ -202,19 +202,29 @@ group by c0.ProductId;")
 				});
 		}
 
-		[Test]
-		public void TestActivePrices()
+		private void ClearOfferMatrixSuppliers()
 		{
-			var list = _user.GetActivePricesList();
+			SessionHelper.WithSession(
+				s =>
+				{
+					s.CreateSQLQuery(
+						"delete from UserSettings.OfferMatrixSuppliers where ClientId = :clientId;")
+						.SetParameter("clientId", _client.Id)
+						.ExecuteUpdate();
+				});
+		}
 
-			Assert.That(list.Count, Is.GreaterThan(0));
-
-			var price = list[0];
-			Assert.That(price.Id, Is.Not.Null);
-			Assert.That(price.Id.PriceId, Is.GreaterThan(0));
-			Assert.That(price.Price, Is.Not.Null);
-			Assert.That(price.Id.RegionCode, Is.GreaterThan(0));
-			Assert.That(price.Id.RegionCode, Is.EqualTo(_client.RegionCode));
+		private void InserOfferMatrixSuppliers(TestActivePrice price)
+		{
+			SessionHelper.WithSession(
+				s =>
+				{
+					s.CreateSQLQuery(
+						"insert into UserSettings.OfferMatrixSuppliers (ClientId, SupplierId) values (:clientId, :supplierId);")
+						.SetParameter("clientId", _client.Id)
+						.SetParameter("supplierId", price.Price.Supplier.Id)
+						.ExecuteUpdate();
+				});
 		}
 
 		private void CheckOffers(Action<UpdateHelper, DataTable>  action)
@@ -239,6 +249,7 @@ group by c0.ProductId;")
 
 				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
 				var coreTable = new DataTable();
 
 				dataAdapter.Fill(coreTable);
@@ -403,5 +414,37 @@ group by c0.ProductId;")
 					CheckOffer(coreTable, _offerPrice, _offerProductId, false);
 				});
 		}
+
+		[Test(Description = "проверяем работу черной матрицы предложений с заполнением списка поставщиков, для которых не будет применяться матрица предложений")]
+		public void BlackOfferMatrixWithOfferSuppliers()
+		{
+			var settings = TestDrugstoreSettings.Find(_client.Id);
+			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
+			settings.OfferMatrixType = 1;
+			settings.UpdateAndFlush();
+
+			InsertMatrix(_offerPrice);
+			InserOfferMatrixSuppliers(_offerPrice);
+
+			CheckOffers(
+				(helper, coreTable) =>
+				{
+					Assert.That(coreTable.Rows.Count, Is.LessThan(_offerCoreCount + _buyingCoreCount), "Кол-во предложений должно быть меньше кол-ву предложений в обоих прайс-листах");
+
+					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
+					Assert.That(_buyingOffers.Length, Is.LessThan(_buyingCoreCount), "Для прайс-листа {0} должно быть меньше предложений", _buyingPrice.Id.PriceId);
+
+					var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
+					Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Все предложения прайс-листа {0} должны присутствовать", _offerPrice.Id.PriceId);
+
+					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, false);
+					CheckOffer(coreTable, _offerPrice, _intersectionProductId, true);
+
+					CheckOffer(coreTable, _buyingPrice, _buyingProductId, true);
+
+					CheckOffer(coreTable, _offerPrice, _offerProductId, true);
+				});
+		}
+
 	}
 }

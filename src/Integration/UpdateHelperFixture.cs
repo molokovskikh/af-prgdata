@@ -1505,10 +1505,11 @@ limit 1",
 				var coreSql = helper.GetCoreCommand(false, true, true, false);
 
 				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
-				Assert.That(coreSql, Is.StringContaining("and offerList.Id is not null"));
+				Assert.That(coreSql, Is.StringContaining("or offerList.Id is not null)"));
 
 				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
 				var coreTable = new DataTable();
 
 				dataAdapter.Fill(coreTable);
@@ -1547,7 +1548,7 @@ limit 1",
 				var coreSql = helper.GetCoreCommand(false, true, true, false);
 
 				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
-				Assert.That(coreSql, Is.StringContaining("and offerList.Id is null"));
+				Assert.That(coreSql, Is.StringContaining("or offerList.Id is null)"));
 
 				var productId = MySqlHelper.ExecuteScalar(
 					connection,
@@ -1556,6 +1557,7 @@ limit 1",
 
 				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
 				var coreTable = new DataTable();
 
 				dataAdapter.Fill(coreTable);
