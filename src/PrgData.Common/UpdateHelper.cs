@@ -346,6 +346,7 @@ SELECT
     retclientsset.OfferMatrixType,
     c.Status as ClientEnabled,
 	u.Enabled as UserEnabled,
+	u.AllowDownloadUnconfirmedOrders,
 	ap.UserId is not null as AFPermissionExists
 FROM  
   future.users u
@@ -407,6 +408,7 @@ SELECT  ouar.clientcode as ClientId,
 		retclientsset.OfferMatrixType,
         clientsdata.firmstatus as ClientEnabled,
 	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
+		0 as AllowDownloadUnconfirmedOrders,
 	    ap.UserId is not null as AFPermissionExists
 FROM    
   usersettings.osuseraccessright ouar

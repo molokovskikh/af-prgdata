@@ -85,6 +85,9 @@ namespace PrgData.Common
 
 		public UncommittedRequest PreviousRequest;
 
+		public bool AllowDownloadUnconfirmedOrders;
+		public bool SupportDownloadUnconfirmedOrders;
+
 		public string ResultPath;
 		private string _currentTempFileName;
 
@@ -141,6 +144,7 @@ namespace PrgData.Common
 									? null
 									: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
 			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
+			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["ShowAdvertising"]);
 		}
 
 		public bool Disabled()
