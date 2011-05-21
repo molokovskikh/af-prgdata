@@ -374,8 +374,40 @@ Public Class PrgDataEx
           WINDesc, _
           WayBillsOnly, _
           ClientHFile, _
-          PriceCodes,
-          False)
+          PriceCodes, _
+          False, _
+          Nothing, _
+          Nothing)
+    End Function
+
+    <WebMethod()> Public Function GetUserDataWithOrders( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          WayBillsOnly, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId)
     End Function
 
     Private Function InternalGetUserData( _
@@ -388,8 +420,10 @@ Public Class PrgDataEx
      ByVal WINDesc As String, _
      ByVal WayBillsOnly As Boolean, _
      ByVal ClientHFile As String, _
-     ByVal PriceCodes As UInt32(),
-     ByVal ProcessBatch As Boolean) As String
+     ByVal PriceCodes As UInt32(), _
+     ByVal ProcessBatch As Boolean, _
+     ByVal MaxOrderId As UInt32, _
+     ByVal MaxOrderListId As UInt32) As String
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
@@ -423,6 +457,10 @@ Public Class PrgDataEx
                 'Присваиваем версии приложения и базы
                 UpdateData.ParseBuildNumber(EXEVersion)
                 UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+                If MaxOrderId > 0 AndAlso MaxOrderListId > 0 then
+                    UpdateData.MaxOrderId = MaxOrderId
+                    UpdateData.MaxOrderListId = MaxOrderListId
+                End If
             End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
@@ -1255,6 +1293,7 @@ StartZipping:
             Counter.TryLock(UserId, "CommitExchange")
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
+				UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection)
                 ' Здесь сбрасывались коды прайс-листов
                 ProcessCommitExchange()
             Else
@@ -2276,7 +2315,7 @@ StartZipping:
                     AddFileToQueue(helper.BatchReportServiceFieldsFileName)
                 End If
 
-                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True)
+                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0)
 
                 currentUpdateId = GUpdateId
 
@@ -3112,6 +3151,10 @@ RestartTrans2:
 
                 UpdateData.SupplierPromotions = helper.GetPromotionsList(SelProc)
                 Log.DebugFormat("PromotionsList: {0}", UpdateData.SupplierPromotions.Implode())
+
+                If UpdateType <> RequestType.PostOrderBatch then
+                    helper.UnconfirmedOrdersExport(MySqlFilePath(), FilesForArchive)
+                End If
 
                 If helper.NeedClientToAddressMigration() Then
                     GetMySQLFileWithDefault("ClientToAddressMigrations", SelProc, helper.GetClientToAddressMigrationCommand())

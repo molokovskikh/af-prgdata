@@ -153,6 +153,8 @@
     <Compile Include="Model\AnalitFVersionRule.cs" />
     <Compile Include="OrderHelper.cs" />
     <Compile Include="Orders\ClientOrderPosition.cs" />
+    <Compile Include="Orders\Orders2StringConverter.cs" />
+    <Compile Include="Orders\UnconfirmedOrdersExporter.cs" />
     <Compile Include="Repositories\IVersionRuleRepository.cs" />
     <Compile Include="Repositories\VersionRuleRepository.cs" />
     <Compile Include="RequestType.cs" />

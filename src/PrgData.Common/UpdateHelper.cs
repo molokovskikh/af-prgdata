@@ -10,6 +10,7 @@ using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
 using log4net;
+using PrgData.Common.Orders;
 using PrgData.Common.SevenZip;
 using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 using System.Collections.Generic;
@@ -35,6 +36,11 @@ namespace PrgData.Common
 	{
 		private UpdateData _updateData;
 		private MySqlConnection _readWriteConnection;
+
+		public MySqlConnection ReadWriteConnection
+		{
+			get { return _readWriteConnection; }
+		}
 
 		//Код поставщика 7664
 		public uint MaxProducerCostsPriceId { get; private set; }
@@ -3131,6 +3137,15 @@ and left(Message, 255) = left(?Message, 255)",
 				}
 			});
 
+		}
+
+		public void UnconfirmedOrdersExport(string exportFolder, Queue<FileForArchive> filesForArchive)
+		{
+			if (_updateData.NeedDownloadUnconfirmedOrders)
+			{
+				var exporter = new UnconfirmedOrdersExporter(_updateData, this, exportFolder, filesForArchive);
+				exporter.Export();
+			}
 		}
 
 	}

@@ -23,6 +23,8 @@ namespace PrgData.Common
 		private static int _versionBeforeDelayWithVitallyImportant = 1385;
 		//версия AnalitF до поддержки отсрочек платежа по прайс-листам
 		private static int _versionBeforeDelayByPrice = 1403;
+		//версия AnalitF до поддержки загрузки неподтвержденных заказов
+		private static int _versionBeforeDownloadUnconfirmedOrders = 1411;
 
 		public string ShortName;
 		public uint ClientId;
@@ -86,10 +88,12 @@ namespace PrgData.Common
 		public UncommittedRequest PreviousRequest;
 
 		public bool AllowDownloadUnconfirmedOrders;
-		public bool SupportDownloadUnconfirmedOrders;
 
 		public string ResultPath;
 		private string _currentTempFileName;
+
+		public uint MaxOrderId;
+		public uint MaxOrderListId;
 
 		public List<SupplierPromotion> SupplierPromotions = new List<SupplierPromotion>();
 
@@ -347,6 +351,31 @@ namespace PrgData.Common
 		public bool EnableUpdate()
 		{
 			return AllowUpdate() && UpdateExeVersionInfo != null && (!TargetVersion.HasValue || UpdateExeVersionInfo.VersionNumber <= TargetVersion);
+		}
+
+		public bool SupportDownloadUnconfirmedOrders
+		{
+			get
+			{
+				return (BuildNumber > _versionBeforeDelayByPrice
+				        || KnownBuildNumber > _versionBeforeDelayByPrice);
+			}
+		}
+
+		public bool AllowDeleteUnconfirmedOrders
+		{
+			get
+			{
+				return AllowDownloadUnconfirmedOrders && SupportDownloadUnconfirmedOrders;
+			}
+		}
+
+		public bool NeedDownloadUnconfirmedOrders
+		{
+			get
+			{
+				return AllowDeleteUnconfirmedOrders && MaxOrderId > 0 && MaxOrderListId > 0;
+			}
 		}
 	
 	}
