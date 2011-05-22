@@ -61,7 +61,7 @@ namespace PrgData.Common.Orders
 			var converter = new Orders2StringConverter(ExportedOrders, Data.MaxOrderId, Data.MaxOrderListId);
 
 			File.WriteAllText(OrdersHeadFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
-			File.WriteAllText(OrdersListFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
+			File.WriteAllText(OrdersListFileName, converter.OrderItems.ToString(), Encoding.GetEncoding(1251));
 
 			lock (_filesForArchive)
 			{
