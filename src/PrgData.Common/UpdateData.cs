@@ -148,7 +148,7 @@ namespace PrgData.Common
 									? null
 									: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
 			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
-			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["ShowAdvertising"]);
+			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["AllowDownloadUnconfirmedOrders"]);
 		}
 
 		public bool Disabled()
