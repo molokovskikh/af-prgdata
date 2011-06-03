@@ -69,7 +69,7 @@ from
   ActivePrices,
   CopyActivePrices
 where
-    CopyActivePrices.PriceCode = ActivePrices.PriceCode
+	CopyActivePrices.PriceCode = ActivePrices.PriceCode
 and CopyActivePrices.RegionCode = ActivePrices.RegionCode
 and CopyActivePrices.Fresh != ActivePrices.Fresh
 ";
@@ -87,7 +87,7 @@ from
   ActivePrices,
   CopyActivePrices
 where
-    CopyActivePrices.PriceCode = ActivePrices.PriceCode
+	CopyActivePrices.PriceCode = ActivePrices.PriceCode
 and CopyActivePrices.RegionCode = ActivePrices.RegionCode
 and CopyActivePrices.Fresh != ActivePrices.Fresh
 ");
@@ -137,17 +137,20 @@ from
   ActivePrices at, 
   Core ct
 WHERE  
-    ct.pricecode  = at.pricecode 
+	ct.pricecode  = at.pricecode 
 AND ct.regioncode = at.regioncode 
 AND IF(?Cumulative, 1, fresh) 
 ";
 				var expectedCoreCount = Convert.ToInt32(_command.ExecuteScalar());
-				if (expectedCoreCount != ExportCoreCount)
-				{
-					_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
-					FillTable(
-						"ActivePricesSizes",
-						@"
+				if (_updateData.OfferMatrixPriceId.HasValue && ExportCoreCount < expectedCoreCount)
+					Logger.DebugFormat("Не совпадает кол-во выгруженных предложений в Core для копии, работающей с матрицей предложений: ожидаемое = {0} реальное = {1}", expectedCoreCount, ExportCoreCount);
+				else
+					if (expectedCoreCount != ExportCoreCount)
+					{
+						_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
+						FillTable(
+							"ActivePricesSizes",
+							@"
 select 
   at.PriceCode, 
   at.regioncode, 
@@ -161,8 +164,7 @@ WHERE
    IF(?Cumulative, 1, fresh) 
 group by at.PriceCode, at.regioncode
 ");
-				}
-
+					}
 			}
 
 			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
