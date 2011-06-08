@@ -4,6 +4,7 @@ CREATE
   DEFINER = `RootDBMS`@`127.0.0.1`
 FUNCTION UserSettings.CurrentDayOfWeek()
   RETURNS varchar(10) CHARSET cp1251
+  READS SQL DATA
 BEGIN
   SET @dayWeek = dayofweek(curdate());
   SET @result =
