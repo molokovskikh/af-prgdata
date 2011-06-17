@@ -252,14 +252,21 @@ namespace PrgData.Common
 			return false;
 		}
 
+		private bool BuildNumberGreaterThen(int version)
+		{
+			//Версия удовлетворяем, если разобранная версия BuildNumber больше необходимой или разобранная версия BuildNumber
+			//не установлена и предыдущая версия KnownBuildNumber (версия программы, с которой пользователь работал в предыдущий раз) больше необходимой
+			return BuildNumber > version || ((!BuildNumber.HasValue || BuildNumber == 0) && KnownBuildNumber > version);
+		}
+
 		public bool IsConfirmUserMessage()
 		{
-			return (BuildNumber > _versionBeforeConfirmUserMessage || KnownBuildNumber > _versionBeforeConfirmUserMessage);
+			return BuildNumberGreaterThen(_versionBeforeConfirmUserMessage);
 		}
 
 		public bool AllowSupplierPromotions()
 		{
-			return (BuildNumber > _versionBeforeSupplierPromotions || KnownBuildNumber > _versionBeforeSupplierPromotions);
+			return BuildNumberGreaterThen(_versionBeforeSupplierPromotions);
 		}
 
 		private bool CheckNeedUpdateToSupplierPromotions()
@@ -272,18 +279,16 @@ namespace PrgData.Common
 
 		public bool AllowDelayWithVitallyImportant()
 		{
-			return (BuildNumber > _versionBeforeDelayWithVitallyImportant 
-				|| KnownBuildNumber > _versionBeforeDelayWithVitallyImportant 
+			return BuildNumberGreaterThen(_versionBeforeDelayWithVitallyImportant) 
 				|| (UpdateExeVersionInfo != null 
 						&& UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayWithVitallyImportant
-						&& UpdateExeVersionInfo.VersionNumber <= _versionBeforeDelayByPrice));
+						&& UpdateExeVersionInfo.VersionNumber <= _versionBeforeDelayByPrice);
 		}
 
 		public bool AllowDelayByPrice()
 		{
-			return (BuildNumber > _versionBeforeDelayByPrice
-				|| KnownBuildNumber > _versionBeforeDelayByPrice
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice));
+			return BuildNumberGreaterThen(_versionBeforeDelayByPrice)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayByPrice);
 		}
 
 		public bool NeedUpdateForRetailVitallyImportant()
@@ -357,8 +362,7 @@ namespace PrgData.Common
 		{
 			get
 			{
-				return (BuildNumber > _versionBeforeDelayByPrice
-				        || KnownBuildNumber > _versionBeforeDelayByPrice);
+				return BuildNumberGreaterThen(_versionBeforeDelayByPrice);
 			}
 		}
 
