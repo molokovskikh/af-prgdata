@@ -2772,9 +2772,9 @@ RestartTrans2:
                 helper.FillParentCodes()
 
                 GetMySQLFile("ClientsDataN", SelProc, _
-                "SELECT firm.FirmCode, " & _
+                "SELECT firm.Id as FirmCode, " & _
                 "       firm.FullName, " & _
-                "       firm.Fax     , " & _
+                "       ''  as Fax   , " & _
                 "       '-'          , " & _
                 "       '-'          , " & _
                 "       '-'          , " & _
@@ -2787,8 +2787,8 @@ RestartTrans2:
                 "       '-'          , " & _
                 "       '-'          , " & _
                 "       '-' " & _
-                "FROM   clientsdata AS firm " & _
-                "WHERE  firmcode IN " & _
+                "FROM   future.Suppliers AS firm " & _
+                "WHERE  firm.Id IN " & _
                 "                   (SELECT DISTINCT FirmCode " & _
                 "                   FROM             Prices " & _
                 "                   )")
@@ -2977,7 +2977,7 @@ RestartTrans2:
                 GetMySQLFile("PricesData", SelProc, _
                   "SELECT   Prices.FirmCode , " & _
                   "         Prices.pricecode, " & _
-                  "                  concat(firm.shortname, IF(PriceCounts.PriceCount> 1 " & _
+                  "                  concat(firm.name, IF(PriceCounts.PriceCount> 1 " & _
                   "      OR Prices.ShowPriceName                                = 1, concat(' (', Prices.pricename, ')'), '')), " & _
                   "          0                                                                  , " & _
                   "         ''                                                                                  , " & _
@@ -3035,13 +3035,13 @@ RestartTrans2:
                   "         ''          , " & _
                   "         ''          , " & _
                   "         '0' " & _
-                  "FROM     (clientsdata AS firm, " & _
+                  "FROM     (future.Suppliers AS firm, " & _
                   "         PriceCounts             , " & _
                   "         Prices, " & _
                   "         CurrentReplicationInfo ARI ) " & _
                   "         left join ActivePrices on ActivePrices.PriceCode = Prices.pricecode and ActivePrices.RegionCode = Prices.RegionCode " & _
-                  "WHERE    PriceCounts.firmcode = firm.firmcode " & _
-                  "     AND firm.firmcode   = Prices.FirmCode " & _
+                  "WHERE    PriceCounts.firmcode = firm.Id " & _
+                  "     AND firm.Id   = Prices.FirmCode " & _
                   "     AND ARI.FirmCode    = Prices.FirmCode " & _
                   "     AND ARI.UserId    = ?UserId " & _
                   "GROUP BY Prices.FirmCode, " & _

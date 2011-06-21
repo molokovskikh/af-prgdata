@@ -168,18 +168,17 @@ INTO   Usersettings.AnalitFReplicationInfo
               ForceReplication
        )
 SELECT ouar.RowId,
-       supplier.FirmCode,
+       supplier.Id,
        1
 FROM usersettings.clientsdata AS drugstore
 	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
-	JOIN clientsdata supplier ON supplier.firmsegment = drugstore.firmsegment
-	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.FirmCode
+	JOIN future.Suppliers supplier ON supplier.segment = drugstore.firmsegment
+	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
-	AND supplier.firmtype = 0
 	AND drugstore.FirmCode = ?ClientCode
 	AND drugstore.firmtype = 1
-	AND supplier.maskregion & ?OffersRegionCode > 0
-GROUP BY ouar.RowId, supplier.FirmCode;
+	AND supplier.regionmask & ?OffersRegionCode > 0
+GROUP BY ouar.RowId, supplier.Id;
 
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
@@ -189,17 +188,16 @@ INTO   Usersettings.AnalitFReplicationInfo
               ForceReplication
        )
 SELECT u.Id,
-       supplier.FirmCode,
+       supplier.Id,
        1
 FROM Future.Clients drugstore
 	JOIN Future.Users u ON u.ClientId = drugstore.Id
-	JOIN clientsdata supplier ON supplier.maskregion & ?OffersRegionCode > 0
-	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.FirmCode
+	JOIN future.Suppliers supplier ON supplier.regionmask & ?OffersRegionCode > 0
+	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
-	AND supplier.firmtype = 0
 	AND drugstore.Id = ?ClientCode
-	AND supplier.firmsegment = 0
-GROUP BY u.Id, supplier.FirmCode;";
+	AND supplier.segment = 0
+GROUP BY u.Id, supplier.Id;";
 
 				command.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
 			}
@@ -213,18 +211,17 @@ INTO   Usersettings.AnalitFReplicationInfo
               ForceReplication
        )
 SELECT ouar.RowId,
-       supplier.FirmCode,
+       supplier.Id,
        1
 FROM usersettings.clientsdata AS drugstore
 	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
-	JOIN clientsdata supplier ON supplier.firmsegment = drugstore.firmsegment
-	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.FirmCode
+	JOIN future.Suppliers supplier ON supplier.segment = drugstore.firmsegment
+	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.Id	
 WHERE ari.UserId IS NULL 
-	AND supplier.firmtype = 0
 	AND drugstore.FirmCode = ?ClientCode
 	AND drugstore.firmtype = 1
-	AND supplier.maskregion & drugstore.maskregion > 0
-GROUP BY ouar.RowId, supplier.FirmCode;
+	AND supplier.regionmask & drugstore.maskregion > 0
+GROUP BY ouar.RowId, supplier.Id;
 
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
@@ -234,17 +231,16 @@ INTO   Usersettings.AnalitFReplicationInfo
               ForceReplication
        )
 SELECT u.Id,
-       supplier.FirmCode,
+       supplier.Id,
        1
 FROM Future.Clients drugstore
 	JOIN Future.Users u ON u.ClientId = drugstore.Id
-	JOIN clientsdata supplier ON supplier.maskregion & drugstore.maskregion > 0
-	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.FirmCode
+	JOIN future.Suppliers supplier ON supplier.regionmask & drugstore.maskregion > 0
+	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
-	AND supplier.firmtype = 0
 	AND drugstore.Id = ?ClientCode
-	AND supplier.firmsegment = 0
-GROUP BY u.Id, supplier.FirmCode;
+	AND supplier.segment = 0
+GROUP BY u.Id, supplier.Id;
 ";
 			command.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);
 
@@ -2229,10 +2225,10 @@ WHERE
 					var pricesSet = MySqlHelper.ExecuteDataset(_readWriteConnection, @"
 select 
   Prices.*,
-  concat(cd.ShortName, ' (', Prices.PriceName, ') ', r.Region) as FirmName 
+  concat(cd.Name, ' (', Prices.PriceName, ') ', r.Region) as FirmName 
 from 
   Prices
-  inner join usersettings.clientsdata cd on cd.FirmCode = Prices.FirmCode
+  inner join future.Suppliers cd on cd.Id = Prices.FirmCode
   inner join farm.regions r on r.RegionCode = Prices.RegionCode
   ");
 					var prices = pricesSet.Tables[0];
@@ -2847,13 +2843,13 @@ DROP TEMPORARY TABLE IF EXISTS ProviderContacts;
 CREATE TEMPORARY TABLE ProviderContacts engine=MEMORY
 AS
 SELECT DISTINCT c.contactText,
-                cd.FirmCode
-FROM            usersettings.clientsdata cd
+                cd.Id as FirmCode
+FROM            future.Suppliers cd
                 JOIN contacts.contact_groups cg
                 ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
                 JOIN contacts.contacts c
                 ON              cg.Id = c.ContactOwnerId
-WHERE           firmcode IN
+WHERE           cd.Id IN
                                 (SELECT DISTINCT FirmCode
                                 FROM             Prices
                                 )
@@ -2863,15 +2859,15 @@ AND             c.Type  = 0;
 INSERT
 INTO   ProviderContacts
 SELECT DISTINCT c.contactText,
-                cd.FirmCode
-FROM            usersettings.clientsdata cd
+                cd.Id as FirmCode
+FROM            future.Suppliers cd
                 JOIN contacts.contact_groups cg
                 ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
                 JOIN contacts.persons p
                 ON              cg.id = p.ContactGroupId
                 JOIN contacts.contacts c
                 ON              p.Id = c.ContactOwnerId
-WHERE           firmcode IN
+WHERE           cd.Id IN
                                 (SELECT DISTINCT FirmCode
                                 FROM             Prices
                                 )
@@ -2893,32 +2889,32 @@ AND             c.Type  = 0;
 			if (_updateData.EnableImpersonalPrice)
 				return @"
 SELECT   
-         firm.FirmCode                                                             ,
+         firm.Id as FirmCode                                                       ,
          firm.FullName                                                             ,
-         firm.Fax                                                                  ,
+         '' as Fax                                                                 ,
          null as ContactText                                                       ,
-         firm.ShortName
+         firm.Name
 FROM     
          usersettings.PricesData pd
-         inner join clientsdata AS firm on firm.FirmCode = pd.FirmCode
+         inner join future.Suppliers AS firm on firm.Id = pd.FirmCode
 WHERE    
          pd.PriceCode = ?ImpersonalPriceId";
 			else
 				return @"
 SELECT   
-         firm.FirmCode                                                             ,
+         firm.Id as FirmCode                                                       ,
          firm.FullName                                                             ,
-         firm.Fax                                                                  ,
+         '' as Fax                                                                 ,
          LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
-         firm.ShortName
-FROM     clientsdata AS firm
+         firm.Name
+FROM     future.Suppliers AS firm
          LEFT JOIN ProviderContacts
-         ON       ProviderContacts.FirmCode = firm.FirmCode
-WHERE    firm.firmcode IN
+         ON       ProviderContacts.FirmCode = firm.Id
+WHERE    firm.Id IN
                            (SELECT DISTINCT FirmCode
                            FROM             Prices
                            )
-GROUP BY firm.firmcode";
+GROUP BY firm.Id";
 		}
 
 		public string GetPricesDataCommand()
@@ -2928,13 +2924,13 @@ GROUP BY firm.firmcode";
 SELECT   
          pd.FirmCode ,
          pd.pricecode,
-         firm.shortname                                                                                                 as PriceName,
+         firm.name                                                                                                      as PriceName,
          ''                                                                                                             as PRICEINFO,
          date_sub(?ImpersonalPriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
          ?ImpersonalPriceFresh                                                                                          as Fresh
 FROM     
          usersettings.pricesdata pd
-         join clientsdata AS firm on firm.FirmCode = pd.FirmCode
+         join future.Suppliers AS firm on firm.Id = pd.FirmCode
 WHERE    
    pd.PriceCode = ?ImpersonalPriceId
 ";
@@ -2943,20 +2939,20 @@ WHERE
 SELECT   
          Prices.FirmCode ,
          Prices.pricecode,
-         concat(firm.shortname, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
+         concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
          ''                                                                                                  as PRICEINFO,
          date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
          max(ifnull(ActivePrices.Fresh, ARI.ForceReplication > 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
 FROM     
          (
-         clientsdata AS firm,
+         future.Suppliers AS firm,
          PriceCounts             ,
          Prices             ,
          CurrentReplicationInfo ARI
          )
          left join ActivePrices on ActivePrices.PriceCode = Prices.pricecode and ActivePrices.RegionCode = Prices.RegionCode
-WHERE    PriceCounts.firmcode = firm.firmcode
-AND      firm.firmcode   = Prices.FirmCode
+WHERE    PriceCounts.firmcode = firm.Id
+AND      firm.Id   = Prices.FirmCode
 AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
 GROUP BY Prices.FirmCode,

@@ -368,7 +368,7 @@ limit 6;");
 
 				createSimple.Users.Each(u =>
 				                  	{
-				                  		u.AssignedPermissions.Add(permission);
+				                  		//u.AssignedPermissions.Add(permission);
 				                  		u.SendRejects = true;
 				                  		u.SendWaybills = true;
 				                  	});
