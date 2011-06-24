@@ -38,10 +38,8 @@ namespace Integration
 			{
 				_user = _client.Users[0];
 
-				var permission = TestUserPermission.ByShortcut("AF");
 				_client.Users.Each(u =>
 				{
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -235,8 +233,6 @@ namespace Integration
 			{
 				userWithoutAddresses = _client.CreateUser();
 
-				var permission = TestUserPermission.ByShortcut("AF");
-				userWithoutAddresses.AssignedPermissions.Add(permission);
 				userWithoutAddresses.SendRejects = true;
 				userWithoutAddresses.SendWaybills = true;
 				userWithoutAddresses.Update();

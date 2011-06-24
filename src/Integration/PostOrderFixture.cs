@@ -44,9 +44,6 @@ namespace Integration
 
 			using (var transaction = new TransactionScope())
 			{
-
-				var permission = TestUserPermission.ByShortcut("AF");
-
 				_user = _client.Users[0];
 				_address = _client.Addresses[0];
 
@@ -55,7 +52,6 @@ namespace Integration
 
 				_client.Users.Each(u =>
 				{
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});

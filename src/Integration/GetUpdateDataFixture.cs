@@ -44,10 +44,8 @@ namespace Integration
 			{
 				_user = _client.Users[0];
 
-				var permission = TestUserPermission.ByShortcut("AF");
 				_client.Users.Each(u =>
 				{
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -153,10 +151,8 @@ namespace Integration
 			using (var transaction = new TransactionScope())
 			{
 				disabledUser = _client.CreateUser();
-				var permission = TestUserPermission.ByShortcut("AF");
 				disabledUser.SendRejects = true;
 				disabledUser.SendWaybills = true;
-				disabledUser.AssignedPermissions.Add(permission);
 				disabledUser.Enabled = false;
 				disabledUser.Update();
 			}
@@ -185,10 +181,8 @@ namespace Integration
 			var disabledUser = disabledClient.Users[0];
 			using (var transaction = new TransactionScope())
 			{
-				var permission = TestUserPermission.ByShortcut("AF");
 				disabledUser.SendRejects = true;
 				disabledUser.SendWaybills = true;
-				disabledUser.AssignedPermissions.Add(permission);
 				disabledUser.Update();
 
 				disabledClient.Status = ClientStatus.Off;

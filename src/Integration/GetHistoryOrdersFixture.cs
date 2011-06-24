@@ -43,13 +43,10 @@ namespace Integration
 			//oldClient = TestOldClient.CreateTestClient();
 			using (var transaction = new TransactionScope())
 			{
-				var permission = TestUserPermission.ByShortcut("AF");
-
 				user = client.Users[0];
 
 				client.Users.Each(u =>
 				{
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});

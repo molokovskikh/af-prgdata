@@ -362,13 +362,10 @@ limit 6;");
 
 			using (var transaction = new TransactionScope())
 			{
-				var permission = TestUserPermission.ByShortcut("AF");
-
 				var user = createSimple.Users[0];
 
 				createSimple.Users.Each(u =>
 				                  	{
-				                  		//u.AssignedPermissions.Add(permission);
 				                  		u.SendRejects = true;
 				                  		u.SendWaybills = true;
 				                  	});
@@ -575,10 +572,8 @@ where
 			{
 				var user = client.Users[0];
 
-				var permission = TestUserPermission.ByShortcut("AF");
 				client.Users.Each(u =>
 				                   	{
-				                   		u.AssignedPermissions.Add(permission);
 				                   		u.SendRejects = true;
 				                   		u.SendWaybills = true;
 				                   	});
@@ -1525,9 +1520,6 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 			{
 				childUser = client.CreateUser();
 
-				var permission = TestUserPermission.ByShortcut("AF");
-
-				childUser.AssignedPermissions.Add(permission);
 				childUser.SendRejects = true;
 				childUser.SendWaybills = true;
 				childUser.InheritPricesFrom = parentUser;

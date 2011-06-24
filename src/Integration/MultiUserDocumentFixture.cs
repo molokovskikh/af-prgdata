@@ -45,9 +45,7 @@ namespace Integration
 			using (new TransactionScope())
 			{
 				var user = client.Users[0];
-				var permission = TestUserPermission.ByShortcut("AF");
 				client.Users.Each(u => {
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -320,8 +318,6 @@ namespace Integration
 //            TestOldUser _oldUser;
 //            using (var transaction = new TransactionScope(OnDispose.Rollback))
 //            {
-//                var permission = TestUserPermission.ByShortcut("AF");
-
 //                _oldClient = TestOldClient.CreateTestClient();
 //                _oldUser = _oldClient.Users[0];
 
@@ -566,10 +562,8 @@ namespace Integration
 			using (new TransactionScope())
 			{
 				var user = client.CreateUser();
-				var permission = TestUserPermission.ByShortcut("AF");
 				user.SendWaybills = true;
 				user.SendRejects = true;
-				user.AssignedPermissions.Add(permission);
 				client.Addresses[0].AvaliableForUsers.Add(user);
 				client.Update();
 

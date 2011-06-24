@@ -65,8 +65,6 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 
-			var permission = TestUserPermission.ByShortcut("AF");
-
 			var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
 			Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
 
@@ -80,7 +78,6 @@ namespace Integration
 				offersFutureUser = offersFutureClient.Users[0];
 				offersFutureClient.Users.Each(u =>
 				{
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -89,7 +86,6 @@ namespace Integration
 				user = client.Users[0];
 				client.Users.Each(u =>
 									{
-										u.AssignedPermissions.Add(permission);
 										u.SendRejects = true;
 										u.SendWaybills = true;
 									});

@@ -50,10 +50,8 @@ namespace Integration
 				user = client.Users[0];
 				address = client.Addresses[0];
 
-				var permission = TestUserPermission.ByShortcut("AF");
 				client.Users.Each(u =>
 				{
-					u.AssignedPermissions.Add(permission);
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
