@@ -371,6 +371,12 @@ namespace Integration
 							"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 							new MySqlParameter("?OrderId", order.RowId)));
 					Assert.That(deletedStatus, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", order.RowId);
+
+					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", simpleUpdateId)));
+					Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
 				}
 				catch
 				{
@@ -430,6 +436,62 @@ namespace Integration
 				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
 
 				Assert.That(fileForArchives.Count, Is.EqualTo(0), "В очереди не должно быть файлов, т.к. нет неподтвержденных заказов для клиента {0}", _client.Id);
+			}
+		}
+
+		[Test(Description = "Проверяем простой запрос данных без выгружаемых заказов")]
+		public void SimpleLoadDataWithoutUnconfirmedOrders()
+		{
+			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
+			if (Directory.Exists(extractFolder))
+				Directory.Delete(extractFolder, true);
+			Directory.CreateDirectory(extractFolder);
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+				try
+				{
+					var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+
+					var simpleUpdateId = ParseUpdateId(responce);
+
+					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
+					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
+
+					var service = new PrgDataEx();
+					var updateTime = service.CommitExchange(simpleUpdateId, false);
+
+					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+						new MySqlParameter("?UpdateId", simpleUpdateId)));
+					Assert.That(addition, Is.Not.StringContaining("Экспортированные неподтвержденные заказы: "), "Список экспортированных неподтвержденные заказов должен быть пустым");
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
 			}
 		}
 

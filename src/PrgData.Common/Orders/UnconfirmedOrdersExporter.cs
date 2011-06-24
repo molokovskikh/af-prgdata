@@ -5,6 +5,7 @@ using System.Data;
 using System.IO;
 using System.Text;
 using Common.Models;
+using Common.Tools;
 using log4net;
 using MySql.Data.MySqlClient;
 using NHibernate.Criterion;
@@ -115,8 +116,10 @@ namespace PrgData.Common.Orders
 			}
 		}
 
-		public static void DeleteUnconfirmedOrders(UpdateData updateData, MySqlConnection connection)
+		public static string DeleteUnconfirmedOrders(UpdateData updateData, MySqlConnection connection)
 		{
+			var list = new List<string>();
+
 			if (updateData.AllowDeleteUnconfirmedOrders)
 				With.DeadlockWraper(() =>
 				{
@@ -147,6 +150,7 @@ where
 									connection,
 									"update orders.OrdersHead set Deleted = 1 where RowId = ?orderId",
 									new MySqlParameter("?orderId", orderId));
+								list.Add(orderId.ToString());
 							}
 						}
 
@@ -158,6 +162,8 @@ where
 						throw;
 					}
 				});
+
+			return list.Implode();
 		}
 	}
 }
