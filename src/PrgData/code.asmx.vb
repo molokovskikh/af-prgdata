@@ -841,14 +841,19 @@ endproc:
                                             End If
                                         End If
                                     ElseIf ListOfDocs.Length = 0 Then
-                                        Addition &= "При подготовке документов в папке: " & _
-                                         ServiceContext.GetDocumentsPath() & _
-                                           Row.Item("ClientCode").ToString & _
-                                           "\" & _
-                                           CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
-                                           " не найден документ № " & _
-                                           Row.Item("RowId").ToString & _
-                                           " ; "
+                                        If DateTime.Now.Subtract(Convert.ToDateTime(Row.Item("LogTime"))).TotalHours < 1 Then
+                                            'Если документ моложе часа, то попытаемся его отдать позже и не будем формировать уведомление
+                                            DS.Tables("ProcessingDocuments").Rows.Remove(xRow)
+                                        Else
+                                            Addition &= "При подготовке документов в папке: " & _
+                                             ServiceContext.GetDocumentsPath() & _
+                                               Row.Item("ClientCode").ToString & _
+                                               "\" & _
+                                               CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
+                                               " не найден документ № " & _
+                                               Row.Item("RowId").ToString & _
+                                               " ; "
+                                        End If
                                     End If
 
                                 End If

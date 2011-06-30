@@ -843,7 +843,8 @@ select d.AddressId as ClientCode,
 	d.RowId,
 	d.DocumentType,
 	d.IsFake,
-	d.SendUpdateId
+	d.SendUpdateId,
+	d.LogTime
 from Logs.DocumentSendLogs ds
 	join Logs.Document_logs d on d.RowId = ds.DocumentId
 where ds.UserId = ?UserId 
@@ -860,7 +861,8 @@ SELECT  RCS.ClientCode,
         d.RowId,
         d.DocumentType,
 		d.IsFake,
-		d.SendUpdateId
+		d.SendUpdateId,
+		d.LogTime
 FROM    logs.document_logs d,
         retclientsset RCS
 WHERE   RCS.ClientCode = ?ClientCode
@@ -876,7 +878,8 @@ SELECT  ir.IncludeClientCode,
 		d.RowId,
         d.DocumentType,
 		d.IsFake,
-		d.SendUpdateId
+		d.SendUpdateId,
+		d.LogTime
 FROM    logs.document_logs d,
         retclientsset RCS,
         includeregulation ir

@@ -191,6 +191,13 @@ namespace Integration
 			var brokenDoc = CreateDocument(client.Users[0]);
 			File.Delete(brokenDoc.LocalFile);
 
+			using (new TransactionScope())
+			{
+				//Документ должен быть старше часа, чтобы сформировалось уведомление
+				brokenDoc.LogTime = DateTime.Now.AddHours(-1).AddMinutes(-1);
+				brokenDoc.Update();
+			}
+
 			LoadDocuments();
 			ShouldBeSuccessfull();
 			Confirm();
@@ -220,8 +227,7 @@ namespace Integration
 
 			using (new SessionScope())
 			{
-				var maxId = TestAnalitFUpdateLog.Queryable.Max(l => l.Id);
-				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
 			}
 		}
@@ -254,8 +260,7 @@ namespace Integration
 
 			using (new SessionScope())
 			{
-				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == client.Users[0].Id).Max(l => l.Id);
-				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
 				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
 				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
@@ -273,8 +278,7 @@ namespace Integration
 
 			using (new SessionScope())
 			{
-				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == client.Users[0].Id).Max(l => l.Id);
-				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
 				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
 				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
@@ -300,8 +304,7 @@ namespace Integration
 
 			using (new SessionScope())
 			{
-				var maxId = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == client.Users[0].Id).Max(l => l.Id);
-				var log = TestAnalitFUpdateLog.Queryable.Single(l => l.Id == maxId);
+				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.False);
 				Assert.That(log.Addition, Is.StringContaining("Несоответствие UIN").IgnoreCase);
 				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)), "Не совпадает UpdateType");
@@ -520,6 +523,86 @@ namespace Integration
 			Confirm();
 		}
 
+		[Test(Description = "Не показываем сообщение о ненайденном файле документа, если документ моложе часа")]
+		public void DontShowErrorOnNotFindFile()
+		{
+			var brokenDoc = CreateDocument(client.Users[0]);
+			if (File.Exists(brokenDoc.LocalFile))
+				File.Delete(brokenDoc.LocalFile);
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			using (new SessionScope())
+			{
+				var documentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+				Assert.That(documentSendLog.Committed, Is.True);
+				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+				Assert.That(brokenDocumentSendLog.Committed, Is.False);
+			}
+
+			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
+			Assert.That(log.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+
+			File.WriteAllText(brokenDoc.LocalFile, "");
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			using (new SessionScope())
+			{
+				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+				Assert.That(brokenDocumentSendLog.Committed, Is.True);
+			}
+
+			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
+			Assert.That(logAfterCreateFile.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+		}
+
+		[Test(Description = "Показываем сообщение о ненайденном файле документа, если документ старше часа")]
+		public void ShowErrorOnNotFindFileAfterHour()
+		{
+			var brokenDoc = CreateDocument(client.Users[0]);
+			if (File.Exists(brokenDoc.LocalFile))
+				File.Delete(brokenDoc.LocalFile);
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			using (new SessionScope())
+			{
+				var documentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+				Assert.That(documentSendLog.Committed, Is.True);
+				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+				Assert.That(brokenDocumentSendLog.Committed, Is.False);
+			}
+
+			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
+			Assert.That(log.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+
+			using (new TransactionScope())
+			{
+				brokenDoc.LogTime = DateTime.Now.AddHours(-1).AddMinutes(-1);
+				brokenDoc.Update();
+			}
+
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			Confirm();
+
+			using (new SessionScope())
+			{
+				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+				Assert.That(brokenDocumentSendLog.Committed, Is.True);
+			}
+
+			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
+			Assert.That(logAfterCreateFile.Addition, Is.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
@@ -621,6 +704,11 @@ namespace Integration
 		private void SetCurrentUser(string login)
 		{
 			ServiceContext.GetUserName = () => login;
+		}
+
+		private TestAnalitFUpdateLog LastLog(TestUser user)
+		{
+			return TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == user.Id).ToList().OrderByDescending(l => l.Id).First();
 		}
 	}
 }
