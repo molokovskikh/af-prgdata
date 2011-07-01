@@ -1349,9 +1349,11 @@ StartZipping:
             Counter.TryLock(UserId, "CommitExchange")
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
-				Dim exportList = UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection)
-                If Not String.IsNullOrEmpty(exportList) then
-                    Addition &= "Экспортированные неподтвержденные заказы: " & exportList & "; "
+                If UpdateData.PreviousRequest.RequestType = RequestType.GetData Or UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative Then
+				    Dim exportList = UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection)
+                    If Not String.IsNullOrEmpty(exportList) then
+                        Addition &= "Экспортированные неподтвержденные заказы: " & exportList & "; "
+                    End If
                 End If
                 ' Здесь сбрасывались коды прайс-листов
                 ProcessCommitExchange()
