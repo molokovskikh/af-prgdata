@@ -1364,21 +1364,23 @@ limit 1
 			Assert.That(user.WorkRegionMask, Is.EqualTo(maskRegion));
 			Assert.That(client.MaskRegion, Is.EqualTo(maskRegion));
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			try
 			{
-				connection.Open();
+				using (var connection = new MySqlConnection(Settings.ConnectionString()))
+				{
+					connection.Open();
 
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					@"
-drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId)",
-					new MySqlParameter("?UserId", user.Id));
-
-				var priceCode =
-					MySqlHelper.ExecuteScalar(
+					MySqlHelper.ExecuteNonQuery(
 						connection,
 						@"
+drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
+call future.GetOffers(?UserId)",
+						new MySqlParameter("?UserId", user.Id));
+
+					var priceCode =
+						MySqlHelper.ExecuteScalar(
+							connection,
+							@"
 select 
 	PriceCode 
 from 
@@ -1388,21 +1390,21 @@ where
 group by PriceCode 
 having count(*) > 1 
 limit 1");
-				Assert.That(priceCode, Is.Not.Null);
-				Assert.That(priceCode, Is.GreaterThan(0));
+					Assert.That(priceCode, Is.Not.Null);
+					Assert.That(priceCode, Is.GreaterThan(0));
 
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					@"
+					MySqlHelper.ExecuteNonQuery(
+						connection,
+						@"
 delete from future.UserPrices where UserId = ?UserId and PriceId <> ?PriceId;
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
 call future.GetOffers(?UserId)",
-					new MySqlParameter("?UserId", user.Id),
-					new MySqlParameter("?PriceId", priceCode));
+						new MySqlParameter("?UserId", user.Id),
+						new MySqlParameter("?PriceId", priceCode));
 
 
-				activePrice = ExecuteDataRow(
-					connection, @"
+					activePrice = ExecuteDataRow(
+						connection, @"
 select 
 * 
 from 
@@ -1410,12 +1412,12 @@ from
 where 
     PriceCode = ?PriceCode
 limit 1"
-					,
-					new MySqlParameter("?PriceCode", priceCode));
+						,
+						new MySqlParameter("?PriceCode", priceCode));
 
-				var firstProductId = MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+					var firstProductId = MySqlHelper.ExecuteScalar(
+						connection,
+						@"
 select 
   c.ProductId 
 from 
@@ -1428,13 +1430,13 @@ group by c.ProductId
 having count(distinct c.SynonymCode) > 2
 limit 1
 "
-					,
-					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
-					new MySqlParameter("?RegionCode", activePrice["RegionCode"]));
+						,
+						new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
+						new MySqlParameter("?RegionCode", activePrice["RegionCode"]));
 
-				firstOffer = ExecuteDataRow(
-					connection,
-					@"
+					firstOffer = ExecuteDataRow(
+						connection,
+						@"
 select
   Core.Cost,
   Core.RegionCode,
@@ -1448,19 +1450,59 @@ and Core.RegionCode = ?RegionCode
 and C.ProductId = ?ProductId
 limit 1
 "
-					,
-					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
-					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
-					new MySqlParameter("?ProductId", firstProductId));
-				Assert.IsNotNull(firstOffer, "Не найдено предложение");
+						,
+						new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
+						new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
+						new MySqlParameter("?ProductId", firstProductId));
+					Assert.IsNotNull(firstOffer, "Не найдено предложение");
 
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+					var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 
-				var orderHelper = new ReorderHelper(updateData, connection, false, address.Id, true);
+					var orderHelper = new ReorderHelper(updateData, connection, false, address.Id, true);
+
+					ParseSimpleOrder(orderHelper);
+
+					var result = orderHelper.PostSomeOrders();
+
+					var firstServerOrderId = CheckServiceResponse(result);
+
+					Assert.That(firstServerOrderId, Is.Not.Null);
+					Assert.That(firstServerOrderId, Is.Not.Empty);
+
+					Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+				}
+			}
+			finally
+			{
+				//После выполнения теста надо заново запросить предложения, т.к. в тесте они менялись
+				getOffers = false;
+			}
+		}
+
+		[Test(Description = "Создание тестовой счет-фактуры под специальным пользователем 10081")]
+		public void GenerateInvoiceForSpecialUser()
+		{
+			TestUser specialUser;
+			TestAddress specialAddress;
+
+			using (new SessionScope())
+			{
+				specialUser = TestUser.Find(10081u);
+				Assert.That(specialUser.AvaliableAddresses.Count, Is.GreaterThan(0));
+				specialAddress = specialUser.AvaliableAddresses[0];
+			}
+
+			CreateFolders(specialAddress.Id.ToString());
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, specialUser.Login);
+
+				var orderHelper = new ReorderHelper(updateData, connection, true, specialAddress.Id, false);
 
 				ParseSimpleOrder(orderHelper);
-
-				BasicConfigurator.Configure();
 
 				var result = orderHelper.PostSomeOrders();
 
@@ -1469,8 +1511,22 @@ limit 1
 				Assert.That(firstServerOrderId, Is.Not.Null);
 				Assert.That(firstServerOrderId, Is.Not.Empty);
 
-				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+				var documentId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					"select Id from Documents.DocumentHeaders where OrderId = ?OrderId and DocumentType = 1",
+					new MySqlParameter("?OrderId", firstServerOrderId)));
+
+				Assert.That(documentId, Is.Not.Null);
+				Assert.That(documentId, Is.GreaterThan(0));
+
+				var invoiceId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					"select Id from Documents.InvoiceHeaders where Id = ?DocumentId",
+					new MySqlParameter("?DocumentId", documentId)));
+				Assert.That(invoiceId, Is.Not.Null);
+				Assert.That(invoiceId, Is.GreaterThan(0));
 			}
+
 		}
 
 	}

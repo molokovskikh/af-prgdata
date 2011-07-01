@@ -862,10 +862,12 @@ endproc:
                             If UpdateData.BuildNumber >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "InvoiceHeaders" & UserId & ".txt")
 
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "InvoiceHeaders" & UserId & ".txt")
 
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -878,10 +880,16 @@ endproc:
 
                                 GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
                                 GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
+                                If UpdateData.AllowInvoiceHeaders() then
+                                    GetMySQLFileWithDefaultEx("InvoiceHeaders", ArchCmd, helper.GetInvoiceHeadersCommand(ids), False, False)
+                                End If
 
 #If DEBUG Then
                                 ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
+                                If UpdateData.AllowInvoiceHeaders() then
+                                    ShareFileHelper.WaitFile(MySqlFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                End If
 #End If
 
                                 Pr = New Process
@@ -919,11 +927,54 @@ endproc:
                                 End If
                                 Pr = Nothing
 
+                                If UpdateData.AllowInvoiceHeaders() then
+                                    Pr = New Process
+
+                                    startInfo = New ProcessStartInfo(SevenZipExe)
+                                    startInfo.CreateNoWindow = True
+                                    startInfo.RedirectStandardOutput = True
+                                    startInfo.RedirectStandardError = True
+                                    startInfo.UseShellExecute = False
+                                    startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                                    startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlLocalFilePath() & "InvoiceHeaders*" & UserId & ".txt", SevenZipParam)
+                                    startInfo.FileName = SevenZipExe
+
+                                    Pr.StartInfo = startInfo
+
+                                    Pr.Start()
+                                    '                                If Not Pr.HasExited Then
+                                    '#If Not Debug Then
+                                    '                                    Try
+                                    '                                        Pr.ProcessorAffinity = New IntPtr(ZipProcessorAffinityMask)
+                                    '                                    Catch
+                                    '                                    End Try
+                                    '#End If
+                                    '                                End If
+
+                                    Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                    Ошибка7Z = Pr.StandardError.ReadToEnd
+
+                                    Pr.WaitForExit()
+
+                                    If Pr.ExitCode <> 0 Then
+                                        Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
+                                        Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                                    End If
+                                    Pr = Nothing
+                                End If
+
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                If UpdateData.AllowInvoiceHeaders() then
+                                    ShareFileHelper.MySQLFileDelete(MySqlFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                End If
 
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                If UpdateData.AllowInvoiceHeaders() then
+                                    ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                End If
                             End If
 
                         End If

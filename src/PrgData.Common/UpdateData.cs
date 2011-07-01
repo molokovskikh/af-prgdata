@@ -25,6 +25,8 @@ namespace PrgData.Common
 		private static int _versionBeforeDelayByPrice = 1403;
 		//версия AnalitF до поддержки загрузки неподтвержденных заказов
 		private static int _versionBeforeDownloadUnconfirmedOrders = 1411;
+		//версия AnalitF до поддержки экспорта счет-фактуры
+		private static int _versionBeforeInvoiceHeaders = 1461;
 
 		public string ShortName;
 		public uint ClientId;
@@ -362,7 +364,7 @@ namespace PrgData.Common
 		{
 			get
 			{
-				return BuildNumberGreaterThen(_versionBeforeDelayByPrice);
+				return BuildNumberGreaterThen(_versionBeforeDownloadUnconfirmedOrders);
 			}
 		}
 
@@ -380,6 +382,12 @@ namespace PrgData.Common
 			{
 				return AllowDeleteUnconfirmedOrders && MaxOrderId > 0 && MaxOrderListId > 0;
 			}
+		}
+
+		public bool AllowInvoiceHeaders()
+		{
+			return BuildNumberGreaterThen(_versionBeforeInvoiceHeaders)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeInvoiceHeaders);
 		}
 	
 	}

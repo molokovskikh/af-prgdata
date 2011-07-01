@@ -969,7 +969,7 @@ select
   DocumentBodies.NDS,
   DocumentBodies.SerialNumber
   {1}
-
+  {2}
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
@@ -984,7 +984,53 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
 					: @"
   ,
   DocumentBodies.Amount,
-  DocumentBodies.NdsAmount");
+  DocumentBodies.NdsAmount",
+				!_updateData.AllowInvoiceHeaders()
+					? String.Empty
+					: @"
+  ,
+  DocumentBodies.Unit,
+  DocumentBodies.ExciseTax,
+  DocumentBodies.BillOfEntryNumber,
+  DocumentBodies.EAN13");
+		}
+
+		public string GetInvoiceHeadersCommand(string downloadIds)
+		{
+			return String.Format(@"
+select
+	InvoiceHeaders.Id,
+	InvoiceHeaders.InvoiceNumber,
+	InvoiceHeaders.InvoiceDate,
+	InvoiceHeaders.SellerName,
+	InvoiceHeaders.SellerAddress,
+	InvoiceHeaders.SellerINN,
+	InvoiceHeaders.SellerKPP,
+	InvoiceHeaders.ShipperInfo,
+	InvoiceHeaders.ConsigneeInfo,
+	InvoiceHeaders.PaymentDocumentInfo,
+	InvoiceHeaders.BuyerName,
+	InvoiceHeaders.BuyerAddress,
+	InvoiceHeaders.BuyerINN,
+	InvoiceHeaders.BuyerKPP,
+	InvoiceHeaders.AmountWithoutNDS0,
+	InvoiceHeaders.AmountWithoutNDS10,
+	InvoiceHeaders.NDSAmount10,
+	InvoiceHeaders.Amount10,
+	InvoiceHeaders.AmountWithoutNDS18,
+	InvoiceHeaders.NDSAmount18,
+	InvoiceHeaders.Amount18,
+	InvoiceHeaders.AmountWithoutNDS,
+	InvoiceHeaders.NDSAmount,
+	InvoiceHeaders.Amount
+from
+	documents.DocumentHeaders
+	inner join documents.InvoiceHeaders on InvoiceHeaders.Id = DocumentHeaders.Id
+where
+    DocumentHeaders.DownloadId in ({0})
+"
+				,
+				downloadIds);
 		}
 
 		public string GetUserCommand()

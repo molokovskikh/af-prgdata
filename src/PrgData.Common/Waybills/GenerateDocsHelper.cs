@@ -48,7 +48,7 @@ namespace PrgData.Common.Orders
 				headerCommand.Parameters["?PriceCode"].Value = item.Order.ActivePrice.Id.Price.PriceCode;
 				var firmCode = Convert.ToUInt64(headerCommand.ExecuteScalar());
 
-				headerCommand.CommandText = "select cd.ShortName from usersettings.pricesdata pd, usersettings.clientsdata cd where pd.PriceCode = ?PriceCode and cd.FirmCode = pd.FirmCode";
+				headerCommand.CommandText = "select cd.Name from usersettings.pricesdata pd, future.Suppliers cd where pd.PriceCode = ?PriceCode and cd.Id = pd.FirmCode";
 				var shortFirmName = Convert.ToString(headerCommand.ExecuteScalar());
 
 				//Кол-во генерируемых документов относительно данного заказа
@@ -112,6 +112,9 @@ update logs.document_logs set Ready = 1 where RowId = @LastDownloadId and Ready 
 			if (documentType != DocumentType.Docs)
 				GenerateDocDetail(lastDocumentId, headerCommand.Connection, documentType, order);
 
+			if (documentType == DocumentType.Waybills)
+				GenerateInvoice(lastDocumentId, headerCommand, order);
+
 			var createdFileName = 
 				ConfigurationManager.AppSettings["DocumentsPath"] 
 				+ updateData.ClientId.ToString().PadLeft(3, '0') 
@@ -129,6 +132,82 @@ update logs.document_logs set Ready = 1 where RowId = @LastDownloadId and Ready 
 				stream.WriteLine("Ссылка на загруженный файл №{0}", lastDownloadId);
 				stream.WriteLine("Ссылка на заказ №{0}", order.ServerOrderId);
 			}
+		}
+
+		private static void GenerateInvoice(ulong lastDocumentId, MySqlCommand headerCommand, ClientOrderHeader order)
+		{
+			headerCommand.CommandText = @"
+INSERT INTO `documents`.`InvoiceHeaders`
+(`Id`,
+`InvoiceNumber`,
+`InvoiceDate`,
+
+`SellerName`,
+`SellerAddress`,
+`SellerINN`,
+`SellerKPP`,
+
+`ShipperInfo`,
+`ConsigneeInfo`,
+`PaymentDocumentInfo`,
+
+`BuyerName`,
+`BuyerAddress`,
+`BuyerINN`,
+`BuyerKPP`,
+
+`AmountWithoutNDS0`,
+`AmountWithoutNDS10`,
+`NDSAmount10`,
+`Amount10`,
+`AmountWithoutNDS18`,
+`NDSAmount18`,
+`Amount18`,
+`AmountWithoutNDS`,
+`NDSAmount`,
+`Amount`)
+select
+	@LastDocumentId,
+	@LastDocumentId,
+	now(),
+
+	s.Name,
+	sp.JuridicalAddress,
+	sp.INN,
+	sp.KPP,
+
+	concat(sp.JuridicalName, ', ', sp.JuridicalAddress),
+	concat(c.FullName, ', ', a.Address),
+	'номер какого-то документа',
+
+	cp.JuridicalName,
+	cp.JuridicalAddress,
+	cp.INN,
+	cp.KPP,
+
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10
+from
+  (
+	future.Suppliers s,
+	future.Clients c
+  )
+	inner join billing.Payers sp on sp.PayerId = s.Payer
+	inner join billing.Payers cp on cp.PayerId = c.PayerId
+	inner join future.Addresses a on a.ClientId = c.Id and a.Id = ?AddressId
+where
+	s.Id = ?FirmCode
+and c.Id = ?ClientCode;
+";
+			headerCommand.ExecuteNonQuery();
 		}
 
 		private static void GenerateDocDetail(ulong lastDocumentId, MySqlConnection connection, DocumentType documentType, ClientOrderHeader order)
@@ -377,7 +456,7 @@ values (?UserId, @LastDownloadId);";
 			headerCommand.CommandText = "select @LastDownloadId";
 			var lastDownloadId = Convert.ToUInt32(headerCommand.ExecuteScalar());
 
-			headerCommand.CommandText = "select ShortName from usersettings.ClientsData where FirmCode = ?FirmCode;";
+			headerCommand.CommandText = "select Name from future.Suppliers where Id = ?FirmCode;";
 			var shortName = headerCommand.ExecuteScalar();
 
 			resultFileName = 
