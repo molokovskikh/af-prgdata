@@ -1038,7 +1038,15 @@ AND    RCS.clientcode          = ?ClientCode"
 			{
 				//проверку производим только на заказах, которые помечены как успешные
 				if (order.SendResult != OrderSendResult.Success)
+				{
+					_logger.DebugFormat("Для заказа (UserId: {0}, AddressId: {1}, ClientOrderId: {2}) не будем проверять дубликаты, т.к. он не успешен {3}",
+						_data.UserId,
+						_orderedClientCode,
+						order.Order.ClientOrderId,
+						order.SendResult
+						);
 					continue;
+				}
 
 				var existsOrders = new DataTable();
 				MySqlDataAdapter dataAdapter;
@@ -1106,9 +1114,25 @@ where
 				dataAdapter.Fill(existsOrders);
 
 				if (existsOrders.Rows.Count == 0)
+				{
+					_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) не будем проверять дубликаты, т.к. не найдены предыдущие заказы",
+						_data.UserId,
+						_data.ClientId,
+						_orderedClientCode,
+						order.Order.ClientOrderId
+						);
+
 					continue;
+				}
 
 				order.ServerOrderId = Convert.ToUInt64(existsOrders.Rows[0]["OrderId"]);
+				_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) будем проверять дубликаты по заказу: {4}",
+					_data.UserId,
+					_data.ClientId,
+					_orderedClientCode,
+					order.Order.ClientOrderId,
+					order.ServerOrderId
+					);
 
 				foreach (ClientOrderPosition position in order.Positions)
 				{
@@ -1198,6 +1222,13 @@ where
 				order.FullDuplicated = (order.GetSavedRowCount() == 0);
 				if (order.FullDuplicated)
 				{
+					_logger.DebugFormat("Заказ (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) помечен как полностью дублированный",
+						_data.UserId,
+						_data.ClientId,
+						_orderedClientCode,
+						order.Order.ClientOrderId
+						);
+
 					var serverOrder = IoC.Resolve<IRepository<Order>>().Load(Convert.ToUInt32(order.ServerOrderId));
 					order.Order.WriteTime = serverOrder.WriteTime;
 				}
