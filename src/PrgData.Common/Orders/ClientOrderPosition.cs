@@ -66,7 +66,6 @@ namespace PrgData.Common.Orders
 
 		public string GetFilterForDuplicatedOrder(bool postOldOrder)
 		{
-			if (postOldOrder || ClientServerCoreID <= 0)
 			return String.Format(@"
 (ProductId = {0})
 and (SynonymCode {1})
@@ -83,8 +82,6 @@ and (Await = {6})",
 				  OrderPosition.Junk ? "True" : "False",
 				  OrderPosition.Await ? "True" : "False"
 				  );
-			else
-				return String.Format("(CoreId = {0})", ClientServerCoreID);
 		}
 
 		internal void PrepareBeforPost(ISession session)

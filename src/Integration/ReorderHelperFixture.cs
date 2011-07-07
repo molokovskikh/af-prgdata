@@ -458,6 +458,54 @@ limit 1
 					);
 		}
 
+		public void ParseSimpleOrderWithNewCoreId(ReorderHelper orderHelper)
+		{
+			orderHelper.ParseOrders(
+					1,
+					new ulong[] { 1L },
+					new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+					new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
+					new DateTime[] { DateTime.Now }, //pricedate
+					new string[] { "" },             //clientaddition
+					new ushort[] { 1 },              //rowCount
+					new ulong[] { 1L },              //clientPositionId
+					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9))+1 }, //ClientServerCoreID
+					new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },     //ProductId
+					new string[] { firstOffer["CodeFirmCr"].ToString() },
+					new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) }, //SynonymCode
+					new string[] { firstOffer["SynonymFirmCrCode"].ToString() },
+					new string[] { firstOffer["Code"].ToString() },
+					new string[] { firstOffer["CodeCr"].ToString() },
+					new bool[] { Convert.ToBoolean(firstOffer["Junk"]) },
+					new bool[] { Convert.ToBoolean(firstOffer["Await"]) },
+					new string[] { firstOffer["RequestRatio"].ToString() },
+					new string[] { firstOffer["OrderCost"].ToString() },
+					new string[] { firstOffer["MinOrderCount"].ToString() },
+					new ushort[] { 1 }, //Quantity
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
+					new string[] { firstOffer["Cost"].ToString() },  //minCost
+					new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
+					new string[] { firstOffer["Cost"].ToString() },  //leaderMinCost
+					new string[] { activePrice["PriceCode"].ToString() },  //leaderMinPriceCode
+					new string[] { "" },  //supplierPriceMarkup
+					new string[] { "-90.0" }, //delayOfPayment,
+					new string[] { firstOffer["Quantity"].ToString() }, //coreQuantity,
+					new string[] { "" }, //unit,
+					new string[] { "" }, //volume,
+					new string[] { "" }, //note,
+					new string[] { "" }, //period,
+					new string[] { "" }, //doc,
+					new string[] { "" }, //registryCost,
+					new bool[] { false }, //vitallyImportant,
+					new string[] { "" }, //retailMarkup,
+					new string[] { "" }, //producerCost,
+					new string[] { "" }, //nds
+					new string[] { "" }, //retailCost,
+					new string[] { "-10.0" }, //vitallyImportantDelayOfPayment,
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 } //costWithDelayOfPayment
+					);
+		}
+
 		public void ParseFirstOrder(ReorderHelper orderHelper)
 		{
 			orderHelper.ParseOrders(
@@ -646,6 +694,40 @@ limit 1
 			}
 		}
 
+		public void Check_simple_double_orderWithNewCoreId(string userName, uint orderedClientId)
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseSimpleOrder(orderHelper);
+
+				var result = orderHelper.PostSomeOrders();
+
+				var firstServerOrderId = CheckServiceResponse(result);
+
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+
+				Assert.That(GetOrderCount(connection, firstServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
+
+				orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
+
+				ParseSimpleOrderWithNewCoreId(orderHelper);
+
+				result = orderHelper.PostSomeOrders();
+
+				var secondServerOrderId = CheckServiceResponse(result);
+
+				Assert.That(secondServerOrderId, Is.Not.Null);
+				Assert.That(secondServerOrderId, Is.Not.Empty);
+
+				Assert.That(firstServerOrderId, Is.EqualTo(secondServerOrderId), "Заказ не помечен как дублирующийся");
+			}
+		}
+
 		//[Test]
 		//public void Check_double_order_for_old_client()
 		//{
@@ -659,6 +741,21 @@ limit 1
 			try
 			{
 				Check_simple_double_order(user.Login, address.Id);
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+
+		}
+
+		[Test]
+		public void Check_double_order_for_future_clientWithNewCoreId()
+		{
+			BasicConfigurator.Configure();
+			try
+			{
+				Check_simple_double_orderWithNewCoreId(user.Login, address.Id);
 			}
 			finally
 			{
