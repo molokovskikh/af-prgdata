@@ -4149,11 +4149,12 @@ RestartTrans2:
                         " (@MaxOrderId := @MaxOrderId + 1) as PostOrderId, " & _
                         " RowId as ServerOrderId " & _
                     " from orders.OrdersHead " & _
+                    "      left join future.useraddresses on useraddresses.AddressId = OrdersHead.AddressId " & _
                     " where "
 
                 Dim ClientIdAsField As String
                 If UpdateData.IsFutureClient Then
-                    SelProc.CommandText &= " OrdersHead.UserId = ?UserId "
+                    SelProc.CommandText &= " (useraddresses.UserId is not null and useraddresses.UserId = ?UserId)  "
                     ClientIdAsField = "OrdersHead.AddressId"
                 Else
                     SelProc.CommandText &= " OrdersHead.ClientCode = ?ClientId "
