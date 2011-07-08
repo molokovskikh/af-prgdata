@@ -1569,5 +1569,37 @@ limit 1",
 			}
 		}
 
+		[Test(Description = "Настройка AllowDelayOfPayment должна экспортироваться относительно клиента")]
+		public void GetAllowDelayOfPaymentByClient()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+				var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+
+				var dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+
+				Assert.That(dataTable.Columns.Contains("AllowDelayOfPayment"), Is.False, "Столбец AllowDelayOfPayment должен экспортироваться с опеределенной версии");
+
+				updateData.BuildNumber = 1490;
+				dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
+
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+
+				Assert.That(dataTable.Columns.Contains("AllowDelayOfPayment"), Is.True, "Столбец AllowDelayOfPayment должен экспортироваться с опеределенной версии");
+
+			}
+		}
+
+
 	}
 }

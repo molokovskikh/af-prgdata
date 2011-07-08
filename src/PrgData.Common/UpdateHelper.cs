@@ -1218,7 +1218,7 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 		{
 			if (_updateData.IsFutureClient)
 			{
-				return @"
+				return String.Format(@"
 SELECT 
      c.Id as ClientId,
      left(c.Name, 50) as Name,
@@ -1229,15 +1229,20 @@ SELECT
      rcs.SendWaybillsFromClient,
      rcs.EnableSmartOrder,
      rcs.EnableImpersonalPrice
+	{0}
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join farm.regions on regions.RegionCode = c.RegionCode
   join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
-WHERE u.Id = ?UserId";
+WHERE u.Id = ?UserId
+"
+					,
+					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment" : String.Empty
+					 );
 			}
 			else
 			{
-				return @"
+				return String.Format(@"
 SELECT 
      clientsdata.firmcode   as ClientId,
      clientsdata.ShortName  as Name, 
@@ -1248,11 +1253,14 @@ SELECT
      rcs.SendWaybillsFromClient,
      rcs.EnableSmartOrder,
      rcs.EnableImpersonalPrice
+	{0}
 FROM   
      clientsdata 
      join farm.regions on regions.RegionCode = clientsdata.RegionCode
      join usersettings.RetClientsSet rcs on rcs.ClientCode = clientsdata.FirmCode
-WHERE  clientsdata.firmcode    = ?ClientCode";
+WHERE  clientsdata.firmcode    = ?ClientCode",
+					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment" : String.Empty
+					 );
 			}
 		}
 
