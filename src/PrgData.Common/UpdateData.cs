@@ -27,6 +27,8 @@ namespace PrgData.Common
 		private static int _versionBeforeDownloadUnconfirmedOrders = 1411;
 		//версия AnalitF до поддержки экспорта счет-фактуры
 		private static int _versionBeforeInvoiceHeaders = 1461;
+		//версия AnalitF до поддержки настройки "Показывать цену поставщика при отсрочках платежа"
+		private static int _versionBeforeShowSupplierCost = 1489;
 
 		public string ShortName;
 		public uint ClientId;
@@ -389,6 +391,11 @@ namespace PrgData.Common
 			return BuildNumberGreaterThen(_versionBeforeInvoiceHeaders)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeInvoiceHeaders);
 		}
-	
+
+		public bool AllowShowSupplierCost()
+		{
+			return BuildNumberGreaterThen(_versionBeforeShowSupplierCost)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeShowSupplierCost);
+		}
 	}
 }
