@@ -6,7 +6,6 @@ using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
-using Integration.Helpers;
 using NUnit.Framework;
 using PrgData.Common.Model;
 using PrgData.Common.Repositories;
