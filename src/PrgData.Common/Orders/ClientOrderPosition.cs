@@ -168,5 +168,18 @@ and (Await = {6})",
 				OrderPosition.OfferInfo = null;
 			}
 		}
+
+		public override string ToString()
+		{
+			return
+				String.Format(
+					"ClientPositionID = {0}, ClientServerCoreID = {1}, SendResult = {2}, Duplicated = {3}, OrderPosition = ({4})",
+					ClientPositionID,
+					ClientServerCoreID,
+					SendResult,
+					Duplicated,
+					OrderPosition);
+		}
+
 	}
 }

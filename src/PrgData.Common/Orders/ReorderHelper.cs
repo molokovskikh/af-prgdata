@@ -1039,11 +1039,13 @@ AND    RCS.clientcode          = ?ClientCode"
 				//проверку производим только на заказах, которые помечены как успешные
 				if (order.SendResult != OrderSendResult.Success)
 				{
-					_logger.DebugFormat("Для заказа (UserId: {0}, AddressId: {1}, ClientOrderId: {2}) не будем проверять дубликаты, т.к. он не успешен {3}",
+					_logger.DebugFormat("Для заказа (UserId: {0}, AddressId: {1}, ClientOrderId: {2}) не будем проверять дубликаты, т.к. он не успешен {3}\r\nПозиций: {4}\r\n{5}",
 						_data.UserId,
 						_orderedClientCode,
 						order.Order.ClientOrderId,
-						order.SendResult
+						order.SendResult,
+						order.Positions.Count,
+						order.Positions.Implode("\r\n")
 						);
 					continue;
 				}
@@ -1059,28 +1061,27 @@ from
   (
 SELECT oh.RowId as OrderId
 FROM   orders.ordershead oh
-WHERE  clientorderid = ?ClientOrderID
-AND    writetime    >ifnull(
-	   (SELECT MAX(requesttime)
-	   FROM    logs.AnalitFUpdates px
-	   WHERE   updatetype =2
-	   AND     px.UserId  = ?UserId
-	   )
-	   , now() - interval 2 week)
-AND    clientcode = ?ClientCode
-AND    UserId = ?UserId
-AND    AddressId = ?AddressId
-order by oh.RowId desc
-limit 1
+WHERE  
+    writetime > now() - interval 2 week
+AND clientorderid = ?ClientOrderID  
+AND clientcode = ?ClientCode
+AND UserId = ?UserId
+AND AddressId = ?AddressId
+AND PriceCode = ?PriceCode
+AND RegionCode = ?RegionCode
+order by oh.RowId
   ) DuplicateOrderId,
   orders.orderslist ol
 where
   ol.OrderId = DuplicateOrderId.OrderId
+order by ol.RowId
 ", _readWriteConnection);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.Order.ClientOrderId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _data.ClientId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
 					dataAdapter.SelectCommand.Parameters.AddWithValue("?AddressId", _orderedClientCode);
+					dataAdapter.SelectCommand.Parameters.AddWithValue("?PriceCode", order.Order.PriceList.PriceCode);
+					dataAdapter.SelectCommand.Parameters.AddWithValue("?RegionCode", order.Order.RegionCode);
 				}
 				else
 				{
@@ -1115,23 +1116,29 @@ where
 
 				if (existsOrders.Rows.Count == 0)
 				{
-					_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) не будем проверять дубликаты, т.к. не найдены предыдущие заказы",
+					_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) не будем проверять дубликаты, т.к. не найдены предыдущие заказы\r\nПозиций: {4}\r\n{5}",
 						_data.UserId,
 						_data.ClientId,
 						_orderedClientCode,
-						order.Order.ClientOrderId
+						order.Order.ClientOrderId,
+						order.Positions.Count,
+						order.Positions.Implode("\r\n")
 						);
 
 					continue;
 				}
 
-				order.ServerOrderId = Convert.ToUInt64(existsOrders.Rows[0]["OrderId"]);
-				_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) будем проверять дубликаты по заказу: {4}",
+				//Берем последний номер заказа
+				order.ServerOrderId = Convert.ToUInt64(existsOrders.Rows[existsOrders.Rows.Count-1]["OrderId"]);
+
+				_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) будем проверять дубликаты по заказу: {4}\r\nПозиций: {5}\r\n{6}",
 					_data.UserId,
 					_data.ClientId,
 					_orderedClientCode,
 					order.Order.ClientOrderId,
-					order.ServerOrderId
+					order.ServerOrderId,
+					order.Positions.Count,
+					order.Positions.Implode("\r\n")
 					);
 
 				foreach (ClientOrderPosition position in order.Positions)
