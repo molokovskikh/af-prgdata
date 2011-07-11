@@ -6,6 +6,7 @@ using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using Inforoom.Common;
 using NUnit.Framework;
 using PrgData.Common.Model;
 using PrgData.Common.Repositories;
@@ -23,6 +24,8 @@ namespace Integration
 		{
 			CheckDBFiles();
 
+			CreateResultsDir();
+
 			Test.Support.Setup.Initialize();
 
 			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
@@ -33,6 +36,14 @@ namespace Integration
 				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
 				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
 				);
+		}
+
+		private void CreateResultsDir()
+		{
+			if (Directory.Exists("results"))
+				FileHelper.DeleteDir("results");
+
+			Directory.CreateDirectory("results");
 		}
 
 		private void CheckNetworkFile(string testFile)
@@ -78,7 +89,7 @@ namespace Integration
 
 		private void ConnectToShare(string share, string userName, string password)
 		{
-			//C:\Users\tester>net use \\testsql.analit.net\affiles newpassword /user:analit\PrgDataTester
+			//C:\Users\tester>net use \\fms.adc.analit.net\affiles newpassword /user:analit\PrgDataTester
 
 			using (var process = new Process())
 			{
