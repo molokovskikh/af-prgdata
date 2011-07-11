@@ -233,9 +233,9 @@ namespace Integration
 										new Order(activePrice, realUser, secondAddress, new OrderRules())
 					             	};
 
-					var firstOffer = new Offer {ProductId = 1};
+					var firstOffer = new Offer {ProductId = 1, Id = new OfferKey(1, 1)};
 					var firstOrderItem = orders[0].AddOrderItem(firstOffer, 1);
-					var secondOffer = new Offer {ProductId = 2};
+					var secondOffer = new Offer { ProductId = 2, Id = new OfferKey(2, 1) };
 					var secondOrderItem = orders[1].AddOrderItem(secondOffer, 1);
 
 					var items = new List<OrderBatchItem>
