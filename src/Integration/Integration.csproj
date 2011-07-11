@@ -100,7 +100,6 @@
     <Compile Include="GetHistoryOrdersFixture.cs" />
     <Compile Include="GetReclameFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
-    <Compile Include="Helpers\DriveMapper.cs" />
     <Compile Include="ImpersonalPriceFixture.cs" />
     <Compile Include="MatrixFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
