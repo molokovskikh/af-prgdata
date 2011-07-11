@@ -1033,6 +1033,8 @@ AND    RCS.clientcode          = ?ClientCode"
 		private void CheckDuplicatedOrders()
 		{
 			ILog _logger = LogManager.GetLogger(this.GetType());
+			var errorMessage = new StringBuilder();
+			string logMessage;
 
 			foreach (var order in _orders)
 			{
@@ -1130,16 +1132,26 @@ where
 
 				//Берем последний номер заказа
 				order.ServerOrderId = Convert.ToUInt64(existsOrders.Rows[existsOrders.Rows.Count-1]["OrderId"]);
+				var orderList = new List<string>();
+				foreach (DataRow dataRow in existsOrders.Rows)
+				{
+					var orderId = dataRow["OrderId"].ToString();
+					if (!orderList.Contains(orderId))
+						orderList.Add(orderId);
+				}
 
-				_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) будем проверять дубликаты по заказу: {4}\r\nПозиций: {5}\r\n{6}",
+				logMessage = String.Format(
+					"Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) будем проверять дубликаты по заказам: ({4})\r\nПоследний заказ: {5}\r\nПозиций: {6}\r\n{7}",
 					_data.UserId,
 					_data.ClientId,
 					_orderedClientCode,
 					order.Order.ClientOrderId,
+					orderList.Implode(),
 					order.ServerOrderId,
 					order.Positions.Count,
-					order.Positions.Implode("\r\n")
-					);
+					order.Positions.Implode("\r\n"));
+				errorMessage.AppendLine(logMessage);
+				_logger.DebugFormat(logMessage);
 
 				foreach (ClientOrderPosition position in order.Positions)
 				{
@@ -1155,7 +1167,7 @@ where
 							{
 								position.Duplicated = true;
 								order.Order.RemoveItem(position.OrderPosition);
-								_logger.InfoFormat(
+								logMessage = String.Format(
 									"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
 									+ "удалена дублирующаяся строка с заказом №{3}, строка №{4}",
 									order.Order.ClientOrderId,
@@ -1163,11 +1175,13 @@ where
 									_data.UserId,
 									existsOrderList[0]["OrderId"],
 									existsOrderList[0]["RowId"]);
+								errorMessage.AppendLine(logMessage);
+								_logger.InfoFormat(logMessage);
 							}
 							else
 							{
 								position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - serverQuantity);
-								_logger.InfoFormat(
+								logMessage = String.Format(
 									"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
 									+ "изменено количество товара в связи с дублированием с заказом №{3}, строка №{4}",
 									order.Order.ClientOrderId,
@@ -1175,6 +1189,8 @@ where
 									_data.UserId,
 									existsOrderList[0]["OrderId"],
 									existsOrderList[0]["RowId"]);
+								errorMessage.AppendLine(logMessage);
+								_logger.InfoFormat(logMessage);
 							}
 							//удаляем позицию, чтобы больше не находить ее
 							existsOrderList[0].Delete();
@@ -1195,7 +1211,7 @@ where
 									position.Duplicated = true;
 									order.Order.RemoveItem(position.OrderPosition);
 
-									_logger.InfoFormat(
+									logMessage = String.Format(
 										"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
 										+ "удалена дублирующаяся строка с заказом №{3}, поиск вернул несколько позиций ({4}):\r\n{5}",
 										order.Order.ClientOrderId,
@@ -1204,12 +1220,14 @@ where
 										existsOrderList[0]["OrderId"],
 										existsOrderList.Length,
 										stringBuilder);
+									errorMessage.AppendLine(logMessage);
+									_logger.InfoFormat(logMessage);
 								}
 								else
 								{
 									position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - existsOrderedQuantity);
 
-									_logger.InfoFormat(
+									logMessage = String.Format(
 										"В новом заказе №{0} (ClientOrderId) от клиента {1} от пользователя {2} "
 										+ "изменено количество товара в связи с дублированием с заказом №{3}, поиск вернул несколько позиций ({4}):\r\n{5}",
 										order.Order.ClientOrderId,
@@ -1218,6 +1236,8 @@ where
 										existsOrderList[0]["OrderId"],
 										existsOrderList.Length,
 										stringBuilder);
+									errorMessage.AppendLine(logMessage);
+									_logger.InfoFormat(logMessage);
 								}
 								//удаляем позиции, чтобы больше не находить их
 								byQuantity.ForEach(row => row.Delete());
@@ -1229,17 +1249,22 @@ where
 				order.FullDuplicated = (order.GetSavedRowCount() == 0);
 				if (order.FullDuplicated)
 				{
-					_logger.DebugFormat("Заказ (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) помечен как полностью дублированный",
+					logMessage = String.Format(
+						"Заказ (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) помечен как полностью дублированный",
 						_data.UserId,
 						_data.ClientId,
 						_orderedClientCode,
-						order.Order.ClientOrderId
-						);
+						order.Order.ClientOrderId);
+					errorMessage.AppendLine(logMessage);
+					_logger.DebugFormat(logMessage);
 
 					var serverOrder = IoC.Resolve<IRepository<Order>>().Load(Convert.ToUInt32(order.ServerOrderId));
 					order.Order.WriteTime = serverOrder.WriteTime;
 				}
 			}
+
+			if (errorMessage.Length > 0)
+				_logger.ErrorFormat("В заказах найдены дублирующиеся строки с сохраненными заказами:\r\n{0}", errorMessage);
 		}
 	}
 }
