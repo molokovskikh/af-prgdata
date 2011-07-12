@@ -125,6 +125,13 @@ namespace Integration
 			using (var transaction = new TransactionScope())
 			{
 				_userWithoutAF = _client.CreateUser();
+				var permissionAF = TestUserPermission.ByShortcut("AF");
+				var afIndex = _userWithoutAF.AssignedPermissions.IndexOf(item => item.Id == permissionAF.Id);
+				if (afIndex > -1)
+				{
+					_userWithoutAF.AssignedPermissions.RemoveAt(afIndex);
+					_userWithoutAF.Update();
+				}
 			}
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
