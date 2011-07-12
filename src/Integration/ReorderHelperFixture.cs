@@ -1522,47 +1522,27 @@ drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, U
 call future.GetOffers(?UserId)",
 						new MySqlParameter("?UserId", user.Id));
 
-					var priceCode =
-						MySqlHelper.ExecuteScalar(
-							connection,
+					var priceLists = MySqlHelper.ExecuteDataset(
+						connection,
 							@"
 select 
-	PriceCode 
+	*
 from 
 	ActivePrices 
 where
   exists(select * from Core where Core.PriceCode = ActivePrices.PriceCode and Core.RegionCode = ActivePrices.RegionCode limit 1)
 group by PriceCode 
-having count(*) > 1 
-limit 1");
-					Assert.That(priceCode, Is.Not.Null);
-					Assert.That(priceCode, Is.GreaterThan(0));
+having count(*) > 1
+");
+					Assert.That(priceLists.Tables.Count, Is.GreaterThan(0), "Не найдены прайс-листы, работающие в двух регионах");
 
-					MySqlHelper.ExecuteNonQuery(
-						connection,
-						@"
-delete from future.UserPrices where UserId = ?UserId and PriceId <> ?PriceId;
-drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId)",
-						new MySqlParameter("?UserId", user.Id),
-						new MySqlParameter("?PriceId", priceCode));
-
-
-					activePrice = ExecuteDataRow(
-						connection, @"
-select 
-* 
-from 
-  ActivePrices 
-where 
-    PriceCode = ?PriceCode
-limit 1"
-						,
-						new MySqlParameter("?PriceCode", priceCode));
-
-					var firstProductId = MySqlHelper.ExecuteScalar(
-						connection,
-						@"
+					activePrice = null;
+					object firstProductId = null;
+					foreach (DataRow currentPrice in priceLists.Tables[0].Rows)
+					{
+						firstProductId = MySqlHelper.ExecuteScalar(
+							connection,
+							@"
 select 
   c.ProductId 
 from 
@@ -1575,9 +1555,25 @@ group by c.ProductId
 having count(distinct c.SynonymCode) > 2
 limit 1
 "
-						,
-						new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
-						new MySqlParameter("?RegionCode", activePrice["RegionCode"]));
+							,
+							new MySqlParameter("?PriceCode", currentPrice["PriceCode"]),
+							new MySqlParameter("?RegionCode", currentPrice["RegionCode"]));
+						if (firstProductId != null && Convert.ToUInt32(firstProductId) > 0)
+						{
+							activePrice = currentPrice;
+							break;
+						}
+					}
+					Assert.That(activePrice, Is.Not.Null, "Не найден прайс-лист, у которого по одному и тому же продукту существуют два синонима");
+
+					MySqlHelper.ExecuteNonQuery(
+						connection,
+						@"
+delete from future.UserPrices where UserId = ?UserId and PriceId <> ?PriceId;
+drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
+call future.GetOffers(?UserId)",
+						new MySqlParameter("?UserId", user.Id),
+						new MySqlParameter("?PriceId", activePrice["PriceCode"]));
 
 					firstOffer = ExecuteDataRow(
 						connection,
