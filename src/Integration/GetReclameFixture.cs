@@ -53,6 +53,13 @@ namespace Integration
 				_user.Update();
 
 				_disabledUser = _disabledClient.Users[0];
+				var permissionAF = TestUserPermission.ByShortcut("AF");
+				var afIndex = _disabledUser.AssignedPermissions.IndexOf(item => item.Id == permissionAF.Id);
+				if (afIndex > -1)
+				{
+					_disabledUser.AssignedPermissions.RemoveAt(afIndex);
+					_disabledUser.Update();
+				}
 
 //                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
 //                try
