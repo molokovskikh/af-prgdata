@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models;
 using Common.Models.Tests;
@@ -365,6 +366,9 @@ namespace Integration
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);
 
+					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+					Thread.Sleep(3000);
+
 					var deletedStatus = Convert.ToBoolean(
 						MySqlHelper.ExecuteScalar(
 							Settings.ConnectionString(),
@@ -465,6 +469,9 @@ namespace Integration
 
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);
+					
+					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+					Thread.Sleep(3000);
 
 					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
 						Settings.ConnectionString(),

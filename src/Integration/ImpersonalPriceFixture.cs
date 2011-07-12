@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
@@ -422,7 +423,10 @@ and afi.ForceReplication > 0",
 
 			var updateTime = service.CommitExchange(lastUpdateId, false);
 
-			var dbUpdateTime = Convert.ToDateTime( MySqlHelper.ExecuteScalar(
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			var dbUpdateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
 				Settings.ConnectionString(),
 				@"
 select 

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
@@ -263,6 +264,9 @@ namespace Integration
 				var lastUpdateId = Convert.ToUInt32(match);
 				service = new PrgDataEx();
 				service.CommitExchange(lastUpdateId, false);
+
+				//Ќужно поспать, т.к. не успевает отрабатывать нитка подтверждени€ обновлени€
+				Thread.Sleep(3000);
 			}
 			else
 				Assert.Fail("Ќекорректный ответ от сервера при получении данных: {0}", responce);

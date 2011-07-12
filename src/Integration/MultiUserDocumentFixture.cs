@@ -168,9 +168,6 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-			Thread.Sleep(3000);
-
 			using (new SessionScope())
 			{
 				log.Refresh();
@@ -474,9 +471,6 @@ namespace Integration
 
 			ConfirmData();
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-			Thread.Sleep(3000);
-
 			using (new SessionScope())
 			{
 				log.Refresh();
@@ -723,6 +717,9 @@ namespace Integration
 		{
 			var service = new PrgDataEx();
 			service.MaxSynonymCode("", new uint[0], lastUpdateId, true);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
 		}
 
 		private string LoadDocuments(string appversion = "1065")
@@ -751,6 +748,9 @@ namespace Integration
 		{
 			var service = new PrgDataEx();
 			service.CommitExchange(lastUpdateId, false);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
 		}
 
 		private void SetCurrentUser(string login)

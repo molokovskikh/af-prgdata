@@ -506,6 +506,9 @@ limit 6;");
 			var service = new PrgDataEx();
 
 			var updateTime = service.CommitExchange(updateId, false);
+			
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
 
 			var updateRow = MySqlHelper.ExecuteDataRow(
 								Settings.ConnectionString(),
