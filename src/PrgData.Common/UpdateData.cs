@@ -101,6 +101,8 @@ namespace PrgData.Common
 
 		public List<SupplierPromotion> SupplierPromotions = new List<SupplierPromotion>();
 
+		public List<uint> UnconfirmedOrders = new List<uint>();
+
 		public UpdateData(DataSet data)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");

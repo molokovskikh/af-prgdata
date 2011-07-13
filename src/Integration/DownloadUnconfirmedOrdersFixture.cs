@@ -23,6 +23,7 @@ using PrgData.Common;
 using PrgData.Common.Orders;
 using Test.Support;
 using Test.Support.Helpers;
+using Test.Support.Logs;
 
 namespace Integration
 {
@@ -202,6 +203,29 @@ namespace Integration
 			var orderFirst = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 			var orderSecond = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
+			TestAnalitFUpdateLog updateLog;
+			using (new TransactionScope())
+			{
+				updateLog = new TestAnalitFUpdateLog();
+				updateLog.RequestTime = DateTime.Now;
+				updateLog.UpdateType = (uint) RequestType.GetData;
+				updateLog.UserId = _officeUser.Id;
+				updateLog.Create();
+
+				var sendLog = new TestUnconfirmedOrdersSendLog();
+				sendLog.OrderId = orderFirst.RowId;
+				sendLog.User = _officeUser;
+				sendLog.UpdateId = updateLog.Id;
+				sendLog.Create();
+
+				sendLog = new TestUnconfirmedOrdersSendLog();
+				sendLog.OrderId = orderSecond.RowId;
+				sendLog.User = _officeUser;
+				sendLog.UpdateId = updateLog.Id;
+				sendLog.Create();
+			}
+
+
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
@@ -213,7 +237,7 @@ namespace Integration
 					new MySqlParameter("?clientId", _client.Id));
 				Assert.That(unconfirmedOrdersCount, Is.EqualTo(2));
 
-				UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(updateData, connection);
+				UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(updateData, connection, updateLog.Id);
 
 				var unconfirmedOrdersCountAfterDelete = MySqlHelper.ExecuteScalar(
 					connection,
@@ -248,8 +272,12 @@ namespace Integration
 				exporter.LoadOrders();
 
 				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(3));
+				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
 				foreach (var order in orders)
+				{
 					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+				}
 
 				exporter.UnionOrders();
 
@@ -283,8 +311,12 @@ namespace Integration
 				exporter.LoadOrders();
 
 				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(4));
+				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
 				foreach (var order in orders)
+				{
 					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+				}
 
 				exporter.UnionOrders();
 
@@ -363,6 +395,11 @@ namespace Integration
 
 					Directory.Delete(extractFolder, true);
 
+					var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+					Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
+					Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
+					Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);
 
@@ -438,6 +475,7 @@ namespace Integration
 				exporter.Export();
 
 				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
+				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
 
 				Assert.That(fileForArchives.Count, Is.EqualTo(0), "В очереди не должно быть файлов, т.к. нет неподтвержденных заказов для клиента {0}", _client.Id);
 			}
@@ -466,6 +504,9 @@ namespace Integration
 					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
 					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
 					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
+
+					var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+					Assert.That(sendLogs.Count, Is.EqualTo(0), "Не должно быть заказов, экспортированных пользователю");
 
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);
@@ -500,6 +541,77 @@ namespace Integration
 			{
 				LogManager.ResetConfiguration();
 			}
+		}
+
+		[Test(Description = "Проверям поддержку таблицы UnconfirmedOrdersSendLogs при работе с неподтвержденными заказами")]
+		public void SupportUnconfirmedOrdersSendLog()
+		{
+			var firstOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var secondOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+
+			using (new TransactionScope())
+			{
+				var log = new TestUnconfirmedOrdersSendLog();
+				log.User = _officeUser;
+				log.OrderId = secondOrder.RowId;
+				log.Create();
+			}
+
+			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+
+			var firstUpdateId = ParseUpdateId(responce);
+
+			var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
+			Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
+			Assert.That(sendLogs.Contains(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+			Assert.That(sendLogs.Contains(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+			Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
+			Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+
+			var thirdOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+
+			var service = new PrgDataEx();
+			var updateTime = service.CommitExchange(firstUpdateId, false);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
+			Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
+
+			using (new SessionScope())
+			{
+				sendLogs.ForEach(l => l.Refresh());
+				Assert.That(sendLogs.All(l => l.Committed), Is.True, "Имееются неподтвержденные заказы");
+				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");
+			}
+
+			var deletedStatusFirst = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", firstOrder.RowId)));
+			Assert.That(deletedStatusFirst, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", firstOrder.RowId);
+
+			var deletedStatusSecond = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", secondOrder.RowId)));
+			Assert.That(deletedStatusSecond, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", secondOrder.RowId);
+
+			var deletedStatusThird = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", thirdOrder.RowId)));
+			Assert.That(deletedStatusThird, Is.False, "Неподтвержденный заказ {0} помечен как удаленный", thirdOrder.RowId);
+
+			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+				new MySqlParameter("?UpdateId", firstUpdateId)));
+			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}, {1}".Format(firstOrder.RowId, secondOrder.RowId)), "Неподтвержденный заказы {0}, {1} не содержатся в поле Addition", firstOrder.RowId, secondOrder.RowId);
 		}
 
 	}

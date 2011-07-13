@@ -1350,7 +1350,7 @@ StartZipping:
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
                 If UpdateData.PreviousRequest.RequestType = RequestType.GetData Or UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative Then
-				    Dim exportList = UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection)
+				    Dim exportList = UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection, UpdateId)
                     If Not String.IsNullOrEmpty(exportList) then
                         Addition &= "Экспортированные неподтвержденные заказы: " & exportList & "; "
                     End If
@@ -2521,6 +2521,8 @@ PostLog:
                         transaction.Commit()
 
                     End If
+
+                    UnconfirmedOrdersExporter.InsertUnconfirmedOrdersLogs(UpdateData, connection, GUpdateId)
 
                     DS.Tables.Clear()
 

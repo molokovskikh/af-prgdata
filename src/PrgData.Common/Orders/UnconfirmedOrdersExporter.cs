@@ -113,10 +113,13 @@ namespace PrgData.Common.Orders
 					.Add(Restrictions.Eq("Processed", false))
 					.Add(Restrictions.In("AddressId", addressList.ToArray()));
 				LoadedOrders = criteria.GetExecutableCriteria(session).List<Order>().ToList();
+
+				Data.UnconfirmedOrders.Clear();
+				LoadedOrders.ForEach(o => Data.UnconfirmedOrders.Add(o.RowId));
 			}
 		}
 
-		public static string DeleteUnconfirmedOrders(UpdateData updateData, MySqlConnection connection)
+		public static string DeleteUnconfirmedOrders(UpdateData updateData, MySqlConnection connection, uint updateId)
 		{
 			var list = new List<string>();
 
@@ -130,14 +133,17 @@ namespace PrgData.Common.Orders
 							connection,
 							@"
 select 
-  oh.RowId 
+  OrderId as RowId 
 from 
-  future.UserAddresses ua
-  join orders.OrdersHead oh on oh.AddressId = ua.AddressId and Deleted = 0 and Processed = 0 and Submited = 0
+  logs.UnconfirmedOrdersSendLogs
 where
-  ua.UserId = ?UserId"
+    UserId = ?UserId
+and UpdateId = ?UpdateId
+and Committed = 0
+order by OrderId"
 							,
-							new MySqlParameter("?UserId", updateData.UserId));
+							new MySqlParameter("?UserId", updateData.UserId),
+							new MySqlParameter("?UpdateId", updateId));
 
 						if (orders.Tables.Count == 1)
 						{
@@ -148,8 +154,19 @@ where
 								logger.DebugFormat("Удаляем неподтвержденный заказ: {0}", orderId);
 								MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
 									connection,
-									"update orders.OrdersHead set Deleted = 1 where RowId = ?orderId",
-									new MySqlParameter("?orderId", orderId));
+									@"
+update orders.OrdersHead set Deleted = 1 where RowId = ?orderId;
+update logs.UnconfirmedOrdersSendLogs
+set
+  Committed = 1  
+where
+  UserId = ?UserId 
+and OrderId = ?OrderId
+and UpdateId = ?UpdateId;
+",
+									new MySqlParameter("?orderId", orderId),
+									new MySqlParameter("?UserId", updateData.UserId),
+									new MySqlParameter("?UpdateId", updateId));
 								list.Add(orderId.ToString());
 							}
 						}
@@ -164,6 +181,52 @@ where
 				});
 
 			return list.Implode();
+		}
+
+		public static void InsertUnconfirmedOrdersLogs(UpdateData updateData, MySqlConnection connection, uint? updateId)
+		{
+			if (updateData.AllowDeleteUnconfirmedOrders && updateId.HasValue && updateData.UnconfirmedOrders.Count > 0)
+			{
+				var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
+				try
+				{
+					foreach (var unconfirmedOrder in updateData.UnconfirmedOrders)
+					{
+						MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
+							connection,
+							@"
+insert into logs.UnconfirmedOrdersSendLogs 
+  (UserId, OrderId) 
+select 
+	?UserId, 
+	?OrderId 
+from 
+	future.Users u
+where 
+	u.Id = ?UserId
+and not exists(select * from logs.UnconfirmedOrdersSendLogs where UserId = ?UserId and OrderId = ?OrderId);
+update logs.UnconfirmedOrdersSendLogs
+set
+  Committed = 0,
+  UpdateId = ?UpdateId
+where
+  UserId = ?UserId 
+and OrderId = ?OrderId;
+"
+							,
+							new MySqlParameter("?UserId", updateData.UserId),
+							new MySqlParameter("?OrderId", unconfirmedOrder),
+							new MySqlParameter("?UpdateId", updateId));
+					}
+
+					transaction.Commit();
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			}
 		}
 	}
 }
