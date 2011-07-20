@@ -4419,5 +4419,34 @@ endproc:
         End If
     End Function
 
+    <WebMethod()> _
+    Public Function SendUserActions( _
+        ByVal EXEVersion As String, _
+        ByVal UserActionLogs() As Byte _
+    ) As String
+
+        Try
+            UpdateType = RequestType.ConfirmUserMessage
+            DBConnect()
+            GetClientCode()
+            UpdateData.ParseBuildNumber(EXEVersion)
+            UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+
+            Return "Res=OK"
+
+        Catch updateException As UpdateException
+            Return ProcessUpdateException(updateException)
+        Catch ex As Exception
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при обработки пользовательской статистики", ex)
+            ErrorFlag = True
+        Finally
+            DBDisconnect()
+        End Try
+
+        If ErrorFlag Then
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+        End If
+    End Function
+
 End Class
 
