@@ -4422,7 +4422,8 @@ endproc:
     <WebMethod()> _
     Public Function SendUserActions( _
         ByVal EXEVersion As String, _
-        ByVal UserActionLogs() As Byte _
+        ByVal UpdateId As UInt64, _
+        ByVal UserActionLogsFile As String _
     ) As String
 
         Try
@@ -4431,6 +4432,19 @@ endproc:
             GetClientCode()
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+
+            Dim helper = New SendUserActionsHandler(UpdateData, UpdateId, readWriteConnection)
+
+            Try
+                helper.PrepareLogFile(UserActionLogsFile)
+
+                Dim importCount = helper.ImportLogFile()
+
+                Log.DebugFormat("Количество импортированных записей статистики пользователя: {0}", importCount)
+
+            Finally
+                helper.DeleteTemporaryFiles()
+            End Try
 
             Return "Res=OK"
 

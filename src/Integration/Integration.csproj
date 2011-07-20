@@ -114,6 +114,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="ReorderHelperFixture.cs" />
+    <Compile Include="SendUserActionsFixture.cs" />
     <Compile Include="UpdateHelperFixture.cs" />
     <Compile Include="SmartOrderHelperFixture.cs" />
   </ItemGroup>

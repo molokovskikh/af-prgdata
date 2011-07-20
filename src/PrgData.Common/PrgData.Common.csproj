@@ -158,6 +158,7 @@
     <Compile Include="Repositories\IVersionRuleRepository.cs" />
     <Compile Include="Repositories\VersionRuleRepository.cs" />
     <Compile Include="RequestType.cs" />
+    <Compile Include="SendUserActionsHandler.cs" />
     <Compile Include="SevenZip\SevenZipArchiveException.cs" />
     <Compile Include="SevenZip\SevenZipHelper.cs" />
     <Compile Include="ShareFileHelper.cs" />
