@@ -122,7 +122,7 @@ namespace PrgData.Common
 			var row = data.Tables[0].Rows[0];
 			ClientId = Convert.ToUInt32(row["ClientId"]);
 			UserId = Convert.ToUInt32(row["UserId"]);
-			Message = Convert.ToString(row["Message"]);
+			Message = Convert.ToString(row["Message"]).Trim();
 			CheckCopyId = Convert.ToBoolean(row["CheckCopyId"]);
 			if (!(row["UpdateDate"] is DBNull))
 				OldUpdateTime = Convert.ToDateTime(row["UpdateDate"]);

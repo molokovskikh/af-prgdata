@@ -3168,18 +3168,17 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
-					MySqlHelper.ExecuteNonQuery(
-						_readWriteConnection,
-						@"
-update 
-  usersettings.UserUpdateInfo 
-set 
-  MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) 
-where
-    UserId = ?UserId
-and left(Message, 255) = left(?Message, 255)",
-					   new MySqlParameter("?UserId", _updateData.UserId),
-					   new MySqlParameter("?Message", confirmedMessage));
+					if (_updateData.Message.Equals(confirmedMessage.Trim(), StringComparison.OrdinalIgnoreCase))
+						MySqlHelper.ExecuteNonQuery(
+							_readWriteConnection,
+							@"
+	update 
+	  usersettings.UserUpdateInfo 
+	set 
+	  MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) 
+	where
+		UserId = ?UserId",
+						   new MySqlParameter("?UserId", _updateData.UserId));
 
 					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.ConfirmUserMessage, confirmedMessage, _updateData.BuildNumber);
 

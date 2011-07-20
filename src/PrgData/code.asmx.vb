@@ -4395,7 +4395,7 @@ endproc:
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 
-            If Not UpdateData.Message.Equals(ConfirmedMessage, StringComparison.OrdinalIgnoreCase) Then
+            If Not UpdateData.Message.Equals(ConfirmedMessage.Trim(), StringComparison.OrdinalIgnoreCase) Then
                 Me.Log.DebugFormat("Пользовательское сообщение уже подтверждено или изменено: ConfirmedMessage:{0};  Message:{1};", ConfirmedMessage, UpdateData.Message)
             End If
 
