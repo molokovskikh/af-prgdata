@@ -1141,7 +1141,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			}
 		}
 
-		private void CheckConfirmUserMessage(MySqlConnection connection, uint userId, UpdateHelper helper, string dbMessage, string fromUserMessage)
+		private void CheckConfirmUserMessage(MySqlConnection connection, uint userId, string login, string dbMessage, string fromUserMessage)
 		{
 			MySqlHelper.ExecuteNonQuery(
 				connection,
@@ -1150,6 +1150,9 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 ",
 				new MySqlParameter("?Message", dbMessage),
 				new MySqlParameter("?UserId", userId));
+
+			var updateData = UpdateHelper.GetUpdateData(connection, login);
+			var helper = new UpdateHelper(updateData, connection);
 
 			helper.ConfirmUserMessage(fromUserMessage);
 
@@ -1173,18 +1176,15 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 			{
 				connection.Open();
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+				CheckConfirmUserMessage(connection, _user.Id, _user.Login, "aaa", "aaa");
 
-				CheckConfirmUserMessage(connection, _user.Id, helper, "aaa", "aaa");
+				CheckConfirmUserMessage(connection, _user.Id, _user.Login, new string('a', 250), new string('a', 250));
 
-				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250), new string('a', 250));
+				CheckConfirmUserMessage(connection, _user.Id, _user.Login, new string('a', 250) + new string('b', 5), new string('a', 250) + new string('b', 5));
 
-				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250) + new string('b', 5), new string('a', 250) + new string('b', 5));
+				CheckConfirmUserMessage(connection, _user.Id, _user.Login, new string('a', 250) + new string('b', 5) + "c", new string('a', 250) + new string('b', 5) + "d");
 
-				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250) + new string('b', 5) + "c", new string('a', 250) + new string('b', 5) + "d");
-
-				CheckConfirmUserMessage(connection, _user.Id, helper, new string('a', 250) + new string('b', 5) + new string('m', 10), new string('a', 250) + new string('b', 5) + new string('l', 10));
+				CheckConfirmUserMessage(connection, _user.Id, _user.Login, new string('a', 250) + new string('b', 5) + new string('m', 10), new string('a', 250) + new string('b', 5) + new string('l', 10));
 			}
 		}
 

@@ -3168,7 +3168,7 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
-					if (_updateData.Message.Equals(confirmedMessage.Trim(), StringComparison.OrdinalIgnoreCase))
+					if (_updateData.Message.Slice(255).Equals(confirmedMessage.Trim().Slice(255), StringComparison.OrdinalIgnoreCase))
 						MySqlHelper.ExecuteNonQuery(
 							_readWriteConnection,
 							@"
