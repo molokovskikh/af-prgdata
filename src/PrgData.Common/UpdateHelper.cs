@@ -1939,14 +1939,22 @@ AND
 		{
 			string buyingMatrixCondition;
 			string offerMatrixCondition;
+			string buyingMatrixProducerNullCondition = " 0 ";
+			string offerMatrixProducerNullCondition = " 0 ";
 			if (_updateData.BuyingMatrixPriceId.HasValue)
 			{
 				if (_updateData.BuyingMatrixType == 0)
+				{
 					//белый список
 					buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+					buyingMatrixProducerNullCondition = " 0 ";
+				}
 				else
+				{
 					//черный список
 					buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+					buyingMatrixProducerNullCondition = " 1 ";
+				}
 			}
 			else
 				//разрешено все
@@ -1955,11 +1963,17 @@ AND
 			if (_updateData.OfferMatrixPriceId.HasValue)
 			{
 				if (_updateData.OfferMatrixType == 0)
+				{
 					//белый список - попал в список => попал в предложения
 					offerMatrixCondition = " and (oms.Id is not null or offerList.Id is not null) ";
+					offerMatrixProducerNullCondition = " 0 ";
+				}
 				else
+				{
 					//черный список - не попал в список => попал в предложения
 					offerMatrixCondition = " and (oms.Id is not null or offerList.Id is null) ";
+					offerMatrixProducerNullCondition = " 1 ";
+				}
 			}
 			else
 				//разрешено все - матрица не работает
@@ -1972,7 +1986,7 @@ SELECT
        ?ImpersonalPriceId               ,
        ?OffersRegionCode                ,
        A.ProductId                      ,
-       A.CodeFirmCr                     ,
+       A.CodeFirmCr as ProducerId       ,
        A.ProductId as SynonymCode       ,
        A.CodeFirmCr as SynonymFirmCrCode,
        ''                               ,
@@ -2003,7 +2017,7 @@ SELECT
        ?ImpersonalPriceId                ,
        ?OffersRegionCode                 ,
        A.ProductId                       ,
-       1                                 ,
+       1 as ProducerId                   ,
        A.ProductId as SynonymCode        ,
        0                                 ,
        ''                                ,
@@ -2034,7 +2048,7 @@ SELECT
        ?ImpersonalPriceId               ,
        ?OffersRegionCode                ,
        A.ProductId                      ,
-       A.CodeFirmCr                     ,
+       A.CodeFirmCr as ProducerId       ,
        A.ProductId as SynonymCode       ,
        A.CodeFirmCr as SynonymFirmCrCode,
        ''                               ,
@@ -2070,7 +2084,7 @@ SELECT
        ?ImpersonalPriceId                ,
        ?OffersRegionCode                 ,
        A.ProductId                       ,
-       1                                 ,
+       1 as ProducerId                   ,
        A.ProductId as SynonymCode        ,
        1                                 ,
        ''                                ,
@@ -2103,10 +2117,10 @@ FROM
 		exportBuyingMatrix ? buyingMatrixCondition : "",
 		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(a.CodeFirmCr is null, 0, list.ProducerId = a.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(a.CodeFirmCr is null, " + buyingMatrixProducerNullCondition + ", list.ProducerId = a.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
 		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
   left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, 0) and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1,  " + buyingMatrixProducerNullCondition + ") and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
 	 );
 			else
 				return 
@@ -2114,7 +2128,7 @@ FROM
 SELECT CT.PriceCode               ,
        CT.regioncode              ,
        CT.ProductId               ,
-       ifnull(Core.codefirmcr, 0) ,
+       ifnull(Core.codefirmcr, 0) as ProducerId,
        Core.synonymcode           ,
        Core.SynonymFirmCrCode     ,
        Core.Code                  ,
@@ -2170,11 +2184,11 @@ Core.ProducerCost,
 Core.NDS " : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
 				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + buyingMatrixProducerNullCondition +", list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
 				cryptCost ? "CT.CryptCost" : "CT.Cost",
 				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 				_updateData.OfferMatrixPriceId.HasValue ? @" 
-  left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, 0, offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
+  left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + offerMatrixProducerNullCondition + ", offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
   left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode "
 																																																					   : "",
 				offerMatrixCondition
