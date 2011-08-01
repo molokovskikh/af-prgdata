@@ -41,7 +41,7 @@ namespace PrgData.FileHandlers
 			string userId = null;
 			try
 			{
-				using (var connection = new global::Common.MySql.SimpleConnectionManager().GetConnection())
+				using (var connection = Settings.GetConnection())
 				{
 					var command = new MySqlCommand(@"SELECT ouar.RowId
 FROM clientsdata cd

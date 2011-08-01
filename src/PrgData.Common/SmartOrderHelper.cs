@@ -21,6 +21,7 @@ using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using NHibernate.Mapping.Attributes;
 using MySqlHelper = Common.MySql.MySqlHelper;
+using With = Common.MySql.With;
 
 
 namespace PrgData.Common
@@ -307,7 +308,8 @@ namespace PrgData.Common
 
 		public static void InitializeIoC()
 		{
-			var sessionFactoryHolder = new SessionFactoryHolder();
+			With.DefaultConnectionStringName = Settings.GetConnectionName();
+			var sessionFactoryHolder = new SessionFactoryHolder(Settings.GetConnectionName());
 			sessionFactoryHolder
 				.Configuration
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))

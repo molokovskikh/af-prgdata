@@ -1,4 +1,5 @@
 using System;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -7,7 +8,9 @@ using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
+using MySql.Data.MySqlClient;
 using NUnit.Framework;
+using PrgData.Common;
 using PrgData.Common.Model;
 using PrgData.Common.Repositories;
 using SmartOrderFactory;
@@ -26,6 +29,8 @@ namespace Integration
 
 			CreateResultsDir();
 
+			CheckLocalDB();
+
 			Test.Support.Setup.Initialize();
 
 			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
@@ -36,6 +41,19 @@ namespace Integration
 				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
 				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
 				);
+		}
+
+		private void CheckLocalDB()
+		{
+			using (var connection = Settings.GetConnection())
+			{
+				connection.Open();
+				var coreCount = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					"select count(*) from farm.Core0"));
+
+				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake ");
+			}
 		}
 
 		private void CreateResultsDir()

@@ -33,7 +33,6 @@ Public Class PrgDataEx
 		InitializeComponent()
 
 		Try
-            _simpleConnectionManager = New Global.Common.MySql.SimpleConnectionManager()
             ArchiveHelper.SevenZipExePath = SevenZipExe
             ResultFileName = ServiceContext.GetResultPath()
         Catch ex As Exception
@@ -42,7 +41,6 @@ Public Class PrgDataEx
 
     End Sub
 
-    Private _simpleConnectionManager As Global.Common.MySql.SimpleConnectionManager
     Private WithEvents SelProc As MySql.Data.MySqlClient.MySqlCommand
     Private WithEvents DA As MySql.Data.MySqlClient.MySqlDataAdapter
     Friend WithEvents dtProcessingDocuments As System.Data.DataTable
@@ -124,7 +122,7 @@ Public Class PrgDataEx
     Public Function SendLetterEx(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte, ByVal emailGroup As Byte) As String
         Try
             Dim updateData As UpdateData
-            Using connection = _simpleConnectionManager.GetConnection()
+            Using connection = Settings.GetConnection()
                 connection.Open()
 
                 Dim letterUserName = ServiceContext.GetShortUserName()
@@ -728,7 +726,7 @@ endproc:
             Dim ef(), ListOfDocs() As String
 
 
-            Using connection = _simpleConnectionManager.GetConnection()
+            Using connection = Settings.GetConnection()
                 connection.Open()
 
 
@@ -1500,7 +1498,7 @@ StartZipping:
         UserHost = ServiceContext.GetUserHost()
         Try
 
-            readWriteConnection = _simpleConnectionManager.GetConnection()
+            readWriteConnection = Settings.GetConnection()
             readWriteConnection.Open()
 
             Return True

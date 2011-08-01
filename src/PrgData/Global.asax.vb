@@ -55,7 +55,7 @@ Public Class Global_asax
     Sub Application_AuthorizeRequest(ByVal sender As Object, ByVal e As EventArgs)
         Try
             If String.IsNullOrEmpty(ServiceContext.GetUserName()) Then
-                Using connection = New Global.Common.MySql.SimpleConnectionManager().GetConnection()
+                Using connection = Settings.GetConnection()
                     connection.Open()
 
                     Dim updateData = UpdateHelper.GetUpdateData(connection, ServiceContext.GetShortUserName())
