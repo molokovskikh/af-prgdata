@@ -715,5 +715,35 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "Проверяем корректность доступности механизма расписания обновлений AnalitF")]
+		public void CheckFlagAllowAnalitFSchedule()
+		{
+			var login = _user.Login;
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, login);
+
+				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(false), "В базе флаг по умолчанию должен быть сброшен");
+				Assert.That(updateData.SupportAnalitFSchedule, Is.EqualTo(false), "Для неопределенной версии доступен механизм");
+
+				updateData.KnownBuildNumber = 1506;
+				Assert.That(updateData.SupportAnalitFSchedule, Is.EqualTo(true), "Должен быть доступен механизм");
+
+				updateData.KnownBuildNumber = null;
+				updateData.BuildNumber = 1506;
+				Assert.That(updateData.SupportAnalitFSchedule, Is.EqualTo(true), "Должен быть доступен механизм");
+
+				MySqlHelper.ExecuteNonQuery(
+					connection, 
+					"update UserSettings.RetClientsSet set AllowAnalitFSchedule = 1 where ClientCode = ?clientId",
+					new MySqlParameter("?clientId", _user.Client.Id));
+				updateData = UpdateHelper.GetUpdateData(connection, login);
+				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(true), "Флаг должен быть поднят");
+			}
+		}
+
 	}
 }

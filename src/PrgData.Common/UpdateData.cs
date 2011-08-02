@@ -29,6 +29,8 @@ namespace PrgData.Common
 		private static int _versionBeforeInvoiceHeaders = 1461;
 		//версия AnalitF до поддержки настройки "Показывать цену поставщика при отсрочках платежа"
 		private static int _versionBeforeShowSupplierCost = 1489;
+		//версия AnalitF до поддержки настройки "Расписание обновлений AnalitF"
+		private static int _versionBeforeAnalitFSchedule = 1505;
 
 		public string ShortName;
 		public uint ClientId;
@@ -93,6 +95,8 @@ namespace PrgData.Common
 
 		public bool AllowDownloadUnconfirmedOrders;
 
+		public bool AllowAnalitFSchedule;
+
 		public string ResultPath;
 		private string _currentTempFileName;
 
@@ -155,6 +159,7 @@ namespace PrgData.Common
 									: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
 			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
 			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["AllowDownloadUnconfirmedOrders"]);
+			AllowAnalitFSchedule = Convert.ToBoolean(row["AllowAnalitFSchedule"]);
 		}
 
 		public bool Disabled()
@@ -398,6 +403,15 @@ namespace PrgData.Common
 		{
 			return BuildNumberGreaterThen(_versionBeforeShowSupplierCost)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeShowSupplierCost);
+		}
+
+		public bool SupportAnalitFSchedule
+		{
+			get
+			{
+				return BuildNumberGreaterThen(_versionBeforeAnalitFSchedule)
+					   || (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeAnalitFSchedule);
+			}
 		}
 	}
 }

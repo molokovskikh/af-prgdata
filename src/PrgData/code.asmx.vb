@@ -3177,6 +3177,7 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SupplierPromotions" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PromotionCatalogs" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Schedules" & UserId & ".txt")
                 
                 'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
 
@@ -3223,6 +3224,10 @@ RestartTrans2:
 
                 GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())
                 GetMySQLFileWithDefault("Client", SelProc, helper.GetClientCommand())
+
+                If UpdateData.SupportAnalitFSchedule then
+                    GetMySQLFileWithDefault("Schedules", SelProc, helper.GetSchedulesCommand())
+                End If
 
                 GetMySQLFileWithDefault("Products", SelProc, _
                  "SELECT P.Id       ," & _

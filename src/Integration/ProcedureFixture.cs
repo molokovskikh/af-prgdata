@@ -441,6 +441,12 @@ limit 6;");
 			TestGetUserData("1.1.1.1299");
 		}
 
+		[Test(Description = "Производим запрос данных для версии 1510, чтобы проверить механизм выгрузки расписаний обновлений")]
+		public void TestGetUserDataFor1510()
+		{
+			TestGetUserData("1.1.1.1510");
+		}
+
 		private void SetCurrentUser(string login)
 		{
 			ServiceContext.GetUserName = () => login;

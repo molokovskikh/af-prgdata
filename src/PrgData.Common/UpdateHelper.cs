@@ -346,6 +346,7 @@ SELECT
 	retclientsset.ShowAdvertising,
     retclientsset.OfferMatrixPriceId,
     retclientsset.OfferMatrixType,
+    retclientsset.AllowAnalitFSchedule,
     c.Status as ClientEnabled,
 	u.Enabled as UserEnabled,
 	u.AllowDownloadUnconfirmedOrders,
@@ -408,6 +409,7 @@ SELECT  ouar.clientcode as ClientId,
 		retclientsset.ShowAdvertising,
 	    retclientsset.OfferMatrixPriceId,
 		retclientsset.OfferMatrixType,
+		retclientsset.AllowAnalitFSchedule,
         clientsdata.firmstatus as ClientEnabled,
 	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
 		0 as AllowDownloadUnconfirmedOrders,
@@ -1844,6 +1846,9 @@ where
 
 			GetMySQLFileWithDefaultEx("PromotionCatalogs", command, GetPromotionCatalogsCommandById(ids), false, false, filesForArchive);
 
+#if DEBUG
+			ShareFileHelper.WaitFile(MySqlLocalFilePath() + catalogFile);
+#endif
 			try
 			{
 				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + catalogFile);
@@ -3214,6 +3219,24 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 				var exporter = new UnconfirmedOrdersExporter(_updateData, this, exportFolder, filesForArchive);
 				exporter.Export();
 			}
+		}
+
+		public string GetSchedulesCommand()
+		{
+			if (_updateData.AllowAnalitFSchedule)
+				return @"
+SELECT 
+	s.Id,
+	s.Hour,
+	s.Minute
+FROM 
+	UserSettings.AnalitFSchedules s
+WHERE 
+	s.ClientId = ?ClientCode
+and s.Enable = 1
+order by s.Hour, s.Minute";
+				
+			return "select null from future.Clients limit 0";
 		}
 
 	}

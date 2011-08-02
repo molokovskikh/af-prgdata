@@ -1600,6 +1600,49 @@ limit 1",
 			}
 		}
 
+		[Test(Description = "проверка экспорта расписаний обновлений")]
+		public void GetSchedulesCommand()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) values (?ClientId, 1, 14, 3);
+insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) values (?ClientId, 0, 15, 40);
+insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) values (?ClientId, 1, 10, 50);
+",
+					new MySqlParameter("?clientId", _user.Client.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+				var dataAdapter = new MySqlDataAdapter(helper.GetSchedulesCommand(), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
+
+				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(false));
+
+				var dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(0), "Расписаний быть не должно, т.к. механизм не включен");
+
+				
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update UserSettings.RetClientsSet set AllowAnalitFSchedule = 1 where ClientCode = ?clientId",
+					new MySqlParameter("?clientId", _user.Client.Id));
+				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				helper = new UpdateHelper(updateData, connection);
+
+				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(true));
+
+				dataAdapter.SelectCommand.CommandText = helper.GetSchedulesCommand();
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(2), "Расписаний должно быть два");
+			}
+		}
 
 	}
 }
