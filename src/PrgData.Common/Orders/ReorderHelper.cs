@@ -1033,7 +1033,6 @@ AND    RCS.clientcode          = ?ClientCode"
 		private void CheckDuplicatedOrders()
 		{
 			ILog _logger = LogManager.GetLogger(this.GetType());
-			var errorMessage = new StringBuilder();
 			string logMessage;
 
 			foreach (var order in _orders)
@@ -1150,7 +1149,6 @@ where
 					order.ServerOrderId,
 					order.Positions.Count,
 					order.Positions.Implode("\r\n"));
-				errorMessage.AppendLine(logMessage);
 				_logger.DebugFormat(logMessage);
 
 				foreach (ClientOrderPosition position in order.Positions)
@@ -1175,7 +1173,6 @@ where
 									_data.UserId,
 									existsOrderList[0]["OrderId"],
 									existsOrderList[0]["RowId"]);
-								errorMessage.AppendLine(logMessage);
 								_logger.InfoFormat(logMessage);
 							}
 							else
@@ -1189,7 +1186,6 @@ where
 									_data.UserId,
 									existsOrderList[0]["OrderId"],
 									existsOrderList[0]["RowId"]);
-								errorMessage.AppendLine(logMessage);
 								_logger.InfoFormat(logMessage);
 							}
 							//удаляем позицию, чтобы больше не находить ее
@@ -1220,7 +1216,6 @@ where
 										existsOrderList[0]["OrderId"],
 										existsOrderList.Length,
 										stringBuilder);
-									errorMessage.AppendLine(logMessage);
 									_logger.InfoFormat(logMessage);
 								}
 								else
@@ -1236,7 +1231,6 @@ where
 										existsOrderList[0]["OrderId"],
 										existsOrderList.Length,
 										stringBuilder);
-									errorMessage.AppendLine(logMessage);
 									_logger.InfoFormat(logMessage);
 								}
 								//удаляем позиции, чтобы больше не находить их
@@ -1255,16 +1249,12 @@ where
 						_data.ClientId,
 						_orderedClientCode,
 						order.Order.ClientOrderId);
-					errorMessage.AppendLine(logMessage);
 					_logger.DebugFormat(logMessage);
 
 					var serverOrder = IoC.Resolve<IRepository<Order>>().Load(Convert.ToUInt32(order.ServerOrderId));
 					order.Order.WriteTime = serverOrder.WriteTime;
 				}
 			}
-
-			if (errorMessage.Length > 0)
-				_logger.ErrorFormat("В заказах найдены дублирующиеся строки с сохраненными заказами:\r\n{0}", errorMessage);
 		}
 	}
 }
