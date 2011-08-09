@@ -17,6 +17,7 @@ using PrgData.Common.Model;
 using PrgData.Common.Repositories;
 using SmartOrderFactory.Domain;
 using Test.Support;
+using Test.Support.Suppliers;
 
 
 namespace Integration
@@ -1641,6 +1642,27 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 				dataTable = new DataTable();
 				dataAdapter.Fill(dataTable);
 				Assert.That(dataTable.Rows.Count, Is.EqualTo(2), "Расписаний должно быть два");
+			}
+		}
+
+		[Test(Description = "проверка функции UserExists")]
+		public void UserExistsTest()
+		{
+			var supplier = TestSupplier.Create();
+			var supplierUser = supplier.Users.First();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var result = UpdateHelper.UserExists(connection, "ddsdsdsdsds");
+				Assert.That(result, Is.False, "Нашли пользователя, котого не должно быть");
+
+				result = UpdateHelper.UserExists(connection, _user.Login);
+				Assert.That(result, Is.True, "Не найден пользователь {0}", _user.Login);
+
+				result = UpdateHelper.UserExists(connection, supplierUser.Login);
+				Assert.That(result, Is.True, "Не найден пользователь {0}", supplierUser.Login);
 			}
 		}
 

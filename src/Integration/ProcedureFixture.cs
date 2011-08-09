@@ -31,6 +31,7 @@ using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using Test.Support;
 using Test.Support.Helpers;
+using Test.Support.Suppliers;
 
 namespace Integration
 {
@@ -1584,6 +1585,81 @@ select @postBatchId;"
 
 			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
 			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
+		}
+
+		[Test(Description = "попытка получить данные для пользователя, который не привязан к системе")]
+		public void CheckGetUserDataOnUnknowUser()
+		{
+			var appVersion = "1.1.1.1299";
+			var unknownUser = "dsdsdsdsds";
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+				SetCurrentUser(unknownUser);
+
+				var service = new PrgDataEx();
+				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+				Assert.That(responce, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
+				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АК \"Инфорум\".[1]").IgnoreCase);
+
+				var events = memoryAppender.GetEvents();
+
+				var lastEvent = events[events.Length - 1];
+				Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
+				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+				var updateException = (UpdateException)lastEvent.MessageObject;
+				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
+				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + unknownUser + " услуга не предоставляется;"));
+				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
+
+		[Test(Description = "попытка получить данные для пользователя, который привязан к поставщику")]
+		public void CheckGetUserDataOnSupplierUser()
+		{
+			var appVersion = "1.1.1.1299";
+
+			var supplier = TestSupplier.Create();
+			var supplierUser = supplier.Users.First();
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+				SetCurrentUser(supplierUser.Login);
+
+				var service = new PrgDataEx();
+				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+				Assert.That(responce, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
+				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АК \"Инфорум\".[1]").IgnoreCase);
+
+				var events = memoryAppender.GetEvents();
+
+				var lastEvent = events[events.Length - 1];
+
+				Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
+				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+				var updateException = (UpdateException)lastEvent.MessageObject;
+				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
+				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + supplierUser.Login + " услуга не предоставляется;"));
+				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
 		}
 
 		private bool GetForceReplication(uint firmCode, uint userId)

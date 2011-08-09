@@ -11,12 +11,12 @@ namespace PrgData.Common
 	{
 		private static ILog logger = LogManager.GetLogger(typeof(MailHelper));
 
-		public static void Mail(string messageText, string subject, string attachment, string attachmentName)
+		public static void Mail(string messageText, string subject, string attachment, string attachmentName, string toEmail)
 		{
 			try
 			{
 				var MailAddress = new MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8);
-				var message = new MailMessage("service@analit.net", ConfigurationManager.AppSettings["ErrorMail"]);
+				var message = new MailMessage("service@analit.net", toEmail);
 				var SC = new SmtpClient("box.analit.net");
 				message.From = MailAddress;
 				if (!String.IsNullOrEmpty(subject))
@@ -49,6 +49,11 @@ namespace PrgData.Common
 						subject,
 						messageText);
 			}
+		}
+
+		public static void Mail(string messageText, string subject, string attachment, string attachmentName)
+		{
+			Mail(messageText, subject, attachment, attachmentName, ConfigurationManager.AppSettings["ErrorMail"]);
 		}
 
 		public static void Mail(string messageText, string subject)

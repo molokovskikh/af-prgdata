@@ -4087,7 +4087,16 @@ RestartTrans2:
                 End While
             End If
         Else
-            Log.Error(updateException)
+            If UpdateHelper.UserExists(readWriteConnection, UserName) then
+                Log.Warn(updateException)
+                MailHelper.Mail( _
+                    "Хост: " & Environment.MachineName & vbCrLf & _
+                    "Пользователь: " & UserName & vbCrLf & _
+                    updateException.ToString(), _
+                    updateException.Message, Nothing, Nothing, ConfigurationManager.AppSettings("SupportMail"))
+            Else
+                Log.Error(updateException)
+            End If
         End If
         Return updateException.GetAnalitFMessage()
     End Function

@@ -3239,5 +3239,19 @@ order by s.Hour, s.Minute";
 			return "select null from future.Clients limit 0";
 		}
 
+		public static bool UserExists(MySqlConnection connection, string userName)
+		{
+			var exists = false;
+
+			var userId = MySqlHelper.ExecuteScalar(
+				connection,
+				"select Id from future.Users where Login = ?userName",
+				new MySqlParameter("?userName", userName));
+			if (userId != null)
+				exists = true;
+
+			return exists;
+		}
+
 	}
 }
