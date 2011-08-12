@@ -3806,7 +3806,13 @@ RestartTrans2:
             Dim FileList As String()
             Dim FileName As String
 
-            If Not Directory.Exists(ReclamePath) Then Directory.CreateDirectory(ReclamePath)
+            If Not Directory.Exists(ReclamePath) Then 
+                Try
+                    Directory.CreateDirectory(ReclamePath)
+                Catch ex As Exception
+                    Throw New Exception(String.Format("Ошибка при создании директории '{0}'", ReclamePath), ex)
+                End Try
+            End If
 
             FileList = Directory.GetFiles(ReclamePath)
             If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
