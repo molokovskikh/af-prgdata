@@ -1676,6 +1676,8 @@ StartZipping:
                 MinOrderCount, _
                 LeaderMinPriceCode)
 
+            If helper.QuestionInComment then LogRequestHelper.ForceMailWithRequest("В комментарии к заказу содержится символ '?'", Nothing)
+
             Return helper.PostOldOrder()
 
         Catch updateException As UpdateException
@@ -2305,6 +2307,8 @@ StartZipping:
              VitallyImportantDelayOfPayment, _
              CostWithDelayOfPayment _
             )
+
+            If helper.QuestionInComment then LogRequestHelper.ForceMailWithRequest("В комментариях к заказам содержится символ '?'", Nothing)
 
             Return helper.PostSomeOrders()
         Catch updateException As UpdateException

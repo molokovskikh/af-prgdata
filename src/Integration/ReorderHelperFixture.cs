@@ -458,6 +458,54 @@ limit 1
 					);
 		}
 
+		public void ParseSimpleOrderWithComment(ReorderHelper orderHelper, string comment)
+		{
+			orderHelper.ParseOrders(
+					1,
+					new ulong[] { 1L },
+					new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+					new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
+					new DateTime[] { DateTime.Now }, //pricedate
+					new string[] { comment },             //clientaddition
+					new ushort[] { 1 },              //rowCount
+					new ulong[] { 1L },              //clientPositionId
+					new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) }, //ClientServerCoreID
+					new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },     //ProductId
+					new string[] { firstOffer["CodeFirmCr"].ToString() },
+					new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) }, //SynonymCode
+					new string[] { firstOffer["SynonymFirmCrCode"].ToString() },
+					new string[] { firstOffer["Code"].ToString() },
+					new string[] { firstOffer["CodeCr"].ToString() },
+					new bool[] { Convert.ToBoolean(firstOffer["Junk"]) },
+					new bool[] { Convert.ToBoolean(firstOffer["Await"]) },
+					new string[] { firstOffer["RequestRatio"].ToString() },
+					new string[] { firstOffer["OrderCost"].ToString() },
+					new string[] { firstOffer["MinOrderCount"].ToString() },
+					new ushort[] { 1 }, //Quantity
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
+					new string[] { firstOffer["Cost"].ToString() },  //minCost
+					new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
+					new string[] { firstOffer["Cost"].ToString() },  //leaderMinCost
+					new string[] { activePrice["PriceCode"].ToString() },  //leaderMinPriceCode
+					new string[] { "" },  //supplierPriceMarkup
+					new string[] { "-90.0" }, //delayOfPayment,
+					new string[] { firstOffer["Quantity"].ToString() }, //coreQuantity,
+					new string[] { "" }, //unit,
+					new string[] { "" }, //volume,
+					new string[] { "" }, //note,
+					new string[] { "" }, //period,
+					new string[] { "" }, //doc,
+					new string[] { "" }, //registryCost,
+					new bool[] { false }, //vitallyImportant,
+					new string[] { "" }, //retailMarkup,
+					new string[] { "" }, //producerCost,
+					new string[] { "" }, //nds
+					new string[] { "" }, //retailCost,
+					new string[] { "-10.0" }, //vitallyImportantDelayOfPayment,
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 } //costWithDelayOfPayment
+					);
+		}
+
 		public void ParseSimpleOrderWithNewCoreId(ReorderHelper orderHelper)
 		{
 			orderHelper.ParseOrders(
@@ -1772,6 +1820,28 @@ limit 1
 
 					Assert.That(repeatServerOrderId, Is.EqualTo(secondServerOrderId), "Заказ не помечен как дублирующийся");
 				}
+			}
+		}
+
+		[Test(Description = "Если комментарий содержит символ '?', то должен быть поднят флаг QuestionInComment")]
+		public void CheckQuestionInComment()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				ParseSimpleOrder(orderHelper);
+				Assert.That(orderHelper.QuestionInComment, Is.False);
+
+				orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+				ParseSimpleOrderWithComment(orderHelper, "049049049049");
+				Assert.That(orderHelper.QuestionInComment, Is.False);
+
+				orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+				ParseSimpleOrderWithComment(orderHelper, "049049063049049");
+				Assert.That(orderHelper.QuestionInComment, Is.True);
 			}
 		}
 

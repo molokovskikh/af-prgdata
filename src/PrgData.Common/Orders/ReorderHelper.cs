@@ -32,6 +32,8 @@ namespace PrgData.Common.Orders
 
 		private bool _postOldOrder;
 
+		public bool QuestionInComment { private set; get; }
+
 		public ReorderHelper(
 			UpdateData data, 
 			MySqlConnection readWriteConnection, 
@@ -43,7 +45,7 @@ namespace PrgData.Common.Orders
 			_forceSend = forceSend;
 			_orderedClientCode = orderedClientCode;
 			_useCorrectOrders = useCorrectOrders;
-
+			QuestionInComment = false;
 
 			using (var unitOfWork = new UnitOfWork())
 			{
@@ -688,6 +690,9 @@ AND    RCS.clientcode          = ?ClientCode"
 										System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
 						};
 
+					if (!String.IsNullOrEmpty(clientOrder.ClientAddition) && clientOrder.ClientAddition.Contains("?"))
+						QuestionInComment = true;
+
 					var currentRowCount = rowCount[i];
 					_orders.Add(clientOrder);
 
@@ -912,6 +917,9 @@ AND    RCS.clientcode          = ?ClientCode"
 						ClientAddition = DecodedDelphiString(clientAddition),
 						ClientOrderId = clientOrderId,
 					};
+
+				if (!String.IsNullOrEmpty(clientOrder.ClientAddition) && clientOrder.ClientAddition.Contains("?"))
+					QuestionInComment = true;
 
 				var currentRowCount = rowCount;
 				_orders.Add(clientOrder);

@@ -13,6 +13,10 @@ Public Class LogRequestHelper
         Return Convert.ToBoolean(ConfigurationManager.AppSettings("MustLogHttpcontext"))
     End Function
 
+    Public Shared Sub ForceMailWithRequest(ByVal MessageText As String, ByVal exception As Exception)
+        InternalMailWithRequest(MessageText, exception)
+    End Sub
+
     Public Shared Sub MailWithRequest(ByVal Logger As ILog, ByVal MessageText As String, ByVal exception As Exception)
         If NeedLogged() Then
             InternalMailWithRequest(MessageText, exception)
