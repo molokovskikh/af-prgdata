@@ -12,9 +12,13 @@ Public Class Global_asax
 
     Shared Logger As ILog = LogManager.GetLogger(GetType(Global_asax))
 
-    Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
-        XmlConfigurator.Configure()
-        SmartOrderHelper.InitializeIoC()
+	Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
+#If Not Debug Then
+		Settings.ConnectionName = Environment.MachineName.ToLower()
+#End If
+		XmlConfigurator.Configure()
+		SmartOrderHelper.InitializeIoC()
+
 #If DEBUG Then
         Dim dirs = New String() { _
             "FtpRoot", _
@@ -35,8 +39,8 @@ Public Class Global_asax
 
         ServiceContext.SetupDebugContext()
 #End If
-        'Logger.Debug("Приложение запущено")
-    End Sub
+		'Logger.Debug("Приложение запущено")
+	End Sub
 
     Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
     End Sub

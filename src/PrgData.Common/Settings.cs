@@ -6,6 +6,7 @@ namespace PrgData.Common
 {
 	public class Settings
 	{
+		private static string _connectionStringName;
 
 #if (DEBUG)
 		private static bool IsIntegration()
@@ -15,7 +16,21 @@ namespace PrgData.Common
 		}
 #endif
 
-		public static string GetConnectionName()
+		public static string ConnectionName
+		{
+			get
+			{
+				if (_connectionStringName == null)
+					_connectionStringName = InitConnectionStringName();
+				return _connectionStringName;
+			}
+			set
+			{
+				_connectionStringName = value;
+			}
+		}
+
+		private static string InitConnectionStringName()
 		{
 #if (DEBUG)
 			if (IsIntegration())
@@ -34,7 +49,7 @@ namespace PrgData.Common
 
 		public static string ConnectionString()
 		{
-			return ConfigurationManager.ConnectionStrings[GetConnectionName()].ConnectionString;
+			var connectionString = ConfigurationManager.ConnectionStrings[ConnectionName].ConnectionString;
 		}
 	}
 }
