@@ -308,8 +308,8 @@ namespace PrgData.Common
 
 		public static void InitializeIoC()
 		{
-			With.DefaultConnectionStringName = Settings.GetConnectionName();
-			var sessionFactoryHolder = new SessionFactoryHolder(Settings.GetConnectionName());
+			With.DefaultConnectionStringName = Settings.ConnectionName;
+			var sessionFactoryHolder = new SessionFactoryHolder(Settings.ConnectionName);
 			sessionFactoryHolder
 				.Configuration
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))

@@ -49,7 +49,7 @@ namespace PrgData.Common
 
 		public static string ConnectionString()
 		{
-			var connectionString = ConfigurationManager.ConnectionStrings[ConnectionName].ConnectionString;
+			return ConfigurationManager.ConnectionStrings[ConnectionName].ConnectionString;
 		}
 	}
 }
