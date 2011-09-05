@@ -1583,6 +1583,22 @@ and (DescriptionLogs.Operation = 2)
 			return
 				@"
 select
+	log.PromotionId as Id,
+	0 as Status,
+	log.SupplierId,
+	log.Name,
+	log.Annotation,
+	log.PromoFile,
+	log.Begin,
+	log.End
+from
+	logs.SupplierPromotionLogs log
+where
+	log.LogTime > ?UpdateTime
+and log.Operation = 2
+and not ?Cumulative
+union
+select
 	SupplierPromotions.Id,
 	SupplierPromotions.Status,
 	SupplierPromotions.SupplierId,
@@ -1607,25 +1623,6 @@ where";
 		public string GetPromotionsCommandById(List<uint> promotionIds)
 		{
 			return
-				@"
-select
-	log.PromotionId,
-	0 as Status,
-	log.SupplierId,
-	log.Name,
-	log.Annotation,
-	log.PromoFile,
-	log.Begin,
-	log.End
-from
-	logs.SupplierPromotionLogs log
-where
-	log.LogTime > ?UpdateTime
-and log.Operation = 2
-and not ?Cumulative
-union
- "
-				+				
 				GetAbstractPromotionsCommand() +
 				string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
 		}

@@ -108,6 +108,7 @@
     <Compile Include="PostPriceSettingsFixture.cs" />
     <Compile Include="PostSomeOrdersFixture.cs" />
     <Compile Include="ProcedureFixture.cs" />
+    <Compile Include="PromotionsFixture.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
