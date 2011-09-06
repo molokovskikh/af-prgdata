@@ -188,13 +188,28 @@ namespace Integration
 
 			var order = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, price.Id.PriceId);
 
-			var converter = new Orders2StringConverter(new List<Order> {order}, 1, 1);
+			var converter = new Orders2StringConverter(new List<Order> {order}, 1, 1, false);
 
 			Assert.That(converter.OrderHead, Is.Not.Null);
 			Assert.That(converter.OrderItems, Is.Not.Null);
 
 			Assert.That(converter.OrderHead.ToString(), Is.StringStarting("{0}\t{1}".Format(1, _drugstoreAddress.Id)), "Не корректно выгружен заголовок заказа");
 			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "Не корректно выгружен список позиций заказа");
+
+			var columns = converter.OrderHead.ToString().Split('\t');
+			Assert.That(columns.Length, Is.EqualTo(4), "Неожидаемое количество элементов, разделенных tab");
+
+			converter = new Orders2StringConverter(new List<Order> { order }, 1, 1, true);
+
+			Assert.That(converter.OrderHead, Is.Not.Null);
+			Assert.That(converter.OrderItems, Is.Not.Null);
+
+			Assert.That(converter.OrderHead.ToString(), Is.StringStarting("{0}\t{1}".Format(1, _drugstoreAddress.Id)), "Не корректно выгружен заголовок заказа");
+			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "Не корректно выгружен список позиций заказа");
+
+			columns = converter.OrderHead.ToString().Split('\t');
+			Assert.That(columns.Length, Is.EqualTo(5), "Неожидаемое количество элементов, разделенных tab");
+			Assert.That(columns[4], Is.StringStarting(order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")), "Дата заказа экспортированна некорректно");
 		}
 
 		[Test(Description = "проверяем удаление неподтвержденных заказов при подтверждении обновления")]

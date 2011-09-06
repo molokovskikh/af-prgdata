@@ -10,7 +10,7 @@ namespace PrgData.Common.Orders
 		public StringBuilder OrderHead;
 		public StringBuilder OrderItems;
 
-		public Orders2StringConverter(List<Order> orders, uint maxOrderId, uint maxOrderListId)
+		public Orders2StringConverter(List<Order> orders, uint maxOrderId, uint maxOrderListId, bool exportSendDate)
 		{
 			OrderHead = new StringBuilder();
 			OrderItems = new StringBuilder();
@@ -20,11 +20,12 @@ namespace PrgData.Common.Orders
 				order.RowId = maxOrderId;
 				maxOrderId++;
 				OrderHead.AppendFormat(
-					"{0}\t{1}\t{2}\t{3}\n",
+					"{0}\t{1}\t{2}\t{3}{4}\n",
 					order.RowId,
 					order.AddressId.Value,
 					order.PriceList.PriceCode,
-					order.RegionCode);
+					order.RegionCode,
+					exportSendDate ? string.Format("\t{0}", order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")) : "");
 				foreach (var item in order.OrderItems)
 				{
 					item.RowId = maxOrderListId;

@@ -59,7 +59,7 @@ namespace PrgData.Common.Orders
 			ShareFileHelper.WaitDeleteFile(OrdersHeadFileName);
 			ShareFileHelper.WaitDeleteFile(OrdersListFileName);
 
-			var converter = new Orders2StringConverter(ExportedOrders, Data.MaxOrderId, Data.MaxOrderListId);
+			var converter = new Orders2StringConverter(ExportedOrders, Data.MaxOrderId, Data.MaxOrderListId, Data.AllowExportSendDate);
 
 			File.WriteAllText(OrdersHeadFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(OrdersListFileName, converter.OrderItems.ToString(), Encoding.GetEncoding(1251));

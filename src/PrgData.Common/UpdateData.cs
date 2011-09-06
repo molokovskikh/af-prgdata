@@ -31,6 +31,8 @@ namespace PrgData.Common
 		private static int _versionBeforeShowSupplierCost = 1489;
 		//версия AnalitF до поддержки настройки "Расписание обновлений AnalitF"
 		private static int _versionBeforeAnalitFSchedule = 1505;
+		//версия AnalitF до поддержки экспортрования поля "SendDate" при экспорте неподтвержденных заказов
+		private static int _versionBeforeExportSendDate = 1540;
 
 		public string ShortName;
 		public uint ClientId;
@@ -413,5 +415,15 @@ namespace PrgData.Common
 					   || (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeAnalitFSchedule);
 			}
 		}
+
+		public bool AllowExportSendDate
+		{
+			get
+			{
+				return BuildNumberGreaterThen(_versionBeforeExportSendDate)
+					   || (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExportSendDate);
+			}
+		}
+
 	}
 }
