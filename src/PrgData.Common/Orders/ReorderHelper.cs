@@ -1078,6 +1078,7 @@ AND UserId = ?UserId
 AND AddressId = ?AddressId
 AND PriceCode = ?PriceCode
 AND RegionCode = ?RegionCode
+and oh.Deleted = 0
 order by oh.RowId
   ) DuplicateOrderId,
   orders.orderslist ol
@@ -1109,6 +1110,7 @@ AND    writetime    >ifnull(
 	   )
 	   , now() - interval 2 week)
 AND    clientcode = ?ClientCode
+and oh.Deleted = 0
 order by oh.RowId desc
 limit 1
   ) DuplicateOrderId,

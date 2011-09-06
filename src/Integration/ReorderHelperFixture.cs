@@ -1845,5 +1845,50 @@ limit 1
 			}
 		}
 
+		[Test(Description = "При проверке дубликатов заказов не рассматривать удаленные неподтвержденные заказы")]
+		public void DontCheckDeletedOrders()
+		{
+			using (new TransactionScope())
+			{
+				user.SubmitOrders = true;
+				user.Update();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				ParseSimpleOrder(orderHelper);
+				var result = orderHelper.PostSomeOrders();
+				var firstServerOrderId = CheckServiceResponse(result);
+				Assert.That(firstServerOrderId, Is.Not.Null);
+				Assert.That(firstServerOrderId, Is.Not.Empty);
+				Assert.That(Convert.ToUInt32(firstServerOrderId), Is.GreaterThan(0));
+
+				var order = TestOrder.Find(Convert.ToUInt32(firstServerOrderId));
+				Assert.That(order.Submited, Is.EqualTo(false));
+				Assert.That(order.Processed, Is.EqualTo(false));
+				Assert.That(order.Deleted, Is.EqualTo(false));
+
+				using (new TransactionScope())
+				{
+					order.Deleted = true;
+					order.Update();
+				}
+
+				orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				ParseSimpleOrder(orderHelper);
+				result = orderHelper.PostSomeOrders();
+				var secondServerOrderId = CheckServiceResponse(result);
+				Assert.That(secondServerOrderId, Is.Not.Null);
+				Assert.That(secondServerOrderId, Is.Not.Empty);
+				Assert.That(Convert.ToUInt32(secondServerOrderId), Is.GreaterThan(0));
+				Assert.That(secondServerOrderId, Is.Not.EqualTo(firstServerOrderId), "Заказ помечен как дублирующийся");
+			}
+		}
+
 	}
 }
