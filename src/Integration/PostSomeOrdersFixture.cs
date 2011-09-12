@@ -531,7 +531,7 @@ and orderslist.SynonymCode = ?SynonymCode",
 		{
 			var compareColumns = new[] { 
 				"ProductId", "CodeFirmCr", "SynonymCode", "SynonymFirmCrCode", "Code", "CodeCr", "Junk", "Await", "Cost", 
-				"RequestRatio", "OrderCost", "MinOrderCount", "Unit", "Volume", "Note", "Period", "Doc", "MinBoundCost", 
+				"RequestRatio", "OrderCost", "MinOrderCount", "Unit", "Volume", "Note", "Doc", "MinBoundCost", 
 				"RegistryCost", "MaxBoundCost", "ProducerCost"};
 
 			foreach (var column in compareColumns)
@@ -539,8 +539,6 @@ and orderslist.SynonymCode = ?SynonymCode",
 
 
 			Assert.That(Convert.ToBoolean(insertPosition["VitallyImportant"]), Is.EqualTo(Convert.ToBoolean(offer["VitallyImportant"])), "Не сопадает значение столбца {0}", "VitallyImportant");
-
-			Assert.That(insertPosition["CoreQuantity"], Is.EqualTo(offer["Quantity"]), "Не сопадает значение столбца {0}", "Quantity");
 		}
 
 		[Test(Description = "Отправляем заказы с указанием отсрочки платежа")]
