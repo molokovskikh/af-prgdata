@@ -77,7 +77,7 @@ namespace PrgData.Common.Orders
 				.GroupBy(o => new { o.AddressId, o.PriceList.PriceCode, o.RegionCode })
 				.Select(
 					g => {
-					     	var firstOrder = g.OrderBy(o => o.WriteTime).First();
+							var firstOrder = g.OrderBy(o => o.WriteTime).First();
 							if (g.Count() > 1)
 							{
 								foreach (var order in g)
@@ -95,7 +95,7 @@ namespace PrgData.Common.Orders
 								firstOrder.RowCount = (uint)firstOrder.OrderItems.Count;
 							}
 
-					     	return firstOrder;
+							return firstOrder;
 					}).ToList();
 		}
 
@@ -137,7 +137,7 @@ select
 from 
   logs.UnconfirmedOrdersSendLogs
 where
-    UserId = ?UserId
+	UserId = ?UserId
 and UpdateId = ?UpdateId
 and Committed = 0
 order by OrderId"

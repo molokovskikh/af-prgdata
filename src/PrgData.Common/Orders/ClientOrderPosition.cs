@@ -94,9 +94,9 @@ and (Await = {6})",
 						.CreateSQLQuery(
 							@"
  SELECT 
-        syn.synonymcode
+		syn.synonymcode
  FROM   
-    farm.synonymarchive syn
+	farm.synonymarchive syn
  WHERE  syn.synonymcode = :SynonymCode")
 						.SetParameter("SynonymCode", OrderPosition.SynonymCode)
 						.UniqueResult<uint?>();
@@ -109,9 +109,9 @@ and (Await = {6})",
 						.CreateSQLQuery(
 							@"
  SELECT 
-        sfcr.SynonymFirmCrCode
+		sfcr.SynonymFirmCrCode
  FROM   
-    farm.synonymfirmcr sfcr
+	farm.synonymfirmcr sfcr
  WHERE  sfcr.SynonymFirmCrCode = :SynonymFirmCrCode")
 						.SetParameter("SynonymFirmCrCode", OrderPosition.SynonymFirmCrCode)
 						.UniqueResult<uint?>();
@@ -124,9 +124,9 @@ and (Await = {6})",
 						.CreateSQLQuery(
 							@"
  SELECT 
-        IF(Prod.Id IS NULL, sfcr.codefirmcr, Prod.Id) as CodeFirmCr
+		IF(Prod.Id IS NULL, sfcr.codefirmcr, Prod.Id) as CodeFirmCr
  FROM   
-    catalogs.products
+	catalogs.products
 	LEFT JOIN farm.synonymfirmcr sfcr
 	ON     sfcr.SynonymFirmCrCode = :SynonymFirmCrCode    
 	LEFT JOIN catalogs.Producers Prod

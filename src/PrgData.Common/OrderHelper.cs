@@ -39,7 +39,7 @@ FROM
   join future.AddressIntersection ai on (ai.IntersectionId = i.Id)
   join usersettings.pricesregionaldata prd on prd.pricecode = i.PriceId and prd.RegionCode = i.RegionId
 where
-      (i.ClientId = ?ClientCode)
+	  (i.ClientId = ?ClientCode)
   and (prd.PriceCode =  ?PriceCode)
   and (prd.RegionCode = ?RegionCode)
   and (ai.AddressId = ?AddressId)
@@ -130,7 +130,7 @@ INTO orders.ordershead (
 	ClientOrderId,
 	Submited,
 	SubmitDate,
-    DelayOfPayment
+	DelayOfPayment
 )
 SELECT ?ClientCode,
 	?AddressId,
@@ -143,7 +143,7 @@ SELECT ?ClientCode,
 	?ClientOrderID,
 	NOT (u.SubmitOrders),
 	IF(NOT(u.SubmitOrders), NOW(), NULL),
-    ?DelayOfPayment
+	?DelayOfPayment
 FROM Future.Users u
 WHERE u.Id = ?UserId;
 
@@ -174,7 +174,7 @@ INTO orders.ordershead (
 	ClientOrderID ,
 	Submited,
 	SubmitDate,
-    DelayOfPayment
+	DelayOfPayment
 )
 SELECT ?ClientCode,
 		?PriceCode,
@@ -185,7 +185,7 @@ SELECT ?ClientCode,
 		?ClientOrderID ,
 		NOT (SubmitOrders and AllowSubmitOrders),
 		IF(NOT(SubmitOrders and AllowSubmitOrders), NOW(), NULL),
-        ?DelayOfPayment
+		?DelayOfPayment
 FROM RetClientsSet RCS
 WHERE RCS.ClientCode=?ClientCode;
 

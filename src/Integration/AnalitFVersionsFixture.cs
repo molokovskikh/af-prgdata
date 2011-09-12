@@ -239,7 +239,7 @@ values
 				@"
 delete from usersettings.AnalitFVersionRules
 where
-    SourceVersion = 1378
+	SourceVersion = 1378
 and DestinationVersion = 1380;
 insert into usersettings.AnalitFVersionRules
 (SourceVersion, DestinationVersion)
@@ -305,8 +305,8 @@ where
 
 				var dirs = Directory.GetDirectories(ServiceContext.GetResultPath());
 				dirs.Each(dir =>
-				          	{
-				          		var info = new DirectoryInfo(dir);
+							{
+								var info = new DirectoryInfo(dir);
 								if (!info.Name.Equals("Updates", StringComparison.OrdinalIgnoreCase))
 									Directory.Delete(dir, true);
 							});

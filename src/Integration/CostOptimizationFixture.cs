@@ -117,10 +117,10 @@ select @LastRuleId;
 				command = new MySqlCommand(
 @"select cs.Id, min(ccc.Cost) Cost
   from farm.Core0 cs
-       join farm.Core0 cc on cc.ProductId = cs.ProductId and cs.Id <> cc.Id and cs.ProductId = cc.ProductId
-       join farm.CoreCosts ccc on ccc.Core_Id = cc.Id
-       join usersettings.PricesData pds on pds.PriceCode = cs.PriceCode
-       join usersettings.PricesData pdc on pdc.PriceCode = cc.PriceCode
+	   join farm.Core0 cc on cc.ProductId = cs.ProductId and cs.Id <> cc.Id and cs.ProductId = cc.ProductId
+	   join farm.CoreCosts ccc on ccc.Core_Id = cc.Id
+	   join usersettings.PricesData pds on pds.PriceCode = cs.PriceCode
+	   join usersettings.PricesData pdc on pdc.PriceCode = cc.PriceCode
  where pds.PriceCode = ?priceId
    and pdc.FirmCode = ?concurentId
 group by cs.Id

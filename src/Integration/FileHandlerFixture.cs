@@ -62,10 +62,10 @@ protected string RawRequest(string fileName, string queryString)
    StringBuilder output = new StringBuilder();
    using (StringWriter sw = new StringWriter(output))
    {
-      HttpResponse response = new HttpResponse(sw);
-      HttpRequest request = new HttpRequest(fileName, "http://fueltest.net/" + fileName, queryString);
-      HttpContext context = new HttpContext(request, response);
-      new RequestHandler().ProcessRequest(context);
+	  HttpResponse response = new HttpResponse(sw);
+	  HttpRequest request = new HttpRequest(fileName, "http://fueltest.net/" + fileName, queryString);
+	  HttpContext context = new HttpContext(request, response);
+	  new RequestHandler().ProcessRequest(context);
    }
    return output.ToString();
 }		 

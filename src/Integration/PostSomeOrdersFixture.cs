@@ -69,7 +69,7 @@ namespace Integration
 delete 
 from orders.OrdersHead 
 where 
-    ClientCode = ?ClientCode 
+	ClientCode = ?ClientCode 
 and WriteTime > now() - interval 2 week"
 				,
 				new MySqlParameter("?ClientCode", _client.Id));
@@ -109,7 +109,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 group by c.ProductId
 having count(distinct c.SynonymCode) > 2
@@ -128,7 +128,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 and C.ProductId <> ?FirstProductId
 limit 1
@@ -147,7 +147,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 and C.ProductId <> ?FirstProductId
 and C.ProductId <> ?SecondProductId
@@ -170,7 +170,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 and C.ProductId = ?ProductId
 limit 1
@@ -192,7 +192,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 and C.ProductId = ?ProductId
 and C.SynonymCode <> ?SynonymCode
@@ -216,7 +216,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 and C.ProductId = ?ProductId
 limit 1
@@ -238,7 +238,7 @@ from
   Core 
   inner join farm.Core0 c on c.Id = Core.Id
 where
-    Core.PriceCode = ?PriceCode
+	Core.PriceCode = ?PriceCode
 and Core.RegionCode = ?RegionCode
 and C.ProductId = ?ProductId
 limit 1
@@ -517,7 +517,7 @@ from
   orders.orderslist 
   inner join orders.OrderedOffers on OrderedOffers.Id = ordersList.RowId
 where
-    ordersList.OrderId = ?OrderId
+	ordersList.OrderId = ?OrderId
 and orderslist.ProductId = ?ProductId
 and orderslist.SynonymCode = ?SynonymCode",
 				new MySqlParameter("?OrderId", serverOrderId),

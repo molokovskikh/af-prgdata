@@ -81,11 +81,11 @@ namespace Integration
 
 			//client = new Client { FirmCode = testOldClient.Id };
 			futureUser = new User
-			             	{
-			             		Id = testClient.Users[0].Id,
-			             		Login = testClient.Users[0].Login,
-			             		Client = new FutureClient {Id = testClient.Id}
-			             	};
+							{
+								Id = testClient.Users[0].Id,
+								Login = testClient.Users[0].Login,
+								Client = new FutureClient {Id = testClient.Id}
+							};
 			futureAddress = new Address { Id = testClient.Addresses[0].Id };
 			futureUser.AvaliableAddresses = new List<Address> {futureAddress};
 		}
@@ -304,7 +304,7 @@ show full processlist;
 			Console.WriteLine("Запуск теста");
 
 			var dataSet = MySqlHelper.ExecuteDataset(Settings.ConnectionString(),
-			                           @"
+									   @"
 select
 #*
 ou.RowId as UserId,
@@ -314,7 +314,7 @@ from
   usersettings.RetClientsSet rcs,
   usersettings.clientsdata cd
 where
-    rcs.ClientCode = ou.ClientCode
+	rcs.ClientCode = ou.ClientCode
 and rcs.ServiceClient = 1
 and cd.FirmCode = rcs.ClientCode
 and cd.FirmStatus = 1
@@ -366,10 +366,10 @@ limit 6;");
 				var user = createSimple.Users[0];
 
 				createSimple.Users.Each(u =>
-				                  	{
-				                  		u.SendRejects = true;
-				                  		u.SendWaybills = true;
-				                  	});
+									{
+										u.SendRejects = true;
+										u.SendWaybills = true;
+									});
 				user.Update();
 			}
 
@@ -411,12 +411,12 @@ limit 6;");
 				{
 					var logEvents = memoryAppender.GetEvents();
 					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					                                                                           	{
+																								{
 																									if (string.IsNullOrEmpty(item.GetExceptionString()))
 																										return item.RenderedMessage;
 																									else
 																										return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					                                                                           	}).Implode("\r\n"));
+																								}).Implode("\r\n"));
 					throw;
 				}
 
@@ -583,10 +583,10 @@ where
 				var user = client.Users[0];
 
 				client.Users.Each(u =>
-				                   	{
-				                   		u.SendRejects = true;
-				                   		u.SendWaybills = true;
-				                   	});
+									{
+										u.SendRejects = true;
+										u.SendWaybills = true;
+									});
 				user.Update();
 
 				return user;
@@ -1239,7 +1239,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 					service.SendClientLog(1, null);
 					
 					var methodDeletePreviousFiles = service.GetType().GetMethod("DeletePreviousFiles",
-					                                                            BindingFlags.NonPublic | BindingFlags.Instance);
+																				BindingFlags.NonPublic | BindingFlags.Instance);
 
 					methodDeletePreviousFiles.Invoke(service, new object[] {});
 

@@ -1150,7 +1150,7 @@ update
 set
   PriceItems.PriceDate = PriceItems.PriceDate - interval (FormRules.MaxOld + 1) day
 where
-    PricesCosts.PriceCode = ?PriceId
+	PricesCosts.PriceCode = ?PriceId
 and PricesCosts.CostCode = ?CostId
 and PriceItems.Id = PricesCosts.PriceItemId
 and FormRules.Id = PriceItems.FormRuleId;
@@ -1193,7 +1193,7 @@ update
 set
   PriceItems.PriceDate = ?PriceDate
 where
-    PricesCosts.PriceCode = ?PriceId
+	PricesCosts.PriceCode = ?PriceId
 and PricesCosts.CostCode = ?CostId
 and PriceItems.Id = PricesCosts.PriceItemId
 and FormRules.Id = PriceItems.FormRuleId;
