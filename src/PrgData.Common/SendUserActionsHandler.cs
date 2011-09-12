@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using Inforoom.Common;
 using log4net;
@@ -42,7 +42,7 @@ namespace PrgData.Common
 				}
 				catch (Exception exception)
 				{
-					_log.Error("Ошибка при удалении временнной директории при обработке статистики пользователя", exception);
+					_log.Error("РћС€РёР±РєР° РїСЂРё СѓРґР°Р»РµРЅРёРё РІСЂРµРјРµРЅРЅРЅРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ СЃС‚Р°С‚РёСЃС‚РёРєРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ", exception);
 				}
 		}
 
@@ -53,7 +53,7 @@ namespace PrgData.Common
 				fileBatch.Write(batchFileBytes, 0, batchFileBytes.Length);
 
 			if (!ArchiveHelper.TestArchive(_tmpLogArchive))
-				throw new Exception("Полученный архив поврежден.");
+				throw new Exception("РџРѕР»СѓС‡РµРЅРЅС‹Р№ Р°СЂС…РёРІ РїРѕРІСЂРµР¶РґРµРЅ.");
 
 			var extractDir = Path.GetDirectoryName(_tmpLogArchive) + "\\LogExtract";
 			if (!Directory.Exists(extractDir))
@@ -63,8 +63,8 @@ namespace PrgData.Common
 			var files = Directory.GetFiles(extractDir);
 			if (files.Length == 0)
 			{
-				_log.DebugFormat("Содержимое полученного архива со статистикой: {0}", logFile);
-				throw new Exception("Полученный архив не содержит файлов.");
+				_log.DebugFormat("РЎРѕРґРµСЂР¶РёРјРѕРµ РїРѕР»СѓС‡РµРЅРЅРѕРіРѕ Р°СЂС…РёРІР° СЃРѕ СЃС‚Р°С‚РёСЃС‚РёРєРѕР№: {0}", logFile);
+				throw new Exception("РџРѕР»СѓС‡РµРЅРЅС‹Р№ Р°СЂС…РёРІ РЅРµ СЃРѕРґРµСЂР¶РёС‚ С„Р°Р№Р»РѕРІ.");
 			}
 
 			_tmpExtractLogFileName = Path.Combine(Path.GetDirectoryName(files[0]), "UserActionLogs" + _updateData.UserId + ".txt");

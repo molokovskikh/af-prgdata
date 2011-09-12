@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -58,7 +58,7 @@ namespace PrgData.Common.AnalitFVersions
 				else
 					if (!currentErrorMessage.Equals(_lastVersionErrorMessage))
 					{
-						_logger.ErrorFormat("При разборе версий возникли ошибки:\r\n{0}", currentErrorMessage);
+						_logger.ErrorFormat("РџСЂРё СЂР°Р·Р±РѕСЂРµ РІРµСЂСЃРёР№ РІРѕР·РЅРёРєР»Рё РѕС€РёР±РєРё:\r\n{0}", currentErrorMessage);
 						_lastVersionErrorMessage = currentErrorMessage;
 					}
 			}

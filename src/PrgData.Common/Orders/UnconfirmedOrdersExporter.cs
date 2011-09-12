@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Data;
@@ -151,7 +151,7 @@ order by OrderId"
 							foreach (DataRow row in orders.Tables[0].Rows)
 							{
 								var orderId = row["RowId"];
-								logger.DebugFormat("Удаляем неподтвержденный заказ: {0}", orderId);
+								logger.DebugFormat("РЈРґР°Р»СЏРµРј РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р·: {0}", orderId);
 								MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
 									connection,
 									@"

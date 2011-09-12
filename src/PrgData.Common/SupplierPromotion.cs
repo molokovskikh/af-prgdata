@@ -1,4 +1,4 @@
-namespace PrgData.Common
+﻿namespace PrgData.Common
 {
 	public class SupplierPromotion
 	{

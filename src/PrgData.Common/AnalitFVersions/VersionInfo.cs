@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Diagnostics;
 using System.IO;
 using Common.Tools;
@@ -21,35 +21,35 @@ namespace PrgData.Common.AnalitFVersions
 		public VersionInfo(string folder)
 		{
 			if(!Directory.Exists(folder))
-				throw new ArgumentException(String.Format("Указанная директория не существует: {0}", folder), "folder");
+				throw new ArgumentException(String.Format("РЈРєР°Р·Р°РЅРЅР°СЏ РґРёСЂРµРєС‚РѕСЂРёСЏ РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚: {0}", folder), "folder");
 
 			var dirInfo = new DirectoryInfo(folder);
 
 			if (!dirInfo.Name.StartsWith("Release", StringComparison.OrdinalIgnoreCase))
-				throw new ArgumentException(String.Format("Название директории не начинается с Release: {0}", folder), "folder");
+				throw new ArgumentException(String.Format("РќР°Р·РІР°РЅРёРµ РґРёСЂРµРєС‚РѕСЂРёРё РЅРµ РЅР°С‡РёРЅР°РµС‚СЃСЏ СЃ Release: {0}", folder), "folder");
 
 			if (dirInfo.Name.Length == "Release".Length)
-				throw new ArgumentException(String.Format("В названии директории не содержися номер версии: {0}", folder), "folder");
+				throw new ArgumentException(String.Format("Р’ РЅР°Р·РІР°РЅРёРё РґРёСЂРµРєС‚РѕСЂРёРё РЅРµ СЃРѕРґРµСЂР¶РёСЃСЏ РЅРѕРјРµСЂ РІРµСЂСЃРёРё: {0}", folder), "folder");
 
 			var versionInfo = dirInfo.Name.Substring("Release".Length);
 			uint version;
 			if (uint.TryParse(versionInfo, out version))
 				VersionNumber = version;
 			else
-				throw new Exception(String.Format("Не возможно конвертировать номер версии: {0}", versionInfo));
+				throw new Exception(String.Format("РќРµ РІРѕР·РјРѕР¶РЅРѕ РєРѕРЅРІРµСЂС‚РёСЂРѕРІР°С‚СЊ РЅРѕРјРµСЂ РІРµСЂСЃРёРё: {0}", versionInfo));
 
 			Folder = folder;
 
 			var exeFolder = dirInfo.GetDirectories("Exe");
 			if (exeFolder.Length < 0)
-				throw new Exception(String.Format("Не найдена вложенная директория Exe: {0}", folder));
+				throw new Exception(String.Format("РќРµ РЅР°Р№РґРµРЅР° РІР»РѕР¶РµРЅРЅР°СЏ РґРёСЂРµРєС‚РѕСЂРёСЏ Exe: {0}", folder));
 
 			var exeFile = exeFolder[0].GetFiles("*.exe");
 			if (exeFile.Length < 0)
-				throw new Exception(String.Format("Во вложенной директории Exe не найден файл с расширением .exe: {0}", folder));
+				throw new Exception(String.Format("Р’Рѕ РІР»РѕР¶РµРЅРЅРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё Exe РЅРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ СЂР°СЃС€РёСЂРµРЅРёРµРј .exe: {0}", folder));
 
 			if (exeFile.Length > 1)
-				throw new Exception(String.Format("Во вложенной директории Exe не найдено более одного файла с расширением .exe: {0}", folder));
+				throw new Exception(String.Format("Р’Рѕ РІР»РѕР¶РµРЅРЅРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё Exe РЅРµ РЅР°Р№РґРµРЅРѕ Р±РѕР»РµРµ РѕРґРЅРѕРіРѕ С„Р°Р№Р»Р° СЃ СЂР°СЃС€РёСЂРµРЅРёРµРј .exe: {0}", folder));
 
 			try
 			{
@@ -57,11 +57,11 @@ namespace PrgData.Common.AnalitFVersions
 			}
 			catch(Exception exception)
 			{
-				throw new Exception(String.Format("Не возможно получить информацию о версии для файла: {0}", exeFile[0].FullName), exception);
+				throw new Exception(String.Format("РќРµ РІРѕР·РјРѕР¶РЅРѕ РїРѕР»СѓС‡РёС‚СЊ РёРЅС„РѕСЂРјР°С†РёСЋ Рѕ РІРµСЂСЃРёРё РґР»СЏ С„Р°Р№Р»Р°: {0}", exeFile[0].FullName), exception);
 			}
 
 			if (VersionNumber != ExeVersionNumber())
-				throw new Exception("Не совпадают номера версий в названии папки = {0} и файла {2} = {1}".Format(VersionNumber, ExeVersionNumber(), Path.GetFileName(exeFile[0].FullName)));
+				throw new Exception("РќРµ СЃРѕРІРїР°РґР°СЋС‚ РЅРѕРјРµСЂР° РІРµСЂСЃРёР№ РІ РЅР°Р·РІР°РЅРёРё РїР°РїРєРё = {0} Рё С„Р°Р№Р»Р° {2} = {1}".Format(VersionNumber, ExeVersionNumber(), Path.GetFileName(exeFile[0].FullName)));
 		}
 
 		public uint ExeVersionNumber()

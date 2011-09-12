@@ -1,4 +1,4 @@
-using System.Web;
+п»їusing System.Web;
 
 namespace PrgData.FileHandlers
 {
@@ -6,10 +6,10 @@ namespace PrgData.FileHandlers
 	{
 		public static bool IsWellKnownException(this HttpException exception)
 		{
-			//-2147024775 Message: Удаленный хост разорвал соединение. Код ошибки: 0x80070079
+			//-2147024775 Message: РЈРґР°Р»РµРЅРЅС‹Р№ С…РѕСЃС‚ СЂР°Р·РѕСЂРІР°Р» СЃРѕРµРґРёРЅРµРЅРёРµ. РљРѕРґ РѕС€РёР±РєРё: 0x80070079
 			if (exception.ErrorCode == -2147024775)
 				return true;
-			//-2147024832 Message: Удаленный хост разорвал соединение. Код ошибки: 0x80070040.
+			//-2147024832 Message: РЈРґР°Р»РµРЅРЅС‹Р№ С…РѕСЃС‚ СЂР°Р·РѕСЂРІР°Р» СЃРѕРµРґРёРЅРµРЅРёРµ. РљРѕРґ РѕС€РёР±РєРё: 0x80070040.
 			if (exception.ErrorCode == -2147024832)
 				return true;
 			if (exception.ErrorCode == -2147014842)

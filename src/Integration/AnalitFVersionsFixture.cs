@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -111,7 +111,7 @@ values
 ");
 		}
 
-		[Test(Description = "Тестируем чтение версий из базы")]
+		[Test(Description = "РўРµСЃС‚РёСЂСѓРµРј С‡С‚РµРЅРёРµ РІРµСЂСЃРёР№ РёР· Р±Р°Р·С‹")]
 		public void TestVersionRepository()
 		{
 			var realVersionCount = Convert.ToInt32(
@@ -125,10 +125,10 @@ values
 
 			Assert.That(rules.Count, Is.GreaterThan(0));
 			Assert.That(rules.Count, Is.EqualTo(realVersionCount));
-			Assert.That(rules.TrueForAll(rule => rule.Id > 0 && rule.SourceVersion > 0 && rule.SourceVersion < rule.DestinationVersion), "Не все правила корректно созданы");
+			Assert.That(rules.TrueForAll(rule => rule.Id > 0 && rule.SourceVersion > 0 && rule.SourceVersion < rule.DestinationVersion), "РќРµ РІСЃРµ РїСЂР°РІРёР»Р° РєРѕСЂСЂРµРєС‚РЅРѕ СЃРѕР·РґР°РЅС‹");
 		}
 
-		[Test(Description = "Проверка создания VersionInfo")]
+		[Test(Description = "РџСЂРѕРІРµСЂРєР° СЃРѕР·РґР°РЅРёСЏ VersionInfo")]
 		public void ReadVersionInfos()
 		{
 			var dirInfo = new DirectoryInfo("..\\..\\Data\\EtalonUpdates\\Updates");
@@ -157,7 +157,7 @@ values
 			Assert.That(factoryInfos.Count, Is.EqualTo(infos.Count));
 		}
 
-		[Test(Description = "проверяем работу ExeVersionUpdater")]
+		[Test(Description = "РїСЂРѕРІРµСЂСЏРµРј СЂР°Р±РѕС‚Сѓ ExeVersionUpdater")]
 		public void TestVersionUpdater()
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
@@ -189,7 +189,7 @@ values
 			Assert.That(updater.GetVersionInfo(1317, 1317), Is.Null);
 		}
 
-		[Test(Description = "проверяем работу ExeVersionUpdater для 'сетевой' версии")]
+		[Test(Description = "РїСЂРѕРІРµСЂСЏРµРј СЂР°Р±РѕС‚Сѓ ExeVersionUpdater РґР»СЏ 'СЃРµС‚РµРІРѕР№' РІРµСЂСЃРёРё")]
 		public void TestVersionUpdaterForNetwork()
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\NetworkUpdates\\";
@@ -217,11 +217,11 @@ values
 			if (match.Length > 0)
 				return Convert.ToUInt32(match);
 
-			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
+			Assert.Fail("РќРµ РЅР°Р№РґРµРЅ РЅРѕРјРµСЂ UpdateId РІ РѕС‚РІРµС‚Рµ СЃРµСЂРІРµСЂР°: {0}", responce);
 			return 0;
 		}
 
-		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
+		[Test(Description = "РџСЂРѕРІРµСЂРєР° РїРѕРґРіРѕС‚РѕРІРєРё РґР°РЅРЅС‹С… РґР»СЏ РѕС‚РєР»СЋС‡РµРЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")]
 		public void CheckGetUserDataOnDisabledClient()
 		{
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
@@ -265,37 +265,37 @@ where
 				var updateId = ParseUpdateId(responce);
 
 				var updateFile = Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(user.Id, updateId));
-				Assert.That(File.Exists(updateFile), Is.True, "Не найден файл с подготовленными данными");
+				Assert.That(File.Exists(updateFile), Is.True, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё");
 
 				ArchiveHelper.Extract(updateFile, "*.*", extractFolder);
 
 				var exeFolder = Path.Combine(extractFolder, "Exe");
-				Assert.That(Directory.Exists(exeFolder), Is.True, "На найден каталог с обновлением exe");
+				Assert.That(Directory.Exists(exeFolder), Is.True, "РќР° РЅР°Р№РґРµРЅ РєР°С‚Р°Р»РѕРі СЃ РѕР±РЅРѕРІР»РµРЅРёРµРј exe");
 
 				var rootFiles = Directory.GetFiles(exeFolder);
 				Assert.That(rootFiles.Length, Is.EqualTo(2));
 				Assert.That(
 					rootFiles.Contains(file => file.EndsWith("AnalitFService.exe", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
-					"Не найден файл с сервисом");
+					"РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ СЃРµСЂРІРёСЃРѕРј");
 				Assert.That(
 					rootFiles.Contains(file => file.EndsWith("testRoot.txt", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
-					"Не найден текстовый файл");
+					"РќРµ РЅР°Р№РґРµРЅ С‚РµРєСЃС‚РѕРІС‹Р№ С„Р°Р№Р»");
 
 				var analitFFolder = Path.Combine(exeFolder, "AnalitF");
-				Assert.That(Directory.Exists(analitFFolder), Is.True, "На найден каталог с обновлением AnalitF");
+				Assert.That(Directory.Exists(analitFFolder), Is.True, "РќР° РЅР°Р№РґРµРЅ РєР°С‚Р°Р»РѕРі СЃ РѕР±РЅРѕРІР»РµРЅРёРµРј AnalitF");
 
 				var analitFFiles = Directory.GetFiles(analitFFolder);
 				Assert.That(analitFFiles.Length, Is.EqualTo(2));
 				Assert.That(
 					analitFFiles.Contains(file => file.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
-					"Не найден файл с AnalitF");
+					"РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ AnalitF");
 				Assert.That(
 					analitFFiles.Contains(file => file.EndsWith("testSub.txt", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
-					"Не найден текстовый файл");
+					"РќРµ РЅР°Р№РґРµРЅ С‚РµРєСЃС‚РѕРІС‹Р№ С„Р°Р№Р»");
 
 			}
 			finally

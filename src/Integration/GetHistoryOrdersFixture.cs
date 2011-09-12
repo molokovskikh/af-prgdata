@@ -1,4 +1,4 @@
-using System.Configuration;
+п»їusing System.Configuration;
 using System.IO;
 using Castle.ActiveRecord;
 using Common.Tools;
@@ -101,7 +101,7 @@ namespace Integration
 						lastUpdateId = Convert.ToUInt32(match);
 				}
 				else
-					Assert.Fail("Нераспознанный ответ от сервера при запросе истории заказов: {0}", responce);
+					Assert.Fail("РќРµСЂР°СЃРїРѕР·РЅР°РЅРЅС‹Р№ РѕС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР° РїСЂРё Р·Р°РїСЂРѕСЃРµ РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ: {0}", responce);
 			}
 			return responce;
 		}
@@ -120,10 +120,10 @@ namespace Integration
 			fullHistory = false;
 			SimpleLoadData();
 
-			Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка");
+			Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "РћС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР° СѓРєР°Р·С‹РІР°РµС‚, С‡С‚Рѕ РёРјРµРµС‚СЃСЏ РѕС€РёР±РєР°");
 
 			if (!fullHistory)
-				Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен");
+				Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ");
 		}
 
 		[Test]
@@ -137,7 +137,7 @@ namespace Integration
 					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
 																"select Commit from logs.AnalitFUpdates where UpdateId = " +
 																lastUpdateId));
-				Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
+				Assert.IsFalse(commit, "Р—Р°РїСЂРѕСЃ СЃ РёСЃС‚РѕСЂРёРµР№ Р·Р°РєР°Р·РѕРІ СЃС‡РёС‚Р°РµС‚СЃСЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рј");
 
 				CommitExchange();
 
@@ -145,7 +145,7 @@ namespace Integration
 					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
 																"select Commit from logs.AnalitFUpdates where UpdateId = " +
 																lastUpdateId));
-				Assert.IsTrue(commit, "Запрос с историей заказов считается неподтвержденным");
+				Assert.IsTrue(commit, "Р—Р°РїСЂРѕСЃ СЃ РёСЃС‚РѕСЂРёРµР№ Р·Р°РєР°Р·РѕРІ СЃС‡РёС‚Р°РµС‚СЃСЏ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рј");
 			}
 		}
 

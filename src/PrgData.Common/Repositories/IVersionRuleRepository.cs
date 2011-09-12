@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using PrgData.Common.Model;
 
 namespace PrgData.Common.Repositories

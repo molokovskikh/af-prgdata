@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Threading;
 using Castle.ActiveRecord;
@@ -125,19 +125,19 @@ namespace Integration
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
-				Assert.IsTrue(reclame.ShowAdvertising, "Реклама не включена");
-				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
-				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
+				Assert.IsTrue(reclame.ShowAdvertising, "Р РµРєР»Р°РјР° РЅРµ РІРєР»СЋС‡РµРЅР°");
+				Assert.IsNotNullOrEmpty(reclame.Region, "РќРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ СЂРµРіРёРѕРЅ СЂРµРєР»Р°РјС‹");
+				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Р”Р°С‚Р° СЂРµРєР»Р°РјС‹ РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅР°");
 
 				var maxFileTime = SetReclameDir(reclame.Region);
 
 				SetCurrentUser(login);
 				var response = GetReclame();
-				Assert.IsNotNullOrEmpty(response, "Некорректный ответ на запрос рекламы");
-				Assert.That(response, Is.StringEnding("New=True"), "Некорректный ответ на запрос рекламы");
-				Assert.That(response, Is.StringStarting("URL="), "Некорректный ответ на запрос рекламы");
+				Assert.IsNotNullOrEmpty(response, "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ СЂРµРєР»Р°РјС‹");
+				Assert.That(response, Is.StringEnding("New=True"), "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ СЂРµРєР»Р°РјС‹");
+				Assert.That(response, Is.StringStarting("URL="), "РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ СЂРµРєР»Р°РјС‹");
 				var comlete = ReclameComplete();
-				Assert.IsTrue(comlete, "Рекламу не удалось подтвердить");
+				Assert.IsTrue(comlete, "Р РµРєР»Р°РјСѓ РЅРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґС‚РІРµСЂРґРёС‚СЊ");
 
 				var date = MySqlHelper.ExecuteScalar(
 					connection,
@@ -145,7 +145,7 @@ namespace Integration
 					new MySqlParameter("?UserId", userId));
 				Assert.That(date, Is.Not.Null);
 				Assert.That(date.GetType(), Is.EqualTo(typeof(DateTime)));
-				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds < 1, "Не совпадают даты");
+				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds < 1, "РќРµ СЃРѕРІРїР°РґР°СЋС‚ РґР°С‚С‹");
 			}
 		}
 
@@ -159,7 +159,7 @@ namespace Integration
 
 				SetCurrentUser(login);
 				var response = GetReclame();
-				Assert.IsNullOrEmpty(response, "Ответ от сервера должен быть пустым");
+				Assert.IsNullOrEmpty(response, "РћС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР° РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј");
 			}
 		}
 
@@ -175,7 +175,7 @@ namespace Integration
 			GetReclameForUser(_user.Login, _user.Id);
 		}
 
-		[Test(Description = "пытаемся получить рекламу для пользователя, который не привязан к системе")]
+		[Test(Description = "РїС‹С‚Р°РµРјСЃСЏ РїРѕР»СѓС‡РёС‚СЊ СЂРµРєР»Р°РјСѓ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, РєРѕС‚РѕСЂС‹Р№ РЅРµ РїСЂРёРІСЏР·Р°РЅ Рє СЃРёСЃС‚РµРјРµ")]
 		public void Get_reclame_for_non_exists_user()
 		{
 			try
@@ -188,7 +188,7 @@ namespace Integration
 				var lastEvent = events[events.Length - 1];
 				Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
 				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
-				Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("Доступ закрыт."));
+				Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚."));
 			}
 			finally
 			{
@@ -196,7 +196,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "пытаемся получить рекламу для пользователя без права обновлять AnalitF")]
+		[Test(Description = "РїС‹С‚Р°РµРјСЃСЏ РїРѕР»СѓС‡РёС‚СЊ СЂРµРєР»Р°РјСѓ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Р±РµР· РїСЂР°РІР° РѕР±РЅРѕРІР»СЏС‚СЊ AnalitF")]
 		public void Get_reclame_for_disabled_user()
 		{
 			try
@@ -210,8 +210,8 @@ namespace Integration
 				Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
 				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
 				var updateException = (UpdateException) lastEvent.MessageObject;
-				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
-				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + _disabledUser.Login + " услуга не предоставляется: пользователю не разрешено обновлять AnalitF;"));
+				Assert.That(updateException.Message, Is.EqualTo("Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚."));
+				Assert.That(updateException.Addition, Is.StringStarting("Р”Р»СЏ Р»РѕРіРёРЅР° " + _disabledUser.Login + " СѓСЃР»СѓРіР° РЅРµ РїСЂРµРґРѕСЃС‚Р°РІР»СЏРµС‚СЃСЏ: РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РЅРµ СЂР°Р·СЂРµС€РµРЅРѕ РѕР±РЅРѕРІР»СЏС‚СЊ AnalitF;"));
 			}
 			finally
 			{
@@ -219,7 +219,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Проверям, что поле ReclameDate имеет значение null после ограниченного кумулятивного обновления")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРј, С‡С‚Рѕ РїРѕР»Рµ ReclameDate РёРјРµРµС‚ Р·РЅР°С‡РµРЅРёРµ null РїРѕСЃР»Рµ РѕРіСЂР°РЅРёС‡РµРЅРЅРѕРіРѕ РєСѓРјСѓР»СЏС‚РёРІРЅРѕРіРѕ РѕР±РЅРѕРІР»РµРЅРёСЏ")]
 		public void Check_ReclameDate_is_null_after_LimitedCumulative()
 		{
 			SetCurrentUser(_user.Login);
@@ -236,7 +236,7 @@ namespace Integration
 				"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
 				new MySqlParameter("?UserId", _user.Id));
 
-			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "После КО столбец ReclameDate не равен DBNull");
+			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "РџРѕСЃР»Рµ РљРћ СЃС‚РѕР»Р±РµС† ReclameDate РЅРµ СЂР°РІРµРЅ DBNull");
 
 			MySqlHelper.ExecuteNonQuery(
 				Settings.ConnectionString(),
@@ -250,7 +250,7 @@ namespace Integration
 				"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
 				new MySqlParameter("?UserId", _user.Id));
 
-			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "После ограниченнго КО столбец ReclameDate не равен DBNull");
+			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "РџРѕСЃР»Рµ РѕРіСЂР°РЅРёС‡РµРЅРЅРіРѕ РљРћ СЃС‚РѕР»Р±РµС† ReclameDate РЅРµ СЂР°РІРµРЅ DBNull");
 		}
 
 		private void ProcessGetUserData(bool cumulative, DateTime updateTime)
@@ -265,11 +265,11 @@ namespace Integration
 				service = new PrgDataEx();
 				service.CommitExchange(lastUpdateId, false);
 
-				//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+				//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 				Thread.Sleep(3000);
 			}
 			else
-				Assert.Fail("Некорректный ответ от сервера при получении данных: {0}", responce);
+				Assert.Fail("РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ РѕС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РґР°РЅРЅС‹С…: {0}", responce);
 		}
 	}
 }

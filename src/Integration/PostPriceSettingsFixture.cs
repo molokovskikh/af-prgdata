@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Configuration;
 using System.Data;
@@ -83,7 +83,7 @@ namespace Integration
 
 				var pricesSet = MySqlHelper.ExecuteDataset(connection, "select * from Prices limit 2");
 				var prices = pricesSet.Tables[0];
-				Assert.That(prices.Rows.Count, Is.EqualTo(2), "Нет необходимого количества прайс-листов для теста");
+				Assert.That(prices.Rows.Count, Is.EqualTo(2), "РќРµС‚ РЅРµРѕР±С…РѕРґРёРјРѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ РґР»СЏ С‚РµСЃС‚Р°");
 
 				var injobs = new bool[] {false, true};
 				var priceIds = new int[]
@@ -119,7 +119,7 @@ namespace Integration
 			var service = new PrgDataEx();
 			var responce = service.PostPriceDataSettings(UniqueId, priceIds, regionIds, injobs);
 
-			Assert.That(responce, Is.EqualTo("Res=OK").IgnoreCase, "Отправка настроек прайс-листов завершилась ошибкой.");
+			Assert.That(responce, Is.EqualTo("Res=OK").IgnoreCase, "РћС‚РїСЂР°РІРєР° РЅР°СЃС‚СЂРѕРµРє РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РѕС€РёР±РєРѕР№.");
 
 			return responce;
 		}

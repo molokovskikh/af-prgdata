@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Data;
 using System.Linq;
 using Castle.ActiveRecord;
@@ -44,7 +44,7 @@ namespace Integration
 
 		}
 
-		[Test(Description = "Получаем значения DayOfWeek")]
+		[Test(Description = "РџРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёСЏ DayOfWeek")]
 		public void CheckDayOfWeek()
 		{
 			Assert.That((int)DayOfWeek.Sunday, Is.EqualTo(0));
@@ -56,7 +56,7 @@ namespace Integration
 			Assert.That((int)DayOfWeek.Saturday, Is.EqualTo(6));
 		}
 
-		[Test(Description = "Пробуем загрузить отсрочку платежа из базы")]
+		[Test(Description = "РџСЂРѕР±СѓРµРј Р·Р°РіСЂСѓР·РёС‚СЊ РѕС‚СЃСЂРѕС‡РєСѓ РїР»Р°С‚РµР¶Р° РёР· Р±Р°Р·С‹")]
 		public void TestActiveRecordDelayOfPayment()
 		{
 			TestDelayOfPayment delay;
@@ -214,20 +214,20 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Проверяем создание записей в отсрочках платежа при создании новых клиентов")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј СЃРѕР·РґР°РЅРёРµ Р·Р°РїРёСЃРµР№ РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶Р° РїСЂРё СЃРѕР·РґР°РЅРёРё РЅРѕРІС‹С… РєР»РёРµРЅС‚РѕРІ")]
 		public void CheckInsertToDelayOfPayments()
 		{
 			var beforeNewClientCount = TestDelayOfPayment.Queryable.Count();
 			var newClient = TestClient.Create();
 			var afterNewClientCount = TestDelayOfPayment.Queryable.Count();
-			Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "После создания нового клиента не были создано записи в отсрочках платежей, возможно, не работает триггер");
+			Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "РџРѕСЃР»Рµ СЃРѕР·РґР°РЅРёСЏ РЅРѕРІРѕРіРѕ РєР»РёРµРЅС‚Р° РЅРµ Р±С‹Р»Рё СЃРѕР·РґР°РЅРѕ Р·Р°РїРёСЃРё РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶РµР№, РІРѕР·РјРѕР¶РЅРѕ, РЅРµ СЂР°Р±РѕС‚Р°РµС‚ С‚СЂРёРіРіРµСЂ");
 
 			var firstIntersection = TestSupplierIntersection.Queryable.Where(i => i.Client == newClient).FirstOrDefault();
-			Assert.That(firstIntersection, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection по клиенту: {0}", newClient.Id);
-			Assert.That(firstIntersection.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", firstIntersection.Id);
+			Assert.That(firstIntersection, Is.Not.Null, "РќРµ РЅР°Р№РґРµРЅР° РєР°РєР°СЏ-Р»РёР±Рѕ Р·Р°РїРёСЃСЊ РІ SupplierIntersection РїРѕ РєР»РёРµРЅС‚Сѓ: {0}", newClient.Id);
+			Assert.That(firstIntersection.PriceIntersections.Count, Is.GreaterThan(0), "РќРµ РЅР°Р№РґРµРЅС‹ Р·Р°РїРёСЃРё РІ PriceIntersections РїРѕ SupplierIntersectionId: {0}", firstIntersection.Id);
 
 			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).FirstOrDefault();
-			Assert.That(firstDelayRule, Is.Not.Null, "Не найдена какая-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
+			Assert.That(firstDelayRule, Is.Not.Null, "РќРµ РЅР°Р№РґРµРЅР° РєР°РєР°СЏ-Р»РёР±Рѕ Р·Р°РїРёСЃСЊ РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶Р° РїРѕ РєР»РёРµРЅС‚Сѓ: {0}", newClient.Id);
 
 			var rulesBySupplier =
 				TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).
@@ -235,24 +235,24 @@ namespace Integration
 			Assert.That(
 				rulesBySupplier.Count, 
 				Is.EqualTo(7), 
-				"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}", 
+				"Р—Р°РїРёСЃРё РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶РµР№ СЃРѕР·РґР°РЅС‹ РЅРµ РїРѕ РІСЃРµРј РґРЅСЏРј РЅРµРґРµР»Рё РґР»СЏ РєР»РёРµРЅС‚Р° {0} Рё РїРѕСЃС‚Р°РІС‰РёРєР° {1}", 
 				newClient.Id, 
 				firstIntersection.Supplier.Id);
 			Assert.That(
 				rulesBySupplier.Select(r => r.DayOfWeek), 
 				Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))), 
-				"Записи в отсрочках платежей дублируются по некоторым дням недели для клиента {0} и поставщика {1}", 
+				"Р—Р°РїРёСЃРё РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶РµР№ РґСѓР±Р»РёСЂСѓСЋС‚СЃСЏ РїРѕ РЅРµРєРѕС‚РѕСЂС‹Рј РґРЅСЏРј РЅРµРґРµР»Рё РґР»СЏ РєР»РёРµРЅС‚Р° {0} Рё РїРѕСЃС‚Р°РІС‰РёРєР° {1}", 
 				newClient.Id, 
 				firstIntersection.Supplier.Id);
 
 			var newSupplier = TestSupplier.Create();
 			var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
-			Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "После создания нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
+			Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "РџРѕСЃР»Рµ СЃРѕР·РґР°РЅРёСЏ РЅРѕРІРѕРіРѕ РїРѕСЃС‚Р°РІС‰РёРєР° РЅРµ Р±С‹Р»Рё СЃРѕР·РґР°РЅРѕ Р·Р°РїРёСЃРё РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶РµР№, РІРѕР·РјРѕР¶РЅРѕ, РЅРµ СЂР°Р±РѕС‚Р°РµС‚ С‚СЂРёРіРіРµСЂ");
 
 			var intersectionByNewSupplier =
 				TestSupplierIntersection.Queryable.Where(i => i.Client == newClient && i.Supplier == newSupplier).FirstOrDefault();
-			Assert.That(intersectionByNewSupplier, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection после создания нового поставщика по клиенту: {0}", newClient.Id);
-			Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
+			Assert.That(intersectionByNewSupplier, Is.Not.Null, "РќРµ РЅР°Р№РґРµРЅР° РєР°РєР°СЏ-Р»РёР±Рѕ Р·Р°РїРёСЃСЊ РІ SupplierIntersection РїРѕСЃР»Рµ СЃРѕР·РґР°РЅРёСЏ РЅРѕРІРѕРіРѕ РїРѕСЃС‚Р°РІС‰РёРєР° РїРѕ РєР»РёРµРЅС‚Сѓ: {0}", newClient.Id);
+			Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "РќРµ РЅР°Р№РґРµРЅС‹ Р·Р°РїРёСЃРё РІ PriceIntersections РїРѕ SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
 
 			var rulesByNewSupplier =
 				TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == intersectionByNewSupplier.PriceIntersections[0].Id).
@@ -260,7 +260,7 @@ namespace Integration
 			Assert.That(
 				rulesByNewSupplier.Count,
 				Is.EqualTo(7),
-				"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}",
+				"Р—Р°РїРёСЃРё РІ РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶РµР№ СЃРѕР·РґР°РЅС‹ РЅРµ РїРѕ РІСЃРµРј РґРЅСЏРј РЅРµРґРµР»Рё РґР»СЏ РєР»РёРµРЅС‚Р° {0} Рё РїРѕСЃС‚Р°РІС‰РёРєР° {1}",
 				newClient.Id,
 				newSupplier.Id);
 		}

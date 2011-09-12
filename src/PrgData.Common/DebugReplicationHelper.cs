@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections;
 using System.Collections.Generic;
 using Common.Tools;
@@ -76,7 +76,7 @@ and CopyActivePrices.Fresh != ActivePrices.Fresh
 			var countDistictActivePrices = Convert.ToInt32(_command.ExecuteScalar());
 			if (countDistictActivePrices > 0)
 			{
-				_reasons.Add("ActivePrices после получения предложений была изменена");
+				_reasons.Add("ActivePrices РїРѕСЃР»Рµ РїРѕР»СѓС‡РµРЅРёСЏ РїСЂРµРґР»РѕР¶РµРЅРёР№ Р±С‹Р»Р° РёР·РјРµРЅРµРЅР°");
 				FillTable(
 					"DistictActivePrices",
 					@"
@@ -115,7 +115,7 @@ where
 				var countNotExistsCore = Convert.ToInt32(_command.ExecuteScalar());
 				if (countNotExistsCore > 0)
 				{
-					_reasons.Add("во временной таблице Core существуют позиции, которых нет в Core0");
+					_reasons.Add("РІРѕ РІСЂРµРјРµРЅРЅРѕР№ С‚Р°Р±Р»РёС†Рµ Core СЃСѓС‰РµСЃС‚РІСѓСЋС‚ РїРѕР·РёС†РёРё, РєРѕС‚РѕСЂС‹С… РЅРµС‚ РІ Core0");
 					FillTable(
 						"NotExistsCore",
 						@"
@@ -143,11 +143,11 @@ AND IF(?Cumulative, 1, fresh)
 ";
 				var expectedCoreCount = Convert.ToInt32(_command.ExecuteScalar());
 				if (_updateData.OfferMatrixPriceId.HasValue && ExportCoreCount < expectedCoreCount)
-					Logger.DebugFormat("Не совпадает кол-во выгруженных предложений в Core для копии, работающей с матрицей предложений: ожидаемое = {0} реальное = {1}", expectedCoreCount, ExportCoreCount);
+					Logger.DebugFormat("РќРµ СЃРѕРІРїР°РґР°РµС‚ РєРѕР»-РІРѕ РІС‹РіСЂСѓР¶РµРЅРЅС‹С… РїСЂРµРґР»РѕР¶РµРЅРёР№ РІ Core РґР»СЏ РєРѕРїРёРё, СЂР°Р±РѕС‚Р°СЋС‰РµР№ СЃ РјР°С‚СЂРёС†РµР№ РїСЂРµРґР»РѕР¶РµРЅРёР№: РѕР¶РёРґР°РµРјРѕРµ = {0} СЂРµР°Р»СЊРЅРѕРµ = {1}", expectedCoreCount, ExportCoreCount);
 				else
 					if (expectedCoreCount != ExportCoreCount)
 					{
-						_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
+						_reasons.Add("РќРµ СЃРѕРІРїР°РґР°РµС‚ РєРѕР»-РІРѕ РІС‹РіСЂСѓР¶РµРЅРЅС‹С… РїСЂРµРґР»РѕР¶РµРЅРёР№ РІ Core: РѕР¶РёРґР°РµРјРѕРµ = {0} СЂРµР°Р»СЊРЅРѕРµ = {1}".Format(expectedCoreCount, ExportCoreCount));
 						FillTable(
 							"ActivePricesSizes",
 							@"
@@ -167,7 +167,7 @@ group by at.PriceCode, at.regioncode
 					}
 			}
 
-			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
+			Logger.DebugFormat("РћР±РЅР°СЂСѓР¶РµРЅС‹ СЃР»РµРґСѓСЋС‰РёРµ РїСЂРѕР±Р»РµРјС‹:\r\n{0}", _reasons.Implode("\r\n"));
 
 			return _reasons.Count > 0;
 		}
@@ -220,13 +220,13 @@ group by at.PriceCode, at.regioncode
 		{
 			var body = String
 				.Format(
-					"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}\r\nПричины:\r\n{2}", 
+					"РџСЂРѕР±Р»РµРјР° РІРѕР·РЅРёРєР»Р° Сѓ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}\r\nРїСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РѕР±РЅРѕРІР»РµРЅРёСЏ РѕС‚ : {1}\r\nРџСЂРёС‡РёРЅС‹:\r\n{2}", 
 					_updateData.UserName,
 					_updateData.OldUpdateTime,
 					_reasons.Implode("\r\n"));
 			var attachment = DumpTables();
 
-			MailHelper.Mail(body, "при подготовке данных возникли различия во Fresh между PricesData и Core", attachment, null);
+			MailHelper.Mail(body, "РїСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РІРѕР·РЅРёРєР»Рё СЂР°Р·Р»РёС‡РёСЏ РІРѕ Fresh РјРµР¶РґСѓ PricesData Рё Core", attachment, null);
 		}
 	}
 }

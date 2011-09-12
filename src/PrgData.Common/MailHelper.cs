@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Net.Mail;
 using System.Configuration;
 using System.Text;
@@ -15,14 +15,14 @@ namespace PrgData.Common
 		{
 			try
 			{
-				var MailAddress = new MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8);
+				var MailAddress = new MailAddress("service@analit.net", "РЎРµСЂРІРёСЃ AF", Encoding.UTF8);
 				var message = new MailMessage("service@analit.net", toEmail);
 				var SC = new SmtpClient("box.analit.net");
 				message.From = MailAddress;
 				if (!String.IsNullOrEmpty(subject))
-					message.Subject = "Ошибка в сервисе подготовки данных: " + subject;
+					message.Subject = "РћС€РёР±РєР° РІ СЃРµСЂРІРёСЃРµ РїРѕРґРіРѕС‚РѕРІРєРё РґР°РЅРЅС‹С…: " + subject;
 				else
-					message.Subject = "Ошибка в сервисе подготовки данных";
+					message.Subject = "РћС€РёР±РєР° РІ СЃРµСЂРІРёСЃРµ РїРѕРґРіРѕС‚РѕРІРєРё РґР°РЅРЅС‹С…";
 				message.SubjectEncoding = Encoding.UTF8;
 				message.BodyEncoding = Encoding.UTF8;
 				message.Body = messageText;
@@ -44,7 +44,7 @@ namespace PrgData.Common
 			{
 				logger
 					.ErrorFormat(
-						"Ошибка при отправке письма:{0}\r\nТема:{1}\r\nТело письма:{2}",
+						"РћС€РёР±РєР° РїСЂРё РѕС‚РїСЂР°РІРєРµ РїРёСЃСЊРјР°:{0}\r\nРўРµРјР°:{1}\r\nРўРµР»Рѕ РїРёСЃСЊРјР°:{2}",
 						exception,
 						subject,
 						messageText);

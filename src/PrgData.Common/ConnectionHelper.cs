@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Data;
 using log4net;
 using MySql.Data.MySqlClient;
@@ -24,7 +24,7 @@ namespace PrgData.Common
 			}
 			catch (Exception e)
 			{
-				log.Error("Ошибка при откате транзакции", e);
+				log.Error("РћС€РёР±РєР° РїСЂРё РѕС‚РєР°С‚Рµ С‚СЂР°РЅР·Р°РєС†РёРё", e);
 			}
 		}
 	}

@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Web;
 using log4net;
@@ -80,7 +80,7 @@ where c.Status = 1
 			}
 			catch (Exception e)
 			{
-				Log.Error("Ошибка при авторизации клиента", e);
+				Log.Error("РћС€РёР±РєР° РїСЂРё Р°РІС‚РѕСЂРёР·Р°С†РёРё РєР»РёРµРЅС‚Р°", e);
 			}
 			return null;
 		}

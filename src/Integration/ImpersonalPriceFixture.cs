@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+п»їusing System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Reflection;
@@ -66,8 +66,8 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 
-			var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
-			Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
+			var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "РџРµС‚РµСЂР±СѓСЂРі", MatchMode.Anywhere));
+			Assert.That(offersRegion, Is.Not.Null, "РќРµ РЅР°С€Р»Рё СЂРµРіРёРѕРЅ 'РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРі' РґР»СЏ offersClient");
 
 			//offersOldClient = TestOldClient.CreateTestClient(offersRegion.Id);
 			offersFutureClient = TestClient.Create(offersRegion.Id, offersRegion.Id);
@@ -143,7 +143,7 @@ namespace Integration
 			CheckUpdateHelper(user.Login, offersFutureUser.Id, offersFutureClient.RegionCode);
 		}
 
-		[Test, Ignore("Тест для старых клиентов")]
+		[Test, Ignore("РўРµСЃС‚ РґР»СЏ СЃС‚Р°СЂС‹С… РєР»РёРµРЅС‚РѕРІ")]
 		public void Check_update_helper_for_old()
 		{
 			//CheckUpdateHelper(oldUser.OSUserName, offersOldClient.Id, offersOldClient.RegionCode);
@@ -158,9 +158,9 @@ namespace Integration
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				var helper = new UpdateHelper(updateData, connection);
 
-				Assert.That(updateData.EnableImpersonalPrice, Is.True, "Не включен механизм 'Обезличенный прайс'");
-				Assert.That(updateData.OffersClientCode, Is.EqualTo(offersClientId), "Не совпадает ид OffersClientCode");
-				Assert.That(updateData.OffersRegionCode, Is.EqualTo(offersRegionId), "Не совпадает код региона у OffersClientCode");
+				Assert.That(updateData.EnableImpersonalPrice, Is.True, "РќРµ РІРєР»СЋС‡РµРЅ РјРµС…Р°РЅРёР·Рј 'РћР±РµР·Р»РёС‡РµРЅРЅС‹Р№ РїСЂР°Р№СЃ'");
+				Assert.That(updateData.OffersClientCode, Is.EqualTo(offersClientId), "РќРµ СЃРѕРІРїР°РґР°РµС‚ РёРґ OffersClientCode");
+				Assert.That(updateData.OffersRegionCode, Is.EqualTo(offersRegionId), "РќРµ СЃРѕРІРїР°РґР°РµС‚ РєРѕРґ СЂРµРіРёРѕРЅР° Сѓ OffersClientCode");
 
 				CheckSQL(false, connection, updateData, helper);
 
@@ -217,20 +217,20 @@ namespace Integration
 			selectCommand.CommandText = sqlCommand;
 			var dataTable = new DataTable();
 			dataAdapter.Fill(dataTable);
-			Assert.That(dataTable.Rows.Count, Is.GreaterThan(0), "Запрос не вернул данные: {0}", sqlCommand);
+			Assert.That(dataTable.Rows.Count, Is.GreaterThan(0), "Р—Р°РїСЂРѕСЃ РЅРµ РІРµСЂРЅСѓР» РґР°РЅРЅС‹Рµ: {0}", sqlCommand);
 
 			if (dataTable.Columns.Contains("RegionCode"))
 			{
 				var rows = dataTable.Select("RegionCode = " + updateData.OffersRegionCode);
 				Assert.That(rows.Length, Is.EqualTo(dataTable.Rows.Count), 
-					"Не все записи в таблице в столбце RegionCode имеют значение {0}: {1}", updateData.OffersRegionCode, sqlCommand);
+					"РќРµ РІСЃРµ Р·Р°РїРёСЃРё РІ С‚Р°Р±Р»РёС†Рµ РІ СЃС‚РѕР»Р±С†Рµ RegionCode РёРјРµСЋС‚ Р·РЅР°С‡РµРЅРёРµ {0}: {1}", updateData.OffersRegionCode, sqlCommand);
 			}
 
 			if (dataTable.Columns.Contains("PriceCode"))
 			{
 				var rows = dataTable.Select("PriceCode = " + updateData.ImpersonalPriceId);
 				Assert.That(rows.Length, Is.EqualTo(dataTable.Rows.Count),
-					"Не все записи в таблице в столбце PriceCode имеют значение {0}: {1}", updateData.ImpersonalPriceId, sqlCommand);
+					"РќРµ РІСЃРµ Р·Р°РїРёСЃРё РІ С‚Р°Р±Р»РёС†Рµ РІ СЃС‚РѕР»Р±С†Рµ PriceCode РёРјРµСЋС‚ Р·РЅР°С‡РµРЅРёРµ {0}: {1}", updateData.ImpersonalPriceId, sqlCommand);
 			}
 
 		}
@@ -241,7 +241,7 @@ namespace Integration
 			CheckGetUserData(user.Login);
 		}
 
-		[Test, Ignore("Тест для старых клиентов")]
+		[Test, Ignore("РўРµСЃС‚ РґР»СЏ СЃС‚Р°СЂС‹С… РєР»РёРµРЅС‚РѕРІ")]
 		public void Check_GetUserData_for_Old()
 		{
 			//CheckGetUserData(oldUser.OSUserName);
@@ -270,7 +270,7 @@ where
 				Assert.That(
 					ExistsFirms,
 					Is.GreaterThan(0),
-					"Хотя клиент {0} создан в другом регионе {1} у него в AnalitFReplicationInfo добавлены все фирмы из региона {2}",
+					"РҐРѕС‚СЏ РєР»РёРµРЅС‚ {0} СЃРѕР·РґР°РЅ РІ РґСЂСѓРіРѕРј СЂРµРіРёРѕРЅРµ {1} Сѓ РЅРµРіРѕ РІ AnalitFReplicationInfo РґРѕР±Р°РІР»РµРЅС‹ РІСЃРµ С„РёСЂРјС‹ РёР· СЂРµРіРёРѕРЅР° {2}",
 					client.Id,
 					client.RegionCode,
 					offersFutureClient.RegionCode);
@@ -301,7 +301,7 @@ where
 				Assert.That(
 					nonExistsFirms,
 					Is.EqualTo(0),
-					"У клиента {0} в AnalitFReplicationInfo должны быть все фирмы из региона {1}",
+					"РЈ РєР»РёРµРЅС‚Р° {0} РІ AnalitFReplicationInfo РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РІСЃРµ С„РёСЂРјС‹ РёР· СЂРµРіРёРѕРЅР° {1}",
 					client.Id,
 					offersFutureClient.RegionCode);
 
@@ -321,7 +321,7 @@ and afi.ForceReplication = 0",
 				Assert.That(
 					nonExistsForce,
 					Is.EqualTo(0),
-					"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication в 0 для фирм из региона {1}",
+					"РЈ РєР»РёРµРЅС‚Р° {0} РІ AnalitFReplicationInfo РЅРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ СЃС‚СЂРѕРє СЃ ForceReplication РІ 0 РґР»СЏ С„РёСЂРј РёР· СЂРµРіРёРѕРЅР° {1}",
 					client.Id,
 					offersFutureClient.RegionCode);
 			}
@@ -349,13 +349,13 @@ and afi.ForceReplication > 0",
 				Assert.That(
 					nonExistsForceGt0,
 					Is.EqualTo(0),
-					"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication > 0 для фирм из региона {1}",
+					"РЈ РєР»РёРµРЅС‚Р° {0} РІ AnalitFReplicationInfo РЅРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ СЃС‚СЂРѕРє СЃ ForceReplication > 0 РґР»СЏ С„РёСЂРј РёР· СЂРµРіРёРѕРЅР° {1}",
 					client.Id,
 					offersFutureClient.RegionCode);
 			}
 		}
 
-		[Test(Description = "Проверка на используемую версию программы AnalitF")]
+		[Test(Description = "РџСЂРѕРІРµСЂРєР° РЅР° РёСЃРїРѕР»СЊР·СѓРµРјСѓСЋ РІРµСЂСЃРёСЋ РїСЂРѕРіСЂР°РјРјС‹ AnalitF")]
 		public void CheckBuildNo()
 		{
 			CheckGetUserData(user.Login);
@@ -364,8 +364,8 @@ and afi.ForceReplication > 0",
 
 			var serviceResult = LoadData(false, updateTime, "6.0.7.100");
 
-			Assert.That(serviceResult, Is.StringStarting("Error=Используемая версия программы не актуальна").IgnoreCase, "Неожидаемый ответ от сервера");
-			Assert.That(serviceResult, Is.StringContaining("Desc=Доступ закрыт").IgnoreCase, "Неожидаемый ответ от сервера");
+			Assert.That(serviceResult, Is.StringStarting("Error=РСЃРїРѕР»СЊР·СѓРµРјР°СЏ РІРµСЂСЃРёСЏ РїСЂРѕРіСЂР°РјРјС‹ РЅРµ Р°РєС‚СѓР°Р»СЊРЅР°").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјС‹Р№ РѕС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР°");
+			Assert.That(serviceResult, Is.StringContaining("Desc=Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјС‹Р№ РѕС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР°");
 		}
 
 		private void CheckGetUserData(string login)
@@ -386,8 +386,8 @@ and afi.ForceReplication > 0",
 					lastUpdateId = 0;
 					SimpleLoadData();
 
-					Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка.\r\nLog:\r\n:{0}", writer);
-					Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен.\r\nLog:\r\n:{0}", writer);
+					Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "РћС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР° СѓРєР°Р·С‹РІР°РµС‚, С‡С‚Рѕ РёРјРµРµС‚СЃСЏ РѕС€РёР±РєР°.\r\nLog:\r\n:{0}", writer);
+					Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ.\r\nLog:\r\n:{0}", writer);
 				}
 				finally
 				{
@@ -423,7 +423,7 @@ and afi.ForceReplication > 0",
 
 			var updateTime = service.CommitExchange(lastUpdateId, false);
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 			Thread.Sleep(3000);
 
 			var dbUpdateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
@@ -439,7 +439,7 @@ where
 				,
 				new MySqlParameter("?UpdateId", lastUpdateId)));
 
-			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", lastUpdateId);
+			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "РќРµ СЃРѕРІРїР°РґР°РµС‚ РґР°С‚Р° РѕР±РЅРѕРІР»РµРЅРёСЏ, РІС‹Р±СЂР°РЅРЅР°СЏ РёР· Р±Р°Р·С‹, РґР»СЏ UpdateId: {0}", lastUpdateId);
 
 			return updateTime;
 		}
@@ -473,7 +473,7 @@ where
 					SetCurrentUser(user.Login);
 					var service = new PrgDataEx();
 					var letterResponse = service.SendLetter("Test subject", "test body", null);
-					Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+					Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјС‹Р№ РѕС‚РІРµС‚ СЃРµСЂРІРµСЂР° РїСЂРё РѕС‚РїСЂР°РІРєРµ РїРёСЃСЊРјР°");
 
 					envelops.Clear();
 
@@ -486,7 +486,7 @@ where
 
 					imapClient.Fetch(false, allset, dataItems, fetchHandler);
 
-					Assert.That(envelops.Count, Is.EqualTo(1), "Письмо должно быть одно");
+					Assert.That(envelops.Count, Is.EqualTo(1), "РџРёСЃСЊРјРѕ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РѕРґРЅРѕ");
 
 					var message = envelops[0];
 
@@ -525,13 +525,13 @@ where
 				SetCurrentUser("dsdsdsdsds");
 				var service = new PrgDataEx();
 				var letterResponse = service.SendLetter("Test subject", "test body", null);
-				Assert.That(letterResponse, Is.EqualTo("Error=Не удалось отправить письмо. Попробуйте позднее.").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+				Assert.That(letterResponse, Is.EqualTo("Error=РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ РїРёСЃСЊРјРѕ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·РґРЅРµРµ.").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјС‹Р№ РѕС‚РІРµС‚ СЃРµСЂРІРµСЂР° РїСЂРё РѕС‚РїСЂР°РІРєРµ РїРёСЃСЊРјР°");
 
 				var events = memoryAppender.GetEvents();
 				var lastEvent = events[events.Length - 1];
 				Assert.That(lastEvent.Level, Is.EqualTo(Level.Error));
 				Assert.That(lastEvent.ExceptionObject, Is.TypeOf(typeof(Exception)));
-				Assert.That(((Exception)lastEvent.ExceptionObject).Message, Is.StringStarting("Не удалось найти клиента для указанных учетных данных:").IgnoreCase);
+				Assert.That(((Exception)lastEvent.ExceptionObject).Message, Is.StringStarting("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РєР»РёРµРЅС‚Р° РґР»СЏ СѓРєР°Р·Р°РЅРЅС‹С… СѓС‡РµС‚РЅС‹С… РґР°РЅРЅС‹С…:").IgnoreCase);
 			}
 			finally
 			{
@@ -545,7 +545,7 @@ where
 			SetCurrentUser(user.Login);
 			var service = new PrgDataEx();
 			var letterResponse = service.SendLetterEx("Test subject to " + emailGroup, "test body to " + emailGroup, null, emailGroup);
-			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
+			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјС‹Р№ РѕС‚РІРµС‚ СЃРµСЂРІРµСЂР° РїСЂРё РѕС‚РїСЂР°РІРєРµ РїРёСЃСЊРјР°");
 		}
 
 		[Test]
@@ -560,7 +560,7 @@ where
 			SendLetterToGroup(2);
 		}
 
-		[Test(Description = "Отправляем письмо для отключенного пользователя")]
+		[Test(Description = "РћС‚РїСЂР°РІР»СЏРµРј РїРёСЃСЊРјРѕ РґР»СЏ РѕС‚РєР»СЋС‡РµРЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")]
 		public void SendLetterOnDisabledUser()
 		{
 			using (var transaction = new TransactionScope())
@@ -573,14 +573,14 @@ where
 			SendLetterToGroup(2);
 		}
 
-		[Test(Description = "Для копий с обезличенным прайс-листом недоступна загрузка истории заказов")]
+		[Test(Description = "Р”Р»СЏ РєРѕРїРёР№ СЃ РѕР±РµР·Р»РёС‡РµРЅРЅС‹Рј РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРј РЅРµРґРѕСЃС‚СѓРїРЅР° Р·Р°РіСЂСѓР·РєР° РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ")]
 		public void CheckGetHistoryOrders()
 		{
 			SetCurrentUser(user.Login);
 			var service = new PrgDataEx();
 			var historyResponse = service.GetHistoryOrders("6.0.7.1183", UniqueId, new ulong[0], 1, 1);
-			Assert.That(historyResponse, Is.StringContaining("Error=Для копии с обезличенным прайс-листом недоступна загрузка истории заказов.").IgnoreCase);
-			Assert.That(historyResponse, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
+			Assert.That(historyResponse, Is.StringContaining("Error=Р”Р»СЏ РєРѕРїРёРё СЃ РѕР±РµР·Р»РёС‡РµРЅРЅС‹Рј РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРј РЅРµРґРѕСЃС‚СѓРїРЅР° Р·Р°РіСЂСѓР·РєР° РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ.").IgnoreCase);
+			Assert.That(historyResponse, Is.StringContaining("Desc=Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚.").IgnoreCase);
 		}
 
 	}

@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
@@ -133,19 +133,19 @@ namespace Integration
 			Confirm();
 
 			var url = LoadDocuments();
-			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
+			Assert.That(url, Is.StringContaining("РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚"));
 
 			SetCurrentUser(client.Users[1].Login);
 			LoadDocuments();
 			ShouldBeSuccessfull();
-			Assert.That(File.Exists(document.LocalFile), Is.True, "удалил файл с накладной чего не нужно было делать");
+			Assert.That(File.Exists(document.LocalFile), Is.True, "СѓРґР°Р»РёР» С„Р°Р№Р» СЃ РЅР°РєР»Р°РґРЅРѕР№ С‡РµРіРѕ РЅРµ РЅСѓР¶РЅРѕ Р±С‹Р»Рѕ РґРµР»Р°С‚СЊ");
 
 			using (new SessionScope())
 			{
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id || updateLog.UserId == client.Users[1].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
-				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
-				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
-				Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id || updateLog.UserId == client.Users[1].Id) && updateLog.Addition.Contains("РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґРѕРєСѓРјРµРЅС‚РѕРІ РІ РїР°РїРєРµ")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("в„– {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РїРѕРїС‹С‚Р°Р»РёСЃСЊ РЅР°Р№С‚Рё С„РёРєС‚РёРІРЅС‹Р№ РґРѕРєСѓРјРµРЅС‚, С‡С‚РѕР±С‹ Р·Р°Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊ РµРіРѕ.");
+				Assert.That(logs.Count, Is.EqualTo(0), "РџСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё РЅРµ Р±С‹Р» РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚: {0}", logs.Select(l => l.Addition).Implode("; "));
 			}
 		}
 
@@ -175,10 +175,10 @@ namespace Integration
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
 
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
-				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
-				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
-				Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґРѕРєСѓРјРµРЅС‚РѕРІ РІ РїР°РїРєРµ")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("в„– {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РїРѕРїС‹С‚Р°Р»РёСЃСЊ РЅР°Р№С‚Рё С„РёРєС‚РёРІРЅС‹Р№ РґРѕРєСѓРјРµРЅС‚, С‡С‚РѕР±С‹ Р·Р°Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊ РµРіРѕ.");
+				Assert.That(logs.Count, Is.EqualTo(0), "РџСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё РЅРµ Р±С‹Р» РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚: {0}", logs.Select(l => l.Addition).Implode("; "));
 			}
 		}
 
@@ -190,7 +190,7 @@ namespace Integration
 
 			using (new TransactionScope())
 			{
-				//Документ должен быть старше часа, чтобы сформировалось уведомление
+				//Р”РѕРєСѓРјРµРЅС‚ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃС‚Р°СЂС€Рµ С‡Р°СЃР°, С‡С‚РѕР±С‹ СЃС„РѕСЂРјРёСЂРѕРІР°Р»РѕСЃСЊ СѓРІРµРґРѕРјР»РµРЅРёРµ
 				brokenDoc.LogTime = DateTime.Now.AddHours(-1).AddMinutes(-1);
 				brokenDoc.Update();
 			}
@@ -200,16 +200,16 @@ namespace Integration
 			Confirm();
 
 			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
-			Assert.That(log.Addition, Is.StringContaining("не найден документ"));
+			Assert.That(log.Addition, Is.StringContaining("РЅРµ РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚"));
 
 			var url = LoadDocuments();
-			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
+			Assert.That(url, Is.StringContaining("РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚"));
 
 			using (new SessionScope())
 			{
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
-				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
-				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґРѕРєСѓРјРµРЅС‚РѕРІ РІ РїР°РїРєРµ")).ToList();
+				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("в„– {0}", fakeDocument.Id)));
+				Assert.That(finded.Count, Is.EqualTo(0), "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РїРѕРїС‹С‚Р°Р»РёСЃСЊ РЅР°Р№С‚Рё С„РёРєС‚РёРІРЅС‹Р№ РґРѕРєСѓРјРµРЅС‚, С‡С‚РѕР±С‹ Р·Р°Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊ РµРіРѕ.");
 			}
 		}
 
@@ -220,7 +220,7 @@ namespace Integration
 			fakeDocument.Delete();
 
 			var responce = LoadDocuments();
-			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
+			Assert.That(responce, Is.StringContaining("РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚"));
 
 			using (new SessionScope())
 			{
@@ -259,9 +259,9 @@ namespace Integration
 			{
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
-				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "РќРµ СЃРѕРІРїР°РґР°РµС‚ UpdateType");
 				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
-				Assert.IsNullOrEmpty(info.AFCopyId, "AFCopyId не корректен");
+				Assert.IsNullOrEmpty(info.AFCopyId, "AFCopyId РЅРµ РєРѕСЂСЂРµРєС‚РµРЅ");
 			}
 		}
 
@@ -277,9 +277,9 @@ namespace Integration
 			{
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
-				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "РќРµ СЃРѕРІРїР°РґР°РµС‚ UpdateType");
 				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
-				Assert.That(info.AFCopyId, Is.EqualTo(uin), "Не совпадает AFCopyId");
+				Assert.That(info.AFCopyId, Is.EqualTo(uin), "РќРµ СЃРѕРІРїР°РґР°РµС‚ AFCopyId");
 			}
 		}
 
@@ -303,14 +303,14 @@ namespace Integration
 			{
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.False);
-				Assert.That(log.Addition, Is.StringContaining("Несоответствие UIN").IgnoreCase);
-				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)), "Не совпадает UpdateType");
+				Assert.That(log.Addition, Is.StringContaining("РќРµСЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ UIN").IgnoreCase);
+				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)), "РќРµ СЃРѕРІРїР°РґР°РµС‚ UpdateType");
 				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
-				Assert.That(info.AFCopyId, Is.Not.EqualTo(uin), "Совпадает AFCopyId");
+				Assert.That(info.AFCopyId, Is.Not.EqualTo(uin), "РЎРѕРІРїР°РґР°РµС‚ AFCopyId");
 			}
 		}
 
-//        [Test(Description = "Написал тест для проверки выгрузки документа с признаком IsFake, чтобы проверить, что он корректно подтверждается")]
+//        [Test(Description = "РќР°РїРёСЃР°Р» С‚РµСЃС‚ РґР»СЏ РїСЂРѕРІРµСЂРєРё РІС‹РіСЂСѓР·РєРё РґРѕРєСѓРјРµРЅС‚Р° СЃ РїСЂРёР·РЅР°РєРѕРј IsFake, С‡С‚РѕР±С‹ РїСЂРѕРІРµСЂРёС‚СЊ, С‡С‚Рѕ РѕРЅ РєРѕСЂСЂРµРєС‚РЅРѕ РїРѕРґС‚РІРµСЂР¶РґР°РµС‚СЃСЏ")]
 //        public void Check_Fake_for_old_user()
 //        {
 //            TestDocumentLog fakeDoc;
@@ -358,15 +358,15 @@ namespace Integration
 //            ShouldBeSuccessfull();
 //            Confirm();
 
-//            //Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+//            //РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 //            Thread.Sleep(2000);
 
 //            using (new SessionScope())
 //            {
-//                var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == _oldUser.Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
-//                var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
-//                Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
-//                Assert.That(logs.Count, Is.EqualTo(0), "При архивировании не был найден документ: {0}", logs.Select(l => l.Addition).Implode("; "));
+//                var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == _oldUser.Id) && updateLog.Addition.Contains("РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґРѕРєСѓРјРµРЅС‚РѕРІ РІ РїР°РїРєРµ")).ToList();
+//                var finded = logs.FindAll(l => l.Addition.Contains(String.Format("в„– {0}", fakeDocument.Id)));
+//                Assert.That(finded.Count, Is.EqualTo(0), "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РїРѕРїС‹С‚Р°Р»РёСЃСЊ РЅР°Р№С‚Рё С„РёРєС‚РёРІРЅС‹Р№ РґРѕРєСѓРјРµРЅС‚, С‡С‚РѕР±С‹ Р·Р°Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊ РµРіРѕ.");
+//                Assert.That(logs.Count, Is.EqualTo(0), "РџСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё РЅРµ Р±С‹Р» РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚: {0}", logs.Select(l => l.Addition).Implode("; "));
 
 //                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
 //                try
@@ -375,7 +375,7 @@ namespace Integration
 //                        .SetParameter("DocumentId", fakeDoc.Id)
 //                        .SetParameter("UpdateId", lastUpdateId)
 //                        .UniqueResult();
-//                    Assert.That(commited, Is.Null, "Ненастоящий документ не подтвержден.");
+//                    Assert.That(commited, Is.Null, "РќРµРЅР°СЃС‚РѕСЏС‰РёР№ РґРѕРєСѓРјРµРЅС‚ РЅРµ РїРѕРґС‚РІРµСЂР¶РґРµРЅ.");
 //                }
 //                finally
 //                {
@@ -385,7 +385,7 @@ namespace Integration
 //            }
 //        }
 
-		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом")]
+		[Test(Description = "РїСЂРѕРІРµСЂСЏРµРј РїРѕР»СѓС‡РµРЅРёРµ СЂР°Р·РѕР±СЂР°РЅРЅРѕРіРѕ РЅРµРЅР°СЃС‚РѕСЏС‰РµРіРѕ РґРѕРєСѓРјРµРЅС‚Р° РєР»РёРµРЅС‚РѕРј")]
 		public void Get_parsed_fake_docs()
 		{
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
@@ -411,7 +411,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 
 			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";
-			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+			Assert.That(File.Exists(resultFileName), Is.True, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё");
 
 			var extractFolder = "ResultExtract";
 			if (Directory.Exists(extractFolder))
@@ -420,18 +420,18 @@ namespace Integration
 
 			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
 			var files = Directory.GetFiles(extractFolder, "Document*" + client.Users[0].Id + ".txt");
-			Assert.That(files.Length, Is.GreaterThanOrEqualTo(2), "Не все файлы найдены в архиве: {0}", files.Implode());
+			Assert.That(files.Length, Is.GreaterThanOrEqualTo(2), "РќРµ РІСЃРµ С„Р°Р№Р»С‹ РЅР°Р№РґРµРЅС‹ РІ Р°СЂС…РёРІРµ: {0}", files.Implode());
 			var documentHeadersFile = files.First(item => item.Contains("DocumentHeaders"));
-			Assert.IsNotNullOrEmpty(documentHeadersFile, "Не найден файл DocumentHeaders: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(documentHeadersFile, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentBodies: {0}", files.Implode());
 
 			var contentHeader = File.ReadAllText(documentHeadersFile);
-			Assert.That(contentHeader, Is.StringStarting(String.Format("{0}\t{1}", waybill.Id, fakeDocument.Id)), "В содержимом DocumentHeaders нет искомого разобранного документа");
+			Assert.That(contentHeader, Is.StringStarting(String.Format("{0}\t{1}", waybill.Id, fakeDocument.Id)), "Р’ СЃРѕРґРµСЂР¶РёРјРѕРј DocumentHeaders РЅРµС‚ РёСЃРєРѕРјРѕРіРѕ СЂР°Р·РѕР±СЂР°РЅРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р°");
 
 			Confirm();
 		}
 
-		[Test(Description = "Должен быть сброшен флаг Commited при частичном КО")]
+		[Test(Description = "Р”РѕР»Р¶РµРЅ Р±С‹С‚СЊ СЃР±СЂРѕС€РµРЅ С„Р»Р°Рі Commited РїСЂРё С‡Р°СЃС‚РёС‡РЅРѕРј РљРћ")]
 		public void ResetCommittedAfterLimitedCumulative()
 		{
 			var updateTime = DateTime.Now.AddMinutes(-1);
@@ -480,7 +480,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Документы, отправленные пользователем для разбора, не возвращаются в архиве")]
+		[Test(Description = "Р”РѕРєСѓРјРµРЅС‚С‹, РѕС‚РїСЂР°РІР»РµРЅРЅС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј РґР»СЏ СЂР°Р·Р±РѕСЂР°, РЅРµ РІРѕР·РІСЂР°С‰Р°СЋС‚СЃСЏ РІ Р°СЂС…РёРІРµ")]
 		public void SendedWaybillsNotReturned()
 		{
 			CreateUser();
@@ -493,7 +493,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 
 			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId + ".zip";
-			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+			Assert.That(File.Exists(resultFileName), Is.True, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё");
 
 			var extractFolder = "ResultExtract";
 			if (Directory.Exists(extractFolder))
@@ -503,21 +503,21 @@ namespace Integration
 			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
 			var files = Directory.GetFiles(extractFolder);
 
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentBodies: {0}", files.Implode());
 
-			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
+			Assert.That(files.Length, Is.EqualTo(2), "Р’ РїРѕР»СѓС‡РµРЅРЅРѕРј Р°СЂС…РёРІРµ РїРµСЂРµРґР°РЅС‹ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С„Р°Р№Р»С‹ РІ РєРѕСЂРЅРµРІСѓСЋ РїР°РїРєСѓ: {0}", files.Implode());
 
 			if (Directory.Exists(Path.Combine(extractFolder, "Waybills")))
 			{
 				var waybillsFiles = Directory.GetFiles(Path.Combine(extractFolder, "Waybills"));
-				Assert.That(waybillsFiles.Length, Is.EqualTo(0), "В папке с накладными имеются файлы, хотя там не должно быть файлов, которые пользователь отправил для разбора: {0}", waybillsFiles.Implode());
+				Assert.That(waybillsFiles.Length, Is.EqualTo(0), "Р’ РїР°РїРєРµ СЃ РЅР°РєР»Р°РґРЅС‹РјРё РёРјРµСЋС‚СЃСЏ С„Р°Р№Р»С‹, С…РѕС‚СЏ С‚Р°Рј РЅРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ С„Р°Р№Р»РѕРІ, РєРѕС‚РѕСЂС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕС‚РїСЂР°РІРёР» РґР»СЏ СЂР°Р·Р±РѕСЂР°: {0}", waybillsFiles.Implode());
 			}
 
 			Confirm();
 		}
 
-		[Test(Description = "Не показываем сообщение о ненайденном файле документа, если документ моложе часа")]
+		[Test(Description = "РќРµ РїРѕРєР°Р·С‹РІР°РµРј СЃРѕРѕР±С‰РµРЅРёРµ Рѕ РЅРµРЅР°Р№РґРµРЅРЅРѕРј С„Р°Р№Р»Рµ РґРѕРєСѓРјРµРЅС‚Р°, РµСЃР»Рё РґРѕРєСѓРјРµРЅС‚ РјРѕР»РѕР¶Рµ С‡Р°СЃР°")]
 		public void DontShowErrorOnNotFindFile()
 		{
 			var brokenDoc = CreateDocument(client.Users[0]);
@@ -537,7 +537,7 @@ namespace Integration
 			}
 
 			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
-			Assert.That(log.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+			Assert.That(log.Addition, Is.Not.StringContaining("РЅРµ РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚ в„– ".Format(brokenDoc.Id)));
 
 			File.WriteAllText(brokenDoc.LocalFile, "");
 
@@ -552,10 +552,10 @@ namespace Integration
 			}
 
 			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
-			Assert.That(logAfterCreateFile.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+			Assert.That(logAfterCreateFile.Addition, Is.Not.StringContaining("РЅРµ РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚ в„– ".Format(brokenDoc.Id)));
 		}
 
-		[Test(Description = "Показываем сообщение о ненайденном файле документа, если документ старше часа")]
+		[Test(Description = "РџРѕРєР°Р·С‹РІР°РµРј СЃРѕРѕР±С‰РµРЅРёРµ Рѕ РЅРµРЅР°Р№РґРµРЅРЅРѕРј С„Р°Р№Р»Рµ РґРѕРєСѓРјРµРЅС‚Р°, РµСЃР»Рё РґРѕРєСѓРјРµРЅС‚ СЃС‚Р°СЂС€Рµ С‡Р°СЃР°")]
 		public void ShowErrorOnNotFindFileAfterHour()
 		{
 			var brokenDoc = CreateDocument(client.Users[0]);
@@ -575,7 +575,7 @@ namespace Integration
 			}
 
 			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
-			Assert.That(log.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+			Assert.That(log.Addition, Is.Not.StringContaining("РЅРµ РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚ в„– ".Format(brokenDoc.Id)));
 
 			using (new TransactionScope())
 			{
@@ -594,17 +594,17 @@ namespace Integration
 			}
 
 			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
-			Assert.That(logAfterCreateFile.Addition, Is.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
+			Assert.That(logAfterCreateFile.Addition, Is.StringContaining("РЅРµ РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚ в„– ".Format(brokenDoc.Id)));
 		}
 
-		[Test(Description = "Счет-фактура должна выгружаться после опеределенной версии")]
+		[Test(Description = "РЎС‡РµС‚-С„Р°РєС‚СѓСЂР° РґРѕР»Р¶РЅР° РІС‹РіСЂСѓР¶Р°С‚СЊСЃСЏ РїРѕСЃР»Рµ РѕРїРµСЂРµРґРµР»РµРЅРЅРѕР№ РІРµСЂСЃРёРё")]
 		public void InvoiceHeadersNotExported()
 		{
 			LoadDocuments();
 			ShouldBeSuccessfull();
 
 			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId + ".zip";
-			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+			Assert.That(File.Exists(resultFileName), Is.True, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё");
 
 			var extractFolder = "ResultExtract";
 			if (Directory.Exists(extractFolder))
@@ -614,23 +614,23 @@ namespace Integration
 			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
 			var files = Directory.GetFiles(extractFolder);
 
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
-			Assert.That(files.Contains(item => item.Contains("InvoiceHeaders")), Is.False, "Найден файл InvoiceHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentBodies: {0}", files.Implode());
+			Assert.That(files.Contains(item => item.Contains("InvoiceHeaders")), Is.False, "РќР°Р№РґРµРЅ С„Р°Р№Р» InvoiceHeaders: {0}", files.Implode());
 
-			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
+			Assert.That(files.Length, Is.EqualTo(2), "Р’ РїРѕР»СѓС‡РµРЅРЅРѕРј Р°СЂС…РёРІРµ РїРµСЂРµРґР°РЅС‹ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С„Р°Р№Р»С‹ РІ РєРѕСЂРЅРµРІСѓСЋ РїР°РїРєСѓ: {0}", files.Implode());
 
 			Confirm();
 		}
 
-		[Test(Description = "Счет-фактура должна выгружаться после опеределенной версии")]
+		[Test(Description = "РЎС‡РµС‚-С„Р°РєС‚СѓСЂР° РґРѕР»Р¶РЅР° РІС‹РіСЂСѓР¶Р°С‚СЊСЃСЏ РїРѕСЃР»Рµ РѕРїРµСЂРµРґРµР»РµРЅРЅРѕР№ РІРµСЂСЃРёРё")]
 		public void ExportInvoiceHeadersNotExported()
 		{
 			LoadDocuments("1.1.1.1462");
 			ShouldBeSuccessfull();
 
 			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId + ".zip";
-			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+			Assert.That(File.Exists(resultFileName), Is.True, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё");
 
 			var extractFolder = "ResultExtract";
 			if (Directory.Exists(extractFolder))
@@ -640,18 +640,18 @@ namespace Integration
 			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
 			var files = Directory.GetFiles(extractFolder);
 
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
-			Assert.That(files.Contains(item => item.Contains("InvoiceHeaders")), Is.True, "Не найден файл InvoiceHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» DocumentBodies: {0}", files.Implode());
+			Assert.That(files.Contains(item => item.Contains("InvoiceHeaders")), Is.True, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» InvoiceHeaders: {0}", files.Implode());
 
-			Assert.That(files.Length, Is.EqualTo(3), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
+			Assert.That(files.Length, Is.EqualTo(3), "Р’ РїРѕР»СѓС‡РµРЅРЅРѕРј Р°СЂС…РёРІРµ РїРµСЂРµРґР°РЅС‹ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ С„Р°Р№Р»С‹ РІ РєРѕСЂРЅРµРІСѓСЋ РїР°РїРєСѓ: {0}", files.Implode());
 
 			Confirm();
 		}
 
 		private void ShouldNotBeDocuments()
 		{
-			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
+			Assert.That(responce, Is.StringContaining("РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚"));
 		}
 
 		private void SendWaybill()
@@ -665,8 +665,8 @@ namespace Integration
 			
 			service.SendWaybills(client.Addresses[0].Id,
 				new ulong[] {supplierId},
-				new [] {"3687747_Протек-21_3687688_Протек-21_8993929-001__.sst"},
-				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"));
+				new [] {"3687747_РџСЂРѕС‚РµРє-21_3687688_РџСЂРѕС‚РµРє-21_8993929-001__.sst"},
+				File.ReadAllBytes(@"..\..\Data\3687747_РџСЂРѕС‚РµРє-21_3687688_РџСЂРѕС‚РµРє-21_8993929-001__.zip"));
 		}
 
 		private string SendWaybillEx(string uin)
@@ -680,8 +680,8 @@ namespace Integration
 
 			return service.SendWaybillsEx(client.Addresses[0].Id,
 				new ulong[] { supplierId },
-				new[] { "3687747_Протек-21_3687688_Протек-21_8993929-001__.sst" },
-				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"),
+				new[] { "3687747_РџСЂРѕС‚РµРє-21_3687688_РџСЂРѕС‚РµРє-21_8993929-001__.sst" },
+				File.ReadAllBytes(@"..\..\Data\3687747_РџСЂРѕС‚РµРє-21_3687688_РџСЂРѕС‚РµРє-21_8993929-001__.zip"),
 				uin,
 				"6.0.0.1183");
 		}
@@ -718,7 +718,7 @@ namespace Integration
 			var service = new PrgDataEx();
 			service.MaxSynonymCode("", new uint[0], lastUpdateId, true);
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 			Thread.Sleep(3000);
 		}
 
@@ -749,7 +749,7 @@ namespace Integration
 			var service = new PrgDataEx();
 			service.CommitExchange(lastUpdateId, false);
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 			Thread.Sleep(3000);
 		}
 

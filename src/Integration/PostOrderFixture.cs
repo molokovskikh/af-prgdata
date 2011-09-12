@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Linq;
 using System.Configuration;
@@ -92,7 +92,7 @@ from
 			}
 		}
 
-		//[Test(Description = "Проверяем работу с MinReq с несущесвующей записью в Intersection")]
+		//[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј СЂР°Р±РѕС‚Сѓ СЃ MinReq СЃ РЅРµСЃСѓС‰РµСЃРІСѓСЋС‰РµР№ Р·Р°РїРёСЃСЊСЋ РІ Intersection")]
 		//public void Check_nonExists_MinReq()
 		//{
 		//    var offer = offers.Rows[0];
@@ -134,17 +134,17 @@ from
 		//        new string[] {""} //LeaderMinPriceCode
 		//        );
 
-		//    Assert.That(response, Is.StringStarting("OrderID=").IgnoreCase, "Отправка заказа завершилась ошибкой.");
+		//    Assert.That(response, Is.StringStarting("OrderID=").IgnoreCase, "РћС‚РїСЂР°РІРєР° Р·Р°РєР°Р·Р° Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РѕС€РёР±РєРѕР№.");
 
 		//    using (new SessionScope())
 		//    {
 		//        var logs = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == _user.Id).OrderByDescending(l => l.Id).ToList();
-		//        Assert.That(logs.Count, Is.EqualTo(1), "Неожидаемое количество записей в логе {0}: {1}", logs.Count, logs.Implode());
+		//        Assert.That(logs.Count, Is.EqualTo(1), "РќРµРѕР¶РёРґР°РµРјРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃРµР№ РІ Р»РѕРіРµ {0}: {1}", logs.Count, logs.Implode());
 		//        Assert.That(logs[0].UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendOrder)));
 		//    }
 		//}
 
-		//[Test(Description = "Проверяем текст ошибки при нарушении MinReq")]
+		//[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј С‚РµРєСЃС‚ РѕС€РёР±РєРё РїСЂРё РЅР°СЂСѓС€РµРЅРёРё MinReq")]
 		//public void Check_error_on_MinReq()
 		//{
 		//    var offer = offers.Rows[0];
@@ -186,15 +186,15 @@ from
 		//        new string[] { "" } //LeaderMinPriceCode
 		//        );
 
-		//    Assert.That(response, Is.StringContaining("Desc=Сумма заказа меньше минимально допустимой").IgnoreCase, "Неожидаемая ошибка при отправке заказа.");
+		//    Assert.That(response, Is.StringContaining("Desc=РЎСѓРјРјР° Р·Р°РєР°Р·Р° РјРµРЅСЊС€Рµ РјРёРЅРёРјР°Р»СЊРЅРѕ РґРѕРїСѓСЃС‚РёРјРѕР№").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјР°СЏ РѕС€РёР±РєР° РїСЂРё РѕС‚РїСЂР°РІРєРµ Р·Р°РєР°Р·Р°.");
 
 		//    using (new SessionScope())
 		//    {
 		//        var logs = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == _user.Id).OrderByDescending(l => l.Id).ToList();
-		//        Assert.That(logs.Count, Is.EqualTo(1), "Неожидаемое количество записей в логе {0}: {1}", logs.Count, logs.Implode());
+		//        Assert.That(logs.Count, Is.EqualTo(1), "РќРµРѕР¶РёРґР°РµРјРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃРµР№ РІ Р»РѕРіРµ {0}: {1}", logs.Count, logs.Implode());
 		//        var log = logs[0];
 		//        Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)));
-		//        Assert.That(log.Addition, Is.StringStarting("Сумма заказа меньше минимально допустимой").IgnoreCase, "Неожидаемый Addtion в логе.");
+		//        Assert.That(log.Addition, Is.StringStarting("РЎСѓРјРјР° Р·Р°РєР°Р·Р° РјРµРЅСЊС€Рµ РјРёРЅРёРјР°Р»СЊРЅРѕ РґРѕРїСѓСЃС‚РёРјРѕР№").IgnoreCase, "РќРµРѕР¶РёРґР°РµРјС‹Р№ Addtion РІ Р»РѕРіРµ.");
 		//    }
 		//}
 

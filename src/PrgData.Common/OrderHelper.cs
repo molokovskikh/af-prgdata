@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using MySql.Data.MySqlClient;
 
 namespace PrgData.Common
@@ -103,7 +103,7 @@ where osuseraccessright.RowId = ?UserId", _readWriteConnection);
 			}
 
 			if (!canPostOrder)
-				throw new UpdateException("Отправка заказов запрещена", "Пожалуйста, обратитесь в АК \"Инфорум\".", RequestType.Forbidden);
+				throw new UpdateException("РћС‚РїСЂР°РІРєР° Р·Р°РєР°Р·РѕРІ Р·Р°РїСЂРµС‰РµРЅР°", "РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РѕР±СЂР°С‚РёС‚РµСЃСЊ РІ РђРљ \"РРЅС„РѕСЂСѓРј\".", RequestType.Forbidden);
 		}
 
 		public ulong SaveOrder(uint clientId, uint priceId, ulong regionId, DateTime priceDate, uint rowCount, uint clientOrderId, string clientAddition)

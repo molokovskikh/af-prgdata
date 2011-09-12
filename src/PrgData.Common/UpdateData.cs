@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.IO;
 using System.Data;
@@ -19,19 +19,19 @@ namespace PrgData.Common
 	{
 		private static int _versionBeforeConfirmUserMessage = 1299;
 		private static int _versionBeforeSupplierPromotions = 1363;
-		//версия AnalitF до поддержки отсрочек платежа с разделением на ЖНВЛС и прочий ассортимент
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё РѕС‚СЃСЂРѕС‡РµРє РїР»Р°С‚РµР¶Р° СЃ СЂР°Р·РґРµР»РµРЅРёРµРј РЅР° Р–РќР’Р›РЎ Рё РїСЂРѕС‡РёР№ Р°СЃСЃРѕСЂС‚РёРјРµРЅС‚
 		private static int _versionBeforeDelayWithVitallyImportant = 1385;
-		//версия AnalitF до поддержки отсрочек платежа по прайс-листам
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё РѕС‚СЃСЂРѕС‡РµРє РїР»Р°С‚РµР¶Р° РїРѕ РїСЂР°Р№СЃ-Р»РёСЃС‚Р°Рј
 		private static int _versionBeforeDelayByPrice = 1403;
-		//версия AnalitF до поддержки загрузки неподтвержденных заказов
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё Р·Р°РіСЂСѓР·РєРё РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ
 		private static int _versionBeforeDownloadUnconfirmedOrders = 1411;
-		//версия AnalitF до поддержки экспорта счет-фактуры
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё СЌРєСЃРїРѕСЂС‚Р° СЃС‡РµС‚-С„Р°РєС‚СѓСЂС‹
 		private static int _versionBeforeInvoiceHeaders = 1461;
-		//версия AnalitF до поддержки настройки "Показывать цену поставщика при отсрочках платежа"
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё РЅР°СЃС‚СЂРѕР№РєРё "РџРѕРєР°Р·С‹РІР°С‚СЊ С†РµРЅСѓ РїРѕСЃС‚Р°РІС‰РёРєР° РїСЂРё РѕС‚СЃСЂРѕС‡РєР°С… РїР»Р°С‚РµР¶Р°"
 		private static int _versionBeforeShowSupplierCost = 1489;
-		//версия AnalitF до поддержки настройки "Расписание обновлений AnalitF"
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё РЅР°СЃС‚СЂРѕР№РєРё "Р Р°СЃРїРёСЃР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРёР№ AnalitF"
 		private static int _versionBeforeAnalitFSchedule = 1505;
-		//версия AnalitF до поддержки экспортрования поля "SendDate" при экспорте неподтвержденных заказов
+		//РІРµСЂСЃРёСЏ AnalitF РґРѕ РїРѕРґРґРµСЂР¶РєРё СЌРєСЃРїРѕСЂС‚СЂРѕРІР°РЅРёСЏ РїРѕР»СЏ "SendDate" РїСЂРё СЌРєСЃРїРѕСЂС‚Рµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ
 		private static int _versionBeforeExportSendDate = 1540;
 
 		public string ShortName;
@@ -115,7 +115,7 @@ namespace PrgData.Common
 
 			PreviousRequest = new UncommittedRequest();
 			if (data.Tables.Count < 2)
-				throw new Exception("Не выбрана таблица с предыдущими обновлениями");
+				throw new Exception("РќРµ РІС‹Р±СЂР°РЅР° С‚Р°Р±Р»РёС†Р° СЃ РїСЂРµРґС‹РґСѓС‰РёРјРё РѕР±РЅРѕРІР»РµРЅРёСЏРјРё");
 			if (data.Tables[1].Rows.Count > 0)
 			{
 				var previousRequest = data.Tables[1].Rows[0];
@@ -172,11 +172,11 @@ namespace PrgData.Common
 		public string DisabledMessage()
 		{
 			if (!AFPermissionExists)
-				return "пользователю не разрешено обновлять AnalitF";
+				return "РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РЅРµ СЂР°Р·СЂРµС€РµРЅРѕ РѕР±РЅРѕРІР»СЏС‚СЊ AnalitF";
 			if (!UserEnabled)
-				return "пользователь отключен";
+				return "РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕС‚РєР»СЋС‡РµРЅ";
 			if (!ClientEnabled)
-				return "клиент отключен";
+				return "РєР»РёРµРЅС‚ РѕС‚РєР»СЋС‡РµРЅ";
 			return null;
 		}
 
@@ -225,9 +225,9 @@ namespace PrgData.Common
 		private void CheckBuildNumber()
 		{
 			if (KnownBuildNumber.HasValue && BuildNumber < KnownBuildNumber)
-				throw new UpdateException("Доступ закрыт.",
-										  "Используемая версия программы не актуальна, необходимо обновление до версии №" + KnownBuildNumber + ".[5]",
-										  "Попытка обновить устаревшую версию; ",
+				throw new UpdateException("Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚.",
+										  "РСЃРїРѕР»СЊР·СѓРµРјР°СЏ РІРµСЂСЃРёСЏ РїСЂРѕРіСЂР°РјРјС‹ РЅРµ Р°РєС‚СѓР°Р»СЊРЅР°, РЅРµРѕР±С…РѕРґРёРјРѕ РѕР±РЅРѕРІР»РµРЅРёРµ РґРѕ РІРµСЂСЃРёРё в„–" + KnownBuildNumber + ".[5]",
+										  "РџРѕРїС‹С‚РєР° РѕР±РЅРѕРІРёС‚СЊ СѓСЃС‚Р°СЂРµРІС€СѓСЋ РІРµСЂСЃРёСЋ; ",
 										  RequestType.Forbidden);
 		}
 
@@ -267,8 +267,8 @@ namespace PrgData.Common
 
 		private bool BuildNumberGreaterThen(int version)
 		{
-			//Версия удовлетворяем, если разобранная версия BuildNumber больше необходимой или разобранная версия BuildNumber
-			//не установлена и предыдущая версия KnownBuildNumber (версия программы, с которой пользователь работал в предыдущий раз) больше необходимой
+			//Р’РµСЂСЃРёСЏ СѓРґРѕРІР»РµС‚РІРѕСЂСЏРµРј, РµСЃР»Рё СЂР°Р·РѕР±СЂР°РЅРЅР°СЏ РІРµСЂСЃРёСЏ BuildNumber Р±РѕР»СЊС€Рµ РЅРµРѕР±С…РѕРґРёРјРѕР№ РёР»Рё СЂР°Р·РѕР±СЂР°РЅРЅР°СЏ РІРµСЂСЃРёСЏ BuildNumber
+			//РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅР° Рё РїСЂРµРґС‹РґСѓС‰Р°СЏ РІРµСЂСЃРёСЏ KnownBuildNumber (РІРµСЂСЃРёСЏ РїСЂРѕРіСЂР°РјРјС‹, СЃ РєРѕС‚РѕСЂРѕР№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЂР°Р±РѕС‚Р°Р» РІ РїСЂРµРґС‹РґСѓС‰РёР№ СЂР°Р·) Р±РѕР»СЊС€Рµ РЅРµРѕР±С…РѕРґРёРјРѕР№
 			return BuildNumber > version || ((!BuildNumber.HasValue || BuildNumber == 0) && KnownBuildNumber > version);
 		}
 
@@ -321,7 +321,7 @@ namespace PrgData.Common
 		private void CheckResultPath()
 		{
 			if (String.IsNullOrEmpty(ResultPath))
-				throw new Exception("Не установлено свойство ResultPath");
+				throw new Exception("РќРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅРѕ СЃРІРѕР№СЃС‚РІРѕ ResultPath");
 		}
 
 		public string GetReclameFile()
@@ -340,7 +340,7 @@ namespace PrgData.Common
 		{
 			CheckResultPath();
 			if (PreviousRequest.UpdateId == null)
-				throw new Exception("Отсутствует предыдущее неподтвержденное обновление");
+				throw new Exception("РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РїСЂРµРґС‹РґСѓС‰РµРµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ");
 			return String.Format("{0}{1}_{2}.zip", ResultPath, UserId, PreviousRequest.UpdateId);
 		}
 

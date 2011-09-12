@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -40,7 +40,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			}
 			catch(Exception exception)
 			{
-				Log.Error("Ошибка логирования загрузки файла обновлений", exception);
+				Log.Error("РћС€РёР±РєР° Р»РѕРіРёСЂРѕРІР°РЅРёСЏ Р·Р°РіСЂСѓР·РєРё С„Р°Р№Р»Р° РѕР±РЅРѕРІР»РµРЅРёР№", exception);
 			}
 		}
 
@@ -60,7 +60,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 				_userHost = context.Request.UserHostAddress;
 
 				if (String.IsNullOrEmpty(SUserId) || !UInt32.TryParse(SUserId, out UserId))
-					throw new Exception("Не удалось идентифицировать клиента.");
+					throw new Exception("РќРµ СѓРґР°Р»РѕСЃСЊ РёРґРµРЅС‚РёС„РёС†РёСЂРѕРІР°С‚СЊ РєР»РёРµРЅС‚Р°.");
 
 				if (!String.IsNullOrEmpty(context.Request.QueryString["Id"]))
 					Int64.TryParse(context.Request.QueryString["Id"], out _updateId);
@@ -71,15 +71,15 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 				var fn = ServiceContext.GetResultPath() + UserId + "_" + _updateId + ".zip";
 				if (!File.Exists(fn))
 				{
-					Log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
-					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
+					Log.DebugFormat("РџСЂРё РІС‹Р·РѕРІРµ GetFileHandler РЅРµ РЅР°Р№РґРµРЅ С„Р°Р№Р»: {0}", fn);
+					throw new Exception(String.Format("РџСЂРё РІС‹Р·РѕРІРµ GetFileHandler РЅРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё: {0}", fn));
 				}
 
 				Counter.TryLock(UserId, "FileHandler");
-				Log.DebugFormat("Успешно наложена блокировка FileHandler для пользователя: {0}", UserId);
+				Log.DebugFormat("РЈСЃРїРµС€РЅРѕ РЅР°Р»РѕР¶РµРЅР° Р±Р»РѕРєРёСЂРѕРІРєР° FileHandler РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", UserId);
 
 				context.Response.ContentType = "application/octet-stream";
-				Log.DebugFormat("Начали передачу файла для пользователя: {0}", UserId);
+				Log.DebugFormat("РќР°С‡Р°Р»Рё РїРµСЂРµРґР°С‡Сѓ С„Р°Р№Р»Р° РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", UserId);
 				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read))
 				{
 					_totalBytes = stmFileStream.Length;
@@ -89,27 +89,27 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					CopyStreams(stmFileStream, context.Response.OutputStream);
 				}
 
-				Log.DebugFormat("Производим вызов Flush() для пользователя: {0}", UserId);
+				Log.DebugFormat("РџСЂРѕРёР·РІРѕРґРёРј РІС‹Р·РѕРІ Flush() РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", UserId);
 				context.Response.Flush();
-				Log.DebugFormat("Производим протоколирование после передачи файла для пользователя: {0}", UserId);
+				Log.DebugFormat("РџСЂРѕРёР·РІРѕРґРёРј РїСЂРѕС‚РѕРєРѕР»РёСЂРѕРІР°РЅРёРµ РїРѕСЃР»Рµ РїРµСЂРµРґР°С‡Рё С„Р°Р№Р»Р° РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", UserId);
 				LogSend();
 			}
 			catch (COMException comex)
 			{
-				//-2147024832 - (0x80070040): Указанное сетевое имя более недоступно. (Исключение из HRESULT: 0x80070040)
-				//-2147024775 - (0x80070079): Превышен таймаут семафора. (Исключение из HRESULT: 0x80070079)
+				//-2147024832 - (0x80070040): РЈРєР°Р·Р°РЅРЅРѕРµ СЃРµС‚РµРІРѕРµ РёРјСЏ Р±РѕР»РµРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ. (РСЃРєР»СЋС‡РµРЅРёРµ РёР· HRESULT: 0x80070040)
+				//-2147024775 - (0x80070079): РџСЂРµРІС‹С€РµРЅ С‚Р°Р№РјР°СѓС‚ СЃРµРјР°С„РѕСЂР°. (РСЃРєР»СЋС‡РµРЅРёРµ РёР· HRESULT: 0x80070079)
 				if (comex.ErrorCode != -2147023901
 					&& comex.ErrorCode != -2147024775
 					&& comex.ErrorCode != -2147024832)
 				{
 					LogSend(comex);
-					Log.Error(String.Format("COMException при запросе получения файла с данными, пользователь: {0}", SUserId), comex);
+					Log.Error(String.Format("COMException РїСЂРё Р·Р°РїСЂРѕСЃРµ РїРѕР»СѓС‡РµРЅРёСЏ С„Р°Р№Р»Р° СЃ РґР°РЅРЅС‹РјРё, РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ: {0}", SUserId), comex);
 				}
 			}
 			catch (HttpException wex)
 			{
 
-				// 0x800703E3 -2147023901 Удаленный хост разорвал соединение.
+				// 0x800703E3 -2147023901 РЈРґР°Р»РµРЅРЅС‹Р№ С…РѕСЃС‚ СЂР°Р·РѕСЂРІР°Р» СЃРѕРµРґРёРЅРµРЅРёРµ.
 
 				LogSend(wex);
 				if (	wex.ErrorCode != -2147014842
@@ -120,7 +120,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					&& wex.ErrorCode != -2147024775
 	)
 					//
-					Log.Error(String.Format("HttpException " + wex.ErrorCode + "  при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
+					Log.Error(String.Format("HttpException " + wex.ErrorCode + "  РїСЂРё Р·Р°РїСЂРѕСЃРµ РїРѕР»СѓС‡РµРЅРёСЏ С„Р°Р№Р»Р° СЃ РґР°РЅРЅС‹РјРё, РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ: {0}", SUserId), wex);
 			}
 
 			catch (Exception ex)
@@ -130,15 +130,15 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 				if (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					Log.Error(String.Format("Exception при запросе получения файла с данными, пользователь: {0}", SUserId), ex);
+					Log.Error(String.Format("Exception РїСЂРё Р·Р°РїСЂРѕСЃРµ РїРѕР»СѓС‡РµРЅРёСЏ С„Р°Р№Р»Р° СЃ РґР°РЅРЅС‹РјРё, РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ: {0}", SUserId), ex);
 					context.Response.StatusCode = 500;
 				}
 			}
 			finally
 			{
-				Log.DebugFormat("Пытаемся снять блокировку FileHandler для пользователя: {0}", SUserId);
+				Log.DebugFormat("РџС‹С‚Р°РµРјСЃСЏ СЃРЅСЏС‚СЊ Р±Р»РѕРєРёСЂРѕРІРєСѓ FileHandler РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", SUserId);
 				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler");
-				Log.DebugFormat("Успешно снята блокировка FileHandler для пользователя: {0}", SUserId);
+				Log.DebugFormat("РЈСЃРїРµС€РЅРѕ СЃРЅСЏС‚Р° Р±Р»РѕРєРёСЂРѕРІРєР° FileHandler РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", SUserId);
 			}
 		}
 

@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
@@ -12,7 +12,7 @@ using Test.Support.Logs;
 
 namespace Integration
 {
-	[TestFixture(Description = "Тесты механизма статистики пользователя")]
+	[TestFixture(Description = "РўРµСЃС‚С‹ РјРµС…Р°РЅРёР·РјР° СЃС‚Р°С‚РёСЃС‚РёРєРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")]
 	public class SendUserActionsFixture
 	{
 		private TestClient _client;
@@ -62,27 +62,27 @@ namespace Integration
 		private string GetLogContent()
 		{
 			var logFileBytes = File.ReadAllBytes("..\\..\\Data\\UserActionLog.7z");
-			Assert.That(logFileBytes.Length, Is.GreaterThan(0), "Файл со статистикой оказался пуст, возможно, его нет в папке");
+			Assert.That(logFileBytes.Length, Is.GreaterThan(0), "Р¤Р°Р№Р» СЃРѕ СЃС‚Р°С‚РёСЃС‚РёРєРѕР№ РѕРєР°Р·Р°Р»СЃСЏ РїСѓСЃС‚, РІРѕР·РјРѕР¶РЅРѕ, РµРіРѕ РЅРµС‚ РІ РїР°РїРєРµ");
 
 			return Convert.ToBase64String(logFileBytes);
 		}
 
-		[Test(Description = "Отправляем статистику пользователя")]
+		[Test(Description = "РћС‚РїСЂР°РІР»СЏРµРј СЃС‚Р°С‚РёСЃС‚РёРєСѓ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ")]
 		public void SimpleSendLog()
 		{
 			var logs = TestAnalitFUserActionLog.Queryable.Where(l => l.UserId == _user.Id).ToList();
-			Assert.That(logs.Count, Is.EqualTo(0), "Найдена статистика для созданного пользователя");
+			Assert.That(logs.Count, Is.EqualTo(0), "РќР°Р№РґРµРЅР° СЃС‚Р°С‚РёСЃС‚РёРєР° РґР»СЏ СЃРѕР·РґР°РЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ");
 
 			var service = new PrgData.PrgDataEx();
 
 			var response = service.SendUserActions(_afAppVersion, 1, GetLogContent());
-			Assert.That(response, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера");
+			Assert.That(response, Is.EqualTo("Res=OK"), "РќРµРѕР¶РёРґР°РµРјС‹Р№ РѕС‚РІРµС‚ РѕС‚ СЃРµСЂРІРµСЂР°");
 
 			var logsAftreImport = TestAnalitFUserActionLog.Queryable.Where(l => l.UserId == _user.Id && l.UpdateId == 1).ToList();
-			Assert.That(logsAftreImport.Count, Is.GreaterThan(0), "Статистика для пользователя не импортировалась");
+			Assert.That(logsAftreImport.Count, Is.GreaterThan(0), "РЎС‚Р°С‚РёСЃС‚РёРєР° РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅРµ РёРјРїРѕСЂС‚РёСЂРѕРІР°Р»Р°СЃСЊ");
 		}
 
-		[Test(Description = "Попытка разбора полученного от пользователя 12061 архива"), Ignore("Разбор конкретной проблемы")]
+		[Test(Description = "РџРѕРїС‹С‚РєР° СЂР°Р·Р±РѕСЂР° РїРѕР»СѓС‡РµРЅРЅРѕРіРѕ РѕС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ 12061 Р°СЂС…РёРІР°"), Ignore("Р Р°Р·Р±РѕСЂ РєРѕРЅРєСЂРµС‚РЅРѕР№ РїСЂРѕР±Р»РµРјС‹")]
 		public void ParseErrorArchive()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))

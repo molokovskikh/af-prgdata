@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 
 namespace PrgData.Common.SevenZip
 {
@@ -13,20 +13,20 @@ namespace PrgData.Common.SevenZip
 			public string Command { get; private set; }
 
 			public SevenZipArchiveException()
-				: base("Процесс архивирования завершился ошибкой.")
+				: base("РџСЂРѕС†РµСЃСЃ Р°СЂС…РёРІРёСЂРѕРІР°РЅРёСЏ Р·Р°РІРµСЂС€РёР»СЃСЏ РѕС€РёР±РєРѕР№.")
 			{
 				ExitCode = -1;
 			}
 
 			public SevenZipArchiveException(int exitCode, string output)
-				: base(String.Format("Процесс архивирования завершился с ошибкой : {0}. {1}", exitCode, output))
+				: base(String.Format("РџСЂРѕС†РµСЃСЃ Р°СЂС…РёРІРёСЂРѕРІР°РЅРёСЏ Р·Р°РІРµСЂС€РёР»СЃСЏ СЃ РѕС€РёР±РєРѕР№ : {0}. {1}", exitCode, output))
 			{
 				ExitCode = exitCode;
 				Output = output;
 			}
 
 			public SevenZipArchiveException(int exitCode, string command, string output, string errorOutput)
-				: base(String.Format("Процесс архивирования завершился с ошибкой : {0}. Комманда {2}. {1} {3}", exitCode, output, command, errorOutput))
+				: base(String.Format("РџСЂРѕС†РµСЃСЃ Р°СЂС…РёРІРёСЂРѕРІР°РЅРёСЏ Р·Р°РІРµСЂС€РёР»СЃСЏ СЃ РѕС€РёР±РєРѕР№ : {0}. РљРѕРјРјР°РЅРґР° {2}. {1} {3}", exitCode, output, command, errorOutput))
 			{
 				ExitCode = exitCode;
 				Output = output;

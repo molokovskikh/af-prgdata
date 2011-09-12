@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -95,7 +95,7 @@ namespace Integration
 							break;
 					}
 
-					Assert.That(newPrices.Count, Is.EqualTo(4), "Не нашли достаточное кол-во прайс-листов для тестов");
+					Assert.That(newPrices.Count, Is.EqualTo(4), "РќРµ РЅР°С€Р»Рё РґРѕСЃС‚Р°С‚РѕС‡РЅРѕРµ РєРѕР»-РІРѕ РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ РґР»СЏ С‚РµСЃС‚РѕРІ");
 
 					s.CreateSQLQuery(
 						"delete from future.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
@@ -121,8 +121,8 @@ namespace Integration
 		private DateTime GetLastUpdateTime()
 		{
 			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			//РўР°РєРѕРµ РёР·РІСЂР°С‰РµРЅРёРµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, С‡С‚РѕР±С‹ РёСЃРєР»СЋС‡РёС‚СЊ РёР· РґР°С‚С‹ РјСѓСЃРѕСЂ РІ РІРёРґРµ СѓС‡С‚РµРЅРЅРѕРіРѕ РІСЂРµРјРµРЅРё РјРµРЅСЊС€Рµ СЃРµРєСѓРЅРґС‹,
+			//С‡С‚РѕР±С‹ СЃСЂР°РІРЅРµРЅРёРµ РїСЂРё РїСЂРѕРІРµСЂРєРµ СЃРѕС…СЂР°РЅРµРЅРЅРѕРіРѕ РІСЂРµРјРµРЅРё РѕР±РЅРѕРІР»РµРЅРёСЏ РѕС‚СЂР°Р±Р°С‚С‹РІР°Р»Рѕ
 			simpleUpdateTime = simpleUpdateTime.Date
 				.AddHours(simpleUpdateTime.Hour)
 				.AddMinutes(simpleUpdateTime.Minute)
@@ -134,7 +134,7 @@ namespace Integration
 			return simpleUpdateTime;
 		}
 
-		[Test(Description = "Проверяем, что использование NHibernate-сессии от текущего подключение не закрывает подключение и транзакцию")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј, С‡С‚Рѕ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ NHibernate-СЃРµСЃСЃРёРё РѕС‚ С‚РµРєСѓС‰РµРіРѕ РїРѕРґРєР»СЋС‡РµРЅРёРµ РЅРµ Р·Р°РєСЂС‹РІР°РµС‚ РїРѕРґРєР»СЋС‡РµРЅРёРµ Рё С‚СЂР°РЅР·Р°РєС†РёСЋ")]
 		public void TestNHibernateSession()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -181,7 +181,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "проверяем работу класса Orders2StringConverter")]
+		[Test(Description = "РїСЂРѕРІРµСЂСЏРµРј СЂР°Р±РѕС‚Сѓ РєР»Р°СЃСЃР° Orders2StringConverter")]
 		public void TestOrders2StringConverter()
 		{
 			var price = _drugstoreUser.GetActivePricesList()[0];
@@ -193,26 +193,26 @@ namespace Integration
 			Assert.That(converter.OrderHead, Is.Not.Null);
 			Assert.That(converter.OrderItems, Is.Not.Null);
 
-			Assert.That(converter.OrderHead.ToString(), Is.StringStarting("{0}\t{1}".Format(1, _drugstoreAddress.Id)), "Не корректно выгружен заголовок заказа");
-			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "Не корректно выгружен список позиций заказа");
+			Assert.That(converter.OrderHead.ToString(), Is.StringStarting("{0}\t{1}".Format(1, _drugstoreAddress.Id)), "РќРµ РєРѕСЂСЂРµРєС‚РЅРѕ РІС‹РіСЂСѓР¶РµРЅ Р·Р°РіРѕР»РѕРІРѕРє Р·Р°РєР°Р·Р°");
+			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "РќРµ РєРѕСЂСЂРµРєС‚РЅРѕ РІС‹РіСЂСѓР¶РµРЅ СЃРїРёСЃРѕРє РїРѕР·РёС†РёР№ Р·Р°РєР°Р·Р°");
 
 			var columns = converter.OrderHead.ToString().Split('\t');
-			Assert.That(columns.Length, Is.EqualTo(4), "Неожидаемое количество элементов, разделенных tab");
+			Assert.That(columns.Length, Is.EqualTo(4), "РќРµРѕР¶РёРґР°РµРјРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СЌР»РµРјРµРЅС‚РѕРІ, СЂР°Р·РґРµР»РµРЅРЅС‹С… tab");
 
 			converter = new Orders2StringConverter(new List<Order> { order }, 1, 1, true);
 
 			Assert.That(converter.OrderHead, Is.Not.Null);
 			Assert.That(converter.OrderItems, Is.Not.Null);
 
-			Assert.That(converter.OrderHead.ToString(), Is.StringStarting("{0}\t{1}".Format(1, _drugstoreAddress.Id)), "Не корректно выгружен заголовок заказа");
-			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "Не корректно выгружен список позиций заказа");
+			Assert.That(converter.OrderHead.ToString(), Is.StringStarting("{0}\t{1}".Format(1, _drugstoreAddress.Id)), "РќРµ РєРѕСЂСЂРµРєС‚РЅРѕ РІС‹РіСЂСѓР¶РµРЅ Р·Р°РіРѕР»РѕРІРѕРє Р·Р°РєР°Р·Р°");
+			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "РќРµ РєРѕСЂСЂРµРєС‚РЅРѕ РІС‹РіСЂСѓР¶РµРЅ СЃРїРёСЃРѕРє РїРѕР·РёС†РёР№ Р·Р°РєР°Р·Р°");
 
 			columns = converter.OrderHead.ToString().Split('\t');
-			Assert.That(columns.Length, Is.EqualTo(5), "Неожидаемое количество элементов, разделенных tab");
-			Assert.That(columns[4], Is.StringStarting(order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")), "Дата заказа экспортированна некорректно");
+			Assert.That(columns.Length, Is.EqualTo(5), "РќРµРѕР¶РёРґР°РµРјРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ СЌР»РµРјРµРЅС‚РѕРІ, СЂР°Р·РґРµР»РµРЅРЅС‹С… tab");
+			Assert.That(columns[4], Is.StringStarting(order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")), "Р”Р°С‚Р° Р·Р°РєР°Р·Р° СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅР° РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ");
 		}
 
-		[Test(Description = "проверяем удаление неподтвержденных заказов при подтверждении обновления")]
+		[Test(Description = "РїСЂРѕРІРµСЂСЏРµРј СѓРґР°Р»РµРЅРёРµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ РїСЂРё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРё РѕР±РЅРѕРІР»РµРЅРёСЏ")]
 		public void DeleteUnconfirmedOrders()
 		{
 			var orderFirst = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
@@ -264,7 +264,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Проверяем загрузку заказов в Exporter'е")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј Р·Р°РіСЂСѓР·РєСѓ Р·Р°РєР°Р·РѕРІ РІ Exporter'Рµ")]
 		public void TestLoadOrders()
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
@@ -290,8 +290,8 @@ namespace Integration
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
 				foreach (var order in orders)
 				{
-					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "РќРµ РЅР°Р№РґРµРЅ Р·Р°РєР°Р· OrderId = {0}", order.RowId);
+					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "РќРµ РЅР°Р№РґРµРЅ Р·Р°РєР°Р· OrderId = {0}", order.RowId);
 				}
 
 				exporter.UnionOrders();
@@ -304,7 +304,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Проверяем объединение заказов в Exporter'е")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј РѕР±СЉРµРґРёРЅРµРЅРёРµ Р·Р°РєР°Р·РѕРІ РІ Exporter'Рµ")]
 		public void TestUnionOrders()
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
@@ -329,8 +329,8 @@ namespace Integration
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
 				foreach (var order in orders)
 				{
-					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "РќРµ РЅР°Р№РґРµРЅ Р·Р°РєР°Р· OrderId = {0}", order.RowId);
+					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "РќРµ РЅР°Р№РґРµРЅ Р·Р°РєР°Р· OrderId = {0}", order.RowId);
 				}
 
 				exporter.UnionOrders();
@@ -361,11 +361,11 @@ namespace Integration
 			if (match.Length > 0)
 				return Convert.ToUInt32(match);
 
-			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
+			Assert.Fail("РќРµ РЅР°Р№РґРµРЅ РЅРѕРјРµСЂ UpdateId РІ РѕС‚РІРµС‚Рµ СЃРµСЂРІРµСЂР°: {0}", responce);
 			return 0;
 		}
 
-		[Test(Description = "Проверяем простой запрос данных с выгружаемыми заказами")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С… СЃ РІС‹РіСЂСѓР¶Р°РµРјС‹РјРё Р·Р°РєР°Р·Р°РјРё")]
 		public void SimpleLoadData()
 		{
 			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
@@ -389,7 +389,7 @@ namespace Integration
 					var simpleUpdateId = ParseUpdateId(responce);
 
 					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
-					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "РќРµРѕР¶РёРґР°РµРјС‹Р№ СЃРїРёСЃРѕРє С„Р°Р№Р»РѕРІ РїРѕСЃР»Рµ РїРѕРґРіРѕС‚РѕРІРєРё РѕР±РЅРѕРІР»РµРЅРёСЏ: {0}", afterSimpleFiles.Implode());
 					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
 
 					ArchiveHelper.Extract(afterSimpleFiles[0], "*.*", extractFolder);
@@ -399,26 +399,26 @@ namespace Integration
 					var headFile =
 						rootFiles.FirstOrDefault(
 							file => file.EndsWith("CurrentOrderHeads{0}.txt".Format(_officeUser.Id), StringComparison.OrdinalIgnoreCase));
-					Assert.That(headFile, Is.Not.Null.And.Not.Empty, "Не найден файл с заголовком заказа");
-					Assert.That(new FileInfo(headFile).Length, Is.GreaterThan(0), "Файл с заголовком заказа оказался пустым");
+					Assert.That(headFile, Is.Not.Null.And.Not.Empty, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃ Р·Р°РіРѕР»РѕРІРєРѕРј Р·Р°РєР°Р·Р°");
+					Assert.That(new FileInfo(headFile).Length, Is.GreaterThan(0), "Р¤Р°Р№Р» СЃ Р·Р°РіРѕР»РѕРІРєРѕРј Р·Р°РєР°Р·Р° РѕРєР°Р·Р°Р»СЃСЏ РїСѓСЃС‚С‹Рј");
 
 					var listFile =
 						rootFiles.FirstOrDefault(
 							file => file.EndsWith("CurrentOrderLists{0}.txt".Format(_officeUser.Id), StringComparison.OrdinalIgnoreCase));
-					Assert.That(listFile, Is.Not.Null.And.Not.Empty, "Не найден файл со списком позиций заказа");
-					Assert.That(new FileInfo(listFile).Length, Is.GreaterThan(0), "Файл со списком позиций заказа оказался пустым");
+					Assert.That(listFile, Is.Not.Null.And.Not.Empty, "РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» СЃРѕ СЃРїРёСЃРєРѕРј РїРѕР·РёС†РёР№ Р·Р°РєР°Р·Р°");
+					Assert.That(new FileInfo(listFile).Length, Is.GreaterThan(0), "Р¤Р°Р№Р» СЃРѕ СЃРїРёСЃРєРѕРј РїРѕР·РёС†РёР№ Р·Р°РєР°Р·Р° РѕРєР°Р·Р°Р»СЃСЏ РїСѓСЃС‚С‹Рј");
 
 					Directory.Delete(extractFolder, true);
 
 					var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-					Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
-					Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
-					Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+					Assert.That(sendLogs.Count, Is.EqualTo(1), "Р”РѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕРґРёРЅ Р·Р°РєР°Р·, СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РІ РґР°РЅРЅРѕРј РѕР±РЅРѕРІР»РµРЅРёРё");
+					Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "РќРѕРјРµСЂ СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅРѕРіРѕ Р·Р°РєР°Р·Р° РЅРµ СЃРѕРІРїР°РґР°РµС‚");
+					Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "РљРѕРґ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅРµ СЃРѕРІРїР°РґР°РµС‚");
 
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);
 
-					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+					//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 					Thread.Sleep(3000);
 
 					var deletedStatus = Convert.ToBoolean(
@@ -426,18 +426,18 @@ namespace Integration
 							Settings.ConnectionString(),
 							"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 							new MySqlParameter("?OrderId", order.RowId)));
-					Assert.That(deletedStatus, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", order.RowId);
+					Assert.That(deletedStatus, Is.True, "РќРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р· {0} РЅРµ РїРѕРјРµС‡РµРЅ РєР°Рє СѓРґР°Р»РµРЅРЅС‹Р№", order.RowId);
 
 					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
 						Settings.ConnectionString(),
 						"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 						new MySqlParameter("?UpdateId", simpleUpdateId)));
-					Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
+					Assert.That(addition, Is.StringContaining("Р­РєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рµ Р·Р°РєР°Р·С‹: {0}".Format(order.RowId)), "РќРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р· {0} РЅРµ СЃРѕРґРµСЂР¶РёС‚СЃСЏ РІ РїРѕР»Рµ Addition", order.RowId);
 				}
 				catch
 				{
 					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					Console.WriteLine("РћС€РёР±РєРё РїСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С…:\r\n{0}", logEvents.Select(item =>
 					{
 						if (string.IsNullOrEmpty(item.GetExceptionString()))
 							return item.RenderedMessage;
@@ -449,7 +449,7 @@ namespace Integration
 
 				var events = memoryAppender.GetEvents();
 				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+				Assert.That(errors.Count(), Is.EqualTo(0), "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РІРѕР·РЅРёРєР»Рё РѕС€РёР±РєРё:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
 			}
 			finally
 			{
@@ -457,7 +457,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Попытка загружить заказы, когда нет неподтвержденных заказов")]
+		[Test(Description = "РџРѕРїС‹С‚РєР° Р·Р°РіСЂСѓР¶РёС‚СЊ Р·Р°РєР°Р·С‹, РєРѕРіРґР° РЅРµС‚ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ")]
 		public void LoadOrdersOnNonExistsUnconfirmedOrders()
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
@@ -489,14 +489,14 @@ namespace Integration
 
 				exporter.Export();
 
-				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
-				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
+				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(0), "РќРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ РґР»СЏ РєР»РёРµРЅС‚Р° {0}", _client.Id);
+				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "РќРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ РґР»СЏ РєР»РёРµРЅС‚Р° {0}", _client.Id);
 
-				Assert.That(fileForArchives.Count, Is.EqualTo(0), "В очереди не должно быть файлов, т.к. нет неподтвержденных заказов для клиента {0}", _client.Id);
+				Assert.That(fileForArchives.Count, Is.EqualTo(0), "Р’ РѕС‡РµСЂРµРґРё РЅРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ С„Р°Р№Р»РѕРІ, С‚.Рє. РЅРµС‚ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹С… Р·Р°РєР°Р·РѕРІ РґР»СЏ РєР»РёРµРЅС‚Р° {0}", _client.Id);
 			}
 		}
 
-		[Test(Description = "Проверяем простой запрос данных без выгружаемых заказов")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРµРј РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С… Р±РµР· РІС‹РіСЂСѓР¶Р°РµРјС‹С… Р·Р°РєР°Р·РѕРІ")]
 		public void SimpleLoadDataWithoutUnconfirmedOrders()
 		{
 			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
@@ -517,28 +517,28 @@ namespace Integration
 					var simpleUpdateId = ParseUpdateId(responce);
 
 					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
-					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "РќРµРѕР¶РёРґР°РµРјС‹Р№ СЃРїРёСЃРѕРє С„Р°Р№Р»РѕРІ РїРѕСЃР»Рµ РїРѕРґРіРѕС‚РѕРІРєРё РѕР±РЅРѕРІР»РµРЅРёСЏ: {0}", afterSimpleFiles.Implode());
 					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
 
 					var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-					Assert.That(sendLogs.Count, Is.EqualTo(0), "Не должно быть заказов, экспортированных пользователю");
+					Assert.That(sendLogs.Count, Is.EqualTo(0), "РќРµ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ Р·Р°РєР°Р·РѕРІ, СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ");
 
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);
 					
-					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+					//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 					Thread.Sleep(3000);
 
 					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
 						Settings.ConnectionString(),
 						"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 						new MySqlParameter("?UpdateId", simpleUpdateId)));
-					Assert.That(addition, Is.Not.StringContaining("Экспортированные неподтвержденные заказы: "), "Список экспортированных неподтвержденные заказов должен быть пустым");
+					Assert.That(addition, Is.Not.StringContaining("Р­РєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рµ Р·Р°РєР°Р·С‹: "), "РЎРїРёСЃРѕРє СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹С… РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рµ Р·Р°РєР°Р·РѕРІ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј");
 				}
 				catch
 				{
 					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					Console.WriteLine("РћС€РёР±РєРё РїСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С…:\r\n{0}", logEvents.Select(item =>
 					{
 						if (string.IsNullOrEmpty(item.GetExceptionString()))
 							return item.RenderedMessage;
@@ -550,7 +550,7 @@ namespace Integration
 
 				var events = memoryAppender.GetEvents();
 				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+				Assert.That(errors.Count(), Is.EqualTo(0), "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С… РІРѕР·РЅРёРєР»Рё РѕС€РёР±РєРё:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
 			}
 			finally
 			{
@@ -558,7 +558,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Проверям поддержку таблицы UnconfirmedOrdersSendLogs при работе с неподтвержденными заказами")]
+		[Test(Description = "РџСЂРѕРІРµСЂСЏРј РїРѕРґРґРµСЂР¶РєСѓ С‚Р°Р±Р»РёС†С‹ UnconfirmedOrdersSendLogs РїСЂРё СЂР°Р±РѕС‚Рµ СЃ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹РјРё Р·Р°РєР°Р·Р°РјРё")]
 		public void SupportUnconfirmedOrdersSendLog()
 		{
 			var firstOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
@@ -577,28 +577,28 @@ namespace Integration
 			var firstUpdateId = ParseUpdateId(responce);
 
 			var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
-			Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
-			Assert.That(sendLogs.Contains(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs.Contains(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
-			Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+			Assert.That(sendLogs.Count, Is.EqualTo(2), "Р”РѕР»Р¶РµРЅ Р±С‹С‚СЊ 2 Р·Р°РєР°Р·Р°, СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РІ РґР°РЅРЅРѕРј РѕР±РЅРѕРІР»РµРЅРёРё");
+			Assert.That(sendLogs.Contains(l => l.OrderId == firstOrder.RowId), Is.True, "РќРѕРјРµСЂ СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅРѕРіРѕ Р·Р°РєР°Р·Р° РЅРµ СЃРѕРІРїР°РґР°РµС‚");
+			Assert.That(sendLogs.Contains(l => l.OrderId == secondOrder.RowId), Is.True, "РќРѕРјРµСЂ СЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅРѕРіРѕ Р·Р°РєР°Р·Р° РЅРµ СЃРѕРІРїР°РґР°РµС‚");
+			Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "РљРѕРґ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅРµ СЃРѕРІРїР°РґР°РµС‚");
+			Assert.That(sendLogs.All(l => !l.Committed), Is.True, "РљРѕРґ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅРµ СЃРѕРІРїР°РґР°РµС‚");
 
 			var thirdOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			var service = new PrgDataEx();
 			var updateTime = service.CommitExchange(firstUpdateId, false);
 
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			//РќСѓР¶РЅРѕ РїРѕСЃРїР°С‚СЊ, С‚.Рє. РЅРµ СѓСЃРїРµРІР°РµС‚ РѕС‚СЂР°Р±Р°С‚С‹РІР°С‚СЊ РЅРёС‚РєР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
 			Thread.Sleep(3000);
 
 			var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
-			Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
+			Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "РќРµСЌРєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ Р·Р°РєР°Р· {0} Р±С‹Р» РґРѕР±Р°РІР»РµРЅ РІ С‚Р°Р±Р»РёС†С‹ Р»РѕРіРѕРІ", thirdOrder.RowId);
 
 			using (new SessionScope())
 			{
 				sendLogs.ForEach(l => l.Refresh());
-				Assert.That(sendLogs.All(l => l.Committed), Is.True, "Имееются неподтвержденные заказы");
-				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");
+				Assert.That(sendLogs.All(l => l.Committed), Is.True, "РРјРµРµСЋС‚СЃСЏ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рµ Р·Р°РєР°Р·С‹");
+				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "Р’ Р»РѕРіРµ РёР·РјРµРЅРёР»РѕСЃСЊ Р·РЅР°С‡РµРЅРёРµ UpdateId");
 			}
 
 			var deletedStatusFirst = Convert.ToBoolean(
@@ -606,27 +606,27 @@ namespace Integration
 					Settings.ConnectionString(),
 					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 					new MySqlParameter("?OrderId", firstOrder.RowId)));
-			Assert.That(deletedStatusFirst, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", firstOrder.RowId);
+			Assert.That(deletedStatusFirst, Is.True, "РќРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р· {0} РЅРµ РїРѕРјРµС‡РµРЅ РєР°Рє СѓРґР°Р»РµРЅРЅС‹Р№", firstOrder.RowId);
 
 			var deletedStatusSecond = Convert.ToBoolean(
 				MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
 					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 					new MySqlParameter("?OrderId", secondOrder.RowId)));
-			Assert.That(deletedStatusSecond, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", secondOrder.RowId);
+			Assert.That(deletedStatusSecond, Is.True, "РќРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р· {0} РЅРµ РїРѕРјРµС‡РµРЅ РєР°Рє СѓРґР°Р»РµРЅРЅС‹Р№", secondOrder.RowId);
 
 			var deletedStatusThird = Convert.ToBoolean(
 				MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
 					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 					new MySqlParameter("?OrderId", thirdOrder.RowId)));
-			Assert.That(deletedStatusThird, Is.False, "Неподтвержденный заказ {0} помечен как удаленный", thirdOrder.RowId);
+			Assert.That(deletedStatusThird, Is.False, "РќРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р· {0} РїРѕРјРµС‡РµРЅ РєР°Рє СѓРґР°Р»РµРЅРЅС‹Р№", thirdOrder.RowId);
 
 			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
 				Settings.ConnectionString(),
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", firstUpdateId)));
-			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}, {1}".Format(firstOrder.RowId, secondOrder.RowId)), "Неподтвержденный заказы {0}, {1} не содержатся в поле Addition", firstOrder.RowId, secondOrder.RowId);
+			Assert.That(addition, Is.StringContaining("Р­РєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рµ Р·Р°РєР°Р·С‹: {0}, {1}".Format(firstOrder.RowId, secondOrder.RowId)), "РќРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РєР°Р·С‹ {0}, {1} РЅРµ СЃРѕРґРµСЂР¶Р°С‚СЃСЏ РІ РїРѕР»Рµ Addition", firstOrder.RowId, secondOrder.RowId);
 		}
 
 	}

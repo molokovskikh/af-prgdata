@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
@@ -52,7 +52,7 @@ namespace Integration
 					connection,
 					"select count(*) from farm.Core0"));
 
-				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake ");
+				Assert.That(coreCount, Is.GreaterThan(30000), "Р›РѕРєР°Р»СЊРЅР°СЏ Р±Р°Р·Р° РґР°РЅРЅС‹С… РЅРµ РіРѕС‚РѕРІР° Рє С‚РµСЃС‚Р°Рј. Р’С‹РїРѕР»РЅРёС‚Рµ РІ РєРѕСЂРЅРµ РїСЂРѕРµРєС‚Р°: bake ");
 			}
 		}
 
@@ -78,7 +78,7 @@ namespace Integration
 				File.Delete(testFile);
 			}
 			else
-				throw new Exception("Не найден файл: " + testFile);
+				throw new Exception("РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р»: " + testFile);
 		}
 
 		private void CheckDBFiles()
@@ -135,7 +135,7 @@ namespace Integration
 				{
 					throw new Exception(
 						String.Format(
-							"Команда подлючения завершилась в ошибкой: {0}\r\n{1}\r\n{2}",
+							"РљРѕРјР°РЅРґР° РїРѕРґР»СЋС‡РµРЅРёСЏ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РІ РѕС€РёР±РєРѕР№: {0}\r\n{1}\r\n{2}",
 							process.ExitCode,
 							process.StandardOutput.ReadToEnd(),
 							process.StandardError.ReadToEnd()

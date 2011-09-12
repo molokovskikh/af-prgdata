@@ -1,4 +1,4 @@
-using System;
+п»їusing System;
 using System.IO;
 using System.Threading;
 using System.Web;
@@ -47,14 +47,14 @@ namespace PrgData.FileHandlers
 			catch (HttpException wex)
 			{
 				if (!wex.IsWellKnownException())
-					Log.ErrorFormat("Запрос на получение файла с рекламой\r\nErrCode : {0}\r\n{1}", wex.ErrorCode, wex);
+					Log.ErrorFormat("Р—Р°РїСЂРѕСЃ РЅР° РїРѕР»СѓС‡РµРЅРёРµ С„Р°Р№Р»Р° СЃ СЂРµРєР»Р°РјРѕР№\r\nErrCode : {0}\r\n{1}", wex.ErrorCode, wex);
 			}
 			catch (Exception ex)
 			{
 				if  (!(ex is ThreadAbortException))
 				{
 					context.AddError(ex);
-					Log.Error("Запрос на получение файла с рекламой", ex);
+					Log.Error("Р—Р°РїСЂРѕСЃ РЅР° РїРѕР»СѓС‡РµРЅРёРµ С„Р°Р№Р»Р° СЃ СЂРµРєР»Р°РјРѕР№", ex);
 					context.Response.StatusCode = 500;
 				}
 			}
