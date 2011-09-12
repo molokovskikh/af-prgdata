@@ -62,7 +62,10 @@ namespace PrgData.Common
 			ArchiveHelper.Extract(_tmpLogArchive, "*.*", extractDir);
 			var files = Directory.GetFiles(extractDir);
 			if (files.Length == 0)
+			{
+				_log.DebugFormat("Содержимое полученного архива со статистикой: {0}", logFile);
 				throw new Exception("Полученный архив не содержит файлов.");
+			}
 
 			_tmpExtractLogFileName = Path.Combine(Path.GetDirectoryName(files[0]), "UserActionLogs" + _updateData.UserId + ".txt");
 
