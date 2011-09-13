@@ -2391,6 +2391,10 @@ StartZipping:
             Dim updateExceptionMessage = ProcessUpdateException(updateException, True)
             currentUpdateId = GUpdateId
             Return updateExceptionMessage
+        Catch OnParse As ParseDefectureException
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при разборе дефектуры", OnParse.InnerException)
+            currentUpdateId = UpdateHelper.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & OnParse.Message & ": " & OnParse.InnerException.Message, UpdateData.BuildNumber)
+            Return "Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."
         Catch OnEmpty As EmptyDefectureException
             currentUpdateId = UpdateHelper.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "Представленная дефектура не содержит данных.", UpdateData.BuildNumber)
             Return "Error=Представленная дефектура не содержит данных.;Desc=Пожалуйста, выберите другой файл."

@@ -21,6 +21,7 @@ using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using Test.Support;
+using Test.Support.Logs;
 
 
 namespace Integration
@@ -345,6 +346,55 @@ namespace Integration
 				var postBatchUpdateId = ParseUpdateId(postBatchResponce);
 				Assert.That(File.Exists(Path.Combine("results", "Archive", user.Id.ToString(), postBatchUpdateId + "_Batch.7z")), Is.True);
 			}
+		}
+
+		[Test(Description = "Попытка выполнить разбор дефектуры с некорректным форматом файла")]
+		public void SmartOrderWithErrorFile()
+		{
+			var appVersion = "1.1.1.1300";
+			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
+
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				SetCurrentUser(user.Login);
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					"update future.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", user.Id));
+
+				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderError.7z");
+				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+
+				var batchFile = Convert.ToBase64String(batchFileBytes);
+
+				var service = new PrgDataEx();
+
+				var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+
+				Assert.That(postBatchResponce, Is.EqualTo("Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."));
+			}
+
+			var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+			Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
+			Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при разборе дефектуры: Index was outside the bounds of the array."));
 		}
 
 		private void SetCurrentUser(string login)

@@ -167,6 +167,9 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+    <None Include="TestData\TestOrderError.7z">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="TestData\TestOrderSmall.7z">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -26,6 +26,13 @@ using With = Common.MySql.With;
 
 namespace PrgData.Common
 {
+	public class ParseDefectureException : Exception
+	{
+		public ParseDefectureException(string message, Exception innerException)
+			: base(message, innerException)
+		{ }
+	}
+
 	public class SmartOrderHelper
 	{
 		private UpdateData _updateData;
@@ -123,12 +130,23 @@ namespace PrgData.Common
 			_tmpBatchFileName = files[0];
 		}
 
-
 		public void ProcessBatchFile()
 		{
 			using (var stream = new FileStream(_tmpBatchFileName, FileMode.Open))
 			{
-				_handler = new SmartOrderBatchHandler(Orderable, Address, stream);
+				try
+				{
+					_handler = new SmartOrderBatchHandler(Orderable, Address, stream);
+				}
+				catch (EmptyDefectureException)
+				{
+					throw;
+				}
+				catch (Exception e)
+				{
+					throw new ParseDefectureException("Ошибка при разборе дефектуры", e);
+				}
+
 				var orders = _handler.ProcessOrderBatch();
 				SaveToFile(_handler.OrderBatchItems, orders);
 			}
