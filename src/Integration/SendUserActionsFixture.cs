@@ -104,5 +104,73 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "проверка работы функций GetRandomFileName и GetTempFileName")]
+		public void TestTempFileName()
+		{
+			var fullFileName = Path.GetTempFileName();
+			try
+			{
+				Assert.That(File.Exists(fullFileName), Is.True, "после вызова функции GetTempFileName должен существовать временный файл");
+				var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fullFileName);
+				Assert.That(fileNameWithoutExtension, Is.Not.EqualTo(Path.GetFileName(fullFileName)), "Временный файл должен создаваться с расширением");
+			}
+			finally
+			{
+				if (File.Exists(fullFileName))
+					File.Delete(fullFileName);
+			}
+
+			var randomFileName = Path.GetRandomFileName();
+			Assert.That(randomFileName, Is.EqualTo(Path.GetFileName(randomFileName)), "Случайный файл не должен содержать путь");
+			Assert.That(File.Exists(randomFileName), Is.False, "Случайный файл не должен существовать в текущем каталоге");
+			Assert.That(File.Exists(Path.Combine(Path.GetTempPath(), randomFileName)), Is.False, "Случайный файл не должен существовать во временном каталоге");
+		}
+
+		[Test(Description = "После работы Handler'а не должно быть новых файлов в папке с временными файлами")]
+		public void EmptyTempFoldersAfterWork()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				FoldersHelper.CheckTempFolders(() => {
+					var helper = new SendUserActionsHandler(updateData, 1, connection);
+
+					try
+					{
+						helper.PrepareLogFile("N3q8ryccAAKNm9UPAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+					}
+					catch (Exception e)
+					{
+						Assert.That(e.Message, Is.EqualTo("Полученный архив не содержит файлов."));
+					}
+					finally
+					{
+						helper.DeleteTemporaryFiles();
+					}
+
+				});
+
+				FoldersHelper.CheckTempFolders(() => {
+					var helper = new SendUserActionsHandler(updateData, 1, connection);
+
+					try
+					{
+						helper.PrepareLogFile(GetLogContent());
+					}
+					finally
+					{
+						helper.DeleteTemporaryFiles();
+					}
+
+				});
+
+
+			}
+		}
+
+
 	}
 }

@@ -342,7 +342,11 @@ namespace Integration
 
 				var batchFile = Convert.ToBase64String(batchFileBytes);
 
-				var postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, user.AvaliableAddresses[0].Id, batchFile);
+				var postBatchResponce = String.Empty;
+				FoldersHelper.CheckTempFolders(() => {
+					postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, user.AvaliableAddresses[0].Id, batchFile);
+				});
+
 				var postBatchUpdateId = ParseUpdateId(postBatchResponce);
 				Assert.That(File.Exists(Path.Combine("results", "Archive", user.Id.ToString(), postBatchUpdateId + "_Batch.7z")), Is.True);
 			}
@@ -385,11 +389,14 @@ namespace Integration
 
 				var batchFile = Convert.ToBase64String(batchFileBytes);
 
-				var service = new PrgDataEx();
+				FoldersHelper.CheckTempFolders(() => {
+					var service = new PrgDataEx();
 
-				var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+					var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
 
-				Assert.That(postBatchResponce, Is.EqualTo("Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."));
+					Assert.That(postBatchResponce, Is.EqualTo("Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."));
+				});
+
 			}
 
 			var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();

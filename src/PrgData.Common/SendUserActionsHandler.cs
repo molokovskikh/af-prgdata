@@ -28,7 +28,7 @@ namespace PrgData.Common
 			_updateId = updateId;
 			_connection = connection;
 
-			_tmpLogsFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName());
+			_tmpLogsFolder = Path.GetTempPath() + Path.GetRandomFileName();
 			_tmpLogArchive = _tmpLogsFolder + @"\logs.7z";
 			Directory.CreateDirectory(_tmpLogsFolder);
 		}

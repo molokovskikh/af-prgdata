@@ -213,7 +213,7 @@ Public Class PrgDataEx
                 UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
             End If
 
-            Dim tmpWaybillFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName())
+            Dim tmpWaybillFolder = Path.GetTempPath() + Path.GetRandomFileName()
             Dim tmpWaybillArchive = tmpWaybillFolder + "\waybills.7z"
 
 

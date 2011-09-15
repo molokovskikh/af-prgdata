@@ -96,6 +96,7 @@
     <Compile Include="DownloadUnconfirmedOrdersFixture.cs" />
     <Compile Include="FileHandlerFixture.cs" />
     <Compile Include="FixtureSetup.cs" />
+    <Compile Include="FoldersHelper.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />
     <Compile Include="GetHistoryOrdersFixture.cs" />
     <Compile Include="GetReclameFixture.cs" />

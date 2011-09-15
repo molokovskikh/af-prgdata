@@ -649,6 +649,38 @@ namespace Integration
 			Confirm();
 		}
 
+		[Test(Description = "После разбора накладных не должно быть новых файлов в папке с временными файлами")]
+		public void EmptyTempFoldersAfterWork()
+		{
+			FoldersHelper.CheckTempFolders(() => {
+				var response = SendWaybillEx("12345678");
+				Assert.That(response, Is.StringStarting("Status=0"));
+			});
+		}
+
+		[Test(Description = "После разбора накладных не должно быть новых файлов в папке с временными файлами даже если возникла ошибка")]
+		public void EmptyTempFoldersAfterErrorWork()
+		{
+			FoldersHelper.CheckTempFolders(() =>
+			{
+				var service = new PrgDataEx();
+				uint supplierId;
+				using (new TransactionScope())
+				{
+					supplierId = client.Users[0].GetActivePrices()[0].Supplier.Id;
+				}
+
+				var response = service.SendWaybillsEx(client.Addresses[0].Id,
+					new ulong[] { supplierId },
+					new[] { "3687747_Протек-21_3687688_Протек-21_8993929-001__.sst" },
+					new byte[]{}, 
+					"12345678",
+					"6.0.0.1183");
+				
+				Assert.That(response, Is.StringStarting("Status=1"));
+			});
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));

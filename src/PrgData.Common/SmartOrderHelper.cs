@@ -100,7 +100,7 @@ namespace PrgData.Common
 					Orderable = IoC.Resolve<IRepository<Client>>().Load(orderedClientCode);
 			}
 
-			_tmpBatchFolder = Path.GetTempPath() + Path.GetFileNameWithoutExtension(Path.GetTempFileName());
+			_tmpBatchFolder = Path.GetTempPath() + Path.GetRandomFileName();
 			_tmpBatchArchive = _tmpBatchFolder + @"\batch.7z";
 			BatchReportFileName = _tmpBatchFolder + @"\BatchReport.txt";
 			BatchOrderFileName = _tmpBatchFolder + @"\BatchOrder.txt";
