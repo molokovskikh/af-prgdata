@@ -375,7 +375,8 @@ Public Class PrgDataEx
           PriceCodes, _
           False, _
           Nothing, _
-          Nothing)
+          Nothing, _
+          False)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrders( _
@@ -405,7 +406,39 @@ Public Class PrgDataEx
           PriceCodes, _
           False, _
           MaxOrderId, _
-          MaxOrderListId)
+          MaxOrderListId, _
+          False)
+    End Function
+
+    <WebMethod()> Public Function GetUserDataWithOrdersAsync( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          WayBillsOnly, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId, _
+          True)
     End Function
 
     Private Function InternalGetUserData( _
@@ -421,7 +454,8 @@ Public Class PrgDataEx
      ByVal PriceCodes As UInt32(), _
      ByVal ProcessBatch As Boolean, _
      ByVal MaxOrderId As UInt32, _
-     ByVal MaxOrderListId As UInt32) As String
+     ByVal MaxOrderListId As UInt32,
+     ByVal Async As Boolean) As String
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
@@ -452,6 +486,8 @@ Public Class PrgDataEx
                 GetClientCode()
                 Counter.TryLock(UserId, "GetUserData")
                 UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
+                UpdateData.AsyncRequest = Async
+                If Async then AsyncPrgDatas.AddToList(Me)
                 'Присваиваем версии приложения и базы
                 UpdateData.ParseBuildNumber(EXEVersion)
                 UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
@@ -589,45 +625,50 @@ Public Class PrgDataEx
             End If
 
 endproc:
+            If Async then
+                GUpdateId = GetUpdateId()
+            Else
+endprocNew:
+                If Not PackFinished And (((BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive) Or ThreadZipStream.IsAlive) And Not ErrorFlag Then
 
-            If Not PackFinished And (((BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive) Or ThreadZipStream.IsAlive) And Not ErrorFlag Then
+                    'Если есть ошибка, прекращаем подготовку данных
+                    If ErrorFlag Then
 
-                'Если есть ошибка, прекращаем подготовку данных
-                If ErrorFlag Then
+                        If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Abort()
+                        If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
 
-                    If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Abort()
-                    If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
+                        PackFinished = True
 
-                    PackFinished = True
+                    End If
+                    Thread.Sleep(1000)
 
-                End If
-                Thread.Sleep(1000)
+                    GoTo endprocNew
 
-                GoTo endproc
+                ElseIf Not PackFinished And Not ErrorFlag And (UpdateType <> RequestType.Forbidden) And Not WayBillsOnly Then
 
-            ElseIf Not PackFinished And Not ErrorFlag And (UpdateType <> RequestType.Forbidden) And Not WayBillsOnly Then
+                    Addition &= "; Нет работающих потоков, данные не готовы."
+                    UpdateType = RequestType.Forbidden
 
-                Addition &= "; Нет работающих потоков, данные не готовы."
-                UpdateType = RequestType.Forbidden
-
-                ErrorFlag = True
-
-            End If
-
-            If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
-
-            If NewZip And Not ErrorFlag Then
-                Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
-
-                If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
-
-                    Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+                    ErrorFlag = True
 
                 End If
 
+                If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
+
+                If NewZip And Not ErrorFlag Then
+                    Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
+
+                    If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
+
+                        Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+
+                    End If
+
+                End If
+
+                ProtocolUpdatesThread.Start()
             End If
 
-            ProtocolUpdatesThread.Start()
 
             If ErrorFlag Then
 
@@ -639,17 +680,18 @@ endproc:
 
             Else
 
+                If Not UpdateData.AsyncRequest then
+                    While GUpdateId = 0
+                        Thread.Sleep(500)
+                    End While
 
-                While GUpdateId = 0
-                    Thread.Sleep(500)
-                End While
-
-                If UpdateType <> RequestType.ResumeData Then
-                    If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
-                        Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
-                        File.Delete(UpdateData.GetCurrentFile(GUpdateId))
+                    If UpdateType <> RequestType.ResumeData Then
+                        If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
+                            Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
+                            File.Delete(UpdateData.GetCurrentFile(GUpdateId))
+                        End If
+                        File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
                     End If
-                    File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
                 End If
 
                 ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED))
@@ -670,6 +712,8 @@ endproc:
                 If SpyAccount Then ResStr &= ";SendUData=True"
 
             End If
+
+
             InternalGetUserData = ResStr
         Catch updateException As UpdateException
             Return ProcessUpdateException(updateException)
@@ -690,7 +734,7 @@ endproc:
             InternalGetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
         Finally
             If (Not ProcessBatch) Then
-                DBDisconnect()
+                If Not Async Then DBDisconnect()
                 Counter.ReleaseLock(UserId, "GetUserData")
             End If
         End Try
@@ -1004,6 +1048,7 @@ endproc:
                             PackFinished = True
                             FileInfo = New FileInfo(UpdateData.GetCurrentTempFile())
                             ResultLenght = Convert.ToUInt32(FileInfo.Length)
+                            PackProtocols()
                             Exit Sub
 
                         Else
@@ -1012,6 +1057,7 @@ endproc:
                             Addition &= " Нет новых документов"
                             ErrorFlag = True
                             PackFinished = True
+                            PackProtocols()
                             Exit Sub
 
                         End If
@@ -1120,6 +1166,7 @@ StartZipping:
                             End If
 
                             PackFinished = True
+                            PackProtocols()
                             Exit Sub
                         End If
 
@@ -2378,7 +2425,7 @@ StartZipping:
                     AddFileToQueue(helper.BatchReportServiceFieldsFileName)
                 End If
 
-                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0)
+                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False)
 
                 currentUpdateId = GUpdateId
 
@@ -2421,6 +2468,106 @@ StartZipping:
 
     End Function
 
+    Private Function GetUpdateId As ULong
+        Dim transaction As MySqlTransaction
+        'Dim LogCb As New MySqlCommandBuilder
+        'Dim LogDA As New MySqlDataAdapter
+        Dim LogCm As New MySqlCommand
+
+        Using connection = New MySqlConnection
+            ThreadContext.Properties("user") = UpdateData.UserName
+
+            connection.ConnectionString = Settings.ConnectionString
+            connection.Open()
+
+            LogCm.Connection = connection
+            
+                If (UpdateType = RequestType.GetData) _
+                 Or (UpdateType = RequestType.GetCumulative) _
+                 Or (UpdateType = RequestType.PostOrderBatch) _
+                 Or (UpdateType = RequestType.Forbidden) _
+                 Or (UpdateType = RequestType.Error) _
+                 Or (UpdateType = RequestType.GetDocs) _
+                 Or (UpdateType = RequestType.GetHistoryOrders) Then
+                   
+                        transaction = connection.BeginTransaction(IsoLevel)
+
+                        If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
+
+                        'если нет новых документов то и подтверждения не будет
+                        'а в интерейсе неподтвержденное обновление это тревога
+                        'что бы не было тревог
+                        Dim commit = False
+                        If MessageH = "Новых файлов документов нет." Then
+                            commit = True
+                        End If
+
+                        With LogCm
+                            .CommandText = _
+                                "insert into `logs`.`AnalitFUpdates` " _
+                                & "(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit, ClientHost) " _
+                                & " values " _
+                                & "(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit, ?ClientHost); "
+                            .CommandText &= "select last_insert_id()"
+                            .Transaction = transaction
+                            .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
+
+                            Dim resultUpdateType As RequestType = UpdateType
+                            If (UpdateType = RequestType.GetData) And LimitedCumulative Then resultUpdateType = RequestType.GetCumulative
+                            If (resultUpdateType = RequestType.GetData) then resultUpdateType = RequestType.GetDataAsync
+                            If (resultUpdateType = RequestType.GetCumulative) then resultUpdateType = RequestType.GetCumulativeAsync
+                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(resultUpdateType)))
+
+                            .Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
+                            .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
+                            .Parameters.Add(New MySqlParameter("?Addition", Addition))
+                            .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
+                            .Parameters.AddWithValue("?Commit", commit)
+                            .Parameters.AddWithValue("?ClientHost", UserHost)
+                        End With
+
+                        GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
+
+                        transaction.Commit()
+
+                        Return GUpdateId
+
+                End If
+        End Using
+
+    End Function
+
+    Private Sub PackProtocols
+        If UpdateData.AsyncRequest then
+            If Len(Addition) = 0 Then Addition = MessageH & " " & MessageD
+
+            If NewZip And Not ErrorFlag Then
+                Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
+
+                If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
+
+                    Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+
+                End If
+
+            End If
+
+            ProtocolUpdatesThread.Start()
+
+            If UpdateType <> RequestType.ResumeData Then
+                If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
+                    Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
+                    File.Delete(UpdateData.GetCurrentFile(GUpdateId))
+                End If
+                File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
+            End If
+
+            UpdateHelper.UpdateRequestType(readWriteConnection, UpdateData, GUpdateId)
+
+            AsyncPrgDatas.DeleteFromList(Me)
+        End If
+    End Sub
+
     Private Sub ProtocolUpdates()
         Dim transaction As MySqlTransaction
         Dim LogCb As New MySqlCommandBuilder
@@ -2454,45 +2601,48 @@ StartZipping:
                  Or (UpdateType = RequestType.GetHistoryOrders) Then
 
 PostLog:
+                    If GUpdateId = 0 then
+                    
+                        transaction = connection.BeginTransaction(IsoLevel)
 
-                    transaction = connection.BeginTransaction(IsoLevel)
+                        If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
 
-                    If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
-
-                    'если нет новых документов то и подтверждения не будет
-                    'а в интерейсе неподтвержденное обновление это тревога
-                    'что бы не было тревог
-                    Dim commit = False
-                    If MessageH = "Новых файлов документов нет." Then
-                        commit = True
-                    End If
-
-                    With LogCm
-                        .CommandText = _
-                            "insert into `logs`.`AnalitFUpdates` " _
-                            & "(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit, ClientHost) " _
-                            & " values " _
-                            & "(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit, ?ClientHost); "
-                        .CommandText &= "select last_insert_id()"
-                        .Transaction = transaction
-                        .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
-                        If (UpdateType = RequestType.GetData) And LimitedCumulative Then
-                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
-                        Else
-                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                        'если нет новых документов то и подтверждения не будет
+                        'а в интерейсе неподтвержденное обновление это тревога
+                        'что бы не было тревог
+                        Dim commit = False
+                        If MessageH = "Новых файлов документов нет." Then
+                            commit = True
                         End If
-                        .Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
-                        .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
-                        .Parameters.Add(New MySqlParameter("?Addition", Addition))
-                        .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
-                        .Parameters.AddWithValue("?Commit", commit)
-                        .Parameters.AddWithValue("?ClientHost", UserHost)
-                    End With
 
-                    GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
+                        With LogCm
+                            .CommandText = _
+                                "insert into `logs`.`AnalitFUpdates` " _
+                                & "(`RequestTime`, `UpdateType`, `UserId`, `AppVersion`,  `ResultSize`, `Addition`, Commit, ClientHost) " _
+                                & " values " _
+                                & "(?UpdateTime, ?UpdateType, ?UserId, ?exeversion,  ?Size, ?Addition, ?Commit, ?ClientHost); "
+                            .CommandText &= "select last_insert_id()"
+                            .Transaction = transaction
+                            .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
+                            If (UpdateType = RequestType.GetData) And LimitedCumulative Then
+                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
+                            Else
+                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                            End If
+                            .Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
+                            .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
+                            .Parameters.Add(New MySqlParameter("?Addition", Addition))
+                            .Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
+                            .Parameters.AddWithValue("?Commit", commit)
+                            .Parameters.AddWithValue("?ClientHost", UserHost)
+                        End With
+
+                        GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
 
 
-                    transaction.Commit()
+                        transaction.Commit()
+
+                    End If
 
                     If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
                         Dim DocumentsProcessingCommandBuilder As New MySqlCommandBuilder
@@ -4486,6 +4636,40 @@ endproc:
         If ErrorFlag Then
             Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         End If
+    End Function
+
+    <WebMethod()> _
+    Public Function CheckAsyncRequest( _
+        ByVal UpdateId As UInt64 _
+    ) As String
+
+        Try
+            DBConnect()
+            GetClientCode()
+
+            If UpdateData.PreviousRequest.UpdateId = UpdateId _ 
+                AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetDataAsync _
+                AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetCumulativeAsync _
+            Then
+                Return "Res=OK"
+            Else
+                If UpdateData.PreviousRequest.UpdateId = UpdateId then
+                    Return "Res=Wait"
+                Else
+                    Me.Log.DebugFormat("При проверке статуса асинхронного запроса на найден UpdateId: {0}", UpdateId)
+                    Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+                End If
+            End If
+
+        Catch updateException As UpdateException
+            Return ProcessUpdateException(updateException)
+        Catch ex As Exception
+            LogRequestHelper.MailWithRequest(Log, "Ошибка при обработки пользовательской статистики", ex)
+            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+        Finally
+            DBDisconnect()
+        End Try
+
     End Function
 
 End Class

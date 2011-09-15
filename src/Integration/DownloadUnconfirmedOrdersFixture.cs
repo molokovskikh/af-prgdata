@@ -355,6 +355,16 @@ namespace Integration
 			return responce;
 		}
 
+		private string LoadDataAsync(bool getEtalonData, DateTime accessTime, string appVersion)
+		{
+			var service = new PrgDataEx();
+			var responce = service.GetUserDataWithOrdersAsync(accessTime, getEtalonData, appVersion, 50, _uniqueId, "", "", false, null, 1, 1, null);
+
+			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
+
+			return responce;
+		}
+
 		private uint ParseUpdateId(string responce)
 		{
 			var match = Regex.Match(responce, @"\d+").Value;
@@ -363,6 +373,12 @@ namespace Integration
 
 			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
 			return 0;
+		}
+
+		private string CheckAsyncRequest(ulong updateId)
+		{
+			var service = new PrgDataEx();
+			return service.CheckAsyncRequest(updateId);
 		}
 
 		[Test(Description = "Проверяем простой запрос данных с выгружаемыми заказами")]
@@ -627,6 +643,93 @@ namespace Integration
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", firstUpdateId)));
 			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}, {1}".Format(firstOrder.RowId, secondOrder.RowId)), "Неподтвержденный заказы {0}, {1} не содержатся в поле Addition", firstOrder.RowId, secondOrder.RowId);
+		}
+
+		[Test(Description = "Простой асинхронный запрос данных")]
+		public void SimpleAsyncGetData()
+		{
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					var firstAsyncResponse = CheckAsyncRequest(1);
+					Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
+
+					var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+
+					var simpleUpdateId = ParseUpdateId(responce);
+
+					var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+					Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
+
+					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
+					Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
+					Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
+					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
+
+					var asyncResponse = String.Empty;
+					var sleepCount = 0;
+					do
+					{
+						asyncResponse = CheckAsyncRequest(Convert.ToUInt64(simpleUpdateId));
+						if (asyncResponse == "Res=Wait")
+						{
+							sleepCount++;
+							Thread.Sleep(1000);
+						}
+
+					} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
+
+					Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
+
+					log.Refresh();
+					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+
+					var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+					Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
+
+					var service = new PrgDataEx();
+					var updateTime = service.CommitExchange(simpleUpdateId, false);
+
+					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+					Thread.Sleep(3000);
+
+					log.Refresh();
+					Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
+					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+
+					//var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+					//    Settings.ConnectionString(),
+					//    "select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					//    new MySqlParameter("?UpdateId", simpleUpdateId)));
+					//Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
 		}
 
 	}

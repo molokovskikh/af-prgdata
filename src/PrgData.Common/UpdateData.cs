@@ -109,6 +109,8 @@ namespace PrgData.Common
 
 		public List<uint> UnconfirmedOrders = new List<uint>();
 
+		public bool AsyncRequest;
+
 		public UpdateData(DataSet data)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");

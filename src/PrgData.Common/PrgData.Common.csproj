@@ -128,6 +128,7 @@
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Web" />
+    <Reference Include="System.Web.Services" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -141,6 +142,7 @@
     <Compile Include="AnalitFVersions\ExeVersionUpdater.cs" />
     <Compile Include="AnalitFVersions\VersionInfo.cs" />
     <Compile Include="AnalitFVersions\VersionUpdaterFactory.cs" />
+    <Compile Include="AsyncPrgDatas.cs" />
     <Compile Include="ConnectionHelper.cs" />
     <Compile Include="Context.cs" />
     <Compile Include="CostOptimizer.cs" />

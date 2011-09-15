@@ -372,7 +372,7 @@ where
 	u.Login = ?user
 and AnalitFUpdates.UserId = u.Id
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2, 10) 
+and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17) 
 order by AnalitFUpdates.UpdateId desc
 limit 1;"
 				, 
@@ -436,7 +436,7 @@ where
 	ouar.OSUserName = ?user
 and AnalitFUpdates.UserId = ouar.RowId
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2, 10) 
+and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17) 
 order by AnalitFUpdates.UpdateId desc
 limit 1;
 ";
@@ -3248,6 +3248,42 @@ order by s.Hour, s.Minute";
 				exists = true;
 
 			return exists;
+		}
+
+		public static void UpdateRequestType(MySqlConnection readWriteConnection, UpdateData updateData, ulong updateId)
+		{
+			With.DeadlockWraper(() => {
+			                    		
+				var realUpdateType = MySqlHelper.ExecuteScalar(
+					readWriteConnection,
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId and UpdateType in (16, 17)",
+					new MySqlParameter("?UpdateId", updateId));
+
+				if (realUpdateType != null && Convert.ToInt32(realUpdateType) > 0)
+				{
+					var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+					try
+					{
+						var newUpdateType = RequestType.GetData;
+						if (Convert.ToInt32(realUpdateType) == Convert.ToInt32(RequestType.GetCumulativeAsync))
+							newUpdateType = RequestType.GetCumulative;
+
+						MySqlHelper.ExecuteNonQuery(
+							readWriteConnection,
+							"update logs.AnalitFUpdates set UpdateType = ?UpdateType where UpdateId = ?UpdateId",
+							new MySqlParameter("?UpdateId", updateId),
+							new MySqlParameter("?UpdateType", Convert.ToInt32(newUpdateType)));
+
+						transaction.Commit();
+					}
+					catch
+					{
+						ConnectionHelper.SafeRollback(transaction);
+						throw;
+					}
+				}
+
+			});
 		}
 
 	}
