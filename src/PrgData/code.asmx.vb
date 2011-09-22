@@ -376,7 +376,8 @@ Public Class PrgDataEx
           False, _
           Nothing, _
           Nothing, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrders( _
@@ -407,7 +408,8 @@ Public Class PrgDataEx
           False, _
           MaxOrderId, _
           MaxOrderListId, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrdersAsync( _
@@ -438,7 +440,41 @@ Public Class PrgDataEx
           False, _
           MaxOrderId, _
           MaxOrderListId, _
-          True AndAlso Not WayBillsOnly)
+          True AndAlso Not WayBillsOnly, _
+          Nothing)
+    End Function
+
+    <WebMethod()> Public Function GetUserDataWithOrdersAsyncCert( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32(), _
+ ByVal DocumentBodyIds As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          WayBillsOnly, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId, _
+          True AndAlso Not WayBillsOnly, _
+          DocumentBodyIds)
     End Function
 
     Private Function InternalGetUserData( _
@@ -455,7 +491,8 @@ Public Class PrgDataEx
      ByVal ProcessBatch As Boolean, _
      ByVal MaxOrderId As UInt32, _
      ByVal MaxOrderListId As UInt32,
-     ByVal Async As Boolean) As String
+     ByVal Async As Boolean, _
+     ByVal DocumentBodyIds As UInt32()) As String
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
@@ -576,6 +613,9 @@ Public Class PrgDataEx
             End If
 
             If Documents Then
+				If DocumentBodyIds IsNot Nothing AndAlso (DocumentBodyIds.Length > 0) AndAlso (DocumentBodyIds(0) <> 0) Then
+					UpdateData.FillDocumentBodyIds(DocumentBodyIds)
+				End If
                 CurUpdTime = Now()
 
                 UpdateType = RequestType.GetDocs
@@ -1040,6 +1080,11 @@ endprocNew:
                     If Not Documents AndAlso UpdateData.ShowAdvertising AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() or UpdateData.NeedUpdateToSupplierPromotions) then
                         helper.ArchivePromotions(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
                     End If
+
+					'здесь будем выгружать сертификаты
+					If Documents AndAlso UpdateData.NeedExportCertificates then
+                        helper.ArchiveCertificates(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
+					End If
 
                     If Documents Then
                         If File.Exists(SevenZipTmpArchive) Then
@@ -2425,7 +2470,7 @@ StartZipping:
                     AddFileToQueue(helper.BatchReportServiceFieldsFileName)
                 End If
 
-                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False)
+                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing)
 
                 currentUpdateId = GUpdateId
 

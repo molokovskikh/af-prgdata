@@ -365,6 +365,16 @@ namespace Integration
 			return responce;
 		}
 
+		private string LoadDataAsyncDocs(bool getEtalonData, DateTime accessTime, string appVersion, uint[] documentBodyIds)
+		{
+			var service = new PrgDataEx();
+			var responce = service.GetUserDataWithOrdersAsyncCert(accessTime, getEtalonData, appVersion, 50, _uniqueId, "", "", true, null, 1, 1, null, documentBodyIds);
+
+			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
+
+			return responce;
+		}
+
 		private uint ParseUpdateId(string responce)
 		{
 			var match = Regex.Match(responce, @"\d+").Value;
@@ -732,5 +742,91 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "Простой запрос данных с получением сертификатов")]
+		public void SimpleGetDataWithCertificates()
+		{
+			if (!Directory.Exists("results\\Certificates"))
+				Directory.CreateDirectory("results\\Certificates");
+
+			try
+			{
+				var memoryAppender = new MemoryAppender();
+				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
+				BasicConfigurator.Configure(memoryAppender);
+
+
+				try
+				{
+					var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion, new uint[] {1});
+
+					var simpleUpdateId = ParseUpdateId(responce);
+
+					//var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+					//Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
+
+					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
+					//Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
+					//Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
+					//Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
+
+					//var asyncResponse = String.Empty;
+					//var sleepCount = 0;
+					//do
+					//{
+					//    asyncResponse = CheckAsyncRequest(Convert.ToUInt64(simpleUpdateId));
+					//    if (asyncResponse == "Res=Wait")
+					//    {
+					//        sleepCount++;
+					//        Thread.Sleep(1000);
+					//    }
+
+					//} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
+
+					//Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
+
+					//log.Refresh();
+					//Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+
+					var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+					Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
+
+					var service = new PrgDataEx();
+					var updateTime = service.CommitExchange(simpleUpdateId, true);
+
+					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+					Thread.Sleep(3000);
+
+					log.Refresh();
+					Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
+					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDocs)), "Не совпадает тип обновления");
+
+					//var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+					//    Settings.ConnectionString(),
+					//    "select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					//    new MySqlParameter("?UpdateId", simpleUpdateId)));
+					//Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
+				}
+				catch
+				{
+					var logEvents = memoryAppender.GetEvents();
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					{
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
+					throw;
+				}
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			}
+			finally
+			{
+				LogManager.ResetConfiguration();
+			}
+		}
 	}
 }

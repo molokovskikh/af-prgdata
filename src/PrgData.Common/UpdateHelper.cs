@@ -1760,6 +1760,196 @@ where
 		}
 
 
+		public void ArchiveCertificates(MySqlConnection connection, string archiveFileName, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
+		{
+			var log = LogManager.GetLogger(typeof(UpdateHelper));
+
+			try
+			{
+				log.Debug("Будем выгружать сертификаты");
+
+				var command = new MySqlCommand();
+				command.Connection = connection;
+				SetUpdateParameters(command, cumulative, oldUpdateTime, currentUpdateTime);
+
+				ExportCertificates(archiveFileName, command, filesForArchive);
+
+				ArchiveCertificatesFiles(archiveFileName, command);
+			}
+			catch (Exception exception)
+			{
+				log.Error("Ошибка при архивировании сертификатов", exception);
+				addition += "Архивирование сертификатов: " + exception.Message + "; ";
+
+				ShareFileHelper.MySQLFileDelete(archiveFileName);
+			}
+		}
+
+		private void ExportCertificates(string archiveFileName, MySqlCommand command, Queue<FileForArchive> filesForArchive)
+		{
+			var certificateRequestsFile = DeleteFileByPrefix("CertificateRequests");
+			var certificatesFile = DeleteFileByPrefix("Certificates");
+			var certificateFilesFile = DeleteFileByPrefix("CertificateFiles");
+
+			ProcessCertificates(command);
+
+			File.WriteAllText(MySqlLocalFilePath() + certificateRequestsFile, _updateData.GetCertificatesResult());
+
+			ProcessArchiveFile(certificateRequestsFile, archiveFileName);
+
+
+			GetMySQLFileWithDefaultEx("Certificates", command, GetCertificatesCommand(), false, false, filesForArchive);
+
+			ProcessArchiveFile(certificatesFile, archiveFileName);
+
+
+			GetMySQLFileWithDefaultEx("CertificateFiles", command, GetCertificateFilesCommand(), false, false, filesForArchive);
+
+			ProcessArchiveFile(certificateFilesFile, archiveFileName);
+		}
+
+		private string GetCertificateFilesCommand()
+		{
+			var ids =
+				_updateData.CertificateRequests.Where(c => c.CertificateId.HasValue && c.CertificateFiles.Count > 0).SelectMany(
+					c => c.CertificateFiles).Implode();
+
+			if (String.IsNullOrEmpty(ids))
+				ids = "-1";
+
+			return @"
+	select
+		cf.Id,
+		cf.CertificateId,
+		cf.OriginFilename,
+		cf.SupplierId
+	from
+		documents.certificatefiles cf
+	where
+		cf.Id in (" + ids + ")";
+		}
+
+		private string GetCertificatesCommand()
+		{
+			var ids =
+				_updateData.CertificateRequests.Where(c => c.CertificateId.HasValue && c.CertificateFiles.Count > 0).Select(
+					c => c.CertificateId.Value).Implode();
+
+			if (String.IsNullOrEmpty(ids))
+				ids = "-1";
+
+			return @"
+	select
+		c.Id,
+		c.CatalogId,
+		c.SerialNumber
+	from
+		documents.certificates c
+	where
+		c.Id in (" + ids + ")";
+		}
+
+		private void ProcessCertificates(MySqlCommand command)
+		{
+			var showWithoutSuppliers = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+				command.Connection, 
+				"select ShowCertificatesWithoutRefSupplier from future.Clients where Id = ?clientId", 
+				new MySqlParameter("?clientId", _updateData.ClientId)));
+
+			if (showWithoutSuppliers)
+				command.CommandText = @"
+	select
+		c.Id as CertificateId,
+		cf.Id as CertificateFileId
+	from
+		documents.DocumentBodies db
+		inner join documents.DocumentHeaders dh on dh.Id = db.DocumentId
+		inner join documents.Certificates c on c.Id = db.CertificateId
+		inner join documents.CertificateFiles cf on cf.CertificateId = c.Id
+	where
+		db.Id = ?bodyId
+";
+			else 
+				command.CommandText = @"
+	select
+		c.Id as CertificateId,
+		cf.Id as CertificateFileId
+	from
+		documents.DocumentBodies db
+		inner join documents.DocumentHeaders dh on dh.Id = db.DocumentId
+		inner join documents.Certificates c on c.Id = db.CertificateId
+		inner join documents.CertificateFiles cf on cf.CertificateId = c.Id and cf.SupplierId = dh.FirmCode
+	where
+		db.Id = ?bodyId
+";
+
+			command.Parameters.Add("?bodyId", MySqlDbType.UInt32);
+
+			var dataAdapter = new MySqlDataAdapter(command);
+
+			foreach (var certificateRequest in _updateData.CertificateRequests) {
+				command.Parameters["?bodyId"].Value = certificateRequest.DocumentBodyId;
+
+				var table = new DataTable();
+				dataAdapter.Fill(table);
+
+				if (table.Rows.Count > 0) {
+					certificateRequest.CertificateId = Convert.ToUInt32(table.Rows[0]["CertificateId"]);
+					certificateRequest.CertificateFiles.Clear();
+					foreach (DataRow row in table.Rows) {
+						certificateRequest.CertificateFiles.Add(Convert.ToUInt32(table.Rows[0]["CertificateFileId"]));	
+					}
+				}
+
+			}
+		}
+
+		private void ProcessArchiveFile(string processedFile, string archiveFileName)
+		{
+#if DEBUG
+			ShareFileHelper.WaitFile(MySqlLocalFilePath() + processedFile);
+#endif
+
+			try
+			{
+				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + processedFile);
+				var log = LogManager.GetLogger(typeof(UpdateHelper));
+				log.DebugFormat("файл для архивации: {0}", MySqlLocalFilePath() + processedFile);
+			}
+			catch
+			{
+				ShareFileHelper.MySQLFileDelete(archiveFileName);
+				throw;
+			}
+
+			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + processedFile);
+
+			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + processedFile);
+		}
+
+		private void ArchiveCertificatesFiles(string archiveFileName, MySqlCommand command)
+		{
+			var certificatesFolder = "Certificates";
+			var certificatesPath = Path.Combine(_updateData.ResultPath, certificatesFolder);
+			//if (!Directory.Exists(certificatesPath))
+			//    Directory.CreateDirectory(certificatesPath);
+
+			foreach (var request in _updateData.CertificateRequests) {
+				foreach (var fileId in request.CertificateFiles) {
+					var files = Directory.GetFiles(certificatesPath, fileId + ".*");
+					if (files.Length > 0)
+					{
+						SevenZipHelper.ArchiveFilesWithNames(
+							archiveFileName,
+							Path.Combine(certificatesFolder, fileId + ".*"),
+							_updateData.ResultPath);
+					}
+				}
+				
+			}
+		}
+
 		private void GetMySQLFileWithDefaultEx(string FileName, MySqlCommand MyCommand, string SQLText, bool SetCumulative, bool AddToQueue, Queue<FileForArchive> filesForArchive)
 		{
 			var log = LogManager.GetLogger(typeof(UpdateHelper));

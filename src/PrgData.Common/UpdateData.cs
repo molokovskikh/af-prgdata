@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Data;
 using System.Diagnostics;
+using System.Text;
 using PrgData.Common.AnalitFVersions;
 
 namespace PrgData.Common
@@ -13,6 +14,13 @@ namespace PrgData.Common
 		public RequestType RequestType;
 		public DateTime RequestTime;
 		public bool Commit;
+	}
+
+	public class CertificateRequest
+	{
+		public uint DocumentBodyId;
+		public uint? CertificateId;
+		public List<uint> CertificateFiles = new List<uint>();
 	}
 
 	public class UpdateData
@@ -110,6 +118,8 @@ namespace PrgData.Common
 		public List<uint> UnconfirmedOrders = new List<uint>();
 
 		public bool AsyncRequest;
+
+		public List<CertificateRequest> CertificateRequests = new List<CertificateRequest>(); 
 
 		public UpdateData(DataSet data)
 		{
@@ -425,6 +435,42 @@ namespace PrgData.Common
 				return BuildNumberGreaterThen(_versionBeforeExportSendDate)
 					   || (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExportSendDate);
 			}
+		}
+
+		public void FillDocumentBodyIds(uint[] documentBodyIds)
+		{
+			if (documentBodyIds.Length > 50)
+				throw new UpdateException(
+					"Количество запрашиваемых сертификатов превышает 50 штук.",
+					"Пожалуйста, измените список запрашиваемых сертификатов.", 
+					"Количество запрашиваемых сертификатов превышает 50 штук; ", RequestType.Forbidden);
+
+			foreach (var documentBodyId in documentBodyIds) {
+				var request = new CertificateRequest {
+					DocumentBodyId = documentBodyId
+				};
+				CertificateRequests.Add(request);
+			}
+		}
+
+		public bool NeedExportCertificates{ 
+			get { return CertificateRequests.Count > 0; }
+		}
+
+		public string GetCertificatesResult()
+		{
+			var builder = new StringBuilder();
+
+			foreach (var certificateRequest in CertificateRequests) {
+				builder.AppendFormat(
+					"{0}\t{1}",
+					certificateRequest.DocumentBodyId,
+					certificateRequest.CertificateId.HasValue && certificateRequest.CertificateFiles.Count > 0
+						? certificateRequest.CertificateId.ToString()
+						: "\\N");
+			}
+
+			return builder.ToString();
 		}
 
 	}
