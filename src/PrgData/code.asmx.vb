@@ -438,7 +438,7 @@ Public Class PrgDataEx
           False, _
           MaxOrderId, _
           MaxOrderListId, _
-          True)
+          True AndAlso Not WayBillsOnly)
     End Function
 
     Private Function InternalGetUserData( _
