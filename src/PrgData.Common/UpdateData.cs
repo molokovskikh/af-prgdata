@@ -41,6 +41,8 @@ namespace PrgData.Common
 		private static int _versionBeforeAnalitFSchedule = 1505;
 		//версия AnalitF до поддержки экспортрования поля "SendDate" при экспорте неподтвержденных заказов
 		private static int _versionBeforeExportSendDate = 1540;
+		//версия AnalitF до поддержки экспорта сертификатов
+		private static int _versionBeforeCertificates = 1570;
 
 		public string ShortName;
 		public uint ClientId;
@@ -472,6 +474,13 @@ namespace PrgData.Common
 
 			return builder.ToString();
 		}
+
+		public bool AllowCertificates()
+		{
+			return BuildNumberGreaterThen(_versionBeforeCertificates)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeCertificates);
+		}
+
 
 	}
 }

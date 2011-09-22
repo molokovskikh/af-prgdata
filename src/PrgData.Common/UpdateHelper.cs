@@ -972,6 +972,7 @@ select
   DocumentBodies.SerialNumber
   {1}
   {2}
+  {3}
 from
   documents.DocumentHeaders,
   documents.DocumentBodies
@@ -994,7 +995,13 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
   DocumentBodies.Unit,
   DocumentBodies.ExciseTax,
   DocumentBodies.BillOfEntryNumber,
-  DocumentBodies.EAN13");
+  DocumentBodies.EAN13",
+				!_updateData.AllowCertificates()
+					? String.Empty
+					: @"
+  ,
+  DocumentBodies.ProductId,
+  DocumentBodies.ProducerId");
 		}
 
 		public string GetInvoiceHeadersCommand(string downloadIds)
@@ -1232,6 +1239,7 @@ SELECT
      rcs.EnableSmartOrder,
      rcs.EnableImpersonalPrice
 	{0}
+	{1}
 FROM Future.Users u
   join future.Clients c on u.ClientId = c.Id
   join farm.regions on regions.RegionCode = c.RegionCode
@@ -1239,7 +1247,8 @@ FROM Future.Users u
 WHERE u.Id = ?UserId
 "
 					,
-					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment" : String.Empty
+					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment " : String.Empty,
+					_updateData.AllowCertificates() ? ", c.ShowCertificatesWithoutRefSupplier " : String.Empty
 					 );
 			}
 			else
