@@ -465,7 +465,7 @@ namespace PrgData.Common
 
 			foreach (var certificateRequest in CertificateRequests) {
 				builder.AppendFormat(
-					"{0}\t{1}",
+					"{0}\t{1}\n",
 					certificateRequest.DocumentBodyId,
 					certificateRequest.CertificateId.HasValue && certificateRequest.CertificateFiles.Count > 0
 						? certificateRequest.CertificateId.ToString()
