@@ -1248,7 +1248,7 @@ WHERE u.Id = ?UserId
 "
 					,
 					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment " : String.Empty,
-					_updateData.AllowCertificates() ? ", c.ShowCertificatesWithoutRefSupplier " : String.Empty
+					_updateData.AllowCertificates() ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty
 					 );
 			}
 			else
@@ -1863,7 +1863,7 @@ where
 			var showWithoutSuppliers = Convert.ToBoolean(
 				MySqlHelper.ExecuteScalar(
 				command.Connection, 
-				"select ShowCertificatesWithoutRefSupplier from future.Clients where Id = ?clientId", 
+				"select ShowCertificatesWithoutRefSupplier from UserSettings.RetClientsSet where ClientCode = ?clientId", 
 				new MySqlParameter("?clientId", _updateData.ClientId)));
 
 			if (showWithoutSuppliers)

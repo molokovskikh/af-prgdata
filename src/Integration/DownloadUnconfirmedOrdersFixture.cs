@@ -757,7 +757,7 @@ namespace Integration
 
 				try
 				{
-					var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion, new uint[] {1});
+					var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new uint[] {1});
 
 					var simpleUpdateId = ParseUpdateId(responce);
 
