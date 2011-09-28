@@ -1823,28 +1823,6 @@ limit 1
 			}
 		}
 
-		[Test(Description = "Если комментарий содержит символ '?', то должен быть поднят флаг QuestionInComment")]
-		public void CheckQuestionInComment()
-		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
-				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
-
-				ParseSimpleOrder(orderHelper);
-				Assert.That(orderHelper.QuestionInComment, Is.False);
-
-				orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
-				ParseSimpleOrderWithComment(orderHelper, "049049049049");
-				Assert.That(orderHelper.QuestionInComment, Is.False);
-
-				orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
-				ParseSimpleOrderWithComment(orderHelper, "049049063049049");
-				Assert.That(orderHelper.QuestionInComment, Is.True);
-			}
-		}
-
 		[Test(Description = "При проверке дубликатов заказов не рассматривать удаленные неподтвержденные заказы")]
 		public void DontCheckDeletedOrders()
 		{
