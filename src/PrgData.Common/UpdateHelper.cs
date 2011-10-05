@@ -1603,7 +1603,7 @@ select
 from
 	logs.SupplierPromotionLogs log
 where
-	log.LogTime > ?UpdateTime
+	log.LogTime > '2011-03-01'
 and log.Operation = 2
 and not ?Cumulative
 union
@@ -1625,7 +1625,7 @@ where";
 		{
 			return GetAbstractPromotionsCommand() +
 @"
-	if(not ?Cumulative, SupplierPromotions.UpdateTime > ?UpdateTime, SupplierPromotions.Status)
+	if(not ?Cumulative, 1, SupplierPromotions.Status)
     ";
 		}
 
