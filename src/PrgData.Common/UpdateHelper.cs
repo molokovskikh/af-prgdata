@@ -1828,6 +1828,7 @@ where
 
 			return @"
 	select
+        distinct
 		cf.Id,
 		cf.CertificateId,
 		cf.OriginFilename,
@@ -1875,7 +1876,8 @@ where
 		documents.DocumentBodies db
 		inner join documents.DocumentHeaders dh on dh.Id = db.DocumentId
 		inner join documents.Certificates c on c.Id = db.CertificateId
-		inner join documents.CertificateFiles cf on cf.CertificateId = c.Id
+		inner join documents.FileCertificates fs on fs.CertificateId = c.Id
+		inner join documents.CertificateFiles cf on cf.Id = fs.CertificateFileId
 	where
 		db.Id = ?bodyId
 ";
@@ -1887,8 +1889,10 @@ where
 	from
 		documents.DocumentBodies db
 		inner join documents.DocumentHeaders dh on dh.Id = db.DocumentId
+		inner join documents.SourceSuppliers ss on ss.SupplierId = dh.FirmCode
 		inner join documents.Certificates c on c.Id = db.CertificateId
-		inner join documents.CertificateFiles cf on cf.CertificateId = c.Id and cf.SupplierId = dh.FirmCode
+		inner join documents.FileCertificates fs on fs.CertificateId = c.Id
+		inner join documents.CertificateFiles cf on cf.Id = fs.CertificateFileId and cf.CertificateSourceId = ss.CertificateSourceId
 	where
 		db.Id = ?bodyId
 ";

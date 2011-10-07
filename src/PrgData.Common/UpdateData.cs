@@ -42,7 +42,7 @@ namespace PrgData.Common
 		//версия AnalitF до поддержки экспортрования поля "SendDate" при экспорте неподтвержденных заказов
 		private static int _versionBeforeExportSendDate = 1540;
 		//версия AnalitF до поддержки экспорта сертификатов
-		private static int _versionBeforeCertificates = 1570;
+		private static int _versionBeforeCertificates = 1580;
 
 		public string ShortName;
 		public uint ClientId;
