@@ -2143,46 +2143,88 @@ AND
 		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool cryptCost)
 		{
 			string buyingMatrixCondition;
-			string offerMatrixCondition;
 			string buyingMatrixProducerNullCondition = " 0 ";
 			string offerMatrixProducerNullCondition = " 0 ";
-			if (_updateData.BuyingMatrixPriceId.HasValue)
-			{
-				if (_updateData.BuyingMatrixType == 0)
-				{
-					//белый список
-					buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-					buyingMatrixProducerNullCondition = " 0 ";
-				}
-				else
-				{
-					//черный список
-					buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-					buyingMatrixProducerNullCondition = " 1 ";
-				}
-			}
-			else
-				//разрешено все
-				buyingMatrixCondition = ", 0 as BuyingMatrixType";
 
-			if (_updateData.OfferMatrixPriceId.HasValue)
-			{
-				if (_updateData.OfferMatrixType == 0)
+			if (exportInforoomPrice) {
+				if (_updateData.BuyingMatrixPriceId.HasValue)
 				{
-					//белый список - попал в список => попал в предложения
-					offerMatrixCondition = " and (oms.Id is not null or offerList.Id is not null) ";
-					offerMatrixProducerNullCondition = " 0 ";
+					if (_updateData.BuyingMatrixType == 0)
+					{
+						//белый список
+						buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+						buyingMatrixProducerNullCondition = " 0 ";
+					}
+					else
+					{
+						//черный список
+						buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+						buyingMatrixProducerNullCondition = " 1 ";
+					}
 				}
 				else
-				{
-					//черный список - не попал в список => попал в предложения
-					offerMatrixCondition = " and (oms.Id is not null or offerList.Id is null) ";
-					offerMatrixProducerNullCondition = " 1 ";
-				}
+					//разрешено все
+					buyingMatrixCondition = ", 0 as BuyingMatrixType";
 			}
-			else
-				//разрешено все - матрица не работает
-				offerMatrixCondition = " ";
+			else {
+				//Включена матрица предложений
+				if (_updateData.OfferMatrixPriceId.HasValue) {
+
+					if (_updateData.BuyingMatrixPriceId.HasValue) {
+						if (_updateData.BuyingMatrixType == 0)
+						{
+							//белый список
+							buyingMatrixCondition = " if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
+							buyingMatrixProducerNullCondition = " 0 ";
+						}
+						else
+						{
+							//черный список
+							buyingMatrixCondition = " if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
+							buyingMatrixProducerNullCondition = " 1 ";
+						}
+					}
+					else {
+						//разрешено все
+						buyingMatrixCondition = " 0 ";
+					}
+
+					if (_updateData.OfferMatrixType == 0)
+					{
+						//белый список - попал в список => попал в предложения
+						buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is not null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
+						offerMatrixProducerNullCondition = " 0 ";
+					}
+					else
+					{
+						//черный список - не попал в список => попал в предложения
+						buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
+						offerMatrixProducerNullCondition = " 1 ";
+					}
+
+				}
+				else 
+					//включена матрица закупок
+					if (_updateData.BuyingMatrixPriceId.HasValue) {
+						if (_updateData.BuyingMatrixType == 0)
+						{
+							//белый список
+							buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+							buyingMatrixProducerNullCondition = " 0 ";
+						}
+						else
+						{
+							//черный список
+							buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+							buyingMatrixProducerNullCondition = " 1 ";
+						}
+					}
+					//ничего не включено
+					else {
+						//разрешено все
+						buyingMatrixCondition = ", 0 as BuyingMatrixType";
+					}
+			}
 
 			if (exportInforoomPrice)
 				if (!exportSupplierPriceMarkup)
@@ -2370,7 +2412,6 @@ WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
 AND    IF(?Cumulative, 1, fresh)
-{6}
 group by CT.id, CT.regioncode "
 				,
 				exportSupplierPriceMarkup ? @"
@@ -2394,9 +2435,7 @@ Core.NDS " : "",
 				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 				_updateData.OfferMatrixPriceId.HasValue ? @" 
   left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + offerMatrixProducerNullCondition + ", offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
-  left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode "
-																																																					   : "",
-				offerMatrixCondition
+  left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode " : ""
 				);
 		}
 

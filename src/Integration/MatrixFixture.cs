@@ -355,6 +355,11 @@ limit 1;")
 			Assert.That(Convert.ToInt32(offers[0]["BuyingMatrixType"]), Is.EqualTo((int)status), "У предложения {0} из прайс-листа {1} должен быть BuyingMatrixType = {2}", productId, price.Id.PriceId, status);
 		}
 
+		private void CheckBuyingMatrixTypeByOffer(DataRow offer, BuyinMatrixStatus status)
+		{
+			Assert.That(Convert.ToInt32(offer["BuyingMatrixType"]), Is.EqualTo((int)status), "У предложения {0} из прайс-листа {1} должен быть BuyingMatrixType = {2}", offer["ProductId"], offer["PriceCode"], status);
+		}
+
 		[Test(Description = "проверяем работу белой матрицы закупок")]
 		public void WhiteBuyingMatrix()
 		{
@@ -447,20 +452,25 @@ limit 1;")
 			CheckOffers(
 				(helper, coreTable) =>
 				{
-					Assert.That(coreTable.Rows.Count, Is.LessThan(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть меньше кол-ву предложений в обоих прайс-листах");
+					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
-					Assert.That(_buyingOffers.Length, Is.LessThan(_buyingCoreCount), "Для прайс-листа {0} должно быть меньше предложений", _buyingPrice.Id.PriceId);
+					Assert.That(_buyingOffers.Length, Is.EqualTo(_buyingCoreCount), "Для прайс-листа {0} не все предложения", _buyingPrice.Id.PriceId);
 
 					var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
 					Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Для прайс-листа {0} не все предложения", _offerPrice.Id.PriceId);
 
 					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, true);
-					CheckOffer(coreTable, _offerPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _intersectionProductId, BuyinMatrixStatus.Allow);
 
-					CheckOffer(coreTable, _buyingPrice, _buyingProductId, false);
+					CheckOffer(coreTable, _offerPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _intersectionProductId, BuyinMatrixStatus.Allow);
+
+					CheckOffer(coreTable, _buyingPrice, _buyingProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _buyingProductId, BuyinMatrixStatus.Denied);
 
 					CheckOffer(coreTable, _offerPrice, _offerProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _offerProductId, BuyinMatrixStatus.Allow);
 				});
 		}
 
@@ -477,20 +487,25 @@ limit 1;")
 			CheckOffers(
 				(helper, coreTable) =>
 				{
-					Assert.That(coreTable.Rows.Count, Is.LessThan(_buyingCoreCount), "Кол-во предложений должно быть меньше кол-ву предложений в обоих прайс-листах");
+					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
-					Assert.That(_buyingOffers.Length, Is.LessThan(_buyingCoreCount), "Для прайс-листа {0} должно быть меньше предложений", _buyingPrice.Id.PriceId);
+					Assert.That(_buyingOffers.Length, Is.EqualTo(_buyingCoreCount), "Для прайс-листа {0} не все предложения", _buyingPrice.Id.PriceId);
 
 					var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
-					Assert.That(_offerOffers.Length, Is.EqualTo(0), "Все предложения прайс-листа {0} должны отсутствовать", _offerPrice.Id.PriceId);
+					Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Для прайс-листа {0} не все предложения", _offerPrice.Id.PriceId);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, false);
-					CheckOffer(coreTable, _offerPrice, _intersectionProductId, false);
+					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _intersectionProductId, BuyinMatrixStatus.Denied);
+
+					CheckOffer(coreTable, _offerPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _intersectionProductId, BuyinMatrixStatus.Denied);
 
 					CheckOffer(coreTable, _buyingPrice, _buyingProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _buyingProductId, BuyinMatrixStatus.Allow);
 
-					CheckOffer(coreTable, _offerPrice, _offerProductId, false);
+					CheckOffer(coreTable, _offerPrice, _offerProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _offerProductId, BuyinMatrixStatus.Denied);
 				});
 		}
 
@@ -508,20 +523,25 @@ limit 1;")
 			CheckOffers(
 				(helper, coreTable) =>
 				{
-					Assert.That(coreTable.Rows.Count, Is.LessThan(_offerCoreCount + _buyingCoreCount), "Кол-во предложений должно быть меньше кол-ву предложений в обоих прайс-листах");
+					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
-					Assert.That(_buyingOffers.Length, Is.LessThan(_buyingCoreCount), "Для прайс-листа {0} должно быть меньше предложений", _buyingPrice.Id.PriceId);
+					Assert.That(_buyingOffers.Length, Is.EqualTo(_buyingCoreCount), "Для прайс-листа {0} не все предложения", _buyingPrice.Id.PriceId);
 
 					var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
 					Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Все предложения прайс-листа {0} должны присутствовать", _offerPrice.Id.PriceId);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, false);
+					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _intersectionProductId, BuyinMatrixStatus.Denied);
+
 					CheckOffer(coreTable, _offerPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _intersectionProductId, BuyinMatrixStatus.Allow);
 
 					CheckOffer(coreTable, _buyingPrice, _buyingProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _buyingProductId, BuyinMatrixStatus.Allow);
 
 					CheckOffer(coreTable, _offerPrice, _offerProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _offerProductId, BuyinMatrixStatus.Allow);
 				});
 		}
 
@@ -541,46 +561,72 @@ limit 1;")
 			CheckOffers(
 				(helper, coreTable) =>
 				{
-					Assert.That(coreTable.Rows.Count, Is.LessThan(_offerCoreCount + _buyingCoreCount), "Кол-во предложений должно быть меньше кол-ву предложений в обоих прайс-листах");
+					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
-					Assert.That(_buyingOffers.Length, Is.LessThan(_buyingCoreCount), "Для прайс-листа {0} должно быть меньше предложений", _buyingPrice.Id.PriceId);
+					Assert.That(_buyingOffers.Length, Is.EqualTo(_buyingCoreCount), "Все предложения прайс-листа {0} должны присутствовать", _buyingPrice.Id.PriceId);
 
 					var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
 					Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Все предложения прайс-листа {0} должны присутствовать", _offerPrice.Id.PriceId);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, false);
+					CheckOffer(coreTable, _buyingPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _intersectionProductId, BuyinMatrixStatus.Denied);
+
 					CheckOffer(coreTable, _offerPrice, _intersectionProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _intersectionProductId, BuyinMatrixStatus.Allow);
 
 					CheckOffer(coreTable, _buyingPrice, _buyingProductId, true);
+					CheckBuyingMatrixType(coreTable, _buyingPrice, _buyingProductId, BuyinMatrixStatus.Allow);
 
 					CheckOffer(coreTable, _offerPrice, _offerProductId, true);
+					CheckBuyingMatrixType(coreTable, _offerPrice, _offerProductId, BuyinMatrixStatus.Allow);
+
 
 					var intersectionOffers = CheckOffer(coreTable, _offerPrice, _intersectionProductIdWithProducerId, true);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithProducerId, false, Convert.ToUInt32(intersectionOffers[0]["ProducerId"]));
+					//Списк предложений из прайс-листа _buyingPrice по ProductId = _intersectionProductIdWithProducerId, у которого есть запись с CodeFirmCr is null
+					var intersectionOffersByBuying = CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithProducerId, true);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithProducerId, false, null, true);
+					foreach (var dataRow in intersectionOffersByBuying) {
+						if (Convert.IsDBNull(dataRow["ProducerId"]))
+							CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+						else {
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithProducerId, false, 0);
+							var producerId = Convert.ToUInt32(dataRow["ProducerId"]);
+							if (producerId == 0) 
+								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+							else 
+								if (producerId == Convert.ToUInt32(intersectionOffers[0]["ProducerId"])) 
+									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+								else 
+									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Allow);
+
+						}
+					}
+
 
 					var intersectionDistinctOffers = CheckOffer(coreTable, _offerPrice, _intersectionProductIdWithDistinctProducerId, true);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithDistinctProducerId, false, Convert.ToUInt32(intersectionDistinctOffers[0]["ProducerId"]));
+					//Списк предложений из прайс-листа _buyingPrice по ProductId = _intersectionProductIdWithDistinctProducerId, у которого есть запись с CodeFirmCr is not null
+					var intersectionDistinctOffersByBuying = CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithDistinctProducerId, true);
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithDistinctProducerId, false, 0);
+					foreach (var dataRow in intersectionDistinctOffersByBuying) {
+						if (Convert.IsDBNull(dataRow["ProducerId"]))
+							CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+						else {
 
-					CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithDistinctProducerId, false, null, true);
+							var producerId = Convert.ToUInt32(dataRow["ProducerId"]);
+							if (producerId == 0) 
+								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+							else 
+								if (producerId == Convert.ToUInt32(intersectionDistinctOffers[0]["ProducerId"])) 
+									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+								else 
+									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Allow);
 
-					var buyingOffer = CheckOffer(coreTable, _buyingPrice, _intersectionProductIdWithDistinctProducerId, true);
+						}
+					}
 
-					Assert.That(
-						buyingOffer[0]["ProducerId"], 
-						Is.Not.EqualTo(intersectionDistinctOffers[0]["ProducerId"]), 
-						"Предложение {0} в прайс-листе {1} с тем же ProducerId",
-						_intersectionProductIdWithDistinctProducerId,
-						_buyingPrice.Id.PriceId
-						);
 				});
 		}
 
