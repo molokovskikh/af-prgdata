@@ -2793,7 +2793,7 @@ PostLog:
 
                 End If
             Catch ex As Exception
-                ConnectionHelper.SafeRollback(transaction)
+                PrgData.Common.ConnectionHelper.SafeRollback(transaction)
                 GUpdateId = Nothing
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
                     Thread.Sleep(500)
@@ -3319,7 +3319,7 @@ RestartTrans2:
                 End If
 
             Catch ex As Exception
-                ConnectionHelper.SafeRollback(transaction)
+                PrgData.Common.ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
                     Thread.Sleep(2500)
                     GoTo RestartTrans2
@@ -3723,7 +3723,7 @@ RestartTrans2:
                 End If
 
             Catch ex As Exception
-                ConnectionHelper.SafeRollback(transaction)
+                PrgData.Common.ConnectionHelper.SafeRollback(transaction)
                 If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
                     Log.DebugFormat("Перезапускаем транзакцию из-за deadlock")
                     Thread.Sleep(2500)
@@ -4116,7 +4116,7 @@ RestartTrans2:
             ReclameComplete = True
             If Log.IsDebugEnabled Then Log.Debug("Успешно завершили ReclameComplete")
         Catch ex As Exception
-            ConnectionHelper.SafeRollback(transaction)
+            PrgData.Common.ConnectionHelper.SafeRollback(transaction)
             LogRequestHelper.MailWithRequest(Log, "Подтверждение рекламы", ex)
             ReclameComplete = False
         Finally
@@ -4466,7 +4466,7 @@ RestartTrans2:
                 AddEndOfFiles()
 
             Catch ex As Exception
-                ConnectionHelper.SafeRollback(transaction)
+                PrgData.Common.ConnectionHelper.SafeRollback(transaction)
                 Me.Log.Error("Подготовка истории заказов, Код клиента " & CCode, ex)
                 If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
                 ErrorFlag = True
@@ -4578,7 +4578,7 @@ endproc:
             CommitHistoryOrders = True
             If Log.IsDebugEnabled Then Log.Debug("Успешно завершили CommitHistoryOrders")
         Catch ex As Exception
-            ConnectionHelper.SafeRollback(transaction)
+            PrgData.Common.ConnectionHelper.SafeRollback(transaction)
             LogRequestHelper.MailWithRequest(Log, "Подтверждение истории заказов", ex)
             CommitHistoryOrders = False
         Finally
