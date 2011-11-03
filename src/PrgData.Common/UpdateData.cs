@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Text;
 using PrgData.Common.AnalitFVersions;
+using PrgData.Common.Orders;
 
 namespace PrgData.Common
 {
@@ -121,7 +122,10 @@ namespace PrgData.Common
 
 		public bool AsyncRequest;
 
-		public List<CertificateRequest> CertificateRequests = new List<CertificateRequest>(); 
+		public List<CertificateRequest> CertificateRequests = new List<CertificateRequest>();
+
+		public bool SendWaybills;
+		public bool SendRejects;
 
 		public UpdateData(DataSet data)
 		{
@@ -176,6 +180,9 @@ namespace PrgData.Common
 			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
 			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["AllowDownloadUnconfirmedOrders"]);
 			AllowAnalitFSchedule = Convert.ToBoolean(row["AllowAnalitFSchedule"]);
+
+			SendWaybills = Convert.ToBoolean(row["SendWaybills"]);
+			SendRejects = Convert.ToBoolean(row["SendRejects"]);
 		}
 
 		public bool Disabled()
@@ -481,6 +488,13 @@ namespace PrgData.Common
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeCertificates);
 		}
 
-
+		public bool AllowDocumentType(int documentType)
+		{
+			if ((GenerateDocsHelper.DocumentType)documentType == GenerateDocsHelper.DocumentType.Waybills && !SendWaybills)
+			    return false;
+			if ((GenerateDocsHelper.DocumentType)documentType == GenerateDocsHelper.DocumentType.Rejects && !SendRejects)
+			    return false;			
+			return true;
+		}
 	}
 }

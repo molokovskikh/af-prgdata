@@ -350,6 +350,8 @@ SELECT
     c.Status as ClientEnabled,
 	u.Enabled as UserEnabled,
 	u.AllowDownloadUnconfirmedOrders,
+	u.SendWaybills,
+	u.SendRejects,
 	ap.UserId is not null as AFPermissionExists
 FROM  
   future.users u
@@ -413,6 +415,8 @@ SELECT  ouar.clientcode as ClientId,
         clientsdata.firmstatus as ClientEnabled,
 	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
 		0 as AllowDownloadUnconfirmedOrders,
+		0 as SendWaybills,
+		0 as SendRejects,
 	    ap.UserId is not null as AFPermissionExists
 FROM    
   usersettings.osuseraccessright ouar

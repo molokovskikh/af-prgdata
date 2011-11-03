@@ -865,7 +865,8 @@ endprocNew:
                                 xRow.Item("DocumentId") = Row.Item("RowId").ToString
                                 DS.Tables("ProcessingDocuments").Rows.Add(xRow)
 
-                                If Not Convert.ToBoolean(Row.Item("IsFake")) AndAlso Convert.IsDBNull(Row.Item("SendUpdateId")) Then
+                                If Not Convert.ToBoolean(Row.Item("IsFake")) AndAlso Convert.IsDBNull(Row.Item("SendUpdateId")) AndAlso UpdateData.AllowDocumentType(CType(Row.Item("DocumentType"), Int32)) _
+                                Then
 
                                     ListOfDocs = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
                                      Row.Item("ClientCode").ToString & _

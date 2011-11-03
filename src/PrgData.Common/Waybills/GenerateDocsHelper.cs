@@ -16,7 +16,7 @@ namespace PrgData.Common.Orders
 {
 	public class GenerateDocsHelper
 	{
-		enum DocumentType
+		public enum DocumentType
 		{
 			Unknown = 0,
 			Waybills = 1,
