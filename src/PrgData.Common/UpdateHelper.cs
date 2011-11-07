@@ -1802,7 +1802,10 @@ where
 		{
 			var certificateRequestsFile = DeleteFileByPrefix("CertificateRequests");
 			var certificatesFile = DeleteFileByPrefix("Certificates");
+			var certificateSourcesFile = DeleteFileByPrefix("CertificateSources");
+			var sourceSuppliersFile = DeleteFileByPrefix("SourceSuppliers");
 			var certificateFilesFile = DeleteFileByPrefix("CertificateFiles");
+			var fileCertificatesFile = DeleteFileByPrefix("FileCertificates");
 
 			ProcessCertificates(command);
 
@@ -1816,9 +1819,85 @@ where
 			ProcessArchiveFile(certificatesFile, archiveFileName);
 
 
+			GetMySQLFileWithDefaultEx("CertificateSources", command, GetCertificateSourcesCommand(), false, false, filesForArchive);
+
+			ProcessArchiveFile(certificateSourcesFile, archiveFileName);
+
+
+			GetMySQLFileWithDefaultEx("SourceSuppliers", command, GetSourceSuppliersCommand(), false, false, filesForArchive);
+
+			ProcessArchiveFile(sourceSuppliersFile, archiveFileName);
+
+
 			GetMySQLFileWithDefaultEx("CertificateFiles", command, GetCertificateFilesCommand(), false, false, filesForArchive);
 
 			ProcessArchiveFile(certificateFilesFile, archiveFileName);
+
+
+			GetMySQLFileWithDefaultEx("FileCertificates", command, GetFileCertificatesCommand(), false, false, filesForArchive);
+
+			ProcessArchiveFile(fileCertificatesFile, archiveFileName);
+		}
+
+		private string GetFileCertificatesCommand()
+		{
+			var ids =
+				_updateData.CertificateRequests.Where(c => c.CertificateId.HasValue && c.CertificateFiles.Count > 0).SelectMany(
+					c => c.CertificateFiles).Implode();
+
+			if (String.IsNullOrEmpty(ids))
+				ids = "-1";
+
+			return @"
+	select
+		fc.CertificateId,
+		fc.CertificateFileId
+	from
+		documents.certificatefiles cf
+		inner join documents.FileCertificates fc on fc.CertificateFileId = cf.Id
+	where
+		cf.Id in (" + ids + ")";
+		}
+
+		private string GetSourceSuppliersCommand()
+		{
+			var ids =
+				_updateData.CertificateRequests.Where(c => c.CertificateId.HasValue && c.CertificateFiles.Count > 0).SelectMany(
+					c => c.CertificateFiles).Implode();
+
+			if (String.IsNullOrEmpty(ids))
+				ids = "-1";
+
+			return @"
+	select
+		ss.CertificateSourceId, ss.SupplierId
+	from
+		documents.certificatefiles cf
+		left join documents.SourceSuppliers ss on ss.CertificateSourceId = cf.CertificateSourceId
+	where
+		cf.Id in (" + ids + @")
+	group by ss.CertificateSourceId, ss.SupplierId
+	order by ss.CertificateSourceId, ss.SupplierId	
+";
+		}
+
+		private string GetCertificateSourcesCommand()
+		{
+			var ids =
+				_updateData.CertificateRequests.Where(c => c.CertificateId.HasValue && c.CertificateFiles.Count > 0).SelectMany(
+					c => c.CertificateFiles).Implode();
+
+			if (String.IsNullOrEmpty(ids))
+				ids = "-1";
+
+			return @"
+	select
+        distinct
+		cf.CertificateSourceId
+	from
+		documents.certificatefiles cf
+	where
+		cf.Id in (" + ids + ")";
 		}
 
 		private string GetCertificateFilesCommand()
@@ -1834,9 +1913,10 @@ where
 	select
         distinct
 		cf.Id,
-		cf.CertificateId,
 		cf.OriginFilename,
-		cf.SupplierId
+		cf.ExternalFileId,
+		cf.CertificateSourceId,
+		cf.Extension
 	from
 		documents.certificatefiles cf
 	where
@@ -3227,10 +3307,12 @@ SELECT
          firm.FullName                                                             ,
          '' as Fax                                                                 ,
          LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
-         firm.Name
+         firm.Name,
+		if(ss.CertificateSourceId is not null, 1, 0) as CertificateSourceExists
 FROM     future.Suppliers AS firm
          LEFT JOIN ProviderContacts
          ON       ProviderContacts.FirmCode = firm.Id
+		left join Documents.SourceSuppliers ss on ss.SupplierId = firm.Id		
 WHERE    firm.Id IN
                            (SELECT DISTINCT FirmCode
                            FROM             Prices
