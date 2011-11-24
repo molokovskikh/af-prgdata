@@ -187,7 +187,7 @@ group by at.PriceCode, at.regioncode
 			return result;
 		}
 
-		private void DumpTable(StringWriter writer, DataTable table)
+		private static void DumpTable(StringWriter writer, DataTable table)
 		{
 			writer.WriteLine(table.TableName + ":");
 			writer.WriteLine();
@@ -202,18 +202,23 @@ group by at.PriceCode, at.regioncode
 			writer.WriteLine();
 		}
 
-		public string TableToString(string tableName)
+		public static string TableToString(DataSet dataSet, string tableName)
 		{
 			using (var writer = new StringWriter())
 			{
-				if (_dataSet.Tables.Contains(tableName))
+				if (dataSet.Tables.Contains(tableName))
 				{
-					DumpTable(writer, _dataSet.Tables[tableName]);
+					DumpTable(writer, dataSet.Tables[tableName]);
 					return writer.ToString();
 				}
 				else
 					return null;
 			}
+		}
+
+		public string TableToString(string tableName)
+		{
+			return TableToString(_dataSet, tableName);
 		}
 
 		public void SendMail()

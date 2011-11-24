@@ -927,6 +927,7 @@ endprocNew:
                                         If DateTime.Now.Subtract(Convert.ToDateTime(Row.Item("LogTime"))).TotalHours < 1 Then
                                             'Если документ моложе часа, то попытаемся его отдать позже и не будем формировать уведомление
                                             DS.Tables("ProcessingDocuments").Rows.Remove(xRow)
+											Log.DebugFormat("Не найден файл документа: {0}", Row.Item("RowId"))
                                         Else
                                             Addition &= "При подготовке документов в папке: " & _
                                              ServiceContext.GetDocumentsPath() & _
@@ -962,6 +963,25 @@ endprocNew:
                                 Next
 
                                 GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
+								If Not String.IsNullOrEmpty(ids) then
+									Log.DebugFormat("Список запрашиваемых Id документов: {0}", ids)
+									Try
+										Dim exportDosc = MySql.Data.MySqlClient.MySqlHelper.ExecuteDataset(ArchCmd.Connection, helper.GetDocumentHeadersCommand(ids))
+										Log.DebugFormat("Кол-во таблиц в датасет: {0}", exportDosc.Tables.Count)
+										For Each table As DataTable In exportDosc.Tables
+											If String.IsNullOrEmpty(table.TableName) then
+												table.TableName = Path.GetFileNameWithoutExtension(Path.GetRandomFileName())
+											End If
+											Log.DebugFormat("Содержимое таблицы {0}: {1}", table.TableName, DebugReplicationHelper.TableToString(exportDosc, table.TableName))
+
+											Dim tableName = table.TableName
+										Next
+									Catch ex As Exception
+										Log.DebugFormat("Ошибка при экпорте таблиц: {0}", ex)
+									End Try
+								Else
+									Log.DebugFormat("Список запрашиваемых Id документов пуст")
+								End If
                                 GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
                                 If UpdateData.AllowInvoiceHeaders() then
                                     GetMySQLFileWithDefaultEx("InvoiceHeaders", ArchCmd, helper.GetInvoiceHeadersCommand(ids), False, False)
