@@ -20,6 +20,8 @@ namespace PrgData.FileHandlers
 
 		protected long ByteSent;
 
+		protected uint LastLockId;
+
 		protected void CopyStreams(Stream input, Stream output)
 		{
 			var bytes = new byte[BufferSize];

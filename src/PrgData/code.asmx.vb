@@ -521,7 +521,7 @@ Public Class PrgDataEx
                 CCode = 0
                 DBConnect()
                 GetClientCode()
-                Counter.TryLock(UserId, "GetUserData")
+                Counter.TryLock(UserId, "GetUserData", UpdateData.LastLockId)
                 UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
                 UpdateData.AsyncRequest = Async
                 If Async then AsyncPrgDatas.AddToList(Me)
@@ -775,7 +775,7 @@ endprocNew:
         Finally
             If (Not ProcessBatch) Then
                 If Not Async Then DBDisconnect()
-                Counter.ReleaseLock(UserId, "GetUserData")
+                Counter.ReleaseLock(UserId, "GetUserData", UpdateData.LastLockId)
             End If
         End Try
 
@@ -1376,7 +1376,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "MaxSynonymCode")
+            Counter.TryLock(UserId, "MaxSynonymCode", UpdateData.LastLockId)
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
 
@@ -1438,7 +1438,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Me.Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
             Return Now().ToUniversalTime
         Finally
-            Counter.ReleaseLock(UserId, "MaxSynonymCode")
+            Counter.ReleaseLock(UserId, "MaxSynonymCode", UpdateData.LastLockId)
             DBDisconnect()
         End Try
 
@@ -1457,7 +1457,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "CommitExchange")
+            Counter.TryLock(UserId, "CommitExchange", UpdateData.LastLockId)
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
                 If UpdateData.PreviousRequest.RequestType = RequestType.GetData Or UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative Then
@@ -1517,7 +1517,7 @@ StartZipping:
             CommitExchange = Now().ToUniversalTime
         Finally
             DBDisconnect()
-            Counter.ReleaseLock(UserId, "CommitExchange")
+            Counter.ReleaseLock(UserId, "CommitExchange", UpdateData.LastLockId)
         End Try
     End Function
 
@@ -1530,7 +1530,7 @@ StartZipping:
         Try
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "SendClientLog")
+            Counter.TryLock(UserId, "SendClientLog", UpdateData.LastLockId)
             Try
                 MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery( _
                  readWriteConnection, _
@@ -1546,7 +1546,7 @@ StartZipping:
             SendClientLog = "Error"
         Finally
             DBDisconnect()
-            Counter.ReleaseLock(UserId, "SendClientLog")
+            Counter.ReleaseLock(UserId, "SendClientLog", UpdateData.LastLockId)
         End Try
     End Function
 
@@ -1758,7 +1758,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "PostOrder")
+            Counter.TryLock(UserId, "PostOrder", UpdateData.LastLockId)
 
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
 
@@ -1800,7 +1800,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказа", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            Counter.ReleaseLock(UserId, "PostOrder")
+            Counter.ReleaseLock(UserId, "PostOrder", UpdateData.LastLockId)
             DBDisconnect()
         End Try
 
@@ -2365,7 +2365,7 @@ StartZipping:
             UpdateType = RequestType.SendOrders
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "PostOrder")
+            Counter.TryLock(UserId, "PostOrder", UpdateData.LastLockId)
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             If Not String.IsNullOrEmpty(EXEVersion) Then
                 UpdateData.ParseBuildNumber(EXEVersion)
@@ -2429,7 +2429,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            Counter.ReleaseLock(UserId, "PostOrder")
+            Counter.ReleaseLock(UserId, "PostOrder", UpdateData.LastLockId)
             DBDisconnect()
         End Try
 
@@ -2459,7 +2459,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "PostOrderBatch")
+            Counter.TryLock(UserId, "PostOrderBatch", UpdateData.LastLockId)
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
@@ -2524,7 +2524,7 @@ StartZipping:
                 Log.Error("Ошибка при сохранении файла-дефектуры", onSaveBatch)
             End Try
 
-            Counter.ReleaseLock(UserId, "PostOrderBatch")
+            Counter.ReleaseLock(UserId, "PostOrderBatch", UpdateData.LastLockId)
             DBDisconnect()
         End Try
 
@@ -4344,7 +4344,7 @@ RestartTrans2:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "GetHistoryOrders")
+            Counter.TryLock(UserId, "GetHistoryOrders", UpdateData.LastLockId)
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
@@ -4558,7 +4558,7 @@ endproc:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при запросе истории заказов", ex)
             Return "Error=Запрос истории заказов завершился неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            Counter.ReleaseLock(UserId, "GetHistoryOrders")
+            Counter.ReleaseLock(UserId, "GetHistoryOrders", UpdateData.LastLockId)
             DBDisconnect()
         End Try
 

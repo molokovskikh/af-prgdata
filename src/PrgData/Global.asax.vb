@@ -57,26 +57,6 @@ Public Class Global_asax
     End Sub
 
     Sub Application_AuthorizeRequest(ByVal sender As Object, ByVal e As EventArgs)
-        Try
-            If String.IsNullOrEmpty(ServiceContext.GetUserName()) Then
-                Using connection = Settings.GetConnection()
-                    connection.Open()
-
-                    Dim updateData = UpdateHelper.GetUpdateData(connection, ServiceContext.GetShortUserName())
-
-                    If updateData Is Nothing Then
-                        Logger.DebugFormat("Для логина {0} услуга не предоставляется, поэтому удалить блокировки нельзя", ServiceContext.GetUserName())
-                    Else
-                        Dim deletedLocks = Counter.ClearByUserId(updateData.UserId)
-                        If deletedLocks > 0 Then
-                            Logger.DebugFormat("Удалили устаревшие блокировки для пользователя {0}: {1}", ServiceContext.GetUserName(), deletedLocks)
-                        End If
-                    End If
-                End Using
-            End If
-        Catch ex As Exception
-            Logger.Error("Ошибка при очистке таблицы блокировок для пользователя", ex)
-        End Try
     End Sub
 
     Sub Application_AuthenticateRequest(ByVal sender As Object, ByVal e As EventArgs)

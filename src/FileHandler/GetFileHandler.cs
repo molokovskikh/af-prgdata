@@ -75,7 +75,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
 				}
 
-				Counter.TryLock(UserId, "FileHandler");
+				Counter.TryLock(UserId, "FileHandler", out LastLockId);
 				Log.DebugFormat("Успешно наложена блокировка FileHandler для пользователя: {0}", UserId);
 
 				context.Response.ContentType = "application/octet-stream";
@@ -137,7 +137,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			finally
 			{
 				Log.DebugFormat("Пытаемся снять блокировку FileHandler для пользователя: {0}", SUserId);
-				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler");
+				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler", LastLockId);
 				Log.DebugFormat("Успешно снята блокировка FileHandler для пользователя: {0}", SUserId);
 			}
 		}

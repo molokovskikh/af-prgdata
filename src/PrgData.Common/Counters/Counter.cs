@@ -75,8 +75,9 @@ namespace PrgData.Common.Counters
 			XmlConfigurator.Configure();
 		}
 
-		public static bool TryLock(uint UserId, string Method)
+		public static bool TryLock(uint UserId, string Method, out uint id)
 		{
+			id = 0;
 
 			if (IsRequestMethods(Method))
 			{
@@ -109,23 +110,16 @@ namespace PrgData.Common.Counters
 				}
 			}
 
-			Save(new ClientStatus(UserId, Method, DateTime.Now));
+			id = Save(new ClientStatus(UserId, Method, DateTime.Now));
 
 			return true;
 		}
 
-		public static int ClearByUserId(uint userId)
-		{
-			return Utils.Execute(
-				"delete from Logs.PrgDataLogs where UserId = ?UserId and StartTime < now() - interval 30 minute",
-				new { UserId = userId});
-		}
-
-		public static void ReleaseLock(uint UserId, string Method)
+		public static void ReleaseLock(uint UserId, string Method, uint lockId)
 		{
 			try
 			{
-				Remove(UserId, Method);
+				Remove(UserId, Method, lockId);
 			}
 			catch (Exception ex)
 			{
@@ -135,33 +129,25 @@ namespace PrgData.Common.Counters
 
 		private static bool CanLock(List<ClientStatus> ClientItems)
 		{
-			var IsClientInProcess = false;
-			uint UserId;
+			var isClientInProcess = false;
 			foreach (var Client in ClientItems)
 			{
 				if (Client.IsWaitToLong())
-					Remove(Client);
-				else
 				{
-					UserId = Client._UserId;
-					IsClientInProcess = true;
+					Log.DebugFormat("В логе присутствует запись, подлежащая удалению: {0}", Client);
 				}
+				else
+					isClientInProcess = true;
 			}
-			return !IsClientInProcess;
+			return !isClientInProcess;
 		}
 
 
-		private static void Remove(uint UserId, string Method)
+		private static void Remove(uint UserId, string Method, uint lockId)
 		{
 			Utils.Execute(
-			"delete from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method",
-			new { UserId = UserId, Method = Method });
-		}
-
-		private static void Remove(ClientStatus Status)
-		{
-			Utils.Execute("delete from Logs.PrgDataLogs where Id = ?Id",
-			   new { Id = Status.Id });
+				"delete from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method and Id = ?Id",
+				new {UserId, Method, Id = lockId });
 		}
 
 		public static int TotalUpdatingClientCount()
@@ -203,11 +189,12 @@ namespace PrgData.Common.Counters
 			return Utils.Request("select * from Logs.PrgDataLogs");
 		}
 
-		private static void Save(ClientStatus Status)
+		private static uint Save(ClientStatus Status)
 		{
-			Utils.Execute(
-			"insert into Logs.PrgDataLogs(UserId, MethodName, StartTime) Values(?UserId, ?MethodName, now())",
-		new { UserId = Status._UserId, MethodName = Status._MethodName, StartTime = Status._StartTime });
+			return
+				Utils.RequestScalar<uint>(
+					"insert into Logs.PrgDataLogs(UserId, MethodName, StartTime) Values(?UserId, ?MethodName, now()); select last_insert_id();",
+					new { UserId = Status._UserId, MethodName = Status._MethodName, StartTime = Status._StartTime });
 		}
 
 		private static bool IsRequestMethods(string method)

@@ -18,7 +18,7 @@ namespace PrgData.FileHandlers
 				UInt32 UserId;
 				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
-					Counter.TryLock(UserId, "HistoryFileHandler");
+					Counter.TryLock(UserId, "HistoryFileHandler", out LastLockId);
 					var fn = ServiceContext.GetResultPath() + "Orders" + UserId + ".zip";
 					if (File.Exists(fn))
 					{
@@ -60,7 +60,7 @@ namespace PrgData.FileHandlers
 			}
 			finally
 			{
-				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "HistoryFileHandler");
+				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "HistoryFileHandler", LastLockId);
 			}
 		}
 

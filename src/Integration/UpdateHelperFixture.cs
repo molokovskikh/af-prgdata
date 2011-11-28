@@ -384,13 +384,15 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 		private void CheckLocks(string firstLock, string secondLock, bool generateException, string exceptionMessage)
 		{
+			uint firstLockId = 0;
 			try
 			{
 				ClearLocks();
 
-				Counter.TryLock(_user.Id, firstLock);
+				Counter.TryLock(_user.Id, firstLock, out firstLockId);
 
-				Counter.TryLock(_user.Id, secondLock);
+				uint secondLockId;
+				Counter.TryLock(_user.Id, secondLock, out secondLockId);
 
 				if (generateException)
 					Assert.Fail("Ожидалось исключение для пары методов {0}-{1}: {2}", firstLock, secondLock, exceptionMessage);
@@ -403,8 +405,9 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			if (generateException)
 			{
-				Counter.ReleaseLock(_user.Id, firstLock);
-				Counter.TryLock(_user.Id, secondLock);
+				Counter.ReleaseLock(_user.Id, firstLock, firstLockId);
+				uint errorLockId;
+				Counter.TryLock(_user.Id, secondLock, out errorLockId);
 			}
 		}
 
@@ -469,12 +472,15 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		{
 			ClearLocks();
 			var maxSessionCount = Convert.ToUInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
-			for (uint i = 0; i <= maxSessionCount; i++)
-				Counter.TryLock(i, "PostOrderBatch");
+			uint lastPostOrderBatchLockId = 0;
+			for (uint i = 0; i <= maxSessionCount; i++) {
+				Counter.TryLock(i, "PostOrderBatch", out lastPostOrderBatchLockId);
+			}
 
 			try
 			{
-				Counter.TryLock(maxSessionCount+1, "GetUserData");
+				uint maxLockId;
+				Counter.TryLock(maxSessionCount+1, "GetUserData", out maxLockId);
 
 				Assert.Fail("Ожидалось исключение при превышении максимального кол-ва пользователей: {0}", "Обновление данных в настоящее время невозможно.");
 			}
@@ -485,9 +491,10 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			}
 
 			//Освободили предыдущую блокировку
-			Counter.ReleaseLock(maxSessionCount, "PostOrderBatch");
+			Counter.ReleaseLock(maxSessionCount, "PostOrderBatch", lastPostOrderBatchLockId);
 			//Попытались наложить блокировку еще раз и она наложилась
-			Counter.TryLock(maxSessionCount + 1, "GetUserData");
+			uint lastLockId;
+			Counter.TryLock(maxSessionCount + 1, "GetUserData", out lastLockId);
 		}
 
 		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с одним юридическим лицом")]
@@ -842,52 +849,6 @@ insert into usersettings.PureCore
 					connection,
 					@"
 drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;");
-			}
-		}
-
-		[Test(Description = "проверка работы метода ClearByUserId")]
-		public void TestClearByUserId()
-		{
-			ClearLocks();
-
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-
-				MySqlHelper.ExecuteNonQuery(
-					connection, 
-					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
-					new MySqlParameter("?UserId", _user.Id),
-					new MySqlParameter("?MethodName", "GetHistoryOrders"),
-					new MySqlParameter("?StartTime", DateTime.Now.AddHours(-1)));
-				MySqlHelper.ExecuteNonQuery(
-					connection, 
-					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
-					new MySqlParameter("?UserId", _user.Id),
-					new MySqlParameter("?MethodName", "HistoryFileHandler"),
-					new MySqlParameter("?StartTime", DateTime.Now.AddHours(-2)));
-				MySqlHelper.ExecuteNonQuery(
-					connection, 
-					"insert into Logs.PrgDataLogs (UserId, MethodName, StartTime) values (?UserId, ?MethodName, ?StartTime);",
-					new MySqlParameter("?UserId", _user.Id),
-					new MySqlParameter("?MethodName", "GetUserData"),
-					new MySqlParameter("?StartTime", DateTime.Now));
-			}
-
-			var clearCount = Counter.ClearByUserId(_user.Id);
-
-			Assert.That(clearCount, Is.EqualTo(2), "Некорректное кол-во удаленных блокировок");
-
-			try
-			{
-				Counter.TryLock(_user.Id, "GetUserData");
-
-				Assert.Fail("Блокировка не должна быть наложена");
-			}
-			catch (UpdateException updateException)
-			{
-				if (!updateException.Message.Equals("Обновление данных в настоящее время невозможно."))
-					Assert.Fail("Неожидаемое исключение при превышении максимального кол-ва пользователей: {0}", updateException);
 			}
 		}
 

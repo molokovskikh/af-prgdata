@@ -60,6 +60,19 @@ namespace PrgData.Common.Counters
 			}
 		}
 
+		public static T RequestScalar<T>(string CommandText, object ParametersAsAnonymousObject)
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var command = new MySqlCommand(CommandText, connection);
+				BindParameters(command, ParametersAsAnonymousObject);
+
+				var result = command.ExecuteScalar();
+				return (T)TypeDescriptor.GetConverter(result.GetType()).ConvertTo(result, typeof(T));
+			}
+		}
+
 		public static IList<ClientStatus> Request(string CommandText)
 		{
 			return Request(CommandText, null);

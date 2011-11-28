@@ -127,6 +127,8 @@ namespace PrgData.Common
 		public bool SendWaybills;
 		public bool SendRejects;
 
+		public uint LastLockId;
+
 		public UpdateData(DataSet data)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
