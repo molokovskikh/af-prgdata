@@ -75,9 +75,9 @@ namespace PrgData.Common.Counters
 			XmlConfigurator.Configure();
 		}
 
-		public static bool TryLock(uint UserId, string Method, out uint id)
+		public static uint TryLock(uint UserId, string Method)
 		{
-			id = 0;
+			uint id = 0;
 
 			if (IsRequestMethods(Method))
 			{
@@ -112,7 +112,7 @@ namespace PrgData.Common.Counters
 
 			id = Save(new ClientStatus(UserId, Method, DateTime.Now));
 
-			return true;
+			return id;
 		}
 
 		public static void ReleaseLock(uint UserId, string Method, uint lockId)

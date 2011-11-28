@@ -389,10 +389,9 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			{
 				ClearLocks();
 
-				Counter.TryLock(_user.Id, firstLock, out firstLockId);
+				firstLockId = Counter.TryLock(_user.Id, firstLock);
 
-				uint secondLockId;
-				Counter.TryLock(_user.Id, secondLock, out secondLockId);
+				var secondLockId = Counter.TryLock(_user.Id, secondLock);
 
 				if (generateException)
 					Assert.Fail("Ожидалось исключение для пары методов {0}-{1}: {2}", firstLock, secondLock, exceptionMessage);
@@ -406,8 +405,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			if (generateException)
 			{
 				Counter.ReleaseLock(_user.Id, firstLock, firstLockId);
-				uint errorLockId;
-				Counter.TryLock(_user.Id, secondLock, out errorLockId);
+				var errorLockId = Counter.TryLock(_user.Id, secondLock);
 			}
 		}
 
@@ -474,13 +472,12 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			var maxSessionCount = Convert.ToUInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
 			uint lastPostOrderBatchLockId = 0;
 			for (uint i = 0; i <= maxSessionCount; i++) {
-				Counter.TryLock(i, "PostOrderBatch", out lastPostOrderBatchLockId);
+				lastPostOrderBatchLockId = Counter.TryLock(i, "PostOrderBatch");
 			}
 
 			try
 			{
-				uint maxLockId;
-				Counter.TryLock(maxSessionCount+1, "GetUserData", out maxLockId);
+				uint maxLockId = Counter.TryLock(maxSessionCount+1, "GetUserData");
 
 				Assert.Fail("Ожидалось исключение при превышении максимального кол-ва пользователей: {0}", "Обновление данных в настоящее время невозможно.");
 			}
@@ -493,8 +490,8 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			//Освободили предыдущую блокировку
 			Counter.ReleaseLock(maxSessionCount, "PostOrderBatch", lastPostOrderBatchLockId);
 			//Попытались наложить блокировку еще раз и она наложилась
-			uint lastLockId;
-			Counter.TryLock(maxSessionCount + 1, "GetUserData", out lastLockId);
+			var lastLockId = Counter.TryLock(maxSessionCount + 1, "GetUserData");
+			Assert.That(lastLockId, Is.GreaterThan(0));
 		}
 
 		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с одним юридическим лицом")]

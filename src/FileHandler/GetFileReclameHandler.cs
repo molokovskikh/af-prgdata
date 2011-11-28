@@ -18,7 +18,7 @@ namespace PrgData.FileHandlers
 				UInt32 UserId;
 				if (!string.IsNullOrEmpty(SUserId) && (UInt32.TryParse(SUserId, out UserId)))
 				{
-					Counter.TryLock(UserId, "ReclameFileHandler", out LastLockId);
+					LastLockId = Counter.TryLock(UserId, "ReclameFileHandler");
 					var fn = ServiceContext.GetResultPath() + "r" + UserId + ".zip";
 					if (File.Exists(fn))
 					{

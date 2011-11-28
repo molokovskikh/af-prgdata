@@ -521,7 +521,7 @@ Public Class PrgDataEx
                 CCode = 0
                 DBConnect()
                 GetClientCode()
-                Counter.TryLock(UserId, "GetUserData", UpdateData.LastLockId)
+                UpdateData.LastLockId = Counter.TryLock(UserId, "GetUserData")
                 UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
                 UpdateData.AsyncRequest = Async
                 If Async then AsyncPrgDatas.AddToList(Me)
@@ -1376,7 +1376,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "MaxSynonymCode", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "MaxSynonymCode")
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
 
@@ -1457,7 +1457,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "CommitExchange", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "CommitExchange")
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
                 If UpdateData.PreviousRequest.RequestType = RequestType.GetData Or UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative Then
@@ -1530,7 +1530,7 @@ StartZipping:
         Try
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "SendClientLog", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "SendClientLog")
             Try
                 MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery( _
                  readWriteConnection, _
@@ -1758,7 +1758,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "PostOrder", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "PostOrder")
 
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
 
@@ -2365,7 +2365,7 @@ StartZipping:
             UpdateType = RequestType.SendOrders
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "PostOrder", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "PostOrder")
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             If Not String.IsNullOrEmpty(EXEVersion) Then
                 UpdateData.ParseBuildNumber(EXEVersion)
@@ -2459,7 +2459,7 @@ StartZipping:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "PostOrderBatch", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "PostOrderBatch")
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
@@ -4344,7 +4344,7 @@ RestartTrans2:
 
             DBConnect()
             GetClientCode()
-            Counter.TryLock(UserId, "GetHistoryOrders", UpdateData.LastLockId)
+            UpdateData.LastLockId = Counter.TryLock(UserId, "GetHistoryOrders")
             UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
             UpdateData.ParseBuildNumber(EXEVersion)
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
