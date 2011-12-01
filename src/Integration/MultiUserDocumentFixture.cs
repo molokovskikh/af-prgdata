@@ -681,6 +681,168 @@ namespace Integration
 			});
 		}
 
+		[Test(Description = "Должен быть сброшен флаг Commited при явном запросе КО")]
+		public void ResetCommittedAfterCumulative()
+		{
+			var updateTime = DateTime.Now.AddMinutes(-1);
+
+			TestDocumentSendLog log;
+			TestDocumentSendLog fakelog;
+
+			//Т.к. пользователь еще не обновлялся, то документы не должны быть подтверждены
+			using (new SessionScope())
+			{
+				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+				Assert.That(log.Committed, Is.False);
+				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
+				Assert.That(fakelog.Committed, Is.False);
+			}
+
+			//Делаем первое КО
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+			ConfirmData();
+
+			//Новые документы после первого КО должны быть подтверждены
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+			}
+
+			//Запрашиваем КО еще раз
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+
+			//Для документов, отданых в прошлое обновление, должен быть сброшен статус доставки
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.False);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.False);
+			}
+
+			ConfirmData();
+
+			//После подтверждения КО для этих же документов статус доставки должен быть подтвержден
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+			}
+		}
+
+		[Test(Description = "Должен быть сброшен флаг Commited при явном запросе КО для даты обновления старше чем 1 месяц")]
+		public void ResetCommittedAfterCumulativeWithOldDate()
+		{
+			var user = client.Users[0];
+
+			var updateTime = DateTime.Now.AddMinutes(-1);
+
+			TestDocumentSendLog log;
+			TestDocumentSendLog fakelog;
+
+			//Т.к. пользователь еще не обновлялся, то документы не должны быть подтверждены
+			using (new SessionScope())
+			{
+				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+				Assert.That(log.Committed, Is.False);
+				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
+				Assert.That(fakelog.Committed, Is.False);
+			}
+
+			//Делаем первое КО
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+
+			//Проверяем статус обновления для первого КО
+			TestAnalitFUpdateLog oldUpdate;
+			using (new SessionScope()) {
+				oldUpdate = TestAnalitFUpdateLog.Find(lastUpdateId);
+				Assert.That(oldUpdate.UserId, Is.EqualTo(user.Id));
+				Assert.That(oldUpdate.Commit, Is.False);
+			}
+
+			ConfirmData();
+
+			//Новые документы после первого КО должны быть подтверждены
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+			}
+
+			//Создаем новый документ, который будет получен при следующем запросе документов
+			var newDocument = CreateDocument(user);
+			TestDocumentSendLog newDocumentLog;
+			using (new SessionScope())
+			{
+				newDocumentLog = TestDocumentSendLog.Queryable.First(t => t.Document == newDocument);
+				Assert.That(newDocumentLog.Committed, Is.False);
+			}
+
+			LoadDocuments("5.3.16.1101");
+			ShouldBeSuccessfull();
+			Confirm();
+
+			//Новый документ должен быть подтвержден
+			using (new SessionScope())
+			{
+				newDocumentLog.Refresh();
+				Assert.That(newDocumentLog.Committed, Is.True);
+			}
+
+			//Для первого КО изменяем дату обновления, отодвигая ее больше чем на месяц
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
+				oldUpdate.Refresh();
+				Assert.That(oldUpdate.Commit, Is.True);
+
+				oldUpdate.RequestTime = DateTime.Now.AddMonths(-1).AddDays(-5);
+				oldUpdate.Update();
+
+				transaction.VoteCommit();
+			}
+	
+			//Будем запрашивать КО с датой обновления старше чем 2 месяца
+			updateTime = DateTime.Now.AddMonths(-2);
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+
+			using (new SessionScope())
+			{
+				//эти два документа не будут отдаваться, т.к. у них дата обновления больше чем 1 месяц
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+
+				//Этот документ должен отдаваться
+				newDocumentLog.Refresh();
+				Assert.That(newDocumentLog.Committed, Is.False);
+			}
+
+			ConfirmData();
+
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+				fakelog.Refresh();
+				Assert.That(fakelog.Committed, Is.True);
+
+			    //После подтверждения КО для этого документа статус доставки должен быть подтвержден
+				newDocumentLog.Refresh();
+				Assert.That(newDocumentLog.Committed, Is.True);
+			}
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
@@ -765,10 +927,10 @@ namespace Integration
 			return responce;
 		}
 
-		private string GetUserData(DateTime updateTime)
+		private string GetUserData(DateTime updateTime, bool cumulative = false)
 		{
 			var service = new PrgDataEx();
-			responce = service.GetUserData(updateTime, false, "5.3.16.1101", 50, "123", "", "", false);
+			responce = service.GetUserData(updateTime, cumulative, "5.3.16.1101", 50, "123", "", "", false);
 
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)

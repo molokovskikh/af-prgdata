@@ -589,7 +589,8 @@ Public Class PrgDataEx
 
                     If (Not ProcessBatch) Then UpdateType = RequestType.GetCumulative
 
-                    helper.ResetReclameDate()
+					helper.ResetDocumentCommited(AccessTime.ToLocalTime())
+					helper.ResetReclameDate()
 
                 Else
 

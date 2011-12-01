@@ -3417,6 +3417,41 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 			}
 		}
 
+		public void ResetDocumentCommited(DateTime oldAccessTime)
+		{
+			var oneMonthOld = DateTime.Now.AddMonths(-1);
+			var resetDate = oldAccessTime;
+			if (oldAccessTime.CompareTo(oneMonthOld) < 0)
+				resetDate = oneMonthOld;
+
+			var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
+			try
+			{
+				var resetCommand = new MySqlCommand(@"
+update
+  logs.AnalitFUpdates afu,
+  Logs.DocumentSendLogs ds
+set
+  ds.Committed = 0
+where
+    afu.RequestTime > ?resetDate
+and afu.UserId = ?UserId
+and ds.UpdateId = afu.UpdateId
+and ds.UserId = afu.UserId
+and ds.Committed = 1;", _readWriteConnection, transaction);
+				resetCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				resetCommand.Parameters.AddWithValue("?resetDate", resetDate);
+				resetCommand.ExecuteNonQuery();
+
+				transaction.Commit();
+			}
+			catch
+			{
+				ConnectionHelper.SafeRollback(transaction);
+				throw;
+			}
+		}
+
 		public static void UpdateBuildNumber(MySqlConnection readWriteConnection, UpdateData updateData)
 		{
 			if (!updateData.KnownBuildNumber.HasValue || updateData.KnownBuildNumber < updateData.BuildNumber)
