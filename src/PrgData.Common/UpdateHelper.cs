@@ -366,7 +366,8 @@ select
 	AnalitFUpdates.UpdateId,
 	AnalitFUpdates.RequestTime,
 	AnalitFUpdates.UpdateType,
-	AnalitFUpdates.Commit
+	AnalitFUpdates.Commit,
+	AnalitFUpdates.Addition
 from
 	logs.AnalitFUpdates,
 	future.users u
@@ -374,7 +375,7 @@ where
 	u.Login = ?user
 and AnalitFUpdates.UserId = u.Id
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17) 
+and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17, 18, 19) 
 order by AnalitFUpdates.UpdateId desc
 limit 1;"
 				, 
@@ -432,7 +433,8 @@ select
 	AnalitFUpdates.UpdateId,
 	AnalitFUpdates.RequestTime,
 	AnalitFUpdates.UpdateType,
-	AnalitFUpdates.Commit
+	AnalitFUpdates.Commit,
+	AnalitFUpdates.Addition
 from
 	logs.AnalitFUpdates,
 	usersettings.osuseraccessright ouar
@@ -440,7 +442,7 @@ where
 	ouar.OSUserName = ?user
 and AnalitFUpdates.UserId = ouar.RowId
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17) 
+and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17, 18, 19) 
 order by AnalitFUpdates.UpdateId desc
 limit 1;
 ";

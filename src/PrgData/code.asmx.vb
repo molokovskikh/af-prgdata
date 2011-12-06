@@ -545,6 +545,7 @@ Public Class PrgDataEx
                         Try
                             Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", OldUpTime, AccessTime.ToLocalTime)
                             LimitedCumulative = True
+                            UpdateType = RequestType.GetLimitedCumulative
                             OldUpTime = AccessTime.ToLocalTime()
                             helper.PrepareLimitedCumulative(OldUpTime)
                         Catch err As Exception
@@ -1461,7 +1462,10 @@ StartZipping:
             UpdateData.LastLockId = Counter.TryLock(UserId, "CommitExchange")
 
             If Not WayBillsOnly AndAlso UpdateData.PreviousRequest.UpdateId = UpdateId Then
-                If UpdateData.PreviousRequest.RequestType = RequestType.GetData Or UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative Then
+                If UpdateData.PreviousRequest.RequestType = RequestType.GetData _ 
+                	Or UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative _
+                	Or UpdateData.PreviousRequest.RequestType = RequestType.GetLimitedCumulative _
+                Then
 				    Dim exportList = UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection, UpdateId)
                     If Not String.IsNullOrEmpty(exportList) then
                         Addition &= "Экспортированные неподтвержденные заказы: " & exportList & "; "
@@ -2547,6 +2551,7 @@ StartZipping:
             
                 If (UpdateType = RequestType.GetData) _
                  Or (UpdateType = RequestType.GetCumulative) _
+                 Or (UpdateType = RequestType.GetLimitedCumulative) _
                  Or (UpdateType = RequestType.PostOrderBatch) _
                  Or (UpdateType = RequestType.Forbidden) _
                  Or (UpdateType = RequestType.Error) _
@@ -2576,9 +2581,10 @@ StartZipping:
                             .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
 
                             Dim resultUpdateType As RequestType = UpdateType
-                            If (UpdateType = RequestType.GetData) And LimitedCumulative Then resultUpdateType = RequestType.GetCumulative
+                            'If (UpdateType = RequestType.GetData) And LimitedCumulative Then resultUpdateType = RequestType.GetCumulative
                             If (resultUpdateType = RequestType.GetData) then resultUpdateType = RequestType.GetDataAsync
                             If (resultUpdateType = RequestType.GetCumulative) then resultUpdateType = RequestType.GetCumulativeAsync
+                            If (resultUpdateType = RequestType.GetLimitedCumulative) then resultUpdateType = RequestType.GetLimitedCumulativeAsync
                             .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(resultUpdateType)))
 
                             .Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
@@ -2657,6 +2663,7 @@ StartZipping:
 
                 If (UpdateType = RequestType.GetData) _
                  Or (UpdateType = RequestType.GetCumulative) _
+                 Or (UpdateType = RequestType.GetLimitedCumulative) _
                  Or (UpdateType = RequestType.PostOrderBatch) _
                  Or (UpdateType = RequestType.Forbidden) _
                  Or (UpdateType = RequestType.Error) _
@@ -2687,11 +2694,12 @@ PostLog:
                             .CommandText &= "select last_insert_id()"
                             .Transaction = transaction
                             .Parameters.Add(New MySqlParameter("?UserId", UpdateData.UserId))
-                            If (UpdateType = RequestType.GetData) And LimitedCumulative Then
-                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
-                            Else
-                                .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
-                            End If
+                            'If (UpdateType = RequestType.GetData) And LimitedCumulative Then
+                            '    .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(RequestType.GetCumulative)))
+                            'Else
+                            '    .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
+                            'End If
+                            .Parameters.Add(New MySqlParameter("?UpdateType", Convert.ToInt32(UpdateType)))
                             .Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
                             .Parameters.Add(New MySqlParameter("?Size", ResultLenght))
                             .Parameters.Add(New MySqlParameter("?Addition", Addition))
@@ -2754,7 +2762,7 @@ PostLog:
                     LogCm.CommandText = "" & _
                        "SELECT  MAX(UpdateId) " & _
                       "FROM    `logs`.AnalitFUpdates " & _
-                      "WHERE   UpdateType IN (1, 2) " & _
+                      "WHERE   UpdateType IN (1, 2, 18) " & _
                        "    AND `Commit`    =0 " & _
                        "    AND UserId  =" & UpdateData.UserId
 
@@ -2910,9 +2918,12 @@ PostLog:
         If FileInfo.Exists Then
             Log.DebugFormat("Файл с подготовленными данными существует: {0}", UpdateData.GetPreviousFile())
             CheckZipTimeAndExist = _
-                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData) _
+                (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData And (UpdateType <> RequestType.GetLimitedCumulative)) _
                 Or (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
-                Or (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData)
+                Or (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData) _
+                Or (UpdateData.PreviousRequest.RequestType = RequestType.GetLimitedCumulative _ 
+                	And UpdateType = RequestType.GetLimitedCumulative _ 
+                	And UpdateData.PreviousRequest.Addition.Contains(String.Format(", клиент {0}", OldUpTime)))
 
             Log.DebugFormat( _
                 "Результат проверки CheckZipTimeAndExist: {0}  " & vbCrLf & _
@@ -2921,20 +2932,26 @@ PostLog:
                 "UncDT          : {2}" & vbCrLf & _
                 "OldUpTime      : {3}" & vbCrLf & _
                 "FileName       : {4}" & vbCrLf & _
-                "PreviousType   : {5}" & vbCrLf & _
-                "Expression1    : {6}" & vbCrLf & _
-                "Expression2    : {7}" & vbCrLf & _
-                "Expression3    : {8}" _
+                "CurrentType    : {5}" & vbCrLf & _
+                "PreviousType   : {6}" & vbCrLf & _
+                "Expression1    : {7}" & vbCrLf & _
+                "Expression2    : {8}" & vbCrLf & _
+                "Expression3    : {9}" & vbCrLf & _
+                "Expression4    : {10}" & vbCrLf & _
+                "Expression5    : {11}" _
                 , _
                 CheckZipTimeAndExist, _
                 GetEtalonData, _
                 UncDT, _
                 OldUpTime, _
                 UpdateData.GetPreviousFile(), _
+                UpdateType, _
                 UpdateData.PreviousRequest.RequestType, _
                 (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData), _
                 (OldUpTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
-                (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData))
+                (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData), _
+                UpdateData.PreviousRequest.RequestType = RequestType.GetLimitedCumulative And UpdateType = RequestType.GetLimitedCumulative, _
+                Addition.Contains(String.Format(", клиент {0}", OldUpTime)))
         Else
             Log.DebugFormat("Файл с подготовленными данными не существует: {0}", UpdateData.GetPreviousFile())
             CheckZipTimeAndExist = False
@@ -4713,6 +4730,7 @@ endproc:
             If UpdateData.PreviousRequest.UpdateId = UpdateId _ 
                 AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetDataAsync _
                 AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetCumulativeAsync _
+                AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetLimitedCumulativeAsync _
             Then
                 Return "Res=OK"
             Else

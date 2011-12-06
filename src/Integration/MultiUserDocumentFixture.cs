@@ -843,6 +843,107 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "При запросе КО после неподтвержденного частичного КО архив должен быть подготовлен заново")]
+		public void GetCumulativeAfterUnconfirmedLimitedCumulative()
+		{
+			var updateTime = DateTime.Now.AddMinutes(-1);
+
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+			var firstCumulativeUpdateId = lastUpdateId;
+			ConfirmData();
+
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+			var limitedCumulativeUpdateId = lastUpdateId;
+
+			Assert.That(limitedCumulativeUpdateId, Is.Not.EqualTo(firstCumulativeUpdateId), "Запрос с частичным КО должен быть новым");
+
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+			var secondCumulativeUpdateId = lastUpdateId;
+
+			Assert.That(secondCumulativeUpdateId, Is.Not.EqualTo(firstCumulativeUpdateId));
+			Assert.That(secondCumulativeUpdateId, Is.Not.EqualTo(limitedCumulativeUpdateId), "Запрос с явным КО после неподтвержденного частичного должен быть новым");
+
+			ConfirmData();
+
+			using (new SessionScope()) {
+				var limitedLog = TestAnalitFUpdateLog.Find(limitedCumulativeUpdateId);
+				var secondCumulativeLog = TestAnalitFUpdateLog.Find(secondCumulativeUpdateId);
+
+				Assert.That(limitedLog.Commit, Is.False, "Частиное КО не должно быть подтверждено");
+				Assert.That(secondCumulativeLog.Commit, Is.True, "Повторный запрос явного КО должен быть подтвержден");
+			}
+		}
+
+		[Test(Description = "При запросе частичного КО после неподтвержденного частичного КО архив не должен готовиться заново при совпадении дат")]
+		public void GetLimitedCumulativeAfterUnconfirmedLimitedCumulative()
+		{
+			var updateTime = DateTime.Now.AddMinutes(-1);
+
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+			var firstCumulativeUpdateId = lastUpdateId;
+			ConfirmData();
+
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+			var limitedCumulativeUpdateId = lastUpdateId;
+
+			Assert.That(limitedCumulativeUpdateId, Is.Not.EqualTo(firstCumulativeUpdateId), "Запрос с частичным КО должен быть новым");
+
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+			var secondlimitedCumulativeUpdateId = lastUpdateId;
+
+			Assert.That(secondlimitedCumulativeUpdateId, Is.Not.EqualTo(firstCumulativeUpdateId));
+			Assert.That(secondlimitedCumulativeUpdateId, Is.EqualTo(limitedCumulativeUpdateId), "Повторный запрос частичного КО после неподтвержденного частичного должен быть тем же, если совпадают даты");
+
+			ConfirmData();
+
+			using (new SessionScope()) {
+				var limitedLog = TestAnalitFUpdateLog.Find(limitedCumulativeUpdateId);
+
+				Assert.That(limitedLog.Commit, Is.True, "Частиное КО должно быть подтверждено");
+			}
+		}
+
+		[Test(Description = "При запросе частичного КО после неподтвержденного частичного КО архив должен готовиться заново при разных датах")]
+		public void GetLimitedCumulativeAfterUnconfirmedLimitedCumulativeWithDifferentDates()
+		{
+			var updateTime = DateTime.Now.AddMinutes(-1);
+
+			GetUserData(updateTime, true);
+			ShouldBeSuccessfull();
+			var firstCumulativeUpdateId = lastUpdateId;
+			ConfirmData();
+
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+			var limitedCumulativeUpdateId = lastUpdateId;
+
+			Assert.That(limitedCumulativeUpdateId, Is.Not.EqualTo(firstCumulativeUpdateId), "Запрос с частичным КО должен быть новым");
+
+			updateTime = updateTime.AddMinutes(-1);
+			GetUserData(updateTime);
+			ShouldBeSuccessfull();
+			var secondlimitedCumulativeUpdateId = lastUpdateId;
+
+			Assert.That(secondlimitedCumulativeUpdateId, Is.Not.EqualTo(firstCumulativeUpdateId));
+			Assert.That(secondlimitedCumulativeUpdateId, Is.Not.EqualTo(limitedCumulativeUpdateId), "Повторный запрос частичного КО после неподтвержденного частичного должен быть новым, если даты не совпадают");
+
+			ConfirmData();
+
+			using (new SessionScope()) {
+				var limitedLog = TestAnalitFUpdateLog.Find(limitedCumulativeUpdateId);
+				var secondlimitedLog = TestAnalitFUpdateLog.Find(secondlimitedCumulativeUpdateId);
+
+				Assert.That(limitedLog.Commit, Is.False, "Первое частиное КО должно быть не подтверждено");
+				Assert.That(secondlimitedLog.Commit, Is.True, "Второе частиное КО должно быть подтверждено");
+			}
+		}
+
 		private void ShouldNotBeDocuments()
 		{
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));

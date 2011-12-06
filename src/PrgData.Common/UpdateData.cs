@@ -15,6 +15,7 @@ namespace PrgData.Common
 		public RequestType RequestType;
 		public DateTime RequestTime;
 		public bool Commit;
+		public string Addition;
 	}
 
 	public class CertificateRequest
@@ -143,6 +144,7 @@ namespace PrgData.Common
 				PreviousRequest.RequestTime = Convert.ToDateTime(previousRequest["RequestTime"]);
 				PreviousRequest.RequestType = (RequestType)Convert.ToInt32(previousRequest["UpdateType"]);
 				PreviousRequest.Commit = Convert.ToBoolean(previousRequest["Commit"]);
+				PreviousRequest.Addition = previousRequest["Addition"].ToString();
 			}
 
 			var row = data.Tables[0].Rows[0];
