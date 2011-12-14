@@ -623,6 +623,11 @@ Public Class PrgDataEx
                 UpdateType = RequestType.GetDocs
             Else
 
+				'Здесь должен помещать запрос на вложения
+				'If DocumentBodyIds IsNot Nothing AndAlso (DocumentBodyIds.Length > 0) AndAlso (DocumentBodyIds(0) <> 0) Then
+				'	UpdateData.FillDocumentBodyIds(DocumentBodyIds)
+				'End If
+
                 PackFinished = False
 
                 If CheckZipTimeAndExist(GED) Then
@@ -1106,6 +1111,11 @@ endprocNew:
 
 					'здесь будем выгружать сертификаты
 					If Documents AndAlso UpdateData.NeedExportCertificates then
+                        helper.ArchiveCertificates(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
+					End If
+
+					'здесь будем выгружать запрошенные вложения
+					If Not Documents AndAlso UpdateData.NeedExportCertificates then
                         helper.ArchiveCertificates(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
 					End If
 
@@ -2751,6 +2761,8 @@ PostLog:
 
                     UnconfirmedOrdersExporter.InsertUnconfirmedOrdersLogs(UpdateData, connection, GUpdateId)
 
+					UpdateHelper.ProcessExportMails(UpdateData, connection, GUpdateId)
+
                     DS.Tables.Clear()
 
                 End If
@@ -2816,6 +2828,9 @@ PostLog:
                             Next
                         End If
                         LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
+                        LogCm.ExecuteNonQuery()
+
+                        LogCm.CommandText = helper.GetConfirmMailsCommnad(GUpdateId)
                         LogCm.ExecuteNonQuery()
 
                         transaction.Commit()
@@ -3416,6 +3431,8 @@ RestartTrans2:
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SupplierPromotions" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PromotionCatalogs" & UserId & ".txt")
                 ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Schedules" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Mails" & UserId & ".txt")
+                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Attachments" & UserId & ".txt")
                 
                 'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
 
@@ -3466,6 +3483,12 @@ RestartTrans2:
                 If UpdateData.SupportAnalitFSchedule then
                     GetMySQLFileWithDefault("Schedules", SelProc, helper.GetSchedulesCommand())
                 End If
+
+				helper.FillExportMails(SelProc)
+				If UpdateData.ExportMails.Count > 0 then
+					GetMySQLFileWithDefault("Mails", SelProc, helper.GetMailsCommand())
+					GetMySQLFileWithDefault("Attachments", SelProc, helper.GetAttachmentsCommand())
+				End If
 
                 GetMySQLFileWithDefault("Products", SelProc, _
                  "SELECT P.Id       ," & _

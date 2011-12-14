@@ -811,7 +811,19 @@ where
 and afu.UserId = ?UserId
 and ds.UpdateId = afu.UpdateId
 and ds.UserId = afu.UserId
-and ds.Committed = 1;";
+and ds.Committed = 1;
+update
+  logs.AnalitFUpdates afu,
+  Logs.MailSendLogs ms
+set
+  ms.Committed = 0
+where
+    afu.RequestTime > ?oldUpdateTime
+and afu.UserId = ?UserId
+and ms.UpdateId = afu.UpdateId
+and ms.UserId = afu.UserId
+and ms.Committed = 1;
+";
 
 				var command = new MySqlCommand(commandText, _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
@@ -3649,6 +3661,124 @@ order by s.Hour, s.Minute";
 				}
 
 			});
+		}
+
+		public void ArchiveAttachments(MySqlConnection connection, string archiveFileName, ref string addition, Queue<FileForArchive> filesForArchive)
+		{
+			var log = LogManager.GetLogger(typeof(UpdateHelper));
+
+			try
+			{
+				log.Debug("Будем выгружать сертификаты");
+
+				var command = new MySqlCommand();
+				command.Connection = connection;
+				//SetUpdateParameters(command, cumulative, oldUpdateTime, currentUpdateTime);
+
+				ExportCertificates(archiveFileName, command, filesForArchive);
+
+				ArchiveCertificatesFiles(archiveFileName, command);
+			}
+			catch (Exception exception)
+			{
+				log.Error("Ошибка при архивировании сертификатов", exception);
+				addition += "Архивирование сертификатов: " + exception.Message + "; ";
+
+				ShareFileHelper.MySQLFileDelete(archiveFileName);
+			}
+		}
+
+		public void FillExportMails(MySqlCommand selectCommand)
+		{
+			_updateData.ExportMails.Clear();
+				//начинаем отдавать документы с самых новых что бы 
+				//отдать наиболее актуальные
+			var sql = @"
+select 
+	Mails.Id
+from 
+	documents.Mails 
+	inner join Logs.MailSendLogs ms on ms.MailId = Mails.Id
+where 
+	Mails.LogTime > curdate() - interval 30 day
+and ms.UserId = ?UserId 
+and ms.Committed = 0
+order by Mails.LogTime desc
+limit 200;
+";
+			selectCommand.CommandText = sql;
+			using (var reader = selectCommand.ExecuteReader())
+			{
+				while (reader.Read())
+					_updateData.ExportMails.Add(reader.GetUInt32(0));
+			}
+		}
+
+		public string GetMailsCommand()
+		{
+			return @"
+select
+	Mails.Id,
+	Mails.LogTime,
+	Mails.SupplierId,
+	Suppliers.Name as SupplierName,
+	Mails.IsVIPMail,
+	Mails.Subject,
+	Mails.Body
+from
+	Documents.Mails
+	inner join future.Supplies on Suppliers.Id = Mails.SupplierId
+where
+  Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
+		}
+
+		public string GetAttachmentsCommand()
+		{
+			return @"
+select
+	Attachments.Id,
+	Attachments.MailId,
+	Attachments.FileName,
+	Attachments.Extention,
+	Attachments.Size
+from
+	Documents.Mails
+	inner join Documents.Attachments on Attachments.MailId = Mails.Id
+where
+  Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
+		}
+
+		public static void ProcessExportMails(UpdateData updateData, MySqlConnection connection, uint? updateId)
+		{
+			if (updateData.ExportMails.Count > 0)
+			{
+				var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
+				try {
+
+					var sql = "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Implode() + ")";
+
+					MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
+						connection,
+						sql,
+						new MySqlParameter("?UserId", updateData.UserId),
+						new MySqlParameter("?UpdateId", updateId));
+
+					transaction.Commit();
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+			}
+		}
+
+		public string GetConfirmMailsCommnad(uint? updateId)
+		{
+				return @"
+update Logs.MailSendLogs ms
+set ms.Committed = 1
+where ms.updateid = " + updateId;
 		}
 
 	}

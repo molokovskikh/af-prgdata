@@ -25,6 +25,12 @@ namespace PrgData.Common
 		public List<uint> CertificateFiles = new List<uint>();
 	}
 
+	public class AttachmentRequest
+	{
+		public uint AttachmentId;
+		public bool Success;
+	}
+
 	public class UpdateData
 	{
 		private static int _versionBeforeConfirmUserMessage = 1299;
@@ -129,6 +135,9 @@ namespace PrgData.Common
 		public bool SendRejects;
 
 		public uint LastLockId;
+
+		public List<AttachmentRequest> AttachmentRequests = new List<AttachmentRequest>();
+		public List<uint> ExportMails = new List<uint>();
 
 		public UpdateData(DataSet data)
 		{
@@ -500,5 +509,27 @@ namespace PrgData.Common
 			    return false;			
 			return true;
 		}
+
+		public bool NeedExportAttachments()
+		{
+			return AttachmentRequests.Count > 0;
+		}
+
+		public void FillAttachmentIds(uint[] attachmentIds)
+		{
+			//if (attachmentIds.Length > 50)
+			//    throw new UpdateException(
+			//        "Количество запрашиваемых сертификатов превышает 50 штук.",
+			//        "Пожалуйста, измените список запрашиваемых сертификатов.", 
+			//        "Количество запрашиваемых сертификатов превышает 50 штук; ", RequestType.Forbidden);
+
+			foreach (var attachmentId in attachmentIds) {
+				var request = new AttachmentRequest {
+					AttachmentId = attachmentId
+				};
+				AttachmentRequests.Add(request);
+			}
+		}
+
 	}
 }
