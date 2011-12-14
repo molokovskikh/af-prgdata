@@ -14,25 +14,25 @@
 );
 
 
-create table Documents.Attachements(
+create table Documents.Attachments(
   Id int unsigned not null auto_increment,
   MailId int unsigned not null,
   FileName varchar(255) not null,
   Extension varchar(255) not null,
   Size int unsigned not null,
   primary key (Id),
-  CONSTRAINT `FK_Attachements_MailId` FOREIGN KEY (MailId) REFERENCES Documents.Mails (Id) ON DELETE CASCADE
+  CONSTRAINT `FK_Attachments_MailId` FOREIGN KEY (MailId) REFERENCES Documents.Mails (Id) ON DELETE CASCADE
 );
 
-create table logs.AttachementSendLogs(
+create table logs.AttachmentSendLogs(
   Id int unsigned not null auto_increment,
   UserId int unsigned not null,
-  AttachementId int unsigned not null,
+  AttachmentId int unsigned not null,
   UpdateId int unsigned default null,
   Committed tinyint(1) unsigned NOT NULL DEFAULT '0',
   primary key (Id),
-  CONSTRAINT `FK_AttachementSendLogs_UserId` FOREIGN KEY (`UserId`) REFERENCES `future`.`users` (`Id`) ON DELETE CASCADE,
-  CONSTRAINT `FK_AttachementSendLogs_AttachementId` FOREIGN KEY (`AttachementId`) REFERENCES `Documents`.`Attachements` (Id) ON DELETE CASCADE,
-  CONSTRAINT `FK_AttachementSendLogs_UpdateId` FOREIGN KEY (`UpdateId`) REFERENCES `logs`.`analitfupdates` (`UpdateId`) ON DELETE CASCADE
+  CONSTRAINT `FK_AttachmentSendLogs_UserId` FOREIGN KEY (`UserId`) REFERENCES `future`.`users` (`Id`) ON DELETE CASCADE,
+  CONSTRAINT `FK_AttachmentSendLogs_AttachmentId` FOREIGN KEY (`AttachmentId`) REFERENCES `Documents`.`Attachments` (Id) ON DELETE CASCADE,
+  CONSTRAINT `FK_AttachmentSendLogs_UpdateId` FOREIGN KEY (`UpdateId`) REFERENCES `logs`.`analitfupdates` (`UpdateId`) ON DELETE CASCADE
 );
 
