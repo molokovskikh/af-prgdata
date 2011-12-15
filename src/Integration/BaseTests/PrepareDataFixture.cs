@@ -15,6 +15,7 @@ using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
+using Test.Support;
 
 namespace Integration.BaseTests
 {
@@ -175,6 +176,26 @@ where
 			{
 				LogManager.ResetConfiguration();
 			}
+		}
+
+		protected string CheckArchive(TestUser user, ulong updateId)
+		{
+			var afterRequestDataFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(user.Id));
+			Assert.That(afterRequestDataFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterRequestDataFiles.Implode());
+			Assert.That(afterRequestDataFiles[0], Is.StringEnding("{0}_{1}.zip".Format(user.Id, updateId)));
+			return afterRequestDataFiles[0];
+		}
+
+		protected string ExtractArchive(string archiveFileName)
+		{
+			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
+			if (Directory.Exists(extractFolder))
+				Directory.Delete(extractFolder, true);
+			Directory.CreateDirectory(extractFolder);
+
+			ArchiveHelper.Extract(archiveFileName, "*.*", extractFolder);
+
+			return extractFolder;
 		}
 
 	}
