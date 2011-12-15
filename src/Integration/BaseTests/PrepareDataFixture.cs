@@ -71,16 +71,24 @@ namespace Integration.BaseTests
 			return responce;
 		}
 
+		protected string LoadDataAttachments(bool getEtalonData, DateTime accessTime, string appVersion, uint[] attachmentIds)
+		{
+			var service = new PrgDataEx();
+			var responce = service.GetUserDataWithAttachments(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false, null, 1, 1, null, null, attachmentIds);
+
+			return responce;
+		}
+
 		protected void ShouldBeSuccessfull(string responce)
 		{
 			Assert.That(responce, Is.StringStarting("URL=http://localhost//GetFileHandler.ashx?Id"));
 		}
 
-		protected ulong ParseUpdateId(string responce)
+		protected uint ParseUpdateId(string responce)
 		{
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)
-				return Convert.ToUInt64(match);
+				return Convert.ToUInt32(match);
 
 			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
 // ReSharper disable HeuristicUnreachableCode
@@ -88,13 +96,13 @@ namespace Integration.BaseTests
 // ReSharper restore HeuristicUnreachableCode
 		}
 
-		protected string CheckAsyncRequest(ulong updateId)
+		protected string CheckAsyncRequest(uint updateId)
 		{
 			var service = new PrgDataEx();
 			return service.CheckAsyncRequest(updateId);
 		}
 
-		protected void WaitAsyncResponse(ulong updateId)
+		protected void WaitAsyncResponse(uint updateId)
 		{
 			var asyncResponse = String.Empty;
 			var sleepCount = 0;

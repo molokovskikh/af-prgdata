@@ -106,6 +106,7 @@
     <Compile Include="GetUpdateDataFixture.cs" />
     <Compile Include="ImpersonalPriceFixture.cs" />
     <Compile Include="MatrixFixture.cs" />
+    <Compile Include="MiniMailFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
     <Compile Include="PostOrderFixture.cs" />

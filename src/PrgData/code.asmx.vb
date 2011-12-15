@@ -377,6 +377,7 @@ Public Class PrgDataEx
           Nothing, _
           Nothing, _
           False, _
+          Nothing, _
           Nothing)
     End Function
 
@@ -409,6 +410,7 @@ Public Class PrgDataEx
           MaxOrderId, _
           MaxOrderListId, _
           False, _
+          Nothing, _
           Nothing)
     End Function
 
@@ -441,6 +443,7 @@ Public Class PrgDataEx
           MaxOrderId, _
           MaxOrderListId, _
           True AndAlso Not WayBillsOnly, _
+          Nothing, _
           Nothing)
     End Function
 
@@ -474,7 +477,43 @@ Public Class PrgDataEx
           MaxOrderId, _
           MaxOrderListId, _
           True AndAlso Not WayBillsOnly, _
-          DocumentBodyIds)
+          DocumentBodyIds, _
+          Nothing)
+    End Function
+
+    <WebMethod()> Public Function GetUserDataWithAttachments( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32(), _
+ ByVal DocumentBodyIds As UInt32(), _
+ ByVal AttachmentIds As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          WayBillsOnly, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId, _
+          False, _
+          DocumentBodyIds, _
+          AttachmentIds)
     End Function
 
     Private Function InternalGetUserData( _
@@ -492,7 +531,8 @@ Public Class PrgDataEx
      ByVal MaxOrderId As UInt32, _
      ByVal MaxOrderListId As UInt32,
      ByVal Async As Boolean, _
-     ByVal DocumentBodyIds As UInt32()) As String
+     ByVal DocumentBodyIds As UInt32(), _
+	ByVal AttachmentIds As UInt32()) As String
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
@@ -623,10 +663,10 @@ Public Class PrgDataEx
                 UpdateType = RequestType.GetDocs
             Else
 
-				'«десь должен помещать запрос на вложени€
-				'If DocumentBodyIds IsNot Nothing AndAlso (DocumentBodyIds.Length > 0) AndAlso (DocumentBodyIds(0) <> 0) Then
-				'	UpdateData.FillDocumentBodyIds(DocumentBodyIds)
-				'End If
+				'«десь должен помещать запрос на почтовые вложени€
+				If AttachmentIds IsNot Nothing AndAlso (AttachmentIds.Length > 0) AndAlso (AttachmentIds(0) <> 0) Then
+					UpdateData.FillAttachmentIds(AttachmentIds)
+				End If
 
                 PackFinished = False
 
@@ -1115,8 +1155,8 @@ endprocNew:
 					End If
 
 					'здесь будем выгружать запрошенные вложени€
-					If Not Documents AndAlso UpdateData.NeedExportCertificates then
-                        helper.ArchiveCertificates(connection, SevenZipTmpArchive, GED, OldUpTime, CurUpdTime, Addition, FilesForArchive)
+					If Not Documents AndAlso UpdateData.NeedExportAttachments then
+                        helper.ArchiveAttachments(connection, SevenZipTmpArchive, Addition, FilesForArchive)
 					End If
 
                     If Documents Then
@@ -2502,7 +2542,7 @@ StartZipping:
                     AddFileToQueue(helper.BatchReportServiceFieldsFileName)
                 End If
 
-                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing)
+                ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing)
 
                 currentUpdateId = GUpdateId
 
@@ -4743,7 +4783,7 @@ endproc:
 
     <WebMethod()> _
     Public Function CheckAsyncRequest( _
-        ByVal UpdateId As UInt64 _
+        ByVal UpdateId As UInt32 _
     ) As String
 
         Try

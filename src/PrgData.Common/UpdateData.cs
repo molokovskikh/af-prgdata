@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Data;
 using System.Diagnostics;
+using System.Linq;
 using System.Text;
+using Common.Tools;
 using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Orders;
 
@@ -529,6 +531,21 @@ namespace PrgData.Common
 				};
 				AttachmentRequests.Add(request);
 			}
+		}
+
+		public bool SuccesAttachmentsExists()
+		{
+			return AttachmentRequests.Exists(r => r.Success);
+		}
+
+		public List<uint> SuccesAttachmentIds()
+		{
+			return AttachmentRequests.Where(r => r.Success).Select(r => r.AttachmentId).ToList();
+		}
+
+		public string GetAttachmentsResult()
+		{
+			return SuccesAttachmentIds().Implode("\n");
 		}
 
 	}

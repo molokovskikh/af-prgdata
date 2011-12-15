@@ -3669,22 +3669,80 @@ order by s.Hour, s.Minute";
 
 			try
 			{
-				log.Debug("Будем выгружать сертификаты");
+				log.Debug("Будем выгружать вложения");
 
 				var command = new MySqlCommand();
 				command.Connection = connection;
-				//SetUpdateParameters(command, cumulative, oldUpdateTime, currentUpdateTime);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				command.Parameters.Add("?AttachmentId", MySqlDbType.UInt32);
 
-				ExportCertificates(archiveFileName, command, filesForArchive);
+				var attachmentRequestsFile = DeleteFileByPrefix("AttachmentRequests");
 
-				ArchiveCertificatesFiles(archiveFileName, command);
+				ArchiveAttachmentFiles(archiveFileName, command);
+
+				if (_updateData.SuccesAttachmentsExists()) {
+					File.WriteAllText(MySqlLocalFilePath() + attachmentRequestsFile, _updateData.GetAttachmentsResult());
+					ProcessArchiveFile(attachmentRequestsFile, archiveFileName);
+				}
 			}
 			catch (Exception exception)
 			{
-				log.Error("Ошибка при архивировании сертификатов", exception);
-				addition += "Архивирование сертификатов: " + exception.Message + "; ";
+				log.Error("Ошибка при архивировании почтовых вложений", exception);
+				addition += "Архивирование почтовых вложений: " + exception.Message + "; ";
 
 				ShareFileHelper.MySQLFileDelete(archiveFileName);
+			}
+		}
+
+		private void ArchiveAttachmentFiles(string archiveFileName, MySqlCommand command)
+		{
+			var attachmentsFolder = "Attachments";
+			var attachmentsPath = Path.Combine(_updateData.ResultPath, attachmentsFolder);
+
+			var tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+			if (!Directory.Exists(tempPath))
+				Directory.CreateDirectory(tempPath);
+			if (!Directory.Exists(Path.Combine(tempPath, "Docs")))
+				Directory.CreateDirectory(Path.Combine(tempPath, "Docs"));
+
+			command.CommandText = @"
+select 
+	Attachments.Extension 
+from 
+	logs.AttachmentSendLogs 
+	inner join documents.Attachments on Attachments.Id = AttachmentSendLogs.AttachmentId
+where 
+	AttachmentSendLogs.UserId = ?UserId
+and AttachmentSendLogs.AttachmentId = ?AttachmentId";
+
+
+			try {
+				foreach (var request in _updateData.AttachmentRequests) {
+					command.Parameters["?AttachmentId"].Value = request.AttachmentId;
+					var extension = command.ExecuteScalar();
+					if (extension != null && !String.IsNullOrEmpty((string)extension)) {
+						File.Copy(
+							Path.Combine(attachmentsPath, request.AttachmentId + (string)extension), 
+							Path.Combine(tempPath, "Docs", request.AttachmentId + (string)extension));
+						request.Success = true;
+					}
+				}
+
+				if (_updateData.SuccesAttachmentsExists())
+					SevenZipHelper.ArchiveFilesWithNames(
+						archiveFileName,
+						Path.Combine("Docs", "*.*"),
+						tempPath);
+			}
+			finally {
+				if (Directory.Exists(tempPath))
+					try {
+						Directory.Delete(tempPath, true);
+					}
+					catch (Exception exception) {
+						var log = LogManager.GetLogger(typeof(UpdateHelper));
+						log.WarnFormat("Ошибка при удалении временной папки {0}: {1}", tempPath, exception);
+					}
 			}
 		}
 
@@ -3727,7 +3785,7 @@ select
 	Mails.Body
 from
 	Documents.Mails
-	inner join future.Supplies on Suppliers.Id = Mails.SupplierId
+	inner join future.Suppliers on Suppliers.Id = Mails.SupplierId
 where
   Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
 		}
@@ -3739,7 +3797,7 @@ select
 	Attachments.Id,
 	Attachments.MailId,
 	Attachments.FileName,
-	Attachments.Extention,
+	Attachments.Extension,
 	Attachments.Size
 from
 	Documents.Mails
@@ -3750,18 +3808,24 @@ where
 
 		public static void ProcessExportMails(UpdateData updateData, MySqlConnection connection, uint? updateId)
 		{
-			if (updateData.ExportMails.Count > 0)
+			if (updateData.ExportMails.Count > 0 || updateData.SuccesAttachmentsExists())
 			{
 				var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
 				try {
+					String sql = String.Empty;
 
-					var sql = "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Implode() + ")";
+					if (updateData.ExportMails.Count > 0)
+						sql += "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Implode() + ");";
 
-					MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
-						connection,
-						sql,
-						new MySqlParameter("?UserId", updateData.UserId),
-						new MySqlParameter("?UpdateId", updateId));
+					if (updateData.SuccesAttachmentsExists())
+						sql += "update Logs.AttachmentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and AttachmentId in ("+ updateData.SuccesAttachmentIds().Implode() + ");";
+
+					if (!String.IsNullOrEmpty(sql))
+						MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
+							connection,
+							sql,
+							new MySqlParameter("?UserId", updateData.UserId),
+							new MySqlParameter("?UpdateId", updateId));
 
 					transaction.Commit();
 				}
@@ -3778,7 +3842,11 @@ where
 				return @"
 update Logs.MailSendLogs ms
 set ms.Committed = 1
-where ms.updateid = " + updateId;
+where ms.updateid = {0};
+update Logs.AttachmentSendLogs ms
+set ms.Committed = 1
+where ms.updateid = {0};"
+					.Format(updateId);
 		}
 
 	}

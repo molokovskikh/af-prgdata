@@ -385,7 +385,7 @@ namespace Integration
 			return 0;
 		}
 
-		private string CheckAsyncRequest(ulong updateId)
+		private string CheckAsyncRequest(uint updateId)
 		{
 			var service = new PrgDataEx();
 			return service.CheckAsyncRequest(updateId);
@@ -686,7 +686,7 @@ namespace Integration
 					var sleepCount = 0;
 					do
 					{
-						asyncResponse = CheckAsyncRequest(Convert.ToUInt64(simpleUpdateId));
+						asyncResponse = CheckAsyncRequest(simpleUpdateId);
 						if (asyncResponse == "Res=Wait")
 						{
 							sleepCount++;
