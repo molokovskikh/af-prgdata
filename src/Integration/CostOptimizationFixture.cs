@@ -267,7 +267,8 @@ limit 0, 50", conn);
 
 		}
 
-		[Test(Description = "Проверка множественных вставок в CostOptimizationLogs для воспроизведения ошибки Duplicate entry")]
+		[Test(Description = "Проверка множественных вставок в CostOptimizationLogs для воспроизведения ошибки Duplicate entry"), 
+		 Ignore("Отключаю, т.к. ошибку тест не воспроизводит")]
 		public void TestMultiInsertWithSomeThreads()
 		{
 			BasicConfigurator.Configure();

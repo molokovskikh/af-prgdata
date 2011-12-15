@@ -833,16 +833,7 @@ limit 1
 		[Test]
 		public void Check_double_order_for_future_client()
 		{
-			BasicConfigurator.Configure();
-			try
-			{
-				Check_simple_double_order(user.Login, address.Id);
-
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+			Check_simple_double_order(user.Login, address.Id);
 		}
 
 		[Test]
