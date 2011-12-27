@@ -35,7 +35,7 @@ select last_insert_id()",
 				new MySqlParameter("?UserId", updateData.UserId),
 				new MySqlParameter("?Addition", addition),
 				new MySqlParameter("?AppVersion", updateData.BuildNumber),
-				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()),
+				new MySqlParameter("?ClientHost", updateData.ClientHost),
 				new MySqlParameter("?ResultSize", resultSize),
 				new MySqlParameter("?Commit", commit),
 				new MySqlParameter("?Log", log)
