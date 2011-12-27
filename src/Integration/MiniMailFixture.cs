@@ -47,13 +47,7 @@ namespace Integration
 			var supplier = _user.GetActivePrices()[0].Supplier;
 
 			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
-				mail = new TestMail{
-					IsVIPMail = false,
-					LogTime = DateTime.Now,
-					Supplier = supplier,
-					Subject = "subject " + supplier.Id,
-					Body = "body " + supplier.Id
-				};
+				mail = new TestMail(supplier);
 
 				var attachment = new TestAttachment {
 					FileName = "test.data",
@@ -61,7 +55,7 @@ namespace Integration
 					Mail = mail,
 					Size = 10
 				};
-				mail.Attachements.Add(attachment);
+				mail.Attachments.Add(attachment);
 
 				mail.CreateAndFlush();
 
@@ -120,7 +114,7 @@ namespace Integration
 				var attachmentsTable = new DataTable();
 				dataAdapter.Fill(attachmentsTable);
 				Assert.That(attachmentsTable.Rows.Count, Is.EqualTo(1));
-				Assert.That(attachmentsTable.Rows[0]["Id"], Is.EqualTo(log.Mail.Attachements[0].Id));
+				Assert.That(attachmentsTable.Rows[0]["Id"], Is.EqualTo(log.Mail.Attachments[0].Id));
 			}
 		}
 
@@ -165,7 +159,7 @@ namespace Integration
 			using (new SessionScope()) {
 				attachmentSendLog =
 					TestAttachmentSendLog.Queryable.FirstOrDefault(
-						l => l.Attachment.Id == log.Mail.Attachements[0].Id && l.User.Id == _user.Id);
+						l => l.Attachment.Id == log.Mail.Attachments[0].Id && l.User.Id == _user.Id);
 			}
 			Assert.That(attachmentSendLog.Committed, Is.False);
 			Assert.That(attachmentSendLog.UpdateLogEntry, Is.Null);

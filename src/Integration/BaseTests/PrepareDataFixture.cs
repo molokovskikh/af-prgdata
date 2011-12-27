@@ -23,6 +23,7 @@ namespace Integration.BaseTests
 	{
 
 		protected string UniqueId;
+		protected MemoryAppender memoryAppender;
 
 		public virtual void FixtureSetup()
 		{
@@ -206,5 +207,23 @@ where
 			return extractFolder;
 		}
 
+		protected void CheckForErrors()
+		{
+			LogManager.ResetConfiguration();
+
+			var events = memoryAppender.GetEvents();
+			var errors = Enumerable.Where(events, item => item.Level >= Level.Warn);
+			Assert.That(errors.Count(), Is.EqualTo(0),
+				"При подготовке данных возникли ошибки:\r\n{0}",
+				errors.Select(item => item.ExceptionObject).Implode("\r\n"));
+		}
+
+		protected void RegisterLogger()
+		{
+			memoryAppender = new MemoryAppender();
+			memoryAppender.AddFilter(new LoggerMatchFilter
+			{AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter()});
+			BasicConfigurator.Configure((IAppender) memoryAppender);
+		}
 	}
 }

@@ -1710,7 +1710,7 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 			}
 
 			var deletedPrice = parentUser.GetActivePrices().First();
-			Assert.That(childUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента не найден прайс-лист: {0}", deletedPrice);
+			Assert.That(childUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента не найден прайс-лист: {0}", deletedPrice);
 
 			//Отключаем прайс-лист
 			SessionHelper.WithSession(
@@ -1730,8 +1730,8 @@ delete from future.UserPrices where UserId = :parentUserId and PriceId = :priceI
 							.ExecuteUpdate();
 					});
 
-			Assert.That(parentUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.False, "У родительского клиента найден отключенный прайс-лист: {0}", deletedPrice);
-			Assert.That(childUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.False, "У подчиненного клиента найден отключенный прайс-лист: {0}", deletedPrice);
+			Assert.That(parentUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.False, "У родительского клиента найден отключенный прайс-лист: {0}", deletedPrice);
+			Assert.That(childUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.False, "У подчиненного клиента найден отключенный прайс-лист: {0}", deletedPrice);
 
 			var parentForceReplication = GetForceReplication(deletedPrice.Supplier.Id, parentUser.Id);
 			Assert.That(parentForceReplication, Is.True, "При удалении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", parentUser);
@@ -1758,8 +1758,8 @@ insert into future.UserPrices (UserId, PriceId, RegionId) values (:parentUserId,
 						.ExecuteUpdate();
 				});
 
-			Assert.That(parentUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.True, "У родительского клиента найден включенный прайс-лист: {0}", deletedPrice);
-			Assert.That(childUser.GetActivePrices().Contains(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента найден включенный прайс-лист: {0}", deletedPrice);
+			Assert.That(parentUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.True, "У родительского клиента найден включенный прайс-лист: {0}", deletedPrice);
+			Assert.That(childUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента найден включенный прайс-лист: {0}", deletedPrice);
 
 			parentForceReplication = GetForceReplication(deletedPrice.Supplier.Id, parentUser.Id);
 			Assert.That(parentForceReplication, Is.True, "При включении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", parentUser);

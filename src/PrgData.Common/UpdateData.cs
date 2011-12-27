@@ -25,6 +25,10 @@ namespace PrgData.Common
 		public uint DocumentBodyId;
 		public uint? CertificateId;
 		public List<uint> CertificateFiles = new List<uint>();
+		//сертификаты которые на самом деле были отправлены клиенту
+		//тк какие либо файлы мы можем не найти
+		//нужно что бы сформировать лог об отправке
+		public List<string> SendedFiles = new List<string>();
 	}
 
 	public class AttachmentRequest

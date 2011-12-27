@@ -9,6 +9,7 @@ using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
+using PrgData.Common.Model;
 using log4net;
 using PrgData.Common.Orders;
 using PrgData.Common.SevenZip;
@@ -91,7 +92,7 @@ from
   usersettings.PricesCosts,
   usersettings.PriceItems
 where
-    (PricesCosts.PriceCode = ?PriceCode)
+	(PricesCosts.PriceCode = ?PriceCode)
 and (PriceItems.Id = PricesCosts.PriceItemId)
 and (PricesCosts.CostCode = ?CostCode)
 "
@@ -109,7 +110,7 @@ from
   usersettings.PricesCosts,
   usersettings.PriceItems
 where
-    (PricesCosts.CostCode = ?CostCode)
+	(PricesCosts.CostCode = ?CostCode)
 and (PriceItems.Id = PricesCosts.PriceItemId)
 and (PriceItems.LastFormalization > ?UpdateTime)
 "
@@ -140,7 +141,7 @@ from
   )
   left join farm.SynonymFirmCr sfc on sfc.SynonymFirmCrCode = c.SynonymFirmCrCode
 where
-    (c.PriceCode = {0})
+	(c.PriceCode = {0})
 and (cc.Core_Id = c.Id)
 and (cc.PC_CostCode = {1})
 and (p.Id = c.ProductId)
@@ -162,14 +163,14 @@ and (s.SynonymCode = c.SynonymCode)
 				command.CommandText = @"
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
-       (
-              UserId,
-              FirmCode,
-              ForceReplication
-       )
+	   (
+			  UserId,
+			  FirmCode,
+			  ForceReplication
+	   )
 SELECT ouar.RowId,
-       supplier.Id,
-       1
+	   supplier.Id,
+	   1
 FROM usersettings.clientsdata AS drugstore
 	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
 	JOIN future.Suppliers supplier ON supplier.segment = drugstore.firmsegment
@@ -182,14 +183,14 @@ GROUP BY ouar.RowId, supplier.Id;
 
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
-       (
-              UserId,
-              FirmCode,
-              ForceReplication
-       )
+	   (
+			  UserId,
+			  FirmCode,
+			  ForceReplication
+	   )
 SELECT u.Id,
-       supplier.Id,
-       1
+	   supplier.Id,
+	   1
 FROM Future.Clients drugstore
 	JOIN Future.Users u ON u.ClientId = drugstore.Id
 	JOIN future.Suppliers supplier ON supplier.regionmask & ?OffersRegionCode > 0
@@ -205,14 +206,14 @@ GROUP BY u.Id, supplier.Id;";
 				command.CommandText = @"
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
-       (
-              UserId,
-              FirmCode,
-              ForceReplication
-       )
+	   (
+			  UserId,
+			  FirmCode,
+			  ForceReplication
+	   )
 SELECT ouar.RowId,
-       supplier.Id,
-       1
+	   supplier.Id,
+	   1
 FROM usersettings.clientsdata AS drugstore
 	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
 	JOIN future.Suppliers supplier ON supplier.segment = drugstore.firmsegment
@@ -225,14 +226,14 @@ GROUP BY ouar.RowId, supplier.Id;
 
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
-       (
-              UserId,
-              FirmCode,
-              ForceReplication
-       )
+	   (
+			  UserId,
+			  FirmCode,
+			  ForceReplication
+	   )
 SELECT u.Id,
-       supplier.Id,
-       1
+	   supplier.Id,
+	   1
 FROM Future.Clients drugstore
 	JOIN Future.Users u ON u.ClientId = drugstore.Id
 	JOIN future.Suppliers supplier ON supplier.regionmask & drugstore.maskregion > 0
@@ -282,31 +283,31 @@ AND (regions.regioncode & maskregion > 0)";
 			command += @"
 UNION 
 SELECT regions.regioncode,
-       left(regions.region, 25) as region
+	   left(regions.region, 25) as region
 FROM   farm.regions,
-       clientsdata
+	   clientsdata
 WHERE firmcode = ?ClientCode
 AND regions.regioncode= clientsdata.regioncode 
 
 UNION
 
 SELECT DISTINCT regions.regioncode,
-                left(regions.region, 25) as region
+				left(regions.region, 25) as region
 FROM            farm.regions,
-                includeregulation,
-                clientsdata 
+				includeregulation,
+				clientsdata 
 WHERE includeclientcode = ?ClientCode
-            AND firmcode          = primaryclientcode
-            AND includetype      IN (1, 2)
-            AND regions.regioncode & clientsdata.maskregion > 0
+			AND firmcode          = primaryclientcode
+			AND includetype      IN (1, 2)
+			AND regions.regioncode & clientsdata.maskregion > 0
 
 UNION
 
 SELECT regions.regioncode,
-       left(regions.region, 25) as region
+	   left(regions.region, 25) as region
 FROM   farm.regions,
-       clientsdata ,
-       includeregulation 
+	   clientsdata ,
+	   includeregulation 
 WHERE  primaryclientcode = ?ClientCode 
    AND firmcode          = includeclientcode 
    AND firmstatus        = 1 
@@ -324,7 +325,7 @@ WHERE  primaryclientcode = ?ClientCode
 
 			var dataAdapter = new MySqlDataAdapter(@"
 SELECT  
-    c.Id ClientId,
+	c.Id ClientId,
 	u.Id UserId,
 	rui.UpdateDate,
 	rui.UncommitedUpdateDate,
@@ -335,19 +336,19 @@ SELECT
 	u.SaveAFDataFiles,
 	retclientsset.CheckCopyId,
 	'' Future,
-    c.Name as ShortName,
-    retclientsset.Spy, 
-    retclientsset.SpyAccount,
-    retclientsset.BuyingMatrixPriceId,
-    retclientsset.BuyingMatrixType,
-    retclientsset.WarningOnBuyingMatrix,
-    retclientsset.EnableImpersonalPrice,
+	c.Name as ShortName,
+	retclientsset.Spy, 
+	retclientsset.SpyAccount,
+	retclientsset.BuyingMatrixPriceId,
+	retclientsset.BuyingMatrixType,
+	retclientsset.WarningOnBuyingMatrix,
+	retclientsset.EnableImpersonalPrice,
 	retclientsset.NetworkPriceId,
 	retclientsset.ShowAdvertising,
-    retclientsset.OfferMatrixPriceId,
-    retclientsset.OfferMatrixType,
-    retclientsset.AllowAnalitFSchedule,
-    c.Status as ClientEnabled,
+	retclientsset.OfferMatrixPriceId,
+	retclientsset.OfferMatrixType,
+	retclientsset.AllowAnalitFSchedule,
+	c.Status as ClientEnabled,
 	u.Enabled as UserEnabled,
 	u.AllowDownloadUnconfirmedOrders,
 	u.SendWaybills,
@@ -392,33 +393,33 @@ limit 1;"
 			{
 				dataAdapter.SelectCommand.CommandText = @"
 SELECT  ouar.clientcode as ClientId,
-        ouar.RowId UserId,
-        rui.UpdateDate,
-        rui.UncommitedUpdateDate,
+		ouar.RowId UserId,
+		rui.UpdateDate,
+		rui.UncommitedUpdateDate,
 		rui.AFAppVersion as KnownBuildNumber,
 		rui.AFCopyId as KnownUniqueID,
-        if(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
-        rui.TargetVersion,
-        rui.SaveAFDataFiles,
-        retclientsset.CheckCopyID,
-        clientsdata.ShortName,
-        retclientsset.Spy, 
-        retclientsset.SpyAccount,
+		if(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
+		rui.TargetVersion,
+		rui.SaveAFDataFiles,
+		retclientsset.CheckCopyID,
+		clientsdata.ShortName,
+		retclientsset.Spy, 
+		retclientsset.SpyAccount,
 		retclientsset.BuyingMatrixPriceId,
 		retclientsset.BuyingMatrixType,
 		retclientsset.WarningOnBuyingMatrix,
-        retclientsset.EnableImpersonalPrice,
+		retclientsset.EnableImpersonalPrice,
 		retclientsset.NetworkPriceId,
 		retclientsset.ShowAdvertising,
-	    retclientsset.OfferMatrixPriceId,
+		retclientsset.OfferMatrixPriceId,
 		retclientsset.OfferMatrixType,
 		retclientsset.AllowAnalitFSchedule,
-        clientsdata.firmstatus as ClientEnabled,
-	    IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
+		clientsdata.firmstatus as ClientEnabled,
+		IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
 		0 as AllowDownloadUnconfirmedOrders,
 		0 as SendWaybills,
 		0 as SendRejects,
-	    ap.UserId is not null as AFPermissionExists
+		ap.UserId is not null as AFPermissionExists
 FROM    
   usersettings.osuseraccessright ouar
   join usersettings.clientsdata                 on clientsdata.firmcode = ouar.clientcode
@@ -428,7 +429,7 @@ FROM
   left join usersettings.AssignedPermissions ap on ap.UserId = ouar.rowid and ap.PermissionId = up.Id
   left join usersettings.IncludeRegulation ir   on ir.IncludeClientCode = ouar.ClientCode
 WHERE   
-    ouar.OSUserName = ?user;
+	ouar.OSUserName = ?user;
 select
 	AnalitFUpdates.UpdateId,
 	AnalitFUpdates.RequestTime,
@@ -575,11 +576,11 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 			{
 				command = new MySqlCommand(@"
 SELECT r.Region,
-       uui.ReclameDate,
-       rcs.ShowAdvertising
+	   uui.ReclameDate,
+	   rcs.ShowAdvertising
 FROM Future.Clients c
 	join Future.Users u on c.Id = u.Clientid
-    join usersettings.RetClientsSet rcs on rcs.ClientCode = u.Clientid
+	join usersettings.RetClientsSet rcs on rcs.ClientCode = u.Clientid
 	join farm.regions r on r.RegionCode = c.RegionCode
 	join UserUpdateInfo uui on u.Id = uui.UserId
 WHERE u.Id = ?UserId", _readWriteConnection);
@@ -588,13 +589,13 @@ WHERE u.Id = ?UserId", _readWriteConnection);
 			{
 				command = new MySqlCommand(@"
 SELECT r.Region,
-       UUI.ReclameDate,
-       rcs.ShowAdvertising
+	   UUI.ReclameDate,
+	   rcs.ShowAdvertising
 FROM   clientsdata cd,
-       usersettings.RetClientsSet rcs,
-       farm.regions r,
-       UserUpdateInfo UUI,
-       OsUserAccessRight OUAR
+	   usersettings.RetClientsSet rcs,
+	   farm.regions r,
+	   UserUpdateInfo UUI,
+	   OsUserAccessRight OUAR
 WHERE  r.regioncode = cd.regioncode
    and rcs.ClientCode = cd.FirmCode
    AND OUAR.RowId = ?UserId
@@ -638,7 +639,7 @@ FROM
   Prices       , 
   AnalitFReplicationInfo AFRI
 WHERE    
-    AFRI.UserId                =  ?UserId
+	AFRI.UserId                =  ?UserId
 and Prices.FirmCode = AFRI.FirmCode
 GROUP BY 1;";
 
@@ -653,11 +654,11 @@ GROUP BY 1;";
 			{
 				var commandText = @"
 CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
-        SELECT   PriceSynonymCode PriceCode,
-                 MaxSynonymCode            ,
-                 MaxSynonymFirmCrCode
-        FROM     ActivePrices Prices
-        GROUP BY 1;";
+		SELECT   PriceSynonymCode PriceCode,
+				 MaxSynonymCode            ,
+				 MaxSynonymFirmCrCode
+		FROM     ActivePrices Prices
+		GROUP BY 1;";
 
 				var command = new MySqlCommand(commandText, _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
@@ -679,20 +680,20 @@ CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
 					@"
 CREATE TEMPORARY TABLE MaxCodesSyn engine=MEMORY
 SELECT   Prices.FirmCode, 
-       MAX(synonym.synonymcode) SynonymCode 
+	   MAX(synonym.synonymcode) SynonymCode 
 FROM     ActivePrices Prices       , 
-       farm.synonym                
+	   farm.synonym                
 WHERE    synonym.pricecode  = Prices.PriceSynonymCode 
    AND synonym.synonymcode > Prices.MaxSynonymCode 
 GROUP BY 1;
 
 CREATE TEMPORARY TABLE MaxCodesSynFirmCr engine=MEMORY 
 SELECT   Prices.FirmCode, 
-         MAX(synonymfirmcr.synonymfirmcrcode) SynonymCode 
+		 MAX(synonymfirmcr.synonymfirmcrcode) SynonymCode 
 FROM     ActivePrices Prices       , 
-         farm.synonymfirmcr          
+		 farm.synonymfirmcr          
 WHERE    synonymfirmcr.pricecode        = Prices.PriceSynonymCode 
-     AND synonymfirmcr.synonymfirmcrcode > Prices.MaxSynonymfirmcrCode 
+	 AND synonymfirmcr.synonymfirmcrcode > Prices.MaxSynonymfirmcrCode 
 GROUP BY 1;";
 
 			commandText +=
@@ -709,20 +710,20 @@ and CurrentReplicationInfo.CurrentForceReplicationUpdate = AFRI.ForceReplication
 
 UPDATE AnalitFReplicationInfo AFRI 
 SET    UncMaxSynonymFirmCrCode    = 0, 
-     UncMaxSynonymCode          = 0 
+	 UncMaxSynonymCode          = 0 
 WHERE  AFRI.UserId                =  ?UserId;";
 
 			if (!_updateData.EnableImpersonalPrice)
 				commandText +=
 				@"
 UPDATE AnalitFReplicationInfo AFRI, 
-       MaxCodesSynFirmCr            
+	   MaxCodesSynFirmCr            
 SET    UncMaxSynonymFirmCrCode    = MaxCodesSynFirmCr.synonymcode 
 WHERE  MaxCodesSynFirmCr.FirmCode = AFRI.FirmCode 
    AND AFRI.UserId = ?UserId;
 
 UPDATE AnalitFReplicationInfo AFRI, 
-       maxcodessyn                  
+	   maxcodessyn                  
 SET    UncMaxSynonymCode     = maxcodessyn.synonymcode 
 WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
    AND AFRI.UserId = ?UserId;";
@@ -762,7 +763,7 @@ FROM
   ActivePrices Prices, 
   logs.SynonymLogs
 WHERE    
-      SynonymLogs.pricecode = PriceSynonymCode
+	  SynonymLogs.pricecode = PriceSynonymCode
   and SynonymLogs.LogTime >= (?oldUpdateTime - interval ?Depth day)
   and SynonymLogs.LogTime < ?oldUpdateTime 
 GROUP BY 1;
@@ -775,25 +776,25 @@ FROM
   ActivePrices Prices, 
   logs.SynonymFirmCrLogs
 WHERE    
-      SynonymFirmCrLogs.pricecode = PriceSynonymCode 
+	  SynonymFirmCrLogs.pricecode = PriceSynonymCode 
   and SynonymFirmCrLogs.LogTime >= (?oldUpdateTime - interval ?Depth day)
   AND SynonymFirmCrLogs.LogTime < ?oldUpdateTime 
 GROUP BY 1;
 
 UPDATE AnalitFReplicationInfo AFRI 
 SET    UncMaxSynonymFirmCrCode    = 0, 
-     UncMaxSynonymCode          = 0 
+	 UncMaxSynonymCode          = 0 
 WHERE  AFRI.UserId                =  ?UserId;
 
 UPDATE AnalitFReplicationInfo AFRI, 
-       MaxCodesSynFirmCr            
+	   MaxCodesSynFirmCr            
 SET    MaxSynonymFirmCrCode    = MaxCodesSynFirmCr.synonymcode 
 WHERE  MaxCodesSynFirmCr.FirmCode = AFRI.FirmCode 
    AND AFRI.UserId = ?UserId
   and AFRI.MaxSynonymFirmCrCode > MaxCodesSynFirmCr.synonymcode;
 
 UPDATE AnalitFReplicationInfo AFRI, 
-       maxcodessyn                  
+	   maxcodessyn                  
 SET    MaxSynonymCode     = maxcodessyn.synonymcode 
 WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
   AND AFRI.UserId = ?UserId
@@ -807,7 +808,7 @@ update
 set
   ds.Committed = 0
 where
-    afu.RequestTime > ?oldUpdateTime
+	afu.RequestTime > ?oldUpdateTime
 and afu.UserId = ?UserId
 and ds.UpdateId = afu.UpdateId
 and ds.UserId = afu.UserId
@@ -818,7 +819,7 @@ update
 set
   ms.Committed = 0
 where
-    afu.RequestTime > ?oldUpdateTime
+	afu.RequestTime > ?oldUpdateTime
 and afu.UserId = ?UserId
 and ms.UpdateId = afu.UpdateId
 and ms.UserId = afu.UserId
@@ -839,10 +840,10 @@ and ms.Committed = 1;
 		{
 				var command = @"
 SELECT  DocumentId,
-        DocumentType,
-        ClientCode 
+		DocumentType,
+		ClientCode 
 FROM    AnalitFDocumentsProcessing AFDP,
-        `logs`.document_logs DL
+		`logs`.document_logs DL
 WHERE   DL.RowId = AFDP.DocumentId
 AND     AFDP.UpdateId = ?updateId";
 			var dataAdapter = new MySqlDataAdapter(command, _readWriteConnection);
@@ -878,39 +879,39 @@ limit 200;
 			{
 				return @"
 SELECT  RCS.ClientCode,
-        d.RowId,
-        d.DocumentType,
+		d.RowId,
+		d.DocumentType,
 		d.IsFake,
 		d.SendUpdateId,
 		d.LogTime
 FROM    logs.document_logs d,
-        retclientsset RCS
+		retclientsset RCS
 WHERE   RCS.ClientCode = ?ClientCode
-    AND RCS.ClientCode=d.ClientCode
-    AND UpdateId IS NULL
-    AND FirmCode IS NOT NULL
-    AND AllowDocuments = 1
-    AND d.Addition IS NULL
+	AND RCS.ClientCode=d.ClientCode
+	AND UpdateId IS NULL
+	AND FirmCode IS NOT NULL
+	AND AllowDocuments = 1
+	AND d.Addition IS NULL
 
 UNION
 
 SELECT  ir.IncludeClientCode,
 		d.RowId,
-        d.DocumentType,
+		d.DocumentType,
 		d.IsFake,
 		d.SendUpdateId,
 		d.LogTime
 FROM    logs.document_logs d,
-        retclientsset RCS,
-        includeregulation ir
+		retclientsset RCS,
+		includeregulation ir
 WHERE   ir.PrimaryClientCode = ?ClientCode
-    AND RCS.ClientCode      =ir.IncludeClientCode 
-    AND RCS.ClientCode      =d.ClientCode 
-    AND UpdateId           IS NULL 
-    AND FirmCode           IS NOT NULL 
-    AND AllowDocuments      =1 
-    AND d.Addition IS NULL 
-    AND IncludeType        IN (0,3)
+	AND RCS.ClientCode      =ir.IncludeClientCode 
+	AND RCS.ClientCode      =d.ClientCode 
+	AND UpdateId           IS NULL 
+	AND FirmCode           IS NOT NULL 
+	AND AllowDocuments      =1 
+	AND d.Addition IS NULL 
+	AND IncludeType        IN (0,3)
 Order by 3";
 			}
 		}
@@ -934,7 +935,7 @@ from
   future.Clients,
   farm.regions
 where
-    DocumentHeaders.DownloadId in ({0})
+	DocumentHeaders.DownloadId in ({0})
 and (Clients.Id = DocumentHeaders.ClientCode)
 and (regions.RegionCode = Clients.RegionCode)
 "
@@ -965,7 +966,7 @@ and (regions.RegionCode = clientsdata.RegionCode)
 					,
 					downloadIds);
 			}
- 		}
+		}
 
 		public string GetDocumentBodiesCommand(string downloadIds)
 		{
@@ -995,7 +996,7 @@ from
   documents.DocumentHeaders,
   documents.DocumentBodies
 where
-    DocumentHeaders.DownloadId in ({0})
+	DocumentHeaders.DownloadId in ({0})
 and DocumentBodies.DocumentId = DocumentHeaders.Id
 "
 				,
@@ -1054,7 +1055,7 @@ from
 	documents.DocumentHeaders
 	inner join documents.InvoiceHeaders on InvoiceHeaders.Id = DocumentHeaders.Id
 where
-    DocumentHeaders.DownloadId in ({0})
+	DocumentHeaders.DownloadId in ({0})
 "
 				,
 				downloadIds);
@@ -1066,11 +1067,11 @@ where
 			{
 				return @"
 SELECT 
-    a.Id as ClientCode,
+	a.Id as ClientCode,
 	u.Id as RowId,
 	'',
-    (u.InheritPricesFrom is not null) as InheritPrices,
-    1 as IsFutureClient,
+	(u.InheritPricesFrom is not null) as InheritPrices,
+	1 as IsFutureClient,
 	u.UseAdjustmentOrders,
 	u.ShowSupplierCost
 FROM 
@@ -1088,8 +1089,8 @@ limit 1";
 SELECT ClientCode,
 	RowId,
 	'',
-    0 as InheritPrices,
-    0 as IsFutureClient,
+	0 as InheritPrices,
+	0 as IsFutureClient,
 	0 as UseAdjustmentOrders,
 	0 as ShowSupplierCost
 FROM OsUserAccessRight O
@@ -1129,7 +1130,7 @@ WHERE RowId =" + _updateData.UserId;
 	Future.Users u
 	  join future.Clients c on u.ClientId = c.Id
 	  join future.Addresses a on c.Id = a.ClientId
-      join billing.LegalEntities le on le.Id = a.LegalEntityId
+	  join billing.LegalEntities le on le.Id = a.LegalEntityId
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1
@@ -1157,8 +1158,8 @@ WHERE RowId =" + _updateData.UserId;
 	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
 	  join Future.UserAddresses ua on ua.UserId = u.Id
 	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-      join billing.LegalEntities le on le.Id = a.LegalEntityId
-      {2}
+	  join billing.LegalEntities le on le.Id = a.LegalEntityId
+	  {2}
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1
@@ -1180,13 +1181,13 @@ WHERE RowId =" + _updateData.UserId;
 		 {0}
 		 rcs.CalculateLeader
 		 {1}
-         {2}
+		 {2}
 	FROM Future.Users u
 	  join future.Clients c on u.ClientId = c.Id
 	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
 	  join Future.UserAddresses ua on ua.UserId = u.Id
 	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-      {3}
+	  {3}
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1",
@@ -1199,36 +1200,36 @@ WHERE RowId =" + _updateData.UserId;
 			{
 				return String.Format(@"
 SELECT clientsdata.firmcode,
-     ShortName                                         , 
-     ifnull(?OffersRegionCode, RegionCode)             , 
-     retclientsset.OverCostPercent                     , 
-     retclientsset.DifferenceCalculation               , 
-     retclientsset.MultiUserLevel                      , 
-     retclientsset.OrderRegionMask                     , 
-     {0}
-     retclientsset.CalculateLeader 
-     {1}
+	 ShortName                                         , 
+	 ifnull(?OffersRegionCode, RegionCode)             , 
+	 retclientsset.OverCostPercent                     , 
+	 retclientsset.DifferenceCalculation               , 
+	 retclientsset.MultiUserLevel                      , 
+	 retclientsset.OrderRegionMask                     , 
+	 {0}
+	 retclientsset.CalculateLeader 
+	 {1}
 FROM   retclientsset, 
-     clientsdata 
+	 clientsdata 
 WHERE  clientsdata.firmcode    = ?ClientCode 
  AND retclientsset.clientcode= clientsdata.firmcode 
 
 UNION 
 
 SELECT clientsdata.firmcode,
-     ShortName,
-     ifnull(?OffersRegionCode, RegionCode)                                    , 
-     retclientsset.OverCostPercent                                           , 
-     retclientsset.DifferenceCalculation                                     , 
-     retclientsset.MultiUserLevel                                            , 
-     IF(IncludeType=3, parent.OrderRegionMask, retclientsset.OrderRegionMask), 
-     {0}
-     retclientsset.CalculateLeader 
-     {1}
+	 ShortName,
+	 ifnull(?OffersRegionCode, RegionCode)                                    , 
+	 retclientsset.OverCostPercent                                           , 
+	 retclientsset.DifferenceCalculation                                     , 
+	 retclientsset.MultiUserLevel                                            , 
+	 IF(IncludeType=3, parent.OrderRegionMask, retclientsset.OrderRegionMask), 
+	 {0}
+	 retclientsset.CalculateLeader 
+	 {1}
 FROM   retclientsset       , 
-     clientsdata         , 
-     retclientsset parent, 
-     IncludeRegulation 
+	 clientsdata         , 
+	 retclientsset parent, 
+	 IncludeRegulation 
 WHERE  clientsdata.firmcode    = IncludeClientCode 
  AND retclientsset.clientcode= clientsdata.firmcode 
  AND parent.clientcode       = Primaryclientcode 
@@ -1247,15 +1248,15 @@ WHERE  clientsdata.firmcode    = IncludeClientCode
 			{
 				return String.Format(@"
 SELECT 
-     c.Id as ClientId,
-     left(c.Name, 50) as Name,
-     regions.CalculateOnProducerCost,
-     rcs.ParseWaybills,
-     rcs.SendRetailMarkup,
-     rcs.ShowAdvertising,
-     rcs.SendWaybillsFromClient,
-     rcs.EnableSmartOrder,
-     rcs.EnableImpersonalPrice
+	 c.Id as ClientId,
+	 left(c.Name, 50) as Name,
+	 regions.CalculateOnProducerCost,
+	 rcs.ParseWaybills,
+	 rcs.SendRetailMarkup,
+	 rcs.ShowAdvertising,
+	 rcs.SendWaybillsFromClient,
+	 rcs.EnableSmartOrder,
+	 rcs.EnableImpersonalPrice
 	{0}
 	{1}
 FROM Future.Users u
@@ -1273,20 +1274,20 @@ WHERE u.Id = ?UserId
 			{
 				return String.Format(@"
 SELECT 
-     clientsdata.firmcode   as ClientId,
-     clientsdata.ShortName  as Name, 
-     regions.CalculateOnProducerCost,
-     rcs.ParseWaybills,
-     rcs.SendRetailMarkup,
-     rcs.ShowAdvertising,
-     rcs.SendWaybillsFromClient,
-     rcs.EnableSmartOrder,
-     rcs.EnableImpersonalPrice
+	 clientsdata.firmcode   as ClientId,
+	 clientsdata.ShortName  as Name, 
+	 regions.CalculateOnProducerCost,
+	 rcs.ParseWaybills,
+	 rcs.SendRetailMarkup,
+	 rcs.ShowAdvertising,
+	 rcs.SendWaybillsFromClient,
+	 rcs.EnableSmartOrder,
+	 rcs.EnableImpersonalPrice
 	{0}
 FROM   
-     clientsdata 
-     join farm.regions on regions.RegionCode = clientsdata.RegionCode
-     join usersettings.RetClientsSet rcs on rcs.ClientCode = clientsdata.FirmCode
+	 clientsdata 
+	 join farm.regions on regions.RegionCode = clientsdata.RegionCode
+	 join usersettings.RetClientsSet rcs on rcs.ClientCode = clientsdata.FirmCode
 WHERE  clientsdata.firmcode    = ?ClientCode",
 					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment" : String.Empty
 					 );
@@ -1304,7 +1305,7 @@ WHERE  clientsdata.firmcode    = ?ClientCode",
 						return @"
 select
 	pi.PriceId,
-    d.DayOfWeek,
+	d.DayOfWeek,
 	d.VitallyImportantDelay,
 	d.OtherDelay
 from
@@ -1314,12 +1315,12 @@ from
 	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
-       u.Id = ?UserId";
+	   u.Id = ?UserId";
 					else
 						return @"
 select
 	pi.PriceId,
-    d.DayOfWeek,
+	d.DayOfWeek,
 	d.VitallyImportantDelay,
 	d.OtherDelay
 from
@@ -1327,7 +1328,7 @@ from
 	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
-       si.ClientId = ?ClientCode";
+	   si.ClientId = ?ClientCode";
 				}
 				else
 				if (_updateData.AllowDelayWithVitallyImportant())
@@ -1336,7 +1337,7 @@ where
 						return @"
 select
 	si.SupplierId,
-    d.DayOfWeek,
+	d.DayOfWeek,
 	min(d.VitallyImportantDelay) as VitallyImportantDelay,
 	min(d.OtherDelay) as OtherDelay
 from
@@ -1346,13 +1347,13 @@ from
 	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
-       u.Id = ?UserId
+	   u.Id = ?UserId
 group by si.SupplierId, d.DayOfWeek";
 					else
 						return @"
 select
 	si.SupplierId,
-    d.DayOfWeek,
+	d.DayOfWeek,
 	min(d.VitallyImportantDelay) as VitallyImportantDelay,
 	min(d.OtherDelay) as OtherDelay
 from
@@ -1360,7 +1361,7 @@ from
 	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
-       si.ClientId = ?ClientCode
+	   si.ClientId = ?ClientCode
 group by si.SupplierId, d.DayOfWeek";
 				}
 				else
@@ -1369,25 +1370,25 @@ group by si.SupplierId, d.DayOfWeek";
 					{
 						return @"
 select
-       si.SupplierId   ,
-       si.DelayOfPayment
+	   si.SupplierId   ,
+	   si.DelayOfPayment
 from
-       Future.Users u
-       join future.Clients c on u.ClientId = c.Id
-       join Usersettings.SupplierIntersection si on si.ClientId = c.Id
+	   Future.Users u
+	   join future.Clients c on u.ClientId = c.Id
+	   join Usersettings.SupplierIntersection si on si.ClientId = c.Id
 where
-       u.Id = ?UserId";
+	   u.Id = ?UserId";
 					}
 					else
 					{
 						return @"
 select
-       si.SupplierId,
-       si.DelayOfPayment
+	   si.SupplierId,
+	   si.DelayOfPayment
 from
-       Usersettings.SupplierIntersection si 
+	   Usersettings.SupplierIntersection si 
 where
-       si.ClientId = ?ClientCode";
+	   si.ClientId = ?ClientCode";
 					}
 				}
 		}
@@ -1435,7 +1436,7 @@ select
 from
   logs.MnnLogs
 where
-    (MnnLogs.LogTime >= ?UpdateTime) 
+	(MnnLogs.LogTime >= ?UpdateTime) 
 and (MnnLogs.Operation = 2)
 ";
 				}
@@ -1470,7 +1471,7 @@ select
 from
   logs.MnnLogs
 where
-    (MnnLogs.LogTime >= ?UpdateTime) 
+	(MnnLogs.LogTime >= ?UpdateTime) 
 and (MnnLogs.Operation = 2)
 ";
 				}
@@ -1564,7 +1565,7 @@ select
 from
   logs.DescriptionLogs
 where
-    (DescriptionLogs.LogTime >= ?UpdateTime) 
+	(DescriptionLogs.LogTime >= ?UpdateTime) 
 and (DescriptionLogs.Operation = 2)
 ";
 		}
@@ -1576,7 +1577,7 @@ and (DescriptionLogs.Operation = 2)
 	select
 	  Producers.Id,
 	  Producers.Name,
-      0 as Hidden
+	  0 as Hidden
 	from
 	  catalogs.Producers
 	where
@@ -1586,23 +1587,23 @@ and (DescriptionLogs.Operation = 2)
 	select
 	  Producers.Id,
 	  Producers.Name,
-      0 as Hidden
+	  0 as Hidden
 	from
 	  catalogs.Producers
 	where
 		(Producers.Id > 1)
 	and Producers.UpdateTime > ?UpdateTime
-    union
-    select
+	union
+	select
 	  ProducerLogs.ProducerId,
 	  ProducerLogs.Name,
-      1 as Hidden
-    from
-      logs.ProducerLogs
-    where
-        (ProducerLogs.LogTime >= ?UpdateTime) 
-    and (ProducerLogs.Operation = 2)        
-      ";
+	  1 as Hidden
+	from
+	  logs.ProducerLogs
+	where
+		(ProducerLogs.LogTime >= ?UpdateTime) 
+	and (ProducerLogs.Operation = 2)        
+	  ";
 		}
 
 		private string GetAbstractPromotionsCommand()
@@ -1644,7 +1645,7 @@ where";
 			return GetAbstractPromotionsCommand() +
 @"
 	if(not ?Cumulative, 1, SupplierPromotions.Status)
-    ";
+	";
 		}
 
 		public string GetPromotionsCommandById(List<uint> promotionIds)
@@ -1723,19 +1724,19 @@ where
 
 		private string MySqlLocalFilePath()
 		{
-    		return System.Configuration.ConfigurationManager.AppSettings["MySqlLocalFilePath"];
+			return System.Configuration.ConfigurationManager.AppSettings["MySqlLocalFilePath"];
 		}
 
-    private string MySqlFilePath()
-    {
+	private string MySqlFilePath()
+	{
 #if DEBUG
-    	return System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"] + @"\";
+		return System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"] + @"\";
 #else
-    	return
-    		Path.Combine(@"\\" + Environment.MachineName,
-    		             System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"]) + @"\";
+		return
+			Path.Combine(@"\\" + Environment.MachineName,
+						 System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"]) + @"\";
 #endif
-    }
+	}
 
 		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
 		{
@@ -1773,7 +1774,6 @@ where
 			{
 				if (supplierPromotion.Status)
 				{
-					//var fileMask = Path.Combine(promotionsPath, supplierPromotion.Id + "*");
 					var files = Directory.GetFiles(promotionsPath, supplierPromotion.Id + "*");
 					if (files.Length > 0)
 					{
@@ -1787,7 +1787,15 @@ where
 		}
 
 
-		public void ArchiveCertificates(MySqlConnection connection, string archiveFileName, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
+		public void ArchiveCertificates(MySqlConnection connection,
+			string archiveFileName,
+			bool cumulative,
+			DateTime oldUpdateTime,
+			DateTime currentUpdateTime,
+			ref string addition,
+			ref string updateLog,
+			uint updateId,
+			Queue<FileForArchive> filesForArchive)
 		{
 			var log = LogManager.GetLogger(typeof(UpdateHelper));
 
@@ -1801,7 +1809,7 @@ where
 
 				ExportCertificates(archiveFileName, command, filesForArchive);
 
-				ArchiveCertificatesFiles(archiveFileName, command);
+				updateLog = ArchiveCertificatesFiles(archiveFileName, command);
 			}
 			catch (Exception exception)
 			{
@@ -1906,7 +1914,7 @@ where
 
 			return @"
 	select
-        distinct
+		distinct
 		cf.CertificateSourceId
 	from
 		documents.certificatefiles cf
@@ -1925,7 +1933,7 @@ where
 
 			return @"
 	select
-        distinct
+		distinct
 		cf.Id,
 		cf.OriginFilename,
 		cf.ExternalFileId,
@@ -2009,10 +2017,9 @@ where
 					certificateRequest.CertificateId = Convert.ToUInt32(table.Rows[0]["CertificateId"]);
 					certificateRequest.CertificateFiles.Clear();
 					foreach (DataRow row in table.Rows) {
-						certificateRequest.CertificateFiles.Add(Convert.ToUInt32(table.Rows[0]["CertificateFileId"]));	
+						certificateRequest.CertificateFiles.Add(Convert.ToUInt32(row["CertificateFileId"]));
 					}
 				}
-
 			}
 		}
 
@@ -2039,12 +2046,10 @@ where
 			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + processedFile);
 		}
 
-		private void ArchiveCertificatesFiles(string archiveFileName, MySqlCommand command)
+		private string ArchiveCertificatesFiles(string archiveFileName, MySqlCommand command)
 		{
 			var certificatesFolder = "Certificates";
 			var certificatesPath = Path.Combine(_updateData.ResultPath, certificatesFolder);
-			//if (!Directory.Exists(certificatesPath))
-			//    Directory.CreateDirectory(certificatesPath);
 
 			foreach (var request in _updateData.CertificateRequests) {
 				foreach (var fileId in request.CertificateFiles) {
@@ -2055,10 +2060,52 @@ where
 							archiveFileName,
 							Path.Combine(certificatesFolder, fileId + ".*"),
 							_updateData.ResultPath);
+
+						request.SendedFiles.AddRange(files);
 					}
 				}
-				
 			}
+
+			return BuildLog(command);
+		}
+
+		private string BuildLog(MySqlCommand command)
+		{
+			var sended = _updateData.CertificateRequests.Where(r => r.SendedFiles.Count > 0).ToArray();
+			if (sended.Length == 0)
+				return "";
+
+			var sql = String.Format(@"select db.Id, dh.DownloadId, c.Name
+from Documents.DocumentBodies db
+join Documents.DocumentHeaders dh on dh.Id = db.DocumentId
+join Catalogs.Products p on p.Id = db.ProductId
+join Catalogs.Catalog c on c.Id = p.CatalogId
+where db.Id in ({0})
+", sended.Implode(r => r.DocumentBodyId));
+			var adapter = new MySqlDataAdapter(sql, command.Connection);
+			var table = new DataTable();
+			adapter.Fill(table);
+
+			if (table.Rows.Count == 0)
+				return "";
+
+			var writer = new StringWriter();
+			writer.WriteLine("Отправлены сертификаты:");
+
+			foreach (var row in table.AsEnumerable())
+			{
+				var id = Convert.ToUInt32(row["id"]);
+				var files = sended.Where(s => s.DocumentBodyId == id).SelectMany(s => s.SendedFiles);
+				foreach (var file in files)
+				{
+					writer.WriteLine("Номер документа = {0}, Сопоставленный продукт = {1}, Файл = {2}",
+						row["DownloadId"],
+						row["Name"],
+						Path.GetFileName(file));
+				}
+			}
+
+			return writer.ToString();
 		}
 
 		private void GetMySQLFileWithDefaultEx(string FileName, MySqlCommand MyCommand, string SQLText, bool SetCumulative, bool AddToQueue, Queue<FileForArchive> filesForArchive)
@@ -2076,7 +2123,7 @@ where
 				}
 
 				var fullName = Path.Combine(MySqlFilePath(), FileName + _updateData.UserId + ".txt");
-				fullName = MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName);
+				fullName = MySqlHelper.EscapeString(fullName);
 
 				SQL += " INTO OUTFILE '" + fullName + "' ";
 
@@ -2088,16 +2135,16 @@ where
 			finally
 			{
 				if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
-            		MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
+					MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
 			
 			}
 
 			if (AddToQueue)
 			{
-        		lock (filesForArchive)
-        		{
-        			filesForArchive.Enqueue(new FileForArchive(FileName, false));
-        		}
+				lock (filesForArchive)
+				{
+					filesForArchive.Enqueue(new FileForArchive(FileName, false));
+				}
 			}
 		}
 		
@@ -2170,44 +2217,44 @@ where
 			{
 				return @"
 SELECT C.Id               ,
-       CN.Id              ,
-       LEFT(CN.name, 250) ,
-       LEFT(CF.form, 250) ,
-       C.vitallyimportant ,
-       C.needcold         ,
-       C.fragile          ,
-       C.MandatoryList    ,
-       CN.MnnId           ,
-       CN.DescriptionId
+	   CN.Id              ,
+	   LEFT(CN.name, 250) ,
+	   LEFT(CF.form, 250) ,
+	   C.vitallyimportant ,
+	   C.needcold         ,
+	   C.fragile          ,
+	   C.MandatoryList    ,
+	   CN.MnnId           ,
+	   CN.DescriptionId
 FROM   Catalogs.Catalog C       ,
-       Catalogs.CatalogForms CF ,
-       Catalogs.CatalogNames CN
+	   Catalogs.CatalogForms CF ,
+	   Catalogs.CatalogNames CN
 WHERE  C.NameId =CN.Id
 AND    C.FormId =CF.Id
 AND
-       (
-              IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-       OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-       )
+	   (
+			  IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+	   OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+	   )
 AND    C.hidden =0";
 			}
 			else
 				if (Cumulative)
 				return @"
 SELECT C.Id               ,
-       CN.Id              ,
-       LEFT(CN.name, 250) ,
-       LEFT(CF.form, 250) ,
-       C.vitallyimportant ,
-       C.needcold         ,
-       C.fragile          ,
-       C.MandatoryList    ,
-       CN.MnnId           ,
-       CN.DescriptionId   ,
-       C.Hidden
+	   CN.Id              ,
+	   LEFT(CN.name, 250) ,
+	   LEFT(CF.form, 250) ,
+	   C.vitallyimportant ,
+	   C.needcold         ,
+	   C.fragile          ,
+	   C.MandatoryList    ,
+	   CN.MnnId           ,
+	   CN.DescriptionId   ,
+	   C.Hidden
 FROM   Catalogs.Catalog C       ,
-       Catalogs.CatalogForms CF ,
-       Catalogs.CatalogNames CN
+	   Catalogs.CatalogForms CF ,
+	   Catalogs.CatalogNames CN
 WHERE  C.NameId =CN.Id
 AND    C.FormId =CF.Id
 AND    C.hidden =0
@@ -2215,26 +2262,26 @@ AND    C.hidden =0
 			else
 				return @"
 SELECT C.Id               ,
-       CN.Id              ,
-       LEFT(CN.name, 250) ,
-       LEFT(CF.form, 250) ,
-       C.vitallyimportant ,
-       C.needcold         ,
-       C.fragile          ,
-       C.MandatoryList    ,
-       CN.MnnId           ,
-       CN.DescriptionId   ,
-       C.Hidden
+	   CN.Id              ,
+	   LEFT(CN.name, 250) ,
+	   LEFT(CF.form, 250) ,
+	   C.vitallyimportant ,
+	   C.needcold         ,
+	   C.fragile          ,
+	   C.MandatoryList    ,
+	   CN.MnnId           ,
+	   CN.DescriptionId   ,
+	   C.Hidden
 FROM   Catalogs.Catalog C       ,
-       Catalogs.CatalogForms CF ,
-       Catalogs.CatalogNames CN
+	   Catalogs.CatalogForms CF ,
+	   Catalogs.CatalogNames CN
 WHERE  C.NameId =CN.Id
 AND    C.FormId =CF.Id
 AND
-       (
-              IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-       OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-       )
+	   (
+			  IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+	   OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+	   )
 ";
 		}
 
@@ -2328,134 +2375,134 @@ AND
 				if (!exportSupplierPriceMarkup)
 					return @"
 SELECT 
-       ?ImpersonalPriceId               ,
-       ?OffersRegionCode                ,
-       A.ProductId                      ,
-       A.CodeFirmCr as ProducerId       ,
-       A.ProductId as SynonymCode       ,
-       A.CodeFirmCr as SynonymFirmCrCode,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       0                                ,
-       0                                ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       0                                ,
-       ''                               ,
-       '' as Cost                       ,
-       @RowId := @RowId + 1             ,
-       ''                               ,
-       ''
+	   ?ImpersonalPriceId               ,
+	   ?OffersRegionCode                ,
+	   A.ProductId                      ,
+	   A.CodeFirmCr as ProducerId       ,
+	   A.ProductId as SynonymCode       ,
+	   A.CodeFirmCr as SynonymFirmCrCode,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   0                                ,
+	   0                                ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   0                                ,
+	   ''                               ,
+	   '' as Cost                       ,
+	   @RowId := @RowId + 1             ,
+	   ''                               ,
+	   ''
 FROM   
-       CoreAssortment A
+	   CoreAssortment A
 WHERE  
    A.CodeFirmCr IS NOT NULL
 
 UNION
 
 SELECT 
-       ?ImpersonalPriceId                ,
-       ?OffersRegionCode                 ,
-       A.ProductId                       ,
-       1 as ProducerId                   ,
-       A.ProductId as SynonymCode        ,
-       0                                 ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       0                                 ,
-       0                                 ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       0                                 ,
-       ''                                ,
-       '' as Cost                        ,
-       @RowId := @RowId + 1              ,
-       ''                                ,
-       ''
+	   ?ImpersonalPriceId                ,
+	   ?OffersRegionCode                 ,
+	   A.ProductId                       ,
+	   1 as ProducerId                   ,
+	   A.ProductId as SynonymCode        ,
+	   0                                 ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   0                                 ,
+	   0                                 ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   0                                 ,
+	   ''                                ,
+	   '' as Cost                        ,
+	   @RowId := @RowId + 1              ,
+	   ''                                ,
+	   ''
 FROM   
-       CoreProducts A
+	   CoreProducts A
 ";
 				else
 					return 
 						String.Format(
 @"
 SELECT 
-       ?ImpersonalPriceId               ,
-       ?OffersRegionCode                ,
-       A.ProductId                      ,
-       A.CodeFirmCr as ProducerId       ,
-       A.ProductId as SynonymCode       ,
-       A.CodeFirmCr as SynonymFirmCrCode,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       0                                ,
-       0                                ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       ''                               ,
-       null as RegistryCost              ,
-       0 as VitallyImportant             ,
-       null as RequestRatio              ,
-       '' as Cost                       ,
-       @RowId := @RowId + 1             ,
-       null as OrderCost                 ,
-       null as MinOrderCount             ,
-       null as SupplierPriceMarkup       ,
-       null as ProducerCost              ,
-       null as NDS
-      {0}
+	   ?ImpersonalPriceId               ,
+	   ?OffersRegionCode                ,
+	   A.ProductId                      ,
+	   A.CodeFirmCr as ProducerId       ,
+	   A.ProductId as SynonymCode       ,
+	   A.CodeFirmCr as SynonymFirmCrCode,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   0                                ,
+	   0                                ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   ''                               ,
+	   null as RegistryCost              ,
+	   0 as VitallyImportant             ,
+	   null as RequestRatio              ,
+	   '' as Cost                       ,
+	   @RowId := @RowId + 1             ,
+	   null as OrderCost                 ,
+	   null as MinOrderCount             ,
+	   null as SupplierPriceMarkup       ,
+	   null as ProducerCost              ,
+	   null as NDS
+	  {0}
 FROM   
-       CoreAssortment A
-      {1}
+	   CoreAssortment A
+	  {1}
 WHERE
-    A.CodeFirmCr IS NOT NULL
+	A.CodeFirmCr IS NOT NULL
 
 UNION
 
 SELECT 
-       ?ImpersonalPriceId                ,
-       ?OffersRegionCode                 ,
-       A.ProductId                       ,
-       1 as ProducerId                   ,
-       A.ProductId as SynonymCode        ,
-       1                                 ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       0                                 ,
-       0                                 ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       ''                                ,
-       null as RegistryCost              ,
-       0 as VitallyImportant             ,
-       null as RequestRatio              ,
-       '' as Cost                        ,
-       @RowId := @RowId + 1              ,
-       null as OrderCost                 ,
-       null as MinOrderCount             ,
-       null as SupplierPriceMarkup       ,
-       null as ProducerCost              ,
-       null as NDS
-       {0}
+	   ?ImpersonalPriceId                ,
+	   ?OffersRegionCode                 ,
+	   A.ProductId                       ,
+	   1 as ProducerId                   ,
+	   A.ProductId as SynonymCode        ,
+	   1                                 ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   0                                 ,
+	   0                                 ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   ''                                ,
+	   null as RegistryCost              ,
+	   0 as VitallyImportant             ,
+	   null as RequestRatio              ,
+	   '' as Cost                        ,
+	   @RowId := @RowId + 1              ,
+	   null as OrderCost                 ,
+	   null as MinOrderCount             ,
+	   null as SupplierPriceMarkup       ,
+	   null as ProducerCost              ,
+	   null as NDS
+	   {0}
 FROM   
-       CoreProducts A
-       {2}
+	   CoreProducts A
+	   {2}
 
 "
 	,
@@ -2471,41 +2518,41 @@ FROM
 				return 
 				String.Format(@"
 SELECT CT.PriceCode               ,
-       CT.regioncode              ,
-       CT.ProductId               ,
-       ifnull(Core.codefirmcr, 0) as ProducerId,
-       Core.synonymcode           ,
-       Core.SynonymFirmCrCode     ,
-       Core.Code                  ,
-       Core.CodeCr                ,
-       Core.unit                  ,
-       Core.volume                ,
-       Core.Junk                  ,
-       Core.Await                 ,
-       Core.quantity              ,
-       Core.note                  ,
-       Core.period                ,
-       Core.doc                   ,
-       Core.RegistryCost          ,
-       Core.VitallyImportant      ,
-       Core.RequestRatio          ,
-       {3} as               Cost  ,
-       RIGHT(CT.ID, 9) as CoreID  ,
-       OrderCost                  ,
-       MinOrderCount
-       {0}
+	   CT.regioncode              ,
+	   CT.ProductId               ,
+	   ifnull(Core.codefirmcr, 0) as ProducerId,
+	   Core.synonymcode           ,
+	   Core.SynonymFirmCrCode     ,
+	   Core.Code                  ,
+	   Core.CodeCr                ,
+	   Core.unit                  ,
+	   Core.volume                ,
+	   Core.Junk                  ,
+	   Core.Await                 ,
+	   Core.quantity              ,
+	   Core.note                  ,
+	   Core.period                ,
+	   Core.doc                   ,
+	   Core.RegistryCost          ,
+	   Core.VitallyImportant      ,
+	   Core.RequestRatio          ,
+	   {3} as               Cost  ,
+	   RIGHT(CT.ID, 9) as CoreID  ,
+	   OrderCost                  ,
+	   MinOrderCount
+	   {0}
 	   {4}
-       {1}
+	   {1}
 FROM   
-       (
-       Core CT        ,
-       ActivePrices AT,
-       farm.core0 Core
-       )
+	   (
+	   Core CT        ,
+	   ActivePrices AT,
+	   farm.core0 Core
+	   )
 		left join catalogs.Products on Products.Id = CT.ProductId
 		left join catalogs.catalog on catalog.Id = Products.CatalogId
-       {2}
-       {5}
+	   {2}
+	   {5}
 WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
@@ -2517,11 +2564,11 @@ group by CT.id, CT.regioncode "
 if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
    null, 
    if((Core.NDS is null) or (Core.NDS < 0), 
-     (CT.Cost/(Core.ProducerCost*1.1)-1)*100,
-     if(Core.NDS = 0,
-       (CT.Cost/Core.ProducerCost-1)*100,
-       (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
-     )     
+	 (CT.Cost/(Core.ProducerCost*1.1)-1)*100,
+	 if(Core.NDS = 0,
+	   (CT.Cost/Core.ProducerCost-1)*100,
+	   (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
+	 )     
    )
 ) as SupplierPriceMarkup,
 Core.ProducerCost,
@@ -2558,9 +2605,9 @@ where
 			{
 				sql = @"
 SELECT synonymfirmcr.synonymfirmcrcode,
-       LEFT(SYNONYM, 250)
+	   LEFT(SYNONYM, 250)
 FROM   farm.synonymfirmcr,
-       ParentCodes
+	   ParentCodes
 WHERE  synonymfirmcr.pricecode = ParentCodes.PriceCode";
 				if (!Cumulative)
 					sql += " AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode ";
@@ -2570,7 +2617,7 @@ WHERE  synonymfirmcr.pricecode = ParentCodes.PriceCode";
 UNION
 
 SELECT 1,
-       '-'
+	   '-'
 ";
 
 			return sql;
@@ -2594,7 +2641,7 @@ from
   left join catalogs.PropertyValues on PropertyValues.Id = ProductProperties.PropertyValueId
   left join catalogs.Properties on Properties.Id = PropertyValues.PropertyId
 where 
-       C.hidden = 0
+	   C.hidden = 0
    and p.hidden = 0
 ";
 
@@ -2672,7 +2719,7 @@ update
 set 
   i.DisabledByClient=?DisabledByClient 
 where 
-    i.ClientCode = ?ClientId
+	i.ClientCode = ?ClientId
 and i.PriceCode = ?PriceId
 and i.RegionCode = ?RegionId;",
 							  _readWriteConnection);
@@ -2703,7 +2750,7 @@ and i.RegionCode = ?RegionId;",
 						command.ExecuteNonQuery();
 					}
 
-					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()), _updateData.BuildNumber);
+					AnalitFUpdate.InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.PostPriceDataSettings, String.Join("; ", addition.ToArray()));
 
 					transaction.Commit();
 				}
@@ -2733,7 +2780,7 @@ select UserId
 from 
   future.ClientToAddressMigrations
 where
-    (UserId = ?UserId)
+	(UserId = ?UserId)
 limit 1
 "
 				,
@@ -2749,7 +2796,7 @@ select
 from 
   future.ClientToAddressMigrations
 where
-    UserId = " + _updateData.UserId;
+	UserId = " + _updateData.UserId;
 		}
 
 		public string GetMinReqRuleCommand()
@@ -2815,10 +2862,10 @@ UNION
 SELECT
   clientsdata.firmcode
 FROM
-     clientsdata         ,
-     IncludeRegulation
+	 clientsdata         ,
+	 IncludeRegulation
 WHERE
-     clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
+	 clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
  AND clientsdata.firmstatus               = 1
  AND IncludeRegulation.IncludeType        IN (0,3)
  AND IncludeRegulation.Primaryclientcode  = ?ClientCode
@@ -2845,10 +2892,10 @@ UNION
 SELECT
   clientsdata.firmcode
 FROM
-     clientsdata         ,
-     IncludeRegulation
+	 clientsdata         ,
+	 IncludeRegulation
 WHERE
-     clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
+	 clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
  AND clientsdata.firmstatus               = 1
  AND IncludeRegulation.IncludeType        IN (0,3)
  AND IncludeRegulation.Primaryclientcode  = ?ClientCode
@@ -2871,7 +2918,7 @@ AND    ForceReplication =2;
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate,
 #CostSessionKey = null,
-       MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0)
+	   MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
 "
 					,
@@ -2897,17 +2944,17 @@ AND    UserId            = {0};
 				commitCommand +=
 				String.Format(@"
 UPDATE AnalitFReplicationInfo ARI,
-       PricesData Pd
+	   PricesData Pd
 SET    MaxSynonymFirmCrCode   =0,
-       MaxSynonymCode         =0,
-       UncMaxSynonymCode      =0,
-       UncMaxSynonymFirmCrCode=0
+	   MaxSynonymCode         =0,
+	   UncMaxSynonymCode      =0,
+	   UncMaxSynonymFirmCrCode=0
 WHERE  UserId                 = {0}
 AND    Pd.FirmCode            =ARI.FirmCode
 AND    Pd.PriceCode IN ( {1} );
 
 UPDATE AnalitFReplicationInfo ARI,
-       PricesData Pd
+	   PricesData Pd
 SET    ARI.MaxSynonymFirmCrCode    =ARI.UncMaxSynonymFirmCrCode
 WHERE  ARI.UncMaxSynonymFirmCrCode!=0
 AND    ARI.UserId                  = {0}
@@ -2915,7 +2962,7 @@ AND    Pd.FirmCode            =ARI.FirmCode
 AND    not (Pd.PriceCode IN ( {1} ));
 
 UPDATE AnalitFReplicationInfo ARI,
-       PricesData Pd
+	   PricesData Pd
 SET    ARI.MaxSynonymCode    =ARI.UncMaxSynonymCode
 WHERE  ARI.UncMaxSynonymCode!=0
 AND    ARI.UserId            = {0}
@@ -2935,11 +2982,11 @@ AND    not (Pd.PriceCode IN ( {1} ));
 			var commitCommand = 
 				String.Format(@"
 UPDATE AnalitFReplicationInfo ARI,
-       PricesData Pd
+	   PricesData Pd
 SET    MaxSynonymFirmCrCode   =0,
-       MaxSynonymCode         =0,
-       UncMaxSynonymCode      =0,
-       UncMaxSynonymFirmCrCode=0
+	   MaxSynonymCode         =0,
+	   UncMaxSynonymCode      =0,
+	   UncMaxSynonymFirmCrCode=0
 WHERE  UserId                 = {0}
 AND    Pd.FirmCode            =ARI.FirmCode
 AND    Pd.PriceCode IN ( {1} );"
@@ -2963,7 +3010,7 @@ AND    ForceReplication =2;
 UPDATE UserUpdateInfo
 SET    UpdateDate      =UncommitedUpdateDate
 #CostSessionKey = null,
-       {1}
+	   {1}
 WHERE  UserId          = {0};
 
 UPDATE AnalitFReplicationInfo
@@ -3049,7 +3096,7 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
-					MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);
+					MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);
 					transaction.Commit();
 				}
 				catch
@@ -3058,32 +3105,6 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 					throw;
 				}
 			});
-		}
-
-		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
-		{
-			return InsertAnalitFUpdatesLog(connection, updateData, request, null, null);
-		}
-
-		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request, string addition, uint? appVersion)
-		{
-			var uid = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
-				connection,
-				@"
-insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit, Addition, AppVersion, ClientHost) 
-values 
-  (now(), ?UpdateType, ?UserId, 1, ?Addition, ?AppVersion, ?ClientHost);
-select last_insert_id()
-"
-				,
-				new MySqlParameter("?UpdateType", (int)request),
-				new MySqlParameter("?UserId", updateData.UserId),
-				new MySqlParameter("?Addition", addition),
-				new MySqlParameter("?AppVersion", appVersion),
-				new MySqlParameter("?ClientHost", ServiceContext.GetUserHost()))
-				);
-			return uid;
 		}
 
 		public void SetForceReplication()
@@ -3139,27 +3160,27 @@ CREATE TEMPORARY TABLE CoreProducts (ProductId INT unsigned, UNIQUE MultiK(Produ
 
 INSERT
 INTO   CoreAssortment
-        (
-                ProductId ,
-                CodeFirmCr
-        )
+		(
+				ProductId ,
+				CodeFirmCr
+		)
 SELECT   core0.ProductId ,
-            core0.codefirmcr
+			core0.codefirmcr
 FROM     farm.core0,
-            Core
+			Core
 WHERE    core0.id=Core.id
 GROUP BY ProductId,
-            CodeFirmCr;
-                        
+			CodeFirmCr;
+						
 INSERT
 INTO   CoreProducts
-        (
-                ProductId
-        )
+		(
+				ProductId
+		)
 SELECT   ProductId
 FROM     CoreAssortment
 GROUP BY ProductId;
-                        
+						
 SET @RowId :=1;";
 			selectCommand.ExecuteNonQuery();
 		}
@@ -3168,17 +3189,17 @@ SET @RowId :=1;";
 		{
 			var sql = @"
 SELECT 
-       rejects.RowId         ,
-       rejects.FullName      ,
-       rejects.FirmCr        ,
-       rejects.CountryCr     ,
-       rejects.Series        ,
-       rejects.LetterNo      ,
-       rejects.LetterDate    ,
-       rejects.LaboratoryName,
-       rejects.CauseRejects
+	   rejects.RowId         ,
+	   rejects.FullName      ,
+	   rejects.FirmCr        ,
+	   rejects.CountryCr     ,
+	   rejects.Series        ,
+	   rejects.LetterNo      ,
+	   rejects.LetterDate    ,
+	   rejects.LaboratoryName,
+	   rejects.CauseRejects
 FROM   addition.rejects,
-       retclientsset rcs
+	   retclientsset rcs
 WHERE  rcs.clientcode = ?ClientCode
 AND    alowrejection  = 1 ";
 
@@ -3193,13 +3214,13 @@ AND    alowrejection  = 1 ";
 			if (_updateData.EnableImpersonalPrice)
 				return @"
 SELECT 
-       ?ImpersonalPriceId as PriceCode  ,
-       ?OffersRegionCode as RegionCode,
-       0 as STORAGE                   ,
-       null as MinReq                 ,
-       1 as MainFirm                  ,
-       1 as InJob                     ,
-       0 as ControlMinReq
+	   ?ImpersonalPriceId as PriceCode  ,
+	   ?OffersRegionCode as RegionCode,
+	   0 as STORAGE                   ,
+	   null as MinReq                 ,
+	   1 as MainFirm                  ,
+	   1 as InJob                     ,
+	   0 as ControlMinReq
 FROM   
    UserSettings.PricesData
 where
@@ -3208,13 +3229,13 @@ limit 1";
 			else
 				return @"
 SELECT 
-       PriceCode           ,
-       RegionCode          ,
-       STORAGE             ,
-       MinReq              ,
-       MainFirm            ,
-       NOT disabledbyclient,
-       ControlMinReq
+	   PriceCode           ,
+	   RegionCode          ,
+	   STORAGE             ,
+	   MinReq              ,
+	   MainFirm            ,
+	   NOT disabledbyclient,
+	   ControlMinReq
 FROM   Prices";
 		}
 
@@ -3223,11 +3244,11 @@ FROM   Prices";
 			if (_updateData.EnableImpersonalPrice)
 				return @"
 SELECT 
-       PricesData.FirmCode            ,
-       ?OffersRegionCode as RegionCode,
-       '4732-606000' as supportphone  ,
-       null as ContactInfo            ,
-       null as OperativeInfo          
+	   PricesData.FirmCode            ,
+	   ?OffersRegionCode as RegionCode,
+	   '4732-606000' as supportphone  ,
+	   null as ContactInfo            ,
+	   null as OperativeInfo          
 FROM   
    UserSettings.PricesData
 where
@@ -3236,14 +3257,14 @@ limit 1";
 			else
 				return @"
 SELECT DISTINCT 
-                regionaldata.FirmCode  ,
-                regionaldata.RegionCode,
-                supportphone           ,
-                ContactInfo            ,
-                OperativeInfo
+				regionaldata.FirmCode  ,
+				regionaldata.RegionCode,
+				supportphone           ,
+				ContactInfo            ,
+				OperativeInfo
 FROM            
-                regionaldata,
-                Prices
+				regionaldata,
+				Prices
 WHERE           regionaldata.firmcode  = Prices.firmcode
 AND             regionaldata.regioncode= Prices.regioncode";
 		}
@@ -3258,34 +3279,34 @@ DROP TEMPORARY TABLE IF EXISTS ProviderContacts;
 CREATE TEMPORARY TABLE ProviderContacts engine=MEMORY
 AS
 SELECT DISTINCT c.contactText,
-                cd.Id as FirmCode
+				cd.Id as FirmCode
 FROM            future.Suppliers cd
-                JOIN contacts.contact_groups cg
-                ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
-                JOIN contacts.contacts c
-                ON              cg.Id = c.ContactOwnerId
+				JOIN contacts.contact_groups cg
+				ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
+				JOIN contacts.contacts c
+				ON              cg.Id = c.ContactOwnerId
 WHERE           cd.Id IN
-                                (SELECT DISTINCT FirmCode
-                                FROM             Prices
-                                )
+								(SELECT DISTINCT FirmCode
+								FROM             Prices
+								)
 AND             cg.Type = 1
 AND             c.Type  = 0;
-                
+				
 INSERT
 INTO   ProviderContacts
 SELECT DISTINCT c.contactText,
-                cd.Id as FirmCode
+				cd.Id as FirmCode
 FROM            future.Suppliers cd
-                JOIN contacts.contact_groups cg
-                ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
-                JOIN contacts.persons p
-                ON              cg.id = p.ContactGroupId
-                JOIN contacts.contacts c
-                ON              p.Id = c.ContactOwnerId
+				JOIN contacts.contact_groups cg
+				ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
+				JOIN contacts.persons p
+				ON              cg.id = p.ContactGroupId
+				JOIN contacts.contacts c
+				ON              p.Id = c.ContactOwnerId
 WHERE           cd.Id IN
-                                (SELECT DISTINCT FirmCode
-                                FROM             Prices
-                                )
+								(SELECT DISTINCT FirmCode
+								FROM             Prices
+								)
 AND             cg.Type = 1
 AND             c.Type  = 0;
 ";
@@ -3304,33 +3325,33 @@ AND             c.Type  = 0;
 			if (_updateData.EnableImpersonalPrice)
 				return @"
 SELECT   
-         firm.Id as FirmCode                                                       ,
-         firm.FullName                                                             ,
-         '' as Fax                                                                 ,
-         null as ContactText                                                       ,
-         firm.Name
+		 firm.Id as FirmCode                                                       ,
+		 firm.FullName                                                             ,
+		 '' as Fax                                                                 ,
+		 null as ContactText                                                       ,
+		 firm.Name
 FROM     
-         usersettings.PricesData pd
-         inner join future.Suppliers AS firm on firm.Id = pd.FirmCode
+		 usersettings.PricesData pd
+		 inner join future.Suppliers AS firm on firm.Id = pd.FirmCode
 WHERE    
-         pd.PriceCode = ?ImpersonalPriceId";
+		 pd.PriceCode = ?ImpersonalPriceId";
 			else
 				return @"
 SELECT   
-         firm.Id as FirmCode                                                       ,
-         firm.FullName                                                             ,
-         '' as Fax                                                                 ,
-         LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
-         firm.Name,
+		 firm.Id as FirmCode                                                       ,
+		 firm.FullName                                                             ,
+		 '' as Fax                                                                 ,
+		 LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
+		 firm.Name,
 		if(ss.CertificateSourceId is not null, 1, 0) as CertificateSourceExists
 FROM     future.Suppliers AS firm
-         LEFT JOIN ProviderContacts
-         ON       ProviderContacts.FirmCode = firm.Id
+		 LEFT JOIN ProviderContacts
+		 ON       ProviderContacts.FirmCode = firm.Id
 		left join Documents.SourceSuppliers ss on ss.SupplierId = firm.Id		
 WHERE    firm.Id IN
-                           (SELECT DISTINCT FirmCode
-                           FROM             Prices
-                           )
+						   (SELECT DISTINCT FirmCode
+						   FROM             Prices
+						   )
 GROUP BY firm.Id";
 		}
 
@@ -3339,41 +3360,41 @@ GROUP BY firm.Id";
 			if (_updateData.EnableImpersonalPrice)
 				return @"
 SELECT   
-         pd.FirmCode ,
-         pd.pricecode,
-         firm.name                                                                                                      as PriceName,
-         ''                                                                                                             as PRICEINFO,
-         date_sub(?ImpersonalPriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
-         ?ImpersonalPriceFresh                                                                                          as Fresh
+		 pd.FirmCode ,
+		 pd.pricecode,
+		 firm.name                                                                                                      as PriceName,
+		 ''                                                                                                             as PRICEINFO,
+		 date_sub(?ImpersonalPriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
+		 ?ImpersonalPriceFresh                                                                                          as Fresh
 FROM     
-         usersettings.pricesdata pd
-         join future.Suppliers AS firm on firm.Id = pd.FirmCode
+		 usersettings.pricesdata pd
+		 join future.Suppliers AS firm on firm.Id = pd.FirmCode
 WHERE    
    pd.PriceCode = ?ImpersonalPriceId
 ";
 			else 
 				return @"
 SELECT   
-         Prices.FirmCode ,
-         Prices.pricecode,
-         concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
-         ''                                                                                                  as PRICEINFO,
-         date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
-         max(ifnull(ActivePrices.Fresh, ARI.ForceReplication > 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
+		 Prices.FirmCode ,
+		 Prices.pricecode,
+		 concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
+		 ''                                                                                                  as PRICEINFO,
+		 date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
+		 max(ifnull(ActivePrices.Fresh, ARI.ForceReplication > 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
 FROM     
-         (
-         future.Suppliers AS firm,
-         PriceCounts             ,
-         Prices             ,
-         CurrentReplicationInfo ARI
-         )
-         left join ActivePrices on ActivePrices.PriceCode = Prices.pricecode and ActivePrices.RegionCode = Prices.RegionCode
+		 (
+		 future.Suppliers AS firm,
+		 PriceCounts             ,
+		 Prices             ,
+		 CurrentReplicationInfo ARI
+		 )
+		 left join ActivePrices on ActivePrices.PriceCode = Prices.pricecode and ActivePrices.RegionCode = Prices.RegionCode
 WHERE    PriceCounts.firmcode = firm.Id
 AND      firm.Id   = Prices.FirmCode
 AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
 GROUP BY Prices.FirmCode,
-         Prices.pricecode";
+		 Prices.pricecode";
 		}
 
 		public void PreparePricesData(MySqlCommand selectCommand)
@@ -3402,13 +3423,13 @@ where
 			{
 				selectCommand.CommandText = @"
 CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY;
-        INSERT
-        INTO   PriceCounts
-        SELECT   firmcode,
-                 COUNT(pricecode)
-        FROM     Prices
-        GROUP BY FirmCode,
-                 RegionCode;";
+		INSERT
+		INTO   PriceCounts
+		SELECT   firmcode,
+				 COUNT(pricecode)
+		FROM     Prices
+		GROUP BY FirmCode,
+				 RegionCode;";
 				selectCommand.ExecuteNonQuery();
 			}
 		}
@@ -3448,7 +3469,7 @@ update
 set
   ds.Committed = 0
 where
-    afu.RequestTime > ?resetDate
+	afu.RequestTime > ?resetDate
 and afu.UserId = ?UserId
 and ds.UpdateId = afu.UpdateId
 and ds.UserId = afu.UserId
@@ -3573,7 +3594,7 @@ and ds.Committed = 1;", _readWriteConnection, transaction);
 		UserId = ?UserId",
 						   new MySqlParameter("?UserId", _updateData.UserId));
 
-					InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.ConfirmUserMessage, confirmedMessage, _updateData.BuildNumber);
+					AnalitFUpdate.InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.ConfirmUserMessage, confirmedMessage);
 
 					transaction.Commit();
 				}
@@ -3630,7 +3651,7 @@ order by s.Hour, s.Minute";
 		public static void UpdateRequestType(MySqlConnection readWriteConnection, UpdateData updateData, ulong updateId)
 		{
 			With.DeadlockWraper(() => {
-			                    		
+										
 				var realUpdateType = MySqlHelper.ExecuteScalar(
 					readWriteConnection,
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId and UpdateType in (16, 17)",
