@@ -71,12 +71,12 @@ namespace Integration
 			TestDocumentLog doc;
 			using (var transaction = new TransactionScope(OnDispose.Rollback))
 			{
-				var supplierId = user.GetActivePrices()[0].Supplier.Id;
+				var supplier = user.GetActivePrices()[0].Supplier;
 				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
-					FirmCode = supplierId,
+					Supplier = supplier,
 					DocumentType = DocumentType.Waybill,
-					ClientCode = client.Id,
+					Client = client,
 					AddressId = client.Addresses[0].Id,
 					FileName = "test.data",
 					Ready = true
@@ -100,13 +100,13 @@ namespace Integration
 			TestDocumentLog doc;
 			using (var transaction = new TransactionScope(OnDispose.Rollback))
 			{
-				var supplierId = user.GetActivePrices()[0].Supplier.Id;
+				var supplier = user.GetActivePrices()[0].Supplier;
 				doc = new TestDocumentLog
 				{
 					LogTime = DateTime.Now,
-					FirmCode = supplierId,
+					Supplier = supplier,
 					DocumentType = DocumentType.Waybill,
-					ClientCode = client.Id,
+					Client = client,
 					AddressId = client.Addresses[0].Id,
 					Ready = true,
 					IsFake = true
@@ -396,9 +396,9 @@ namespace Integration
 				waybill = new TestWaybill
 							{
 								DocumentType = DocumentType.Waybill,
-								DownloadId = fakeDocument.Id,
-								ClientCode = client.Id,
-								FirmCode = fakeDocument.FirmCode.Value,
+								Log = fakeDocument,
+								Client = client,
+								Supplier = fakeDocument.Supplier,
 								WriteTime = DateTime.Now
 							};
 				waybill.Lines = new List<TestWaybillLine> { new TestWaybillLine { Waybill = waybill } };

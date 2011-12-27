@@ -217,52 +217,55 @@ namespace Integration
 		[Test(Description = "Проверяем создание записей в отсрочках платежа при создании новых клиентов")]
 		public void CheckInsertToDelayOfPayments()
 		{
-			var beforeNewClientCount = TestDelayOfPayment.Queryable.Count();
-			var newClient = TestClient.Create();
-			var afterNewClientCount = TestDelayOfPayment.Queryable.Count();
-			Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "После создания нового клиента не были создано записи в отсрочках платежей, возможно, не работает триггер");
+			using (new SessionScope()) {
+				var beforeNewClientCount = TestDelayOfPayment.Queryable.Count();
+				var newClient = TestClient.Create();
+				var afterNewClientCount = TestDelayOfPayment.Queryable.Count();
+				Assert.That(afterNewClientCount, Is.GreaterThan(beforeNewClientCount), "После создания нового клиента не были создано записи в отсрочках платежей, возможно, не работает триггер");
 
-			var firstIntersection = TestSupplierIntersection.Queryable.Where(i => i.Client == newClient).FirstOrDefault();
-			Assert.That(firstIntersection, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection по клиенту: {0}", newClient.Id);
-			Assert.That(firstIntersection.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", firstIntersection.Id);
+				var newSupplier = TestSupplier.Create();
 
-			var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).FirstOrDefault();
-			Assert.That(firstDelayRule, Is.Not.Null, "Не найдена какая-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
+				var firstIntersection = TestSupplierIntersection.Queryable.Where(i => i.Client == newClient).FirstOrDefault();
+				Assert.That(firstIntersection, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection по клиенту: {0}", newClient.Id);
+				Assert.That(firstIntersection.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", firstIntersection.Id);
 
-			var rulesBySupplier =
-				TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).
-					ToList();
-			Assert.That(
-				rulesBySupplier.Count, 
-				Is.EqualTo(7), 
-				"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}", 
-				newClient.Id, 
-				firstIntersection.Supplier.Id);
-			Assert.That(
-				rulesBySupplier.Select(r => r.DayOfWeek), 
-				Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))), 
-				"Записи в отсрочках платежей дублируются по некоторым дням недели для клиента {0} и поставщика {1}", 
-				newClient.Id, 
-				firstIntersection.Supplier.Id);
+				var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).FirstOrDefault();
+				Assert.That(firstDelayRule, Is.Not.Null, "Не найдена какая-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
 
-			var newSupplier = TestSupplier.Create();
-			var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
-			Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "После создания нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
+				var rulesBySupplier =
+					TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).
+						ToList();
+				Assert.That(
+					rulesBySupplier.Count, 
+					Is.EqualTo(7), 
+					"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}", 
+					newClient.Id, 
+					firstIntersection.Supplier.Id);
+				Assert.That(
+					rulesBySupplier.Select(r => r.DayOfWeek), 
+					Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))), 
+					"Записи в отсрочках платежей дублируются по некоторым дням недели для клиента {0} и поставщика {1}", 
+					newClient.Id, 
+					firstIntersection.Supplier.Id);
 
-			var intersectionByNewSupplier =
-				TestSupplierIntersection.Queryable.Where(i => i.Client == newClient && i.Supplier == newSupplier).FirstOrDefault();
-			Assert.That(intersectionByNewSupplier, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection после создания нового поставщика по клиенту: {0}", newClient.Id);
-			Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
+				var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
+				Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "После создания нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
 
-			var rulesByNewSupplier =
-				TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == intersectionByNewSupplier.PriceIntersections[0].Id).
-					ToList();
-			Assert.That(
-				rulesByNewSupplier.Count,
-				Is.EqualTo(7),
-				"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}",
-				newClient.Id,
-				newSupplier.Id);
+				var intersectionByNewSupplier =
+					TestSupplierIntersection.Queryable.Where(i => i.Client == newClient && i.Supplier == newSupplier).FirstOrDefault();
+				Assert.That(intersectionByNewSupplier, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection после создания нового поставщика по клиенту: {0}", newClient.Id);
+				Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
+
+				var rulesByNewSupplier =
+					TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == intersectionByNewSupplier.PriceIntersections[0].Id).
+						ToList();
+				Assert.That(
+					rulesByNewSupplier.Count,
+					Is.EqualTo(7),
+					"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}",
+					newClient.Id,
+					newSupplier.Id);
+			}
 		}
 
 	}

@@ -125,7 +125,7 @@ select last_insert_id();",
 				dataAdapter.Fill(dataTable);
 
 				promos = dataTable.Select("Id = " + promoId);
-				Assert.That(promos.Length, Is.EqualTo(0), "Найдена акция {0}, хотя она не была изменена", promoId);
+				Assert.That(promos.Length, Is.EqualTo(1), "Не найдена акция {0}, хотя она должна передаваться", promoId);
 
 
 				//После отключения акции она должна быть в списке акций на обновление
@@ -162,7 +162,7 @@ select last_insert_id();",
 				dataAdapter.Fill(dataTable);
 
 				promos = dataTable.Select("Id = " + promoId);
-				Assert.That(promos.Length, Is.EqualTo(0), "Найдена акция {0}, хотя она не была изменена", promoId);
+				Assert.That(promos.Length, Is.EqualTo(1), "Не найдена акция {0}, хотя она должна передаваться", promoId);
 
 				//После удаления акции она должна быть в списке акций на обновление
 				MySqlHelper.ExecuteScalar(

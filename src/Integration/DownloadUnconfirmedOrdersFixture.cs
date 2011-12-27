@@ -28,7 +28,7 @@ using Test.Support.Logs;
 namespace Integration
 {
 	[TestFixture]
-	public class DownloadUnconfirmedOrdersFixture
+	public class DownloadUnconfirmedOrdersFixture : IntegrationFixture
 	{
 		private TestClient _client;
 		private TestUser _officeUser;
@@ -436,10 +436,12 @@ namespace Integration
 
 					Directory.Delete(extractFolder, true);
 
-					var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-					Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
-					Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
-					Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+					using (new SessionScope()) {
+						var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+						Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
+						Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
+						Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+					}
 
 					var service = new PrgDataEx();
 					var updateTime = service.CommitExchange(simpleUpdateId, false);

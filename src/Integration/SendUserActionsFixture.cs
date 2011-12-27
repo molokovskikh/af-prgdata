@@ -70,16 +70,20 @@ namespace Integration
 		[Test(Description = "Отправляем статистику пользователя")]
 		public void SimpleSendLog()
 		{
-			var logs = TestAnalitFUserActionLog.Queryable.Where(l => l.UserId == _user.Id).ToList();
-			Assert.That(logs.Count, Is.EqualTo(0), "Найдена статистика для созданного пользователя");
+			using (new SessionScope()) {
+				var logs = TestAnalitFUserActionLog.Queryable.Where(l => l.UserId == _user.Id).ToList();
+				Assert.That(logs.Count, Is.EqualTo(0), "Найдена статистика для созданного пользователя");
+			}
 
 			var service = new PrgData.PrgDataEx();
 
 			var response = service.SendUserActions(_afAppVersion, 1, GetLogContent());
 			Assert.That(response, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера");
 
-			var logsAftreImport = TestAnalitFUserActionLog.Queryable.Where(l => l.UserId == _user.Id && l.UpdateId == 1).ToList();
-			Assert.That(logsAftreImport.Count, Is.GreaterThan(0), "Статистика для пользователя не импортировалась");
+			using (new SessionScope()) {
+				var logsAftreImport = TestAnalitFUserActionLog.Queryable.Where(l => l.UserId == _user.Id && l.UpdateId == 1).ToList();
+				Assert.That(logsAftreImport.Count, Is.GreaterThan(0), "Статистика для пользователя не импортировалась");
+			}
 		}
 
 		[Test(Description = "Попытка разбора полученного от пользователя 12061 архива"), Ignore("Разбор конкретной проблемы")]
