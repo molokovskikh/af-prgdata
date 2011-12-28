@@ -11,6 +11,10 @@ using Common.Models;
 using Common.Models.Tests;
 using Common.Tools;
 using Inforoom.Common;
+using Integration.BaseTests;
+using Test.Support.Documents;
+using Test.Support.Suppliers;
+using Test.Support.log4net;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -28,7 +32,7 @@ using Test.Support.Logs;
 namespace Integration
 {
 	[TestFixture]
-	public class DownloadUnconfirmedOrdersFixture : IntegrationFixture
+	public class DownloadUnconfirmedOrdersFixture : PrepareDataFixture
 	{
 		private TestClient _client;
 		private TestUser _officeUser;
@@ -47,9 +51,7 @@ namespace Integration
 			_uniqueId = "123";
 			_afAppVersion = "1.1.1.1413";
 
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ServiceContext.GetResultPath = () => "results\\";
+			FixtureSetup();
 
 			_client = TestClient.Create();
 
@@ -82,32 +84,25 @@ namespace Integration
 				transaction.VoteCommit();
 			}
 
-			SessionHelper.WithSession(
-				s =>
+			SessionHelper.WithSession(s => {
+				var prices = _officeUser.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
+				var newPrices = new List<uint>();
+				foreach (var testActivePrice in prices)
 				{
-					var prices = _officeUser.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
-					var newPrices = new List<uint>();
-					foreach (var testActivePrice in prices)
-					{
-						if (testActivePrice.CoreCount() > 0)
-							newPrices.Add(testActivePrice.Id.PriceId);
-						if (newPrices.Count == 4)
-							break;
-					}
+					if (testActivePrice.CoreCount() > 0)
+						newPrices.Add(testActivePrice.Id.PriceId);
+					if (newPrices.Count == 4)
+						break;
+				}
 
-					Assert.That(newPrices.Count, Is.EqualTo(4), "Не нашли достаточное кол-во прайс-листов для тестов");
+				Assert.That(newPrices.Count, Is.EqualTo(4), "Не нашли достаточное кол-во прайс-листов для тестов");
 
-					s.CreateSQLQuery(
-						"delete from future.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
-						.SetParameter("userId", _officeUser.Id)
-						.SetParameterList("priceIds", newPrices.ToArray())
-						.ExecuteUpdate();
-				});
-		}
-
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
+				s.CreateSQLQuery(
+					"delete from future.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
+					.SetParameter("userId", _officeUser.Id)
+					.SetParameterList("priceIds", newPrices.ToArray())
+					.ExecuteUpdate();
+			});
 		}
 
 		[SetUp]
@@ -116,6 +111,14 @@ namespace Integration
 			_lastUpdateTime = GetLastUpdateTime();
 			SetCurrentUser(_officeUser.Login);
 			TestDataManager.DeleteAllOrdersForClient(_client.Id);
+
+			RegisterLogger();
+		}
+
+		[TearDown]
+		public void TearDown()
+		{
+			CheckForErrors();
 		}
 
 		private DateTime GetLastUpdateTime()
@@ -290,8 +293,8 @@ namespace Integration
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
 				foreach (var order in orders)
 				{
-					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(exporter.LoadedOrders.Any(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(updateData.UnconfirmedOrders.Any(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 				}
 
 				exporter.UnionOrders();
@@ -329,17 +332,17 @@ namespace Integration
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
 				foreach (var order in orders)
 				{
-					Assert.That(exporter.LoadedOrders.Contains(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-					Assert.That(updateData.UnconfirmedOrders.Contains(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(exporter.LoadedOrders.Any(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+					Assert.That(updateData.UnconfirmedOrders.Any(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 				}
 
 				exporter.UnionOrders();
 
 				Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(3));
 
-				Assert.That(exporter.ExportedOrders.Contains(o => o.RowId == orders[0].RowId), Is.True);
-				Assert.That(exporter.ExportedOrders.Contains(o => o.RowId == orders[1].RowId), Is.True);
-				Assert.That(exporter.ExportedOrders.Contains(o => o.RowId == orders[3].RowId), Is.True);
+				Assert.That(exporter.ExportedOrders.Any(o => o.RowId == orders[0].RowId), Is.True);
+				Assert.That(exporter.ExportedOrders.Any(o => o.RowId == orders[1].RowId), Is.True);
+				Assert.That(exporter.ExportedOrders.Any(o => o.RowId == orders[3].RowId), Is.True);
 
 				Assert.That(exporter.ExportedOrders[0].RowCount, Is.EqualTo(6));
 			}
@@ -401,88 +404,57 @@ namespace Integration
 
 			var order = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 
+			var simpleUpdateId = ParseUpdateId(responce);
 
-				try
-				{
-					var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
+			Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+			Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
 
-					var simpleUpdateId = ParseUpdateId(responce);
+			ArchiveHelper.Extract(afterSimpleFiles[0], "*.*", extractFolder);
 
-					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
-					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
-					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
+			var rootFiles = Directory.GetFiles(extractFolder);
 
-					ArchiveHelper.Extract(afterSimpleFiles[0], "*.*", extractFolder);
+			var headFile =
+				rootFiles.FirstOrDefault(
+					file => file.EndsWith("CurrentOrderHeads{0}.txt".Format(_officeUser.Id), StringComparison.OrdinalIgnoreCase));
+			Assert.That(headFile, Is.Not.Null.And.Not.Empty, "Не найден файл с заголовком заказа");
+			Assert.That(new FileInfo(headFile).Length, Is.GreaterThan(0), "Файл с заголовком заказа оказался пустым");
 
-					var rootFiles = Directory.GetFiles(extractFolder);
+			var listFile =
+				rootFiles.FirstOrDefault(
+					file => file.EndsWith("CurrentOrderLists{0}.txt".Format(_officeUser.Id), StringComparison.OrdinalIgnoreCase));
+			Assert.That(listFile, Is.Not.Null.And.Not.Empty, "Не найден файл со списком позиций заказа");
+			Assert.That(new FileInfo(listFile).Length, Is.GreaterThan(0), "Файл со списком позиций заказа оказался пустым");
 
-					var headFile =
-						rootFiles.FirstOrDefault(
-							file => file.EndsWith("CurrentOrderHeads{0}.txt".Format(_officeUser.Id), StringComparison.OrdinalIgnoreCase));
-					Assert.That(headFile, Is.Not.Null.And.Not.Empty, "Не найден файл с заголовком заказа");
-					Assert.That(new FileInfo(headFile).Length, Is.GreaterThan(0), "Файл с заголовком заказа оказался пустым");
+			Directory.Delete(extractFolder, true);
 
-					var listFile =
-						rootFiles.FirstOrDefault(
-							file => file.EndsWith("CurrentOrderLists{0}.txt".Format(_officeUser.Id), StringComparison.OrdinalIgnoreCase));
-					Assert.That(listFile, Is.Not.Null.And.Not.Empty, "Не найден файл со списком позиций заказа");
-					Assert.That(new FileInfo(listFile).Length, Is.GreaterThan(0), "Файл со списком позиций заказа оказался пустым");
-
-					Directory.Delete(extractFolder, true);
-
-					using (new SessionScope()) {
-						var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-						Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
-						Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
-						Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
-					}
-
-					var service = new PrgDataEx();
-					var updateTime = service.CommitExchange(simpleUpdateId, false);
-
-					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-					Thread.Sleep(3000);
-
-					var deletedStatus = Convert.ToBoolean(
-						MySqlHelper.ExecuteScalar(
-							Settings.ConnectionString(),
-							"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-							new MySqlParameter("?OrderId", order.RowId)));
-					Assert.That(deletedStatus, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", order.RowId);
-
-					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-						new MySqlParameter("?UpdateId", simpleUpdateId)));
-					Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+			using (new SessionScope()) {
+				var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
+				Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
 			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+
+			var service = new PrgDataEx();
+			var updateTime = service.CommitExchange(simpleUpdateId, false);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			var deletedStatus = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", order.RowId)));
+			Assert.That(deletedStatus, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", order.RowId);
+
+			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+				new MySqlParameter("?UpdateId", simpleUpdateId)));
+			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
 		}
 
 		[Test(Description = "Попытка загружить заказы, когда нет неподтвержденных заказов")]
@@ -532,58 +504,30 @@ namespace Integration
 				Directory.Delete(extractFolder, true);
 			Directory.CreateDirectory(extractFolder);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 
-				try
-				{
-					var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			var simpleUpdateId = ParseUpdateId(responce);
 
-					var simpleUpdateId = ParseUpdateId(responce);
+			var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
+			Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+			Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
 
-					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
-					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
-					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
+			using (new SessionScope()) {
+				var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(0), "Не должно быть заказов, экспортированных пользователю");
+			}
 
-					var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-					Assert.That(sendLogs.Count, Is.EqualTo(0), "Не должно быть заказов, экспортированных пользователю");
-
-					var service = new PrgDataEx();
-					var updateTime = service.CommitExchange(simpleUpdateId, false);
+			var service = new PrgDataEx();
+			var updateTime = service.CommitExchange(simpleUpdateId, false);
 					
-					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-					Thread.Sleep(3000);
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
 
-					var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-						new MySqlParameter("?UpdateId", simpleUpdateId)));
-					Assert.That(addition, Is.Not.StringContaining("Экспортированные неподтвержденные заказы: "), "Список экспортированных неподтвержденные заказов должен быть пустым");
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+				new MySqlParameter("?UpdateId", simpleUpdateId)));
+			Assert.That(addition, Is.Not.StringContaining("Экспортированные неподтвержденные заказы: "), "Список экспортированных неподтвержденные заказов должен быть пустым");
 		}
 
 		[Test(Description = "Проверям поддержку таблицы UnconfirmedOrdersSendLogs при работе с неподтвержденными заказами")]
@@ -604,12 +548,15 @@ namespace Integration
 
 			var firstUpdateId = ParseUpdateId(responce);
 
-			var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
-			Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
-			Assert.That(sendLogs.Contains(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs.Contains(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
-			Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+			List<TestUnconfirmedOrdersSendLog> sendLogs;
+			using (new SessionScope()) {
+				sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
+				Assert.That(sendLogs.Any(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs.Any(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
+				Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+			}
 
 			var thirdOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
@@ -619,11 +566,11 @@ namespace Integration
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
 
-			var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
-			Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
-
 			using (new SessionScope())
 			{
+				var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
+				Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
+
 				sendLogs.ForEach(l => l.Refresh());
 				Assert.That(sendLogs.All(l => l.Committed), Is.True, "Имееются неподтвержденные заказы");
 				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");
@@ -660,175 +607,115 @@ namespace Integration
 		[Test(Description = "Простой асинхронный запрос данных")]
 		public void SimpleAsyncGetData()
 		{
-			try
+			var firstAsyncResponse = CheckAsyncRequest(1);
+			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
+
+			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+
+			var simpleUpdateId = ParseUpdateId(responce);
+
+			var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+			Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
+
+			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
+			Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
+			Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
+			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
+
+			var asyncResponse = String.Empty;
+			var sleepCount = 0;
+			do
 			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
-
-
-				try
+				asyncResponse = CheckAsyncRequest(simpleUpdateId);
+				if (asyncResponse == "Res=Wait")
 				{
-					var firstAsyncResponse = CheckAsyncRequest(1);
-					Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
-
-					var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
-
-					var simpleUpdateId = ParseUpdateId(responce);
-
-					var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
-					Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
-
-					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
-					Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
-					Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
-					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
-
-					var asyncResponse = String.Empty;
-					var sleepCount = 0;
-					do
-					{
-						asyncResponse = CheckAsyncRequest(simpleUpdateId);
-						if (asyncResponse == "Res=Wait")
-						{
-							sleepCount++;
-							Thread.Sleep(1000);
-						}
-
-					} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
-
-					Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
-
-					log.Refresh();
-					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
-
-					var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
-					Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
-
-					var service = new PrgDataEx();
-					var updateTime = service.CommitExchange(simpleUpdateId, false);
-
-					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-					Thread.Sleep(3000);
-
-					log.Refresh();
-					Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
-					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
-
-					//var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-					//    Settings.ConnectionString(),
-					//    "select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-					//    new MySqlParameter("?UpdateId", simpleUpdateId)));
-					//Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
+					sleepCount++;
+					Thread.Sleep(1000);
 				}
 
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+			} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
+
+			Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
+
+			log.Refresh();
+			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+
+			var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+			Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
+
+			var service = new PrgDataEx();
+			var updateTime = service.CommitExchange(simpleUpdateId, false);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			log.Refresh();
+			Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
+			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
 		}
 
 		[Test(Description = "Простой запрос данных с получением сертификатов")]
 		public void SimpleGetDataWithCertificates()
 		{
-			if (!Directory.Exists("results\\Certificates"))
-				Directory.CreateDirectory("results\\Certificates");
-
-			try
+			TestWaybill document;
+			TestCertificateFile certificateFile;
+			TestProduct product;
+			using(new SessionScope())
 			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+				var supplier = TestSupplier.Create();
+				var certificateSource = new TestCertificateSource(supplier);
 
+				product = new TestProduct("Тестовый продукт");
+				var certificate = new TestCertificate(product.CatalogProduct, "20111226");
+				certificateFile = certificate.NewFile(new TestCertificateFile(certificateSource));
 
-				try
-				{
-					var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new uint[] {1});
+				var documentLog = new TestDocumentLog(supplier, _client);
+				document = new TestWaybill(documentLog);
+				document.Lines.Add(new TestWaybillLine {
+					CatalogProduct = product,
+					Waybill = document,
+					Certificate = certificate
+				});
 
-					var simpleUpdateId = ParseUpdateId(responce);
+				certificateSource.Save();
+				product.Save();
+				certificate.Save();
+				document.Save();
 
-					//var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
-					//Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
-
-					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
-					//Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
-					//Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
-					//Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
-
-					//var asyncResponse = String.Empty;
-					//var sleepCount = 0;
-					//do
-					//{
-					//    asyncResponse = CheckAsyncRequest(Convert.ToUInt64(simpleUpdateId));
-					//    if (asyncResponse == "Res=Wait")
-					//    {
-					//        sleepCount++;
-					//        Thread.Sleep(1000);
-					//    }
-
-					//} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
-
-					//Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
-
-					//log.Refresh();
-					//Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
-
-					var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
-					Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
-
-					var service = new PrgDataEx();
-					var updateTime = service.CommitExchange(simpleUpdateId, true);
-
-					//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-					Thread.Sleep(3000);
-
-					log.Refresh();
-					Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
-					Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDocs)), "Не совпадает тип обновления");
-
-					//var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-					//    Settings.ConnectionString(),
-					//    "select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-					//    new MySqlParameter("?UpdateId", simpleUpdateId)));
-					//Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+				product.CatalogProduct.Refresh();
 			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+
+			var certificatePath = "results\\Certificates";
+			if (!Directory.Exists(certificatePath))
+				Directory.CreateDirectory(certificatePath);
+
+			File.WriteAllBytes(Path.Combine(certificatePath, String.Format("{0}.tif", certificateFile.Id)), new byte[0]);
+
+			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] {document.Lines[0].Id});
+
+			var simpleUpdateId = ParseUpdateId(responce);
+			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
+			var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+			Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
+
+			var service = new PrgDataEx();
+			var updateTime = service.CommitExchange(simpleUpdateId, true);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			log.Refresh();
+			Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
+			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDocs)), "Не совпадает тип обновления");
+
+
+			var message = String.Format(@"Отправлены сертификаты:
+Номер документа = {0}, Сопоставленный продукт = {1}, Файл = {2}.tif
+",
+				document.Log.Id, product.CatalogProduct.Name, certificateFile.Id);
+
+			Assert.That(log.Log, 
+				Is.EqualTo(message));
 		}
 	}
 }

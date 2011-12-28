@@ -13,6 +13,7 @@ using Common.Models.Repositories;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
+using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
@@ -26,7 +27,7 @@ using Test.Support;
 namespace Integration
 {
 	[TestFixture]
-	public class AnalitFVersionsFixture
+	public class AnalitFVersionsFixture : PrepareDataFixture
 	{
 		private TestClient client;
 		private TestUser user;
@@ -58,12 +59,15 @@ namespace Integration
 				address = user.AvaliableAddresses[0];
 			}
 
-			//IoC.Resolve<IRepository<AnalitFVersionRule>>().
-
-			//Directory.CreateDirectory("FtpRoot");
-			//CreateFolders(address.Id.ToString());
-
 			InsertEtalonVersions();
+
+			RegisterLogger();
+		}
+
+		[TearDown]
+		public void TearDown()
+		{
+			CheckForErrors();
 		}
 
 		[TestFixtureTearDown]
@@ -275,11 +279,11 @@ where
 				var rootFiles = Directory.GetFiles(exeFolder);
 				Assert.That(rootFiles.Length, Is.EqualTo(2));
 				Assert.That(
-					rootFiles.Contains(file => file.EndsWith("AnalitFService.exe", StringComparison.OrdinalIgnoreCase)),
+					rootFiles.Any(file => file.EndsWith("AnalitFService.exe", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
 					"Не найден файл с сервисом");
 				Assert.That(
-					rootFiles.Contains(file => file.EndsWith("testRoot.txt", StringComparison.OrdinalIgnoreCase)),
+					rootFiles.Any(file => file.EndsWith("testRoot.txt", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
 					"Не найден текстовый файл");
 
@@ -289,11 +293,11 @@ where
 				var analitFFiles = Directory.GetFiles(analitFFolder);
 				Assert.That(analitFFiles.Length, Is.EqualTo(2));
 				Assert.That(
-					analitFFiles.Contains(file => file.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase)),
+					analitFFiles.Any(file => file.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
 					"Не найден файл с AnalitF");
 				Assert.That(
-					analitFFiles.Contains(file => file.EndsWith("testSub.txt", StringComparison.OrdinalIgnoreCase)),
+					analitFFiles.Any(file => file.EndsWith("testSub.txt", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
 					"Не найден текстовый файл");
 

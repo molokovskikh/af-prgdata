@@ -101,8 +101,7 @@ namespace Integration
 			using (var transaction = new TransactionScope(OnDispose.Rollback))
 			{
 				var supplier = user.GetActivePrices()[0].Supplier;
-				doc = new TestDocumentLog
-				{
+				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
 					Supplier = supplier,
 					DocumentType = DocumentType.Waybill,
@@ -393,14 +392,7 @@ namespace Integration
 			TestWaybill waybill;
 			using (var transaction = new TransactionScope(OnDispose.Rollback))
 			{
-				waybill = new TestWaybill
-							{
-								DocumentType = DocumentType.Waybill,
-								Log = fakeDocument,
-								Client = client,
-								Supplier = fakeDocument.Supplier,
-								WriteTime = DateTime.Now
-							};
+				waybill = new TestWaybill(fakeDocument);
 				waybill.Lines = new List<TestWaybillLine> { new TestWaybillLine { Waybill = waybill } };
 				waybill.Save();
 				waybill.Lines[0].Save();
@@ -616,7 +608,7 @@ namespace Integration
 
 			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
 			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
-			Assert.That(files.Contains(item => item.Contains("InvoiceHeaders")), Is.False, "Найден файл InvoiceHeaders: {0}", files.Implode());
+			Assert.That(files.Any(item => item.Contains("InvoiceHeaders")), Is.False, "Найден файл InvoiceHeaders: {0}", files.Implode());
 
 			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
 
@@ -642,7 +634,7 @@ namespace Integration
 
 			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
 			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
-			Assert.That(files.Contains(item => item.Contains("InvoiceHeaders")), Is.True, "Не найден файл InvoiceHeaders: {0}", files.Implode());
+			Assert.That(files.Any(item => item.Contains("InvoiceHeaders")), Is.True, "Не найден файл InvoiceHeaders: {0}", files.Implode());
 
 			Assert.That(files.Length, Is.EqualTo(3), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
 
