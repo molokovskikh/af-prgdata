@@ -3827,37 +3827,6 @@ where
   Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
 		}
 
-		public static void ProcessExportMails(UpdateData updateData, MySqlConnection connection, uint? updateId)
-		{
-			if (updateData.ExportMails.Count > 0 || updateData.SuccesAttachmentsExists())
-			{
-				var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
-				try {
-					String sql = String.Empty;
-
-					if (updateData.ExportMails.Count > 0)
-						sql += "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Implode() + ");";
-
-					if (updateData.SuccesAttachmentsExists())
-						sql += "update Logs.AttachmentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and AttachmentId in ("+ updateData.SuccesAttachmentIds().Implode() + ");";
-
-					if (!String.IsNullOrEmpty(sql))
-						MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
-							connection,
-							sql,
-							new MySqlParameter("?UserId", updateData.UserId),
-							new MySqlParameter("?UpdateId", updateId));
-
-					transaction.Commit();
-				}
-				catch
-				{
-					ConnectionHelper.SafeRollback(transaction);
-					throw;
-				}
-			}
-		}
-
 		public string GetConfirmMailsCommnad(uint? updateId)
 		{
 				return @"

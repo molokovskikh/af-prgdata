@@ -708,8 +708,14 @@ namespace Integration
 ",
 				document.Log.Id, product.CatalogProduct.Name, certificateFile.Id);
 
-			Assert.That(log.Log, 
-				Is.EqualTo(message));
+			using(new SessionScope())
+			{
+				var logs = TestCertificateRequestLog.Queryable.Where(l => l.Update.Id == simpleUpdateId).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+			}
+
+			Assert.That(log.Log, Is.EqualTo(message));
+
 		}
 	}
 }

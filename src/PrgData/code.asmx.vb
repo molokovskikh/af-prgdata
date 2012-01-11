@@ -2722,7 +2722,7 @@ PostLog:
 
 					UnconfirmedOrdersExporter.InsertUnconfirmedOrdersLogs(UpdateData, connection, GUpdateId)
 
-					UpdateHelper.ProcessExportMails(UpdateData, connection, GUpdateId)
+					AnalitFUpdate.Log(UpdateData, connection, GUpdateId)
 
 					DS.Tables.Clear()
 
