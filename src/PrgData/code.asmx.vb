@@ -823,7 +823,7 @@ endprocNew:
         Finally
             If (Not ProcessBatch) Then
                 If Not Async Then DBDisconnect()
-                Counter.ReleaseLock(UserId, "GetUserData", UpdateData.LastLockId)
+                Counter.ReleaseLock(UserId, "GetUserData", UpdateData)
             End If
         End Try
 
@@ -1442,7 +1442,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Me.Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
             Return Now().ToUniversalTime
         Finally
-            Counter.ReleaseLock(UserId, "MaxSynonymCode", UpdateData.LastLockId)
+            Counter.ReleaseLock(UserId, "MaxSynonymCode", UpdateData)
             DBDisconnect()
         End Try
 
@@ -1524,7 +1524,7 @@ StartZipping:
             CommitExchange = Now().ToUniversalTime
         Finally
             DBDisconnect()
-            Counter.ReleaseLock(UserId, "CommitExchange", UpdateData.LastLockId)
+            Counter.ReleaseLock(UserId, "CommitExchange", UpdateData)
         End Try
     End Function
 
@@ -1548,7 +1548,7 @@ StartZipping:
 			SendClientLog = "Error"
 		Finally
 			DBDisconnect()
-			Counter.ReleaseLock(UserId, "SendClientLog", UpdateData.LastLockId)
+			Counter.ReleaseLock(UserId, "SendClientLog", UpdateData)
 		End Try
 	End Function
 
@@ -1802,7 +1802,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказа", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            Counter.ReleaseLock(UserId, "PostOrder", UpdateData.LastLockId)
+            Counter.ReleaseLock(UserId, "PostOrder", UpdateData)
             DBDisconnect()
         End Try
 
@@ -2431,7 +2431,7 @@ StartZipping:
             LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
             Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
-            Counter.ReleaseLock(UserId, "PostOrder", UpdateData.LastLockId)
+            Counter.ReleaseLock(UserId, "PostOrder", UpdateData)
             DBDisconnect()
         End Try
 
@@ -2526,7 +2526,7 @@ StartZipping:
 				Log.Error("Ошибка при сохранении файла-дефектуры", onSaveBatch)
 			End Try
 
-			Counter.ReleaseLock(UserId, "PostOrderBatch", UpdateData.LastLockId)
+			Counter.ReleaseLock(UserId, "PostOrderBatch", UpdateData)
 			DBDisconnect()
 		End Try
 
@@ -4560,7 +4560,7 @@ endproc:
 			LogRequestHelper.MailWithRequest(Log, "Ошибка при запросе истории заказов", ex)
 			Return "Error=Запрос истории заказов завершился неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
 		Finally
-			Counter.ReleaseLock(UserId, "GetHistoryOrders", UpdateData.LastLockId)
+			Counter.ReleaseLock(UserId, "GetHistoryOrders", UpdateData)
 			DBDisconnect()
 		End Try
 

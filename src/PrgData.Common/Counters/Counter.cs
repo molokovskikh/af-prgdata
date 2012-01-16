@@ -115,6 +115,12 @@ namespace PrgData.Common.Counters
 			return id;
 		}
 
+		public static void ReleaseLock(uint userId, string method, UpdateData updateData)
+		{
+			if (updateData != null)
+				ReleaseLock(userId, method, updateData.LastLockId);
+		}
+
 		public static void ReleaseLock(uint UserId, string Method, uint lockId)
 		{
 			try
