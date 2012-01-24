@@ -285,9 +285,20 @@ namespace PrgData.Common
 			File.WriteAllText(BatchOrderItemsFileName, buildItems.ToString(), Encoding.GetEncoding(1251));
 		}
 
-		private string MySqlEscapeString(string value)
+		public static string MySqlEscapeString(string value)
 		{
-			return string.IsNullOrEmpty(value) ? value : MySql.Data.MySqlClient.MySqlHelper.EscapeString(value);
+			if (string.IsNullOrWhiteSpace(value))
+				return value;
+
+			var list = value.Split('\r', '\n');
+			var newList = new List<string>();
+			for (int i = 0; i < list.Length; i++) {
+				if (!string.IsNullOrWhiteSpace(list[i])) {
+					newList.Add(MySql.Data.MySqlClient.MySqlHelper.EscapeString(list[i])); 
+				}
+			}
+
+			return string.Join("\r\\\n", newList);
 		}
 
 		private string GetServiceValues(OrderBatchItem report)
