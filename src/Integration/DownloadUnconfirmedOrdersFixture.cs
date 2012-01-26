@@ -430,10 +430,12 @@ namespace Integration
 
 			Directory.Delete(extractFolder, true);
 
-			var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-			Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
-			Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+			using (new SessionScope()) {
+				var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
+				Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+			}
 
 			var service = new PrgDataEx();
 			var updateTime = service.CommitExchange(simpleUpdateId, false);
@@ -453,7 +455,6 @@ namespace Integration
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", simpleUpdateId)));
 			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
-
 		}
 
 		[Test(Description = "Попытка загружить заказы, когда нет неподтвержденных заказов")]
@@ -511,8 +512,10 @@ namespace Integration
 			Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
 			Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId)));
 
-			var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
-			Assert.That(sendLogs.Count, Is.EqualTo(0), "Не должно быть заказов, экспортированных пользователю");
+			using (new SessionScope()) {
+				var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == simpleUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(0), "Не должно быть заказов, экспортированных пользователю");
+			}
 
 			var service = new PrgDataEx();
 			var updateTime = service.CommitExchange(simpleUpdateId, false);
@@ -545,12 +548,15 @@ namespace Integration
 
 			var firstUpdateId = ParseUpdateId(responce);
 
-			var sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
-			Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
-			Assert.That(sendLogs.Any(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs.Any(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
-			Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
-			Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+			List<TestUnconfirmedOrdersSendLog> sendLogs;
+			using (new SessionScope()) {
+				sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
+				Assert.That(sendLogs.Any(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs.Any(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
+				Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+			}
 
 			var thirdOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
@@ -560,11 +566,11 @@ namespace Integration
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
 
-			var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
-			Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
-
 			using (new SessionScope())
 			{
+				var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
+				Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
+
 				sendLogs.ForEach(l => l.Refresh());
 				Assert.That(sendLogs.All(l => l.Committed), Is.True, "Имееются неподтвержденные заказы");
 				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");

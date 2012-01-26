@@ -399,9 +399,11 @@ namespace Integration
 
 			}
 
-			var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
-			Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
-			Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при разборе дефектуры: Index was outside the bounds of the array."));
+			using (new SessionScope()) {
+				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
+				Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при разборе дефектуры: Index was outside the bounds of the array."));
+			}
 		}
 
 		private void SetCurrentUser(string login)

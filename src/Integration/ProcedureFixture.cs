@@ -14,6 +14,7 @@ using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using Integration.BaseTests;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -36,7 +37,7 @@ using Test.Support.Suppliers;
 namespace Integration
 {
 	[TestFixture]
-	public class ProcedureFixture
+	public class ProcedureFixture : PrepareDataFixture
 	{
 		private ISmartOfferRepository repository;
 		//private TestOldClient testOldClient;
@@ -47,15 +48,16 @@ namespace Integration
 
 		private static bool StopThreads;
 
-		private string UniqueId;
+		[TestFixtureSetUp]
+		public override void FixtureSetup()
+		{
+			base.FixtureSetup();
+		}
 
 		[SetUp]
-		public void SetUp()
+		public override void Setup()
 		{
-			UniqueId = "123";
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ServiceContext.GetResultPath = () => "results\\";
+			base.Setup();
 
 			repository = IoC.Resolve<ISmartOfferRepository>();
 
@@ -400,12 +402,12 @@ limit 6;");
 					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
 					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
 					ProcessFileHandler(cumulativeUpdateId);
-					var cumulativeTime = CommitExchange(cumulativeUpdateId, true);
+					var cumulativeTime = CommitExchange(cumulativeUpdateId, RequestType.GetCumulative);
 
 					var responce = LoadData(false, cumulativeTime, appVersion);
 					var simpleUpdateId = ParseUpdateId(responce);
 					ProcessFileHandler(simpleUpdateId);
-					var simpleTime = CommitExchange(simpleUpdateId, false);
+					var simpleTime = CommitExchange(simpleUpdateId, RequestType.GetData);
 				}
 				catch
 				{
@@ -448,21 +450,6 @@ limit 6;");
 			TestGetUserData("1.1.1.1510");
 		}
 
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
-		}
-
-		private string LoadData(bool getEtalonData, DateTime accessTime, string appVersion)
-		{
-			var service = new PrgDataEx();
-			var responce = service.GetUserData(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false);
-
-			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
-
-			return responce;
-		}
-
 		private string PostOrderBatch(bool getEtalonData, DateTime accessTime, string appVersion, uint adresssId, string batchFileName)
 		{
 			var service = new PrgDataEx();
@@ -471,16 +458,6 @@ limit 6;");
 			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
 
 			return responce;
-		}
-
-		private uint ParseUpdateId(string responce)
-		{
-			var match = Regex.Match(responce, @"\d+").Value;
-			if (match.Length > 0)
-				return Convert.ToUInt32(match);
-
-			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
-			return 0;
 		}
 
 		private void ProcessFileHandler(uint updateId)
@@ -501,49 +478,6 @@ limit 6;");
 
 				Assert.That(context.Error, Is.Null);
 			}
-		}
-
-		private DateTime CommitExchange(uint updateId, bool cumulative)
-		{
-			return CommitExchange(updateId, cumulative, false);
-		}
-
-		private DateTime CommitExchange(uint updateId, bool cumulative, bool postOrderBatch)
-		{
-			var service = new PrgDataEx();
-
-			var updateTime = service.CommitExchange(updateId, false);
-			
-			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
-			Thread.Sleep(3000);
-
-			var updateRow = MySqlHelper.ExecuteDataRow(
-								Settings.ConnectionString(),
-				@"
-select 
-  uui.UpdateDate,
-  afu.UpdateType
-from 
-  logs.AnalitFUpdates afu
-  join usersettings.UserUpdateInfo uui on uui.UserId = afu.UserId
-where
-  afu.UpdateId = ?UpdateId"
-				,
-				new MySqlParameter("?UpdateId", updateId));
-			var dbUpdateTime = Convert.ToDateTime(updateRow["UpdateDate"]);
-			var updateType = Convert.ToInt32(updateRow["UpdateType"]);
-
-			if (cumulative)
-				Assert.That(updateType, Is.EqualTo((int)RequestType.GetCumulative), "Не совпадает тип обновления");
-			else
-				if (postOrderBatch)
-					Assert.That(updateType, Is.EqualTo((int)RequestType.PostOrderBatch), "Не совпадает тип обновления");
-				else
-					Assert.That(updateType, Is.EqualTo((int)RequestType.GetData), "Не совпадает тип обновления");
-
-			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", updateId);
-
-			return updateTime;
 		}
 
 		private void ConfirmUserMessage(uint userId, string appVersion, string confirmedMessage)
@@ -682,58 +616,29 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
+				var simpleUpdateId = ParseUpdateId(responce);
 
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", simpleUpdateId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
 
-				try
-				{
-					var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
-					var simpleUpdateId = ParseUpdateId(responce);
+				var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
+				Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleUpdateId)));
 
-					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-						new MySqlParameter("?UpdateId", simpleUpdateId)));
-					Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
+				var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
+				var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
 
-					var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
-					Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
-					Assert.That(afterSimpleFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleUpdateId)));
+				Assert.That(cumulativeUpdateId, Is.Not.EqualTo(simpleUpdateId));
 
-					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
-					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
-
-					Assert.That(cumulativeUpdateId, Is.Not.EqualTo(simpleUpdateId));
-
-					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
-					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
-					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
+				Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+			});
 		}
 
 		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного кумулятивного")]
@@ -763,58 +668,29 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
+				var firstCumulativeId = ParseUpdateId(responce);
 
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", firstCumulativeId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
 
-				try
-				{
-					var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
-					var firstCumulativeId = ParseUpdateId(responce);
+				var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+				Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, firstCumulativeId)));
 
-					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-						new MySqlParameter("?UpdateId", firstCumulativeId)));
-					Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
+				var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
+				var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
 
-					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
-					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
-					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, firstCumulativeId)));
+				Assert.That(cumulativeUpdateId, Is.EqualTo(firstCumulativeId));
 
-					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
-					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
-
-					Assert.That(cumulativeUpdateId, Is.EqualTo(firstCumulativeId));
-
-					var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
-					Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
-					Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				var afterCumulativeFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterCumulativeFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterCumulativeFiles.Implode());
+				Assert.That(afterCumulativeFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeUpdateId)));
+			});
 		}
 
 		[Test(Description = "Проверка старого механизма передачи пользовательского сообщения")]
@@ -836,59 +712,31 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(false, DateTime.Now, appVersion);
+				var updateId = ParseUpdateId(responce);
 
-				try
-				{
-					var responce = LoadData(false, DateTime.Now, appVersion);
-					var updateId = ParseUpdateId(responce);
+				var messageStart = "Addition=";
+				var index = responce.IndexOf(messageStart);
+				Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
 
-					var messageStart = "Addition=";
-					var index = responce.IndexOf(messageStart);
-					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+				var realMessage = responce.Substring(index + messageStart.Length);
+				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
-					var realMessage = responce.Substring(index + messageStart.Length);
-					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+				var messageShowCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					var messageShowCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+				CommitExchange(updateId, RequestType.GetLimitedCumulative);
 
-					CommitExchange(updateId, true);
-
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+			});
 		}
 
 		[Test(Description = "Проверка простого подтверждения пользовательского сообщения")]
@@ -910,67 +758,39 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(false, DateTime.Now, appVersion);
+				var updateId = ParseUpdateId(responce);
 
-				try
-				{
-					var responce = LoadData(false, DateTime.Now, appVersion);
-					var updateId = ParseUpdateId(responce);
+				var messageStart = "Addition=";
+				var index = responce.IndexOf(messageStart);
+				Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
 
-					var messageStart = "Addition=";
-					var index = responce.IndexOf(messageStart);
-					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+				var realMessage = responce.Substring(index + messageStart.Length);
+				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
-					var realMessage = responce.Substring(index + messageStart.Length);
-					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+				CommitExchange(updateId, RequestType.GetLimitedCumulative);
 
-					CommitExchange(updateId, true);
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+				ConfirmUserMessage(_user.Id, appVersion, realMessage);
 
-					ConfirmUserMessage(_user.Id, appVersion, realMessage);
-
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+			});
 		}
 
 		[Test(Description = "Проверка подтверждения пользовательского сообщения после изменения сообщения из билинга")]
@@ -992,75 +812,47 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(false, DateTime.Now, appVersion);
+				var updateId = ParseUpdateId(responce);
 
-				try
-				{
-					var responce = LoadData(false, DateTime.Now, appVersion);
-					var updateId = ParseUpdateId(responce);
+				var messageStart = "Addition=";
+				var index = responce.IndexOf(messageStart);
+				Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
 
-					var messageStart = "Addition=";
-					var index = responce.IndexOf(messageStart);
-					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+				var realMessage = responce.Substring(index + messageStart.Length);
+				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
-					var realMessage = responce.Substring(index + messageStart.Length);
-					Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
+				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+				CommitExchange(updateId, RequestType.GetLimitedCumulative);
 
-					CommitExchange(updateId, true);
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
-
-					MySqlHelper.ExecuteNonQuery(
-						Settings.ConnectionString(),
-						@"
+				MySqlHelper.ExecuteNonQuery(
+					Settings.ConnectionString(),
+					@"
 update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
 ",
-						new MySqlParameter("?Message", "это новый текст пользовательского сообщения"),
-						new MySqlParameter("?UserId", _user.Id));
+					new MySqlParameter("?Message", "это новый текст пользовательского сообщения"),
+					new MySqlParameter("?UserId", _user.Id));
 
-					ConfirmUserMessage(_user.Id, appVersion, realMessage);
+				ConfirmUserMessage(_user.Id, appVersion, realMessage);
 
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено, т.к. текст сообщения уже другой");
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено, т.к. текст сообщения уже другой");
+			});
 		}
 
 		[Test(Description = "Проверка подтверждения пользовательского сообщения, которое содежит пробемы и переводы строк в начале и в конце")]
@@ -1082,70 +874,42 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(false, DateTime.Now, appVersion);
+				var updateId = ParseUpdateId(responce);
 
-				try
-				{
-					var responce = LoadData(false, DateTime.Now, appVersion);
-					var updateId = ParseUpdateId(responce);
+				var messageStart = "Addition=";
+				var index = responce.IndexOf(messageStart);
+				Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
 
-					var messageStart = "Addition=";
-					var index = responce.IndexOf(messageStart);
-					Assert.That(index, Is.GreaterThan(0), "Не найден блок сообщения в ответе сервера: {0}", responce);
+				var realMessage = responce.Substring(index + messageStart.Length);
+				Assert.That(realMessage, Is.EqualTo(userMessage.Trim()), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
-					var realMessage = responce.Substring(index + messageStart.Length);
-					Assert.That(realMessage, Is.EqualTo(userMessage.Trim()), "Не совпадает сообщение в ответе сервера: {0}", responce);
+				//Обрезаем сообщение, т.к. оно тоже обрезается при сохранении в базу в AnalitF
+				realMessage = realMessage.Trim();
 
-					//Обрезаем сообщение, т.к. оно тоже обрезается при сохранении в базу в AnalitF
-					realMessage = realMessage.Trim();
+				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+				CommitExchange(updateId, RequestType.GetLimitedCumulative);
 
-					CommitExchange(updateId, true);
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
+				ConfirmUserMessage(_user.Id, appVersion, realMessage);
 
-					ConfirmUserMessage(_user.Id, appVersion, realMessage);
-
-					messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
-						new MySqlParameter("?UserId", _user.Id)));
-					Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id)));
+				Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
+			});
 		}
 
 		private void CheckConfirmUserMessage(MySqlConnection connection, uint userId, string login, string dbMessage, string fromUserMessage)
@@ -1213,73 +977,44 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(memoryAppender => { 
+				Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id)).ToList().ForEach(File.Delete);
 
-				try
-				{
-					Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id)).ToList().ForEach(File.Delete);
+				CreateTestFile("{0}3_dsds.zip".Format(_user.Id));
+				CreateTestFile("{0}6.zip".Format(_user.Id));
+				CreateTestFile("{0}.zip".Format(_user.Id));
+				CreateTestFile("r{0}.zip".Format(_user.Id));
+				CreateTestFile("{0}d.zip".Format(_user.Id));
+				CreateTestFile("{0}_.txt".Format(_user.Id));
 
-					CreateTestFile("{0}3_dsds.zip".Format(_user.Id));
-					CreateTestFile("{0}6.zip".Format(_user.Id));
-					CreateTestFile("{0}.zip".Format(_user.Id));
-					CreateTestFile("r{0}.zip".Format(_user.Id));
-					CreateTestFile("{0}d.zip".Format(_user.Id));
-					CreateTestFile("{0}_.txt".Format(_user.Id));
+				CreateTestFile("{0}_.zip".Format(_user.Id));
+				CreateTestFile("{0}_mm.zip".Format(_user.Id));
+				CreateTestFile("{0}_203.zip".Format(_user.Id));
 
-					CreateTestFile("{0}_.zip".Format(_user.Id));
-					CreateTestFile("{0}_mm.zip".Format(_user.Id));
-					CreateTestFile("{0}_203.zip".Format(_user.Id));
+				var service = new PrgDataEx();
 
-					var service = new PrgDataEx();
-
-					service.SendClientLog(1, null);
+				service.SendClientLog(1, null);
 					
-					var methodDeletePreviousFiles = service.GetType().GetMethod("DeletePreviousFiles",
-																				BindingFlags.NonPublic | BindingFlags.Instance);
+				var methodDeletePreviousFiles = service.GetType().GetMethod("DeletePreviousFiles",
+																			BindingFlags.NonPublic | BindingFlags.Instance);
 
-					methodDeletePreviousFiles.Invoke(service, new object[] {});
+				methodDeletePreviousFiles.Invoke(service, new object[] {});
 
-					Assert.That(File.Exists(GetTestFileName("{0}3_dsds.zip".Format(_user.Id))));
-					Assert.That(File.Exists(GetTestFileName("{0}6.zip".Format(_user.Id))));
-					Assert.That(File.Exists(GetTestFileName("{0}.zip".Format(_user.Id))));
-					Assert.That(File.Exists(GetTestFileName("r{0}.zip".Format(_user.Id))));
-					Assert.That(File.Exists(GetTestFileName("{0}d.zip".Format(_user.Id))));
-					Assert.That(File.Exists(GetTestFileName("{0}_.txt".Format(_user.Id))));
+				Assert.That(File.Exists(GetTestFileName("{0}3_dsds.zip".Format(_user.Id))));
+				Assert.That(File.Exists(GetTestFileName("{0}6.zip".Format(_user.Id))));
+				Assert.That(File.Exists(GetTestFileName("{0}.zip".Format(_user.Id))));
+				Assert.That(File.Exists(GetTestFileName("r{0}.zip".Format(_user.Id))));
+				Assert.That(File.Exists(GetTestFileName("{0}d.zip".Format(_user.Id))));
+				Assert.That(File.Exists(GetTestFileName("{0}_.txt".Format(_user.Id))));
 
-					Assert.That(!File.Exists(GetTestFileName("{0}_.zip".Format(_user.Id))));
-					Assert.That(!File.Exists(GetTestFileName("{0}_mm.zip".Format(_user.Id))));
-					Assert.That(!File.Exists(GetTestFileName("{0}_203.zip".Format(_user.Id))));
+				Assert.That(!File.Exists(GetTestFileName("{0}_.zip".Format(_user.Id))));
+				Assert.That(!File.Exists(GetTestFileName("{0}_mm.zip".Format(_user.Id))));
+				Assert.That(!File.Exists(GetTestFileName("{0}_203.zip".Format(_user.Id))));
 
-					var eventsWithFiles = memoryAppender.GetEvents();
-					Assert.That(eventsWithFiles.Length, Is.EqualTo(3));
-					Assert.That(eventsWithFiles.ToList().TrueForAll(e => e.RenderedMessage.StartsWith("Удалили файл с предыдущими подготовленными данными:")));
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
-
+				var eventsWithFiles = memoryAppender.GetEvents();
+				Assert.That(eventsWithFiles.Length, Is.EqualTo(3));
+				Assert.That(eventsWithFiles.ToList().TrueForAll(e => e.RenderedMessage.StartsWith("Удалили файл с предыдущими подготовленными данными:")));
+			});
 		}
 
 		[Test(Description = "После выполнения BatchOrder должно обновиться UserUpdateInfo.UpdateTime")]
@@ -1306,49 +1041,21 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				var responce = LoadData(false, DateTime.Now, appVersion);
+				var updateId = ParseUpdateId(responce);
 
-				try
-				{
-					var responce = LoadData(false, DateTime.Now, appVersion);
-					var updateId = ParseUpdateId(responce);
+				var previosUpdateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
 
-					var previosUpdateTime = CommitExchange(updateId, true);
+				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
+				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
 
-					var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
-					Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+				var batchFile = Convert.ToBase64String(batchFileBytes);
 
-					var batchFile = Convert.ToBase64String(batchFileBytes);
-
-					var postBatchResponce = PostOrderBatch(false, previosUpdateTime, appVersion, _user.AvaliableAddresses[0].Id, batchFile);
-					var postBatchUpdateId = ParseUpdateId(postBatchResponce);
-					var postBatchUpdateTime = CommitExchange(postBatchUpdateId, false, true);
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				var postBatchResponce = PostOrderBatch(false, previosUpdateTime, appVersion, _user.AvaliableAddresses[0].Id, batchFile);
+				var postBatchUpdateId = ParseUpdateId(postBatchResponce);
+				var postBatchUpdateTime = CommitExchange(postBatchUpdateId, RequestType.PostOrderBatch);
+			});
 		}
 
 		[Test(Description = "Производим запрос данных накопительного обновления после неподтвержденного автозаказа")]
@@ -1397,55 +1104,25 @@ select @postBatchId;"
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				//Создаем файл с подготовленными данными
+				File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
 
+				var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
+				var simpleId = ParseUpdateId(responce);
 
-				try
-				{
-					//Создаем файл с подготовленными данными
-					File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
+				Assert.That(simpleId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
 
-					var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
-					var simpleId = ParseUpdateId(responce);
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", simpleId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
 
-					Assert.That(simpleId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
-
-					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-						new MySqlParameter("?UpdateId", simpleId)));
-					Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
-
-					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
-					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
-					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleId)));
-
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+				Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, simpleId)));
+			});
 		}
 
 		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного автозаказа")]
@@ -1494,55 +1171,25 @@ select @postBatchId;"
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			ProcessWithLog(() => { 
+				//Создаем файл с подготовленными данными
+				File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
 
+				var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
+				var cumulativeId = ParseUpdateId(responce);
 
-				try
-				{
-					//Создаем файл с подготовленными данными
-					File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
+				Assert.That(cumulativeId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
 
-					var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
-					var cumulativeId = ParseUpdateId(responce);
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", cumulativeId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
 
-					Assert.That(cumulativeId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
-
-					var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
-						"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
-						new MySqlParameter("?UpdateId", cumulativeId)));
-					Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
-
-					var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
-					Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
-					Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeId)));
-
-				}
-				catch
-				{
-					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
-						if (string.IsNullOrEmpty(item.GetExceptionString()))
-							return item.RenderedMessage;
-						else
-							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-					}).Implode("\r\n"));
-					throw;
-				}
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+				var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+				Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeId)));
+			});
 		}
 
 		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
@@ -1593,14 +1240,9 @@ select @postBatchId;"
 			var appVersion = "1.1.1.1299";
 			var unknownUser = "dsdsdsdsds";
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			SetCurrentUser(unknownUser);
 
-				SetCurrentUser(unknownUser);
-
+			ProcessWithLog(memoryAppender => { 
 				var service = new PrgDataEx();
 				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
 
@@ -1616,11 +1258,7 @@ select @postBatchId;"
 				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + unknownUser + " услуга не предоставляется;"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+			});
 		}
 
 		[Test(Description = "попытка получить данные для пользователя, который привязан к поставщику")]
@@ -1629,16 +1267,14 @@ select @postBatchId;"
 			var appVersion = "1.1.1.1299";
 
 			var supplier = TestSupplier.Create();
-			var supplierUser = supplier.Users.First();
+			TestUser supplierUser;
+			using (new SessionScope()) {
+				supplierUser = supplier.Users.First();
+			}
 
-			try
-			{
-				var memoryAppender = new MemoryAppender();
-				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
-				BasicConfigurator.Configure(memoryAppender);
+			SetCurrentUser(supplierUser.Login);
 
-				SetCurrentUser(supplierUser.Login);
-
+			ProcessWithLog(memoryAppender => {
 				var service = new PrgDataEx();
 				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
 
@@ -1655,11 +1291,7 @@ select @postBatchId;"
 				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + supplierUser.Login + " услуга не предоставляется;"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
-			}
-			finally
-			{
-				LogManager.ResetConfiguration();
-			}
+			});
 		}
 
 		private bool GetForceReplication(uint firmCode, uint userId)

@@ -155,6 +155,11 @@ where
 
 		protected void ProcessWithLog(Action action)
 		{
+			ProcessWithLog(appender => action() );
+		}
+
+		protected void ProcessWithLog(Action<MemoryAppender> action)
+		{
 			try
 			{
 				var memoryAppender = new MemoryAppender();
@@ -162,12 +167,12 @@ where
 				BasicConfigurator.Configure(memoryAppender);
 				
 				try {
-					action();
+					action(memoryAppender);
 				}
 				catch
 				{
 					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
+					Console.WriteLine("Протоколирование при подготовке данных:\r\n{0}", logEvents.Select(item =>
 					{
 						if (string.IsNullOrEmpty(item.GetExceptionString()))
 							return item.RenderedMessage;

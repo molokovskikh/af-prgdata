@@ -263,7 +263,7 @@ namespace Integration
 
 		class CheckedState
 		{
-			public uint CoreID { get; set; }
+			public ulong CoreID { get; set; }
 			public float? ProducerCost { get; set; }
 			public float Cost { get; set; }
 			public float? NDS { get; set; }
@@ -313,13 +313,13 @@ from
 limit "
 													 + states.Count);
 				for (var i = 0; i < states.Count; i++)
-					states[i].CoreID = Convert.ToUInt32(ids.Tables[0].Rows[i]["Id"]);
+					states[i].CoreID = Convert.ToUInt64(ids.Tables[0].Rows[i]["Id"]);
 
 				var updateCommand = new MySqlCommand(@"
 update Core set Cost = ?Cost where Id = ?Id;
 update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 ", connection);
-				updateCommand.Parameters.Add("?Id", MySqlDbType.UInt32);
+				updateCommand.Parameters.Add("?Id", MySqlDbType.UInt64);
 				updateCommand.Parameters.Add("?Cost", MySqlDbType.Float);
 				updateCommand.Parameters.Add("?ProducerCost", MySqlDbType.Float);
 				updateCommand.Parameters.Add("?NDS", MySqlDbType.Float);
@@ -1425,7 +1425,7 @@ limit 1",
 				var coreSql = helper.GetCoreCommand(false, true, true, false);
 
 				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
-				Assert.That(coreSql, Is.StringContaining("or offerList.Id is not null)"));
+				Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
 				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
@@ -1440,7 +1440,8 @@ limit 1",
 				Assert.That(existsOffers.Length, Is.GreaterThan(0), "Все предложения по ProductId {0} должны быть в белом списке и присутствовать в доступных предложениях", existsProductId);
 
 				var nonExistsOffers = coreTable.Select("ProductId = " + nonExistsProductId);
-				Assert.That(nonExistsOffers.Length, Is.EqualTo(0), "Все предложения по ProductId {0} не существуют в белом списке и не должны присутствовать в доступных предложениях", nonExistsProductId);
+				Assert.That(nonExistsOffers.Length, Is.GreaterThan(0), "Предложения по ProductId {0} не существуют в белом списке и должны присутствовать в предложениях", nonExistsProductId);
+				Assert.That(nonExistsOffers.All(o => o["BuyingMatrixType"].ToString() == "1"), Is.True, "Предложения по ProductId {0} должны быть недоступны к заказу", nonExistsProductId);
 			}
 		}
 
@@ -1468,7 +1469,7 @@ limit 1",
 				var coreSql = helper.GetCoreCommand(false, true, true, false);
 
 				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
-				Assert.That(coreSql, Is.StringContaining("or offerList.Id is null)"));
+				Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
 				var productId = MySqlHelper.ExecuteScalar(
 					connection,
@@ -1485,7 +1486,8 @@ limit 1",
 				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
 
 				var offers = coreTable.Select("ProductId = " + productId);
-				Assert.That(offers.Length, Is.EqualTo(0), "Все предложения по ProductId {0} должны быть в черном списке и не должны присутствовать в доступных предложениях", productId);
+				Assert.That(offers.Length, Is.GreaterThan(0), "Предложения по ProductId {0} должны присутствовать в предложениях", productId);
+				Assert.That(offers.All(o => o["BuyingMatrixType"].ToString() == "1"), Is.True, "Предложения по ProductId {0} должны быть в черном списке", productId);
 			}
 		}
 
@@ -1568,7 +1570,10 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 		public void UserExistsTest()
 		{
 			var supplier = TestSupplier.Create();
-			var supplierUser = supplier.Users.First();
+			TestUser supplierUser;
+			using (new SessionScope()) {
+				supplierUser = supplier.Users.First();
+			}
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
