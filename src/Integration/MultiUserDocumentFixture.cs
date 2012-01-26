@@ -8,6 +8,7 @@ using System.Threading;
 using Castle.ActiveRecord;
 using Common.Tools;
 using Inforoom.Common;
+using Test.Support.Suppliers;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -934,6 +935,17 @@ namespace Integration
 				Assert.That(limitedLog.Commit, Is.False, "Первое частиное КО должно быть не подтверждено");
 				Assert.That(secondlimitedLog.Commit, Is.True, "Второе частиное КО должно быть подтверждено");
 			}
+		}
+
+		[Test(Description = "при успешном запросе документов поле Log в AnalitFUpdates должно быть равно null")]
+		public void SuccessLoadDocumentsSetNullInLog()
+		{
+			LoadDocuments();
+			ShouldBeSuccessfull();
+			ConfirmData();
+
+			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
+			Assert.That(log.Log, Is.Null);
 		}
 
 		private void ShouldNotBeDocuments()

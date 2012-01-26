@@ -2758,7 +2758,7 @@ PostLog:
 						Dim СписокФайлов() As String
 
 						transaction = connection.BeginTransaction(IsoLevel)
-						LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1, Log=concat(ifnull(Log, ''), ifnull(?Log, '')), Addition=concat(Addition, ifnull(?Addition, ''))  where UpdateId=" & GUpdateId
+						LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1, Log = if(?Log is null, Log, concat(ifnull(Log, ''), ifnull(?Log, ''))) , Addition=concat(Addition, ifnull(?Addition, ''))  where UpdateId=" & GUpdateId
 
 						LogCm.Parameters.Add(New MySqlParameter("?Log", MySqlDbType.VarString))
 						LogCm.Parameters("?Log").Value = ClientLog
