@@ -1258,7 +1258,8 @@ select @postBatchId;"
 				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + unknownUser + " услуга не предоставляется;"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
-			});
+			},
+			false);
 		}
 
 		[Test(Description = "попытка получить данные для пользователя, который привязан к поставщику")]
@@ -1291,7 +1292,8 @@ select @postBatchId;"
 				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + supplierUser.Login + " услуга не предоставляется;"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
-			});
+			},
+			false);
 		}
 
 		private bool GetForceReplication(uint firmCode, uint userId)

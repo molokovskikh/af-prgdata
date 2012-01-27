@@ -158,7 +158,7 @@ where
 			ProcessWithLog(appender => action() );
 		}
 
-		protected void ProcessWithLog(Action<MemoryAppender> action)
+		protected void ProcessWithLog(Action<MemoryAppender> action, bool checkWarnLogs = true)
 		{
 			try
 			{
@@ -182,9 +182,12 @@ where
 					throw;
 				}
 
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+				if (checkWarnLogs) {
+					var events = memoryAppender.GetEvents();
+					var errors = events.Where(item => item.Level >= Level.Warn);
+					Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+				}
+
 			}
 			finally
 			{
