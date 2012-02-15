@@ -168,26 +168,6 @@ INTO   Usersettings.AnalitFReplicationInfo
 			  FirmCode,
 			  ForceReplication
 	   )
-SELECT ouar.RowId,
-	   supplier.Id,
-	   1
-FROM usersettings.clientsdata AS drugstore
-	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
-	JOIN future.Suppliers supplier ON supplier.segment = drugstore.firmsegment
-	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.Id
-WHERE ari.UserId IS NULL 
-	AND drugstore.FirmCode = ?ClientCode
-	AND drugstore.firmtype = 1
-	AND supplier.regionmask & ?OffersRegionCode > 0
-GROUP BY ouar.RowId, supplier.Id;
-
-INSERT
-INTO   Usersettings.AnalitFReplicationInfo 
-	   (
-			  UserId,
-			  FirmCode,
-			  ForceReplication
-	   )
 SELECT u.Id,
 	   supplier.Id,
 	   1
@@ -204,26 +184,6 @@ GROUP BY u.Id, supplier.Id;";
 			}
 			else
 				command.CommandText = @"
-INSERT
-INTO   Usersettings.AnalitFReplicationInfo 
-	   (
-			  UserId,
-			  FirmCode,
-			  ForceReplication
-	   )
-SELECT ouar.RowId,
-	   supplier.Id,
-	   1
-FROM usersettings.clientsdata AS drugstore
-	JOIN usersettings.OsUserAccessRight ouar  ON ouar.ClientCode = drugstore.FirmCode
-	JOIN future.Suppliers supplier ON supplier.segment = drugstore.firmsegment
-	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = ouar.RowId AND ari.FirmCode = supplier.Id	
-WHERE ari.UserId IS NULL 
-	AND drugstore.FirmCode = ?ClientCode
-	AND drugstore.firmtype = 1
-	AND supplier.regionmask & drugstore.maskregion > 0
-GROUP BY ouar.RowId, supplier.Id;
-
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
 	   (
