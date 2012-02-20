@@ -1,4 +1,8 @@
 ﻿import System.IO
+import System.Text
+import System.Linq
+import System.Linq.Enumerable
+import System.Collections.Generic
 import file from Deploy.bake
 import file from WebServiceSupport.bake
 import file from Migration.bake
@@ -24,3 +28,36 @@ Task @deployTest, [@buildWebService, @Production, @Migrate]:
 	Globals.deployTo = "\\\\ACDCSERV.ADC.ANALIT.NET\\Test\\PrgDataSmart\\"
 	Engine.Execute("DeployWebService")
 	Engine.Execute("SendDeployNotification")
+
+Task @DeleteOldVersionsMigration:
+	usedVersions = Db.Read("SELECT AFAPPVERSION FROM usersettings.userupdateinfo WHERE UpdateDate > curdate() - INTERVAL 6 MONTH GROUP BY AFAPPVERSION").Select({r| r.AFAPPVERSION.ToString()}).ToList()
+	print "usedVersions.Count = ${usedVersions.Count}"
+	print "usedVersions = ${join(usedVersions)}"
+	versions = Db.Read("select * from usersettings.AnalitFVersionRules order by SourceVersion, DestinationVersion").ToList()
+	print "versions.Count = ${versions.Count}"
+	#printVersions = versions.Select({r| "(${r.Id}, ${r.SourceVersion}, ${r.DestinationVersion})"}).ToArray()
+	#print "versions = ${join(printVersions)}"
+	versionForUpdate = List[of DuckRecord]()
+	for version as string in usedVersions:
+		maxVersion = versions.Where({v| v.SourceVersion.ToString() == version}).OrderByDescending({v|v.DestinationVersion}).FirstOrDefault()
+		if (maxVersion):
+			print "for ${version} is (${maxVersion.Id}, ${maxVersion.SourceVersion}, ${maxVersion.DestinationVersion})"
+			if (not versionForUpdate.Contains(maxVersion)):
+				versionForUpdate.Add(maxVersion)
+		else:
+			print "for ${version} is null"
+	builderDelete = StringBuilder()
+	builderRollback = StringBuilder()
+	deletedCount = 0
+	for deleteVersion as DuckRecord in versions:
+		if (deleteVersion.Id > 17):
+			if (not versionForUpdate.Contains(deleteVersion)):
+				deletedCount++
+				#print "version for delete (${deleteVersion.Id}, ${deleteVersion.SourceVersion}, ${deleteVersion.DestinationVersion})"
+				builderDelete.AppendLine("#delete (${deleteVersion.Id}, ${deleteVersion.SourceVersion}, ${deleteVersion.DestinationVersion})")
+				builderDelete.AppendLine("delete from usersettings.analitfversionrules where Id = ${deleteVersion.Id};")
+				builderRollback.AppendLine("insert into usersettings.analitfversionrules (Id, SourceVersion, DestinationVersion) values (${deleteVersion.Id}, ${deleteVersion.SourceVersion}, ${deleteVersion.DestinationVersion});")
+	print "кол-во удаляемых версий: ${deletedCount}"
+	File.WriteAllText("migrationDelete.sql", builderDelete.ToString())
+	File.WriteAllText("migrationRollback.sql", builderRollback.ToString())
+	
