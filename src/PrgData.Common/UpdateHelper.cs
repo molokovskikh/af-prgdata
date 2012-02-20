@@ -1500,7 +1500,8 @@ select
 from
   catalogs.Descriptions
 where
-  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)";
+  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)
+and Descriptions.NeedCorrect = 0";
 			}
 			else
 				if (Cumulative)
@@ -1522,7 +1523,9 @@ select
   Descriptions.Composition,
   0 as Hidden
 from
-  catalogs.Descriptions";
+  catalogs.Descriptions
+where
+ Descriptions.NeedCorrect = 0";
 			else
 				return @"
 select
@@ -1545,6 +1548,7 @@ from
   catalogs.Descriptions
 where
   Descriptions.UpdateTime > ?UpdateTime
+and Descriptions.NeedCorrect = 0
 union
 select
   DescriptionLogs.DescriptionId,
