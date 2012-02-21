@@ -80,6 +80,14 @@ namespace Integration.BaseTests
 			return responce;
 		}
 
+		protected string LoadDataAttachmentsAsync(bool getEtalonData, DateTime accessTime, string appVersion, uint[] attachmentIds)
+		{
+			var service = new PrgDataEx();
+			var responce = service.GetUserDataWithAttachmentsAsync(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false, null, 1, 1, null, null, attachmentIds);
+
+			return responce;
+		}
+
 		protected void ShouldBeSuccessfull(string responce)
 		{
 			Assert.That(responce, Is.StringStarting("URL=http://localhost//GetFileHandler.ashx?Id"));

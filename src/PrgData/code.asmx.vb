@@ -517,6 +517,41 @@ Public Class PrgDataEx
           AttachmentIds)
     End Function
 
+    <WebMethod()> Public Function GetUserDataWithAttachmentsAsync( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32(), _
+ ByVal DocumentBodyIds As UInt32(), _
+ ByVal AttachmentIds As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          WayBillsOnly, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId, _
+          True, _
+          DocumentBodyIds, _
+          AttachmentIds)
+    End Function
+
     Private Function InternalGetUserData( _
      ByVal AccessTime As Date, _
      ByVal GetEtalonData As Boolean, _
@@ -1532,7 +1567,7 @@ StartZipping:
 	Public Function SendClientLog( _
   ByVal UpdateId As UInt32, _
   ByVal Log As String _
-  ) As String
+	) As String
 		Try
 			DBConnect()
 			GetClientCode()
@@ -1546,6 +1581,46 @@ StartZipping:
 		Catch e As Exception
 			LogRequestHelper.MailWithRequest(Me.Log, "Ошибка при сохранении лога клиента", e)
 			SendClientLog = "Error"
+		Finally
+			DBDisconnect()
+			Counter.ReleaseLock(UserId, "SendClientLog", UpdateData)
+		End Try
+	End Function
+
+	<WebMethod()> _
+	Public Function SendClientArchivedLog( _
+  ByVal UpdateId As UInt32, _
+  ByVal Log As String, _
+  ByVal LogSize As UInt32
+	) As String
+		Try
+			DBConnect()
+			GetClientCode()
+			UpdateData.LastLockId = Counter.TryLock(UserId, "SendClientLog")
+			Try
+
+				Dim helper = New SendClientLogHandler(UpdateData, UpdateId)
+
+				Try
+					helper.PrepareLogFile(Log)
+
+					Dim logContent = helper.GetLogContent()
+
+					AnalitFUpdate.UpdateLog(readWriteConnection, UpdateId, logContent)
+
+					Me.Log.DebugFormat("Размер лога от клиента: {0}, полученный размера лога: {1}", logContent.Length, LogSize)
+
+				Finally
+					helper.DeleteTemporaryFiles()
+				End Try
+
+			Catch ex As Exception
+				Me.Log.Error("Ошибка при сохранении лога клиента", ex)
+			End Try
+			SendClientArchivedLog = "OK"
+		Catch e As Exception
+			LogRequestHelper.MailWithRequest(Me.Log, "Ошибка при сохранении лога клиента", e)
+			SendClientArchivedLog = "Error"
 		Finally
 			DBDisconnect()
 			Counter.ReleaseLock(UserId, "SendClientLog", UpdateData)

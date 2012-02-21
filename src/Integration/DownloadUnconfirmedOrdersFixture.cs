@@ -348,52 +348,6 @@ namespace Integration
 			}
 		}
 
-		private string LoadData(bool getEtalonData, DateTime accessTime, string appVersion)
-		{
-			var service = new PrgDataEx();
-			var responce = service.GetUserDataWithOrders(accessTime, getEtalonData, appVersion, 50, _uniqueId, "", "", false, null, 1, 1, null);
-
-			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
-
-			return responce;
-		}
-
-		private string LoadDataAsync(bool getEtalonData, DateTime accessTime, string appVersion)
-		{
-			var service = new PrgDataEx();
-			var responce = service.GetUserDataWithOrdersAsync(accessTime, getEtalonData, appVersion, 50, _uniqueId, "", "", false, null, 1, 1, null);
-
-			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
-
-			return responce;
-		}
-
-		private string LoadDataAsyncDocs(bool getEtalonData, DateTime accessTime, string appVersion, uint[] documentBodyIds)
-		{
-			var service = new PrgDataEx();
-			var responce = service.GetUserDataWithOrdersAsyncCert(accessTime, getEtalonData, appVersion, 50, _uniqueId, "", "", true, null, 1, 1, null, documentBodyIds);
-
-			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
-
-			return responce;
-		}
-
-		private uint ParseUpdateId(string responce)
-		{
-			var match = Regex.Match(responce, @"\d+").Value;
-			if (match.Length > 0)
-				return Convert.ToUInt32(match);
-
-			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
-			return 0;
-		}
-
-		private string CheckAsyncRequest(uint updateId)
-		{
-			var service = new PrgDataEx();
-			return service.CheckAsyncRequest(updateId);
-		}
-
 		[Test(Description = "Проверяем простой запрос данных с выгружаемыми заказами")]
 		public void SimpleLoadData()
 		{
@@ -405,6 +359,7 @@ namespace Integration
 			var order = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			ShouldBeSuccessfull(responce);
 
 			var simpleUpdateId = ParseUpdateId(responce);
 
@@ -505,6 +460,7 @@ namespace Integration
 			Directory.CreateDirectory(extractFolder);
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			ShouldBeSuccessfull(responce);
 
 			var simpleUpdateId = ParseUpdateId(responce);
 
@@ -545,6 +501,7 @@ namespace Integration
 			}
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			ShouldBeSuccessfull(responce);
 
 			var firstUpdateId = ParseUpdateId(responce);
 
@@ -611,6 +568,7 @@ namespace Integration
 			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
 
 			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			ShouldBeSuccessfull(responce);
 
 			var simpleUpdateId = ParseUpdateId(responce);
 
@@ -622,20 +580,7 @@ namespace Integration
 			Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
 			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
 
-			var asyncResponse = String.Empty;
-			var sleepCount = 0;
-			do
-			{
-				asyncResponse = CheckAsyncRequest(simpleUpdateId);
-				if (asyncResponse == "Res=Wait")
-				{
-					sleepCount++;
-					Thread.Sleep(1000);
-				}
-
-			} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
-
-			Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
+			WaitAsyncResponse(simpleUpdateId);
 
 			log.Refresh();
 			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
@@ -692,6 +637,7 @@ namespace Integration
 			File.WriteAllBytes(Path.Combine(certificatePath, String.Format("{0}.tif", certificateFile.Id)), new byte[0]);
 
 			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] {document.Lines[0].Id});
+			ShouldBeSuccessfull(responce);
 
 			var simpleUpdateId = ParseUpdateId(responce);
 			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
