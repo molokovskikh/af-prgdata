@@ -2611,6 +2611,12 @@ StartZipping:
 		Dim transaction As MySqlTransaction
 		Dim LogCm As New MySqlCommand
 
+		if (UpdateType = RequestType.ResumeData) Then
+			GUpdateId = UpdateData.PreviousRequest.UpdateId
+			Return GUpdateId
+			Exit Function
+		End If
+
 		Using connection = New MySqlConnection
 			ThreadContext.Properties("user") = UpdateData.UserName
 
@@ -2843,7 +2849,7 @@ PostLog:
 
 						LogCm.ExecuteNonQuery()
 
-						Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
+						Dim helper = New UpdateHelper(UpdateData, connection)
 
 						LogCm.CommandText = "delete from future.ClientToAddressMigrations where UserId = " & UpdateData.UserId
 						LogCm.ExecuteNonQuery()

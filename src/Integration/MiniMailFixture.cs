@@ -325,5 +325,77 @@ namespace Integration
 			});
 		}
 
+		[Test(Description = "производим накопительное обновление после успешного кумулятивного")]
+		public void ProcessGetDataAsyncAfterCumulative()
+		{
+			ProcessWithLog(() => {
+				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+
+				ShouldBeSuccessfull(cumulativeResponse);
+				var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+
+				WaitAsyncResponse(cumulativeUpdateId);
+
+				TestAnalitFUpdateLog log;
+				using (new SessionScope()) {
+					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
+					Assert.That(log.Commit, Is.False);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				var lastUpdate = CommitExchange(cumulativeUpdateId, RequestType.GetCumulative);
+
+				using (new SessionScope()) {
+					log.Refresh();
+					Assert.That(log.Commit, Is.True);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				var response = LoadDataAttachmentsAsync(false, lastUpdate, "1.1.1.1413", null);
+				ShouldBeSuccessfull(response);
+				var simpleUpdateId = ParseUpdateId(response);
+				WaitAsyncResponse(simpleUpdateId);
+				CommitExchange(simpleUpdateId, RequestType.GetData);
+			});
+			
+		}
+
+		[Test(Description = "производим проверку докачки файла при асинхоронном запросе")]
+		public void ProcessGetDataAsyncResume()
+		{
+			ProcessWithLog(() => {
+
+				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+				ShouldBeSuccessfull(cumulativeResponse);
+				var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+				WaitAsyncResponse(cumulativeUpdateId);
+
+				var nextCumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+
+				ShouldBeSuccessfull(nextCumulativeResponse);
+				var nextCumulativeUpdateId = ParseUpdateId(nextCumulativeResponse);
+
+				Assert.That(nextCumulativeUpdateId, Is.EqualTo(cumulativeUpdateId));
+
+				WaitAsyncResponse(nextCumulativeUpdateId);
+
+				TestAnalitFUpdateLog log;
+				using (new SessionScope()) {
+					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(nextCumulativeUpdateId));
+					Assert.That(log.Commit, Is.False);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				var lastUpdate = CommitExchange(nextCumulativeUpdateId, RequestType.GetCumulative);
+
+				using (new SessionScope()) {
+					log.Refresh();
+					Assert.That(log.Commit, Is.True);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+			});
+		}
+
 	}
 }
