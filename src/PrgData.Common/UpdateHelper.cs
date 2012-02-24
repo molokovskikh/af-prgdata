@@ -162,7 +162,6 @@ FROM Future.Clients drugstore
 	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
 	AND drugstore.Id = ?ClientCode
-	AND supplier.segment = 0
 GROUP BY u.Id, supplier.Id;";
 
 				command.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
@@ -185,7 +184,6 @@ FROM Future.Clients drugstore
 	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
 	AND drugstore.Id = ?ClientCode
-	AND supplier.segment = 0
 GROUP BY u.Id, supplier.Id;
 ";
 			command.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);
