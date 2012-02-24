@@ -143,12 +143,6 @@ namespace Integration
 			CheckUpdateHelper(user.Login, offersFutureUser.Id, offersFutureClient.RegionCode);
 		}
 
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Check_update_helper_for_old()
-		{
-			//CheckUpdateHelper(oldUser.OSUserName, offersOldClient.Id, offersOldClient.RegionCode);
-		}
-
 		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -165,17 +159,6 @@ namespace Integration
 				CheckSQL(false, connection, updateData, helper);
 
 				CheckSQL(true, connection, updateData, helper);
-
-				//var selectCommand = new MySqlCommand() { Connection = connection };
-				//helper.SetUpdateParameters(selectCommand, true, DateTime.Now.AddDays(-10), DateTime.Now);
-
-				//helper.PrepareImpersonalOffres(selectCommand);
-				//selectCommand.CommandText = "select Count(*) from CoreAssortment A WHERE A.CodeFirmCr IS NOT NULL";
-				//var countWithProducers = Convert.ToUInt32(selectCommand.ExecuteScalar());
-				//selectCommand.CommandText = "select Count(*) from CoreProducts A ";
-				//var countProducts = Convert.ToUInt32(selectCommand.ExecuteScalar());
-
-				//Console.WriteLine("Offers count = {0} : withProducers : {1}  Products : {2}", countWithProducers + countProducts, countWithProducers, countProducts);
 			}
 		}
 
@@ -192,23 +175,9 @@ namespace Integration
 
 			CheckFillData(selectCommand, helper.GetMinReqRuleCommand(), updateData);
 
-			try
-			{
-				//selectCommand.CommandText =
-				//    "drop temporary table if exists UserSettings.Prices; create temporary table UserSettings.Prices ENGINE = MEMORY select ClientCode from usersettings.RetClientsSet limit 1;";
-				//selectCommand.ExecuteNonQuery();
-				CheckFillData(selectCommand, helper.GetPricesRegionalDataCommand(), updateData);
+			CheckFillData(selectCommand, helper.GetPricesRegionalDataCommand(), updateData);
 
-				CheckFillData(selectCommand, helper.GetRegionalDataCommand(), updateData);
-				
-				
-			}
-			finally
-			{
-				//selectCommand.CommandText =
-				//    "drop temporary table if exists UserSettings.Prices;";
-				//selectCommand.ExecuteNonQuery();
-			}
+			CheckFillData(selectCommand, helper.GetRegionalDataCommand(), updateData);
 		}
 
 		private void CheckFillData(MySqlCommand selectCommand, string sqlCommand, UpdateData updateData)
@@ -239,12 +208,6 @@ namespace Integration
 		public void Check_GetUserData_for_Future()
 		{
 			CheckGetUserData(user.Login);
-		}
-
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Check_GetUserData_for_Old()
-		{
-			//CheckGetUserData(oldUser.OSUserName);
 		}
 
 		[Test]

@@ -26,7 +26,7 @@ namespace PrgData.Common.Orders
 		private uint _orderedClientCode;
 		private List<ClientOrderHeader> _orders = new List<ClientOrderHeader>();
 
-		private IOrderable _client;
+		private User _user;
 		private Address _address;
 		private OrderRules _orderRule;
 
@@ -48,16 +48,10 @@ namespace PrgData.Common.Orders
 			{
 				_orderRule = IoC.Resolve<IOrderFactoryRepository>().GetOrderRule(data.ClientId);
 				NHibernateUtil.Initialize(_orderRule);
-
-				if (data.IsFutureClient)
-				{
-					_client = IoC.Resolve<IRepository<User>>().Load(data.UserId);
-					NHibernateUtil.Initialize(((User)_client).AvaliableAddresses);
-					_address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
-					NHibernateUtil.Initialize(_address.Users);
-				}
-				else
-					_client = IoC.Resolve<IRepository<Client>>().Load(orderedClientCode);
+				_user = IoC.Resolve<IRepository<User>>().Load(data.UserId);
+				NHibernateUtil.Initialize(_user.AvaliableAddresses);
+				_address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
+				NHibernateUtil.Initialize(_address.Users);
 			}
 
 			CheckCanPostOrder();
@@ -248,11 +242,7 @@ values
 				{ 
 					clientOrder.ClearOnCreate();
 
-					Order order;
-					if (_client is IClient)
-						order = new Order(clientOrder.ActivePrice, (IClient)_client, _orderRule);
-					else
-						order = new Order(clientOrder.ActivePrice, (User)_client, _address, _orderRule);
+					var order = new Order(clientOrder.ActivePrice, _user, _address, _orderRule);
 
 					order.ClientAddition = clientOrder.ClientAddition;
 					order.ClientOrderId = clientOrder.ClientOrderId;
@@ -327,7 +317,7 @@ values
 		{
 			var offersRepository = IoC.Resolve<ISmartOfferRepository>();
 
-			return offersRepository.SimpleGetByProductIds(_client, productIds).ToList();
+			return offersRepository.SimpleGetByProductIds(_user, productIds).ToList();
 		}
 
 		private List<uint> GetSearchedProductIds()
@@ -831,12 +821,12 @@ AND    RCS.clientcode          = ?ClientCode"
 				for (int i = 0; i < orderCount; i++)
 				{
 					var delay = String.IsNullOrEmpty(delayOfPayment[i])
-					            	? 0m
-					            	: decimal
-					            	  	.Parse(
-					            	  		delayOfPayment[i],
-					            	  		System.Globalization.NumberStyles.Currency,
-					            	  		System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+									? 0m
+									: decimal
+										.Parse(
+											delayOfPayment[i],
+											System.Globalization.NumberStyles.Currency,
+											System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
 					for (uint detailIndex = detailsPosition; detailIndex < (detailsPosition + rowCount[i]); detailIndex++)
 					{
 						results[detailIndex] = cost[detailIndex]*(1m + delay/100m);
@@ -1051,18 +1041,14 @@ AND    RCS.clientcode          = ?ClientCode"
 				}
 
 				var existsOrders = new DataTable();
-				MySqlDataAdapter dataAdapter;
-
-				if (_data.IsFutureClient)
-				{
-					dataAdapter = new MySqlDataAdapter(@"
+				var dataAdapter = new MySqlDataAdapter(@"
 select ol.*
 from
-  (
+(
 SELECT oh.RowId as OrderId
 FROM   orders.ordershead oh
 WHERE  
-    writetime > now() - interval 2 week
+writetime > now() - interval 2 week
 AND clientorderid = ?ClientOrderID  
 AND clientcode = ?ClientCode
 AND UserId = ?UserId
@@ -1071,48 +1057,18 @@ AND PriceCode = ?PriceCode
 AND RegionCode = ?RegionCode
 and oh.Deleted = 0
 order by oh.RowId
-  ) DuplicateOrderId,
-  orders.orderslist ol
+) DuplicateOrderId,
+orders.orderslist ol
 where
-  ol.OrderId = DuplicateOrderId.OrderId
+ol.OrderId = DuplicateOrderId.OrderId
 order by ol.RowId
 ", _readWriteConnection);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.Order.ClientOrderId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _data.ClientId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?AddressId", _orderedClientCode);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?PriceCode", order.Order.PriceList.PriceCode);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?RegionCode", order.Order.RegionCode);
-				}
-				else
-				{
-					dataAdapter = new MySqlDataAdapter(@"
-select ol.*
-from
-  (
-SELECT oh.RowId as OrderId
-FROM   orders.ordershead oh
-WHERE  clientorderid = ?ClientOrderID
-AND    writetime    >ifnull(
-	   (SELECT MAX(requesttime)
-	   FROM    logs.AnalitFUpdates px
-	   WHERE   updatetype =2
-	   AND     px.UserId  = ?UserId
-	   )
-	   , now() - interval 2 week)
-AND    clientcode = ?ClientCode
-and oh.Deleted = 0
-order by oh.RowId desc
-limit 1
-  ) DuplicateOrderId,
-  orders.orderslist ol
-where
-  ol.OrderId = DuplicateOrderId.OrderId
-", _readWriteConnection);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.Order.ClientOrderId);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _orderedClientCode);
-					dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
-				}
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientOrderID", order.Order.ClientOrderId);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _data.ClientId);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _data.UserId);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?AddressId", _orderedClientCode);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?PriceCode", order.Order.PriceList.PriceCode);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?RegionCode", order.Order.RegionCode);
 
 				dataAdapter.Fill(existsOrders);
 

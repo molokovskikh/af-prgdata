@@ -1,17 +1,12 @@
 ﻿using System;
-using System.IO;
-using System.Configuration;
 using System.Data;
-using System.Text.RegularExpressions;
 using Castle.ActiveRecord;
 using Common.Tools;
-using Inforoom.Common;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
 using PrgData;
 using MySql.Data.MySqlClient;
-using NHibernate.Criterion;
 
 namespace Integration
 {
@@ -20,10 +15,6 @@ namespace Integration
 	{
 		private TestClient client;
 		private TestUser user;
-
-		//private TestOldClient oldClient;
-		//private TestOldUser oldUser;
-
 		private DataTable offers;
 
 		private string UniqueId;
@@ -37,7 +28,6 @@ namespace Integration
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 
 			client = TestClient.Create();
-			//oldClient = TestOldClient.CreateTestClient();
 
 			using (var transaction = new TransactionScope())
 			{
@@ -49,24 +39,7 @@ namespace Integration
 					u.SendWaybills = true;
 				});
 				user.Update();
-
-//                oldUser = oldClient.Users[0];
-//                ServiceContext.GetUserName = () => oldUser.OSUserName;
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", oldUser.Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
 			}
-
 		}
 
 		private void PostPriceSettings(string login)
@@ -103,12 +76,6 @@ namespace Integration
 			PostPriceSettings(user.Login);
 		}
 
-		//[Test]
-		//public void Post_settings_for_old()
-		//{
-		//    PostPriceSettings(oldUser.OSUserName);
-		//}
-
 		private void SetCurrentUser(string login)
 		{
 			ServiceContext.GetUserName = () => login;
@@ -123,7 +90,5 @@ namespace Integration
 
 			return responce;
 		}
-
-
 	}
 }

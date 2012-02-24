@@ -3,19 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Configuration;
 using System.Data;
-using System.Reflection;
 using Castle.ActiveRecord;
-using Castle.MicroKernel.Registration;
-using Common.Models;
-using Common.Models.Tests.Repositories;
 using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
 using PrgData.Common.Counters;
-using PrgData.Common.Model;
-using PrgData.Common.Repositories;
-using SmartOrderFactory.Domain;
 using Test.Support;
 using Test.Support.Suppliers;
 
@@ -27,9 +20,6 @@ namespace Integration
 	{
 		TestClient _client;
 		TestUser _user;
-
-		//TestOldClient _oldClient;
-		//TestOldUser _oldUser;
 
 		[SetUp]
 		public void SetUp()
@@ -45,25 +35,6 @@ namespace Integration
 					u.SendWaybills = true;
 				});
 				_user.Update();
-
-
-//                _oldClient = TestOldClient.CreateTestClient();
-//                _oldUser = _oldClient.Users[0];
-
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", _oldUser.Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
-
 			}
 		}
 
@@ -145,18 +116,6 @@ namespace Integration
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(connection, "delete from Logs.PrgDataLogs");
 			}
-		}
-
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Check_string_field_lengts_for_old_client()
-		{
-			//using(var connection = new MySqlConnection(Settings.ConnectionString()))
-			//{
-			//    connection.Open();
-			//    var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
-			//    var helper = new UpdateHelper(updateData, connection);
-			//    CheckFields(updateData, helper, connection);
-			//}
 		}
 
 		[Test]

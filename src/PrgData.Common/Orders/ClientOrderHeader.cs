@@ -77,7 +77,7 @@ namespace PrgData.Common.Orders
 				"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения минимальной суммы заказа {3}.",
 				ClientOrderId,
 				Order.CalculateSum(),
-				ActivePrice.Id.Price.Firm.ShortName,
+				ActivePrice.Id.Price.Supplier.Name,
 				MinReq);
 		}
 

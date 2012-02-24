@@ -1,22 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
 using Castle.ActiveRecord;
-using Castle.MicroKernel.Registration;
-using Common.Models;
-using Common.Models.Repositories;
-using Common.Models.Tests.Repositories;
 using Common.Tools;
 using MySql.Data.MySqlClient;
-using NHibernate;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
-using PrgData.Common.Model;
-using PrgData.Common.Repositories;
-using SmartOrderFactory.Domain;
 using Test.Support;
 using Test.Support.Logs;
 
@@ -29,16 +17,10 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		//TestOldClient _oldClient;
-		//TestOldClient _oldClientWithoutAF;
-
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
 			_client = TestClient.Create();
-
-			//_oldClient = TestOldClient.CreateTestClient();
-			//_oldClientWithoutAF = TestOldClient.CreateTestClient();
 
 			using (var transaction = new TransactionScope())
 			{
@@ -50,53 +32,7 @@ namespace Integration
 					u.SendWaybills = true;
 				});
 				_user.Update();
-
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof (ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", _oldClient.Users[0].Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
 			}
-		}
-
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Get_update_data_for_enabled_old_client()
-		{
-			//using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			//{
-			//    var updateData = UpdateHelper.GetUpdateData(connection, _oldClient.Users[0].OSUserName);
-			//    Assert.That(updateData, Is.Not.Null);
-			//    Assert.That(updateData.UserId, Is.EqualTo(_oldClient.Users[0].Id));
-			//    Assert.That(updateData.ClientId, Is.EqualTo(_oldClient.Id));
-			//    Assert.That(updateData.ShortName, Is.Not.Null);
-			//    Assert.That(updateData.ShortName, Is.Not.Empty);
-			//    Assert.That(updateData.ShortName, Is.EqualTo(_oldClient.ShortName));
-			//    Assert.IsFalse(updateData.Disabled(), "Пользователь отключен");
-			//}
-		}
-
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Get_update_data_for_disabled_old_client()
-		{
-			//using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			//{
-			//    var updateData = UpdateHelper.GetUpdateData(connection, _oldClientWithoutAF.Users[0].OSUserName);
-			//    Assert.That(updateData, Is.Not.Null);
-			//    Assert.That(updateData.UserId, Is.EqualTo(_oldClientWithoutAF.Users[0].Id));
-			//    Assert.That(updateData.ClientId, Is.EqualTo(_oldClientWithoutAF.Id));
-			//    Assert.That(updateData.ShortName, Is.Not.Null);
-			//    Assert.That(updateData.ShortName, Is.Not.Empty);
-			//    Assert.That(updateData.ShortName, Is.EqualTo(_oldClientWithoutAF.ShortName));
-			//    Assert.IsTrue(updateData.Disabled(), "Пользователь включен");
-			//}
 		}
 
 		[Test]
@@ -213,22 +149,10 @@ namespace Integration
 			}
 		}
 
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Check_ON_flags_for_BuyingMatrix_and_MNN_for_old_client()
-		{
-			//Check_ON_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
-		}
-
 		[Test]
 		public void Check_ON_flags_for_BuyingMatrix_and_MNN_for_future_client()
 		{
 			Check_ON_flags_for_BuyingMatrix_and_MNN(_user.Login);
-		}
-
-		[Test, Ignore("Тест для старых клиентов")]
-		public void Check_OFF_flags_for_BuyingMatrix_and_MNN_for_old_client()
-		{
-			//Check_OFF_flags_for_BuyingMatrix_and_MNN(_oldClient.Users[0].OSUserName);
 		}
 
 		[Test]
@@ -382,13 +306,6 @@ namespace Integration
 			CheckPreviousRequestOnFirst(_user.Login, _user.Id);
 		}
 
-		[Test(Description = "Проверяем установку свойства PreviousRequest при первом обращении для клиента из старой реальности"),
-		Ignore("Тест для старых клиентов")]
-		public void CheckPreviousRequestOnFirstByOldClient()
-		{
-			//CheckPreviousRequestOnFirst(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
-		}
-
 		private void CheckPreviousRequestWithOldRequest(string userName, uint userId)
 		{
 			TestAnalitFUpdateLog log;
@@ -442,13 +359,6 @@ namespace Integration
 		public void CheckPreviousRequestWithOldRequestByFuture()
 		{
 			CheckPreviousRequestWithOldRequest(_user.Login, _user.Id);
-		}
-
-		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности"),
-		Ignore("Тест для старых клиентов")]
-		public void CheckPreviousRequestWithOldRequestByOldClient()
-		{
-			//CheckPreviousRequestWithOldRequest(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
 		}
 
 		private void CheckPreviousRequestWithOldRequestExists(string userName, uint userId)
@@ -516,13 +426,6 @@ namespace Integration
 		public void CheckPreviousRequestWithOldRequestExistsByFuture()
 		{
 			CheckPreviousRequestWithOldRequestExists(_user.Login, _user.Id);
-		}
-
-		[Test(Description = "Проверяем установку свойства PreviousRequest при существовании старых записей в AnalitFUpdates для клиента из старой реальности"),
-		Ignore("Тест для старых клиентов")]
-		public void CheckPreviousRequestWithOldRequestExistsByOldClient()
-		{
-			//CheckPreviousRequestWithOldRequestExists(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
 		}
 
 		[Test(Description = "проверяем методы для работы с именами подготовленными файлами")]
