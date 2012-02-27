@@ -72,24 +72,12 @@ namespace PrgData.Common
 			File.Copy(files[0], _tmpExtractLogFileName);
 		}
 
-		private string MySqlFilePath()
-		{
-#if DEBUG
-			return System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"] + "\\";
-#else
-			return
-				Path.Combine("\\\\" + Environment.MachineName,
-				             System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"]) + "\\";
-#endif
-		}
-
 		public int ImportLogFile()
 		{
 			var importFileName = Path.GetFileName(_tmpExtractLogFileName);
-			var localImportFileName = Path.Combine(System.Configuration.ConfigurationManager.AppSettings["MySqlLocalFilePath"],
-			                                       importFileName);
+			var localImportFileName = Path.Combine(ServiceContext.MySqlLocalImportPath(), importFileName);
 
-			var serverImportFileName = Path.Combine(MySqlFilePath(), importFileName); 
+			var serverImportFileName = Path.Combine(ServiceContext.MySqlSharedExportPath(), importFileName); 
 
 			try
 			{

@@ -1722,22 +1722,6 @@ where
 			return list;
 		}
 
-		private string MySqlLocalFilePath()
-		{
-			return System.Configuration.ConfigurationManager.AppSettings["MySqlLocalFilePath"];
-		}
-
-	private string MySqlFilePath()
-	{
-#if DEBUG
-		return System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"] + @"\";
-#else
-		return
-			Path.Combine(@"\\" + Environment.MachineName,
-						 System.Configuration.ConfigurationManager.AppSettings["MySqlFilePath"]) + @"\";
-#endif
-	}
-
 		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
 		{
 			var log = LogManager.GetLogger(typeof(UpdateHelper));
@@ -1831,7 +1815,7 @@ where
 
 			ProcessCertificates(command);
 
-			File.WriteAllText(MySqlLocalFilePath() + certificateRequestsFile, _updateData.GetCertificatesResult());
+			File.WriteAllText(ServiceContext.MySqlLocalImportPath() + certificateRequestsFile, _updateData.GetCertificatesResult());
 
 			ProcessArchiveFile(certificateRequestsFile, archiveFileName);
 
@@ -2026,14 +2010,14 @@ where
 		private void ProcessArchiveFile(string processedFile, string archiveFileName)
 		{
 #if DEBUG
-			ShareFileHelper.WaitFile(MySqlLocalFilePath() + processedFile);
+			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + processedFile);
 #endif
 
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + processedFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + processedFile);
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", MySqlLocalFilePath() + processedFile);
+				log.DebugFormat("файл для архивации: {0}", ServiceContext.MySqlLocalImportPath() + processedFile);
 			}
 			catch
 			{
@@ -2041,9 +2025,9 @@ where
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + processedFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + processedFile);
 
-			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + processedFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + processedFile);
 		}
 
 		private string ArchiveCertificatesFiles(string archiveFileName, MySqlCommand command)
@@ -2122,7 +2106,7 @@ where db.Id in ({0})
 					MyCommand.Parameters["?Cumulative"].Value = true;
 				}
 
-				var fullName = Path.Combine(MySqlFilePath(), FileName + _updateData.UserId + ".txt");
+				var fullName = Path.Combine(ServiceContext.MySqlSharedExportPath(), FileName + _updateData.UserId + ".txt");
 				fullName = MySqlHelper.EscapeString(fullName);
 
 				SQL += " INTO OUTFILE '" + fullName + "' ";
@@ -2151,9 +2135,9 @@ where db.Id in ({0})
 		private string DeleteFileByPrefix(string prefix)
 		{
 			var deletedFile = prefix + _updateData.UserId + ".txt";
-			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + deletedFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + deletedFile);
 
-			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + deletedFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + deletedFile);
 
 			return deletedFile;
 		}
@@ -2168,14 +2152,14 @@ where db.Id in ({0})
 			GetMySQLFileWithDefaultEx("SupplierPromotions", command, GetPromotionsCommandById(ids), false, false, filesForArchive);
 
 #if DEBUG
-			ShareFileHelper.WaitFile(MySqlLocalFilePath() + supplierFile);
+			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + supplierFile);
 #endif
 
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + supplierFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + supplierFile);
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", MySqlLocalFilePath() + supplierFile);
+				log.DebugFormat("файл для архивации: {0}", ServiceContext.MySqlLocalImportPath() + supplierFile);
 			}
 			catch
 			{
@@ -2183,22 +2167,22 @@ where db.Id in ({0})
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + supplierFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + supplierFile);
 
-			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + supplierFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + supplierFile);
 
 
 
 			GetMySQLFileWithDefaultEx("PromotionCatalogs", command, GetPromotionCatalogsCommandById(ids), false, false, filesForArchive);
 
 #if DEBUG
-			ShareFileHelper.WaitFile(MySqlLocalFilePath() + catalogFile);
+			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + catalogFile);
 #endif
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, MySqlLocalFilePath() + catalogFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + catalogFile);
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", MySqlLocalFilePath() + catalogFile);
+				log.DebugFormat("файл для архивации: {0}", ServiceContext.MySqlLocalImportPath() + catalogFile);
 			}
 			catch
 			{
@@ -2206,9 +2190,9 @@ where db.Id in ({0})
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() + catalogFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + catalogFile);
 
-			ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() + catalogFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + catalogFile);
 		}
 
 		public string GetCatalogCommand(bool before1150, bool Cumulative)
@@ -3702,7 +3686,7 @@ order by s.Hour, s.Minute";
 				ArchiveAttachmentFiles(archiveFileName, command);
 
 				if (_updateData.SuccesAttachmentsExists()) {
-					File.WriteAllText(MySqlLocalFilePath() + attachmentRequestsFile, _updateData.GetAttachmentsResult());
+					File.WriteAllText(ServiceContext.MySqlLocalImportPath() + attachmentRequestsFile, _updateData.GetAttachmentsResult());
 					ProcessArchiveFile(attachmentRequestsFile, archiveFileName);
 				}
 			}
