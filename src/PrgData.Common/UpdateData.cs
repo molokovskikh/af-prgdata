@@ -72,8 +72,6 @@ namespace PrgData.Common
 		public bool EnableImpersonalPrice;
 		public uint ImpersonalPriceId = 2647;
 
-		public bool IsFutureClient;
-
 		public bool Spy;
 		public bool SpyAccount;
 
@@ -171,8 +169,6 @@ namespace PrgData.Common
 				OldUpdateTime = Convert.ToDateTime(row["UpdateDate"]);
 			if (!(row["UncommitedUpdateDate"] is DBNull))
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
-			if (data.Tables[0].Columns.Contains("Future"))
-				IsFutureClient = true;
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);

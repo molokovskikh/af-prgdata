@@ -12,31 +12,31 @@ namespace Integration.BaseTests
 	{
 		public TestUser CreateUser()
 		{
-			var _client = TestClient.Create();
-			TestUser _user;
+			var client = TestClient.Create();
+			TestUser user;
 			using (var transaction = new TransactionScope())
 			{
-				_user = _client.Users[0];
+				user = client.Users[0];
 
-				_client.Users.Each(u =>
+				client.Users.Each(u =>
 				{
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
-				_user.Update();
+				user.Update();
 			}
 
-			return _user;
+			return user;
 		}
 
 		public TestUser CreateUserWithMinimumPrices()
 		{
-			var _user = CreateUser();
+			var user = CreateUser();
 
 			SessionHelper.WithSession(
 				s =>
 				{
-					var prices = _user.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
+					var prices = user.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
 					var newPrices = new List<uint>();
 					foreach (var testActivePrice in prices)
 					{
@@ -50,12 +50,12 @@ namespace Integration.BaseTests
 
 					s.CreateSQLQuery(
 						"delete from future.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
-						.SetParameter("userId", _user.Id)
+						.SetParameter("userId", user.Id)
 						.SetParameterList("priceIds", newPrices.ToArray())
 						.ExecuteUpdate();
 				});
 
-			return _user;
+			return user;
 		}
 	}
 }

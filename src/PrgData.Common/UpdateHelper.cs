@@ -63,30 +63,15 @@ namespace PrgData.Common
 
 		public string GetConfirmDocumentsCommnad(uint? updateId)
 		{
-			if (!_updateData.IsFutureClient)
-			{
-				return String.Format(@"
-UPDATE AnalitFDocumentsProcessing A, `logs`.document_logs d 
-SET d.UpdateId = A.UpdateId 
-WHERE d.RowId = A.DocumentId 
-	AND A.UpdateId = {0};
-
-DELETE 
-FROM AnalitFDocumentsProcessing 
-WHERE UpdateId = {0};", updateId);
-			}
-			else
-			{
-				return @"
+			return @"
 update Logs.DocumentSendLogs ds
 set ds.Committed = 1
 where ds.updateid = " + updateId;
-			}
 		}
 
 		public bool DefineMaxProducerCostsCostId()
 		{
-			var costId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readWriteConnection, @"
+			var costId = MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 select CostCode 
 from 
   usersettings.PricesCosts,
@@ -104,7 +89,7 @@ and (PricesCosts.CostCode = ?CostCode)
 
 		public bool MaxProducerCostIsFresh()
 		{
-			var fresh = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readWriteConnection, @"
+			var fresh = MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 select Id 
 from 
   usersettings.PricesCosts,
@@ -177,7 +162,6 @@ FROM Future.Clients drugstore
 	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
 	AND drugstore.Id = ?ClientCode
-	AND supplier.segment = 0
 GROUP BY u.Id, supplier.Id;";
 
 				command.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
@@ -200,7 +184,6 @@ FROM Future.Clients drugstore
 	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
 	AND drugstore.Id = ?ClientCode
-	AND supplier.segment = 0
 GROUP BY u.Id, supplier.Id;
 ";
 			command.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);
@@ -220,10 +203,7 @@ FROM
    farm.regions r
 where r.RegionCode = ?OffersRegionCode
 ";
-			else
-			if (_updateData.IsFutureClient)
-			{
-				return @"
+			return @"
 SELECT 
   r.regioncode,
   left(r.region, 25) as region
@@ -231,50 +211,6 @@ FROM future.Clients c
 	join farm.regions r on r.RegionCode & c.maskregion > 0
 where c.Id = ?ClientCode
 ";
-			}
-			var command = @"
-SELECT 
-  regions.regioncode,
-  left(regions.region, 25) as region
-FROM farm.regions, clientsdata
-WHERE firmcode = ifnull(?OffersClientCode, ?ClientCode)
-AND (regions.regioncode & maskregion > 0)";
-
-			command += @"
-UNION 
-SELECT regions.regioncode,
-	   left(regions.region, 25) as region
-FROM   farm.regions,
-	   clientsdata
-WHERE firmcode = ?ClientCode
-AND regions.regioncode= clientsdata.regioncode 
-
-UNION
-
-SELECT DISTINCT regions.regioncode,
-				left(regions.region, 25) as region
-FROM            farm.regions,
-				includeregulation,
-				clientsdata 
-WHERE includeclientcode = ?ClientCode
-			AND firmcode          = primaryclientcode
-			AND includetype      IN (1, 2)
-			AND regions.regioncode & clientsdata.maskregion > 0
-
-UNION
-
-SELECT regions.regioncode,
-	   left(regions.region, 25) as region
-FROM   farm.regions,
-	   clientsdata ,
-	   includeregulation 
-WHERE  primaryclientcode = ?ClientCode 
-   AND firmcode          = includeclientcode 
-   AND firmstatus        = 1 
-   AND includetype       = 0 
-   AND regions.regioncode= clientsdata.regioncode";
-
-			return command;
 		}
 
 		public static UpdateData GetUpdateData(MySqlConnection connection, string userName)
@@ -295,7 +231,6 @@ SELECT
 	u.TargetVersion,
 	u.SaveAFDataFiles,
 	retclientsset.CheckCopyId,
-	'' Future,
 	c.Name as ShortName,
 	retclientsset.Spy, 
 	retclientsset.SpyAccount,
@@ -350,75 +285,9 @@ limit 1;"
 				updateData = new UpdateData(data);
 
 			if (updateData == null)
-			{
-				dataAdapter.SelectCommand.CommandText = @"
-SELECT  ouar.clientcode as ClientId,
-		ouar.RowId UserId,
-		rui.UpdateDate,
-		rui.UncommitedUpdateDate,
-		rui.AFAppVersion as KnownBuildNumber,
-		rui.AFCopyId as KnownUniqueID,
-		if(rui.MessageShowCount<1, '', rui.MESSAGE) Message,
-		rui.TargetVersion,
-		rui.SaveAFDataFiles,
-		retclientsset.CheckCopyID,
-		clientsdata.ShortName,
-		retclientsset.Spy, 
-		retclientsset.SpyAccount,
-		retclientsset.BuyingMatrixPriceId,
-		retclientsset.BuyingMatrixType,
-		retclientsset.WarningOnBuyingMatrix,
-		retclientsset.EnableImpersonalPrice,
-		retclientsset.NetworkPriceId,
-		retclientsset.ShowAdvertising,
-		retclientsset.OfferMatrixPriceId,
-		retclientsset.OfferMatrixType,
-		retclientsset.AllowAnalitFSchedule,
-		clientsdata.firmstatus as ClientEnabled,
-		IF(ir.id IS NULL, 1, ir.IncludeType IN (1,2,3)) as UserEnabled,
-		0 as AllowDownloadUnconfirmedOrders,
-		0 as SendWaybills,
-		0 as SendRejects,
-		ap.UserId is not null as AFPermissionExists
-FROM    
-  usersettings.osuseraccessright ouar
-  join usersettings.clientsdata                 on clientsdata.firmcode = ouar.clientcode
-  join usersettings.retclientsset               on retclientsset.clientcode = ouar.clientcode 
-  join usersettings.UserUpdateInfo rui          on rui.UserId = ouar.RowId
-  join usersettings.UserPermissions up          on up.Shortcut = 'AF'
-  left join usersettings.AssignedPermissions ap on ap.UserId = ouar.rowid and ap.PermissionId = up.Id
-  left join usersettings.IncludeRegulation ir   on ir.IncludeClientCode = ouar.ClientCode
-WHERE   
-	ouar.OSUserName = ?user;
-select
-	AnalitFUpdates.UpdateId,
-	AnalitFUpdates.RequestTime,
-	AnalitFUpdates.UpdateType,
-	AnalitFUpdates.Commit,
-	AnalitFUpdates.Addition
-from
-	logs.AnalitFUpdates,
-	usersettings.osuseraccessright ouar
-where
-	ouar.OSUserName = ?user
-and AnalitFUpdates.UserId = ouar.RowId
-and AnalitFUpdates.RequestTime > curdate() - interval 1 day
-and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17, 18, 19) 
-order by AnalitFUpdates.UpdateId desc
-limit 1;
-";
-				data = new DataSet();
-				dataAdapter.Fill(data);
-				if (data.Tables[0].Rows.Count > 0)
-					updateData = new UpdateData(data);
-			}
-
-			if (updateData == null)
 				return null;
 
-			string offersSql;
-			if (updateData.IsFutureClient)
-				offersSql = @"
+			var offersSql = @"
 SELECT 
   s.OffersClientCode,
   c.RegionCode as OfferRegionCode
@@ -429,19 +298,6 @@ FROM retclientsset r
 WHERE r.clientcode = ?ClientCode
 	and s.id = r.smartorderruleid
 	and s.offersclientcode != r.clientcode;";
-			else
-			{
-				offersSql = @"
-SELECT 
-  s.OffersClientCode,
-  cd.RegionCode as OfferRegionCode
-FROM retclientsset r
-	join OrderSendRules.smart_order_rules s
-	left join Usersettings.ClientsData cd on cd.FirmCode = s.OffersClientCode
-WHERE r.clientcode = ?ClientCode
-	and s.id = r.smartorderruleid
-	and s.offersclientcode != r.clientcode;";
-			}
 
 			dataAdapter = new MySqlDataAdapter(offersSql, connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", updateData.ClientId);
@@ -462,79 +318,45 @@ WHERE r.clientcode = ?ClientCode
 
 		public void SelectActivePrices()
 		{
-			if (_updateData.EnableImpersonalPrice)
-			{
+			if (_updateData.EnableImpersonalPrice) {
 				var command = new MySqlCommand(@"
 DROP TEMPORARY TABLE IF EXISTS ActivePrices;
 create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
-"
-					,
-					_readWriteConnection);
+", _readWriteConnection);
 				command.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 				command.ExecuteNonQuery();
 			}
-			else
-				if (_updateData.IsFutureClient)
-				{
-					var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
-					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-					command.ExecuteNonQuery();
-				}
-				else
-				{
-					var command = new MySqlCommand("call AFGetActivePricesByUserId(?UserId);", _readWriteConnection);
-					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-					command.ExecuteNonQuery();
-				}
+			else {
+				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				command.ExecuteNonQuery();
+			}
 		}
 
 		public void SelectPrices()
 		{
-			if (_updateData.EnableImpersonalPrice)
-			{
-				var command = new MySqlCommand("CALL usersettings.GetPrices2(?OffersClientCode)", _readWriteConnection);
-				if (_updateData.IsFutureClient)
-					command.CommandText = "call future.GetPrices(?OffersClientCode)";
+			if (_updateData.EnableImpersonalPrice) {
+				var command = new MySqlCommand("call future.GetPrices(?OffersClientCode)", _readWriteConnection);
 				command.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 				command.ExecuteNonQuery();
 			}
-			else
-				if (_updateData.IsFutureClient)
-				{
-					var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readWriteConnection);
-					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-					command.ExecuteNonQuery();
-				}
-				else
-				{
-					var command = new MySqlCommand("CALL GetPrices2(?ClientCode)", _readWriteConnection);
-					command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
-					command.ExecuteNonQuery();
-				}
+			else {
+				var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readWriteConnection);
+				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+				command.ExecuteNonQuery();
+			}
 		}
 
 		public void SelectOffers()
 		{
-			if (_updateData.IsFutureClient)
-			{
-				var command = new MySqlCommand("call future.GetOffers(?UserId)", _readWriteConnection);
-				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-				command.ExecuteNonQuery();
-			}
-			else
-			{
-				var command = new MySqlCommand("call GetOffers(?ClientCode, 0)", _readWriteConnection);
-				command.Parameters.AddWithValue("?clientCode", _updateData.ClientId);
-				command.ExecuteNonQuery();
-			}
+			var command = new MySqlCommand("call future.GetOffers(?UserId)", _readWriteConnection);
+			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
+			command.ExecuteNonQuery();
 		}
 
 		public Reclame GetReclame()
 		{
-			MySqlCommand command;
-			if (_updateData.IsFutureClient)
-			{
-				command = new MySqlCommand(@"
+			var command = new MySqlCommand(@"
 SELECT r.Region,
 	   uui.ReclameDate,
 	   rcs.ShowAdvertising
@@ -544,24 +366,7 @@ FROM Future.Clients c
 	join farm.regions r on r.RegionCode = c.RegionCode
 	join UserUpdateInfo uui on u.Id = uui.UserId
 WHERE u.Id = ?UserId", _readWriteConnection);
-			}
-			else
-			{
-				command = new MySqlCommand(@"
-SELECT r.Region,
-	   UUI.ReclameDate,
-	   rcs.ShowAdvertising
-FROM   clientsdata cd,
-	   usersettings.RetClientsSet rcs,
-	   farm.regions r,
-	   UserUpdateInfo UUI,
-	   OsUserAccessRight OUAR
-WHERE  r.regioncode = cd.regioncode
-   and rcs.ClientCode = cd.FirmCode
-   AND OUAR.RowId = ?UserId
-   AND OUAR.Rowid =UUI.UserId
-   AND OUAR.ClientCode = cd.firmcode", _readWriteConnection);
-			}
+
 			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			using (var reader = command.ExecuteReader())
 			{
@@ -758,10 +563,8 @@ UPDATE AnalitFReplicationInfo AFRI,
 SET    MaxSynonymCode     = maxcodessyn.synonymcode 
 WHERE  maxcodessyn.FirmCode  = AFRI.FirmCode 
   AND AFRI.UserId = ?UserId
-  and AFRI.MaxSynonymCode > maxcodessyn.synonymcode;";
+  and AFRI.MaxSynonymCode > maxcodessyn.synonymcode;
 
-				if (_updateData.IsFutureClient)
-					commandText += @"
 update
   logs.AnalitFUpdates afu,
   Logs.DocumentSendLogs ds
@@ -798,7 +601,7 @@ and ms.Committed = 1;
 
 		public DataTable GetProcessedDocuments(uint updateId)
 		{
-				var command = @"
+			var command = @"
 SELECT  DocumentId,
 		DocumentType,
 		ClientCode 
@@ -815,11 +618,9 @@ AND     AFDP.UpdateId = ?updateId";
 
 		public string GetDocumentsCommand()
 		{
-			if (_updateData.IsFutureClient)
-			{
-				//начинаем отдавать документы с самых новых что бы 
-				//отдать наиболее актуальные
-				return @"
+			//начинаем отдавать документы с самых новых что бы 
+			//отдать наиболее актуальные
+			return @"
 select d.AddressId as ClientCode,
 	d.RowId,
 	d.DocumentType,
@@ -834,53 +635,11 @@ where ds.UserId = ?UserId
 order by d.LogTime desc
 limit 200;
 ";
-			}
-			else
-			{
-				return @"
-SELECT  RCS.ClientCode,
-		d.RowId,
-		d.DocumentType,
-		d.IsFake,
-		d.SendUpdateId,
-		d.LogTime
-FROM    logs.document_logs d,
-		retclientsset RCS
-WHERE   RCS.ClientCode = ?ClientCode
-	AND RCS.ClientCode=d.ClientCode
-	AND UpdateId IS NULL
-	AND FirmCode IS NOT NULL
-	AND AllowDocuments = 1
-	AND d.Addition IS NULL
-
-UNION
-
-SELECT  ir.IncludeClientCode,
-		d.RowId,
-		d.DocumentType,
-		d.IsFake,
-		d.SendUpdateId,
-		d.LogTime
-FROM    logs.document_logs d,
-		retclientsset RCS,
-		includeregulation ir
-WHERE   ir.PrimaryClientCode = ?ClientCode
-	AND RCS.ClientCode      =ir.IncludeClientCode 
-	AND RCS.ClientCode      =d.ClientCode 
-	AND UpdateId           IS NULL 
-	AND FirmCode           IS NOT NULL 
-	AND AllowDocuments      =1 
-	AND d.Addition IS NULL 
-	AND IncludeType        IN (0,3)
-Order by 3";
-			}
 		}
 
 		public string GetDocumentHeadersCommand(string downloadIds)
 		{
-			if (_updateData.IsFutureClient)
-			{
-				return String.Format(@"
+			return String.Format(@"
 select
   DocumentHeaders.Id,
   DocumentHeaders.DownloadId,
@@ -898,34 +657,7 @@ where
 	DocumentHeaders.DownloadId in ({0})
 and (Clients.Id = DocumentHeaders.ClientCode)
 and (regions.RegionCode = Clients.RegionCode)
-"
-					,
-					downloadIds);
-			}
-			else
-			{
-				return String.Format(@"
-select
-  DocumentHeaders.Id,
-  DocumentHeaders.DownloadId,
-  DocumentHeaders.DocumentDate as WriteTime,
-  DocumentHeaders.FirmCode,
-  DocumentHeaders.ClientCode,
-  DocumentHeaders.DocumentType,
-  DocumentHeaders.ProviderDocumentId,
-  DocumentHeaders.OrderId
-from
-  documents.DocumentHeaders,
-  usersettings.clientsdata,
-  farm.regions
-where
-  DocumentHeaders.DownloadId in ({0})
-and (clientsdata.FirmCode = DocumentHeaders.ClientCode)
-and (regions.RegionCode = clientsdata.RegionCode)
-"
-					,
-					downloadIds);
-			}
+", downloadIds);
 		}
 
 		public string GetDocumentBodiesCommand(string downloadIds)
@@ -1023,9 +755,7 @@ where
 
 		public string GetUserCommand()
 		{
-			if (_updateData.IsFutureClient)
-			{
-				return @"
+			return @"
 SELECT 
 	a.Id as ClientCode,
 	u.Id as RowId,
@@ -1042,21 +772,6 @@ FROM
 WHERE u.Id = " + _updateData.UserId +
 @"
 limit 1";
-			}
-			else
-			{
-				return @"
-SELECT ClientCode,
-	RowId,
-	'',
-	0 as InheritPrices,
-	0 as IsFutureClient,
-	0 as UseAdjustmentOrders,
-	0 as ShowSupplierCost
-FROM OsUserAccessRight O
-WHERE RowId =" + _updateData.UserId;
-
-			}
 		}
 
 		public string GetClientsCommand(bool isFirebird)
@@ -1064,7 +779,7 @@ WHERE RowId =" + _updateData.UserId;
 			uint? networkPriceId = null;
 			var networkSelfClientIdColumn = String.Empty;
 			var networkSelfClientIdJoin = String.Empty; 
-			if (_updateData.NetworkPriceId.HasValue && _updateData.IsFutureClient)
+			if (_updateData.NetworkPriceId.HasValue)
 			{
 				networkSelfClientIdColumn = _updateData.NetworkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId";
 				networkSelfClientIdJoin =
@@ -1075,15 +790,10 @@ WHERE RowId =" + _updateData.UserId;
 						: "";
 			}
 
-			if (_updateData.IsFutureClient)
+			if (_updateData.BuildNumber > 1271 || _updateData.NeedUpdateToNewClientsWithLegalEntity)
 			{
-				if (_updateData.BuildNumber > 1271 || _updateData.NeedUpdateToNewClientsWithLegalEntity)
-				{
-					var clientShortNameField = "right(a.Address, 255)";
-					if (Convert.ToInt32(MySqlHelper
-							.ExecuteScalar(
-								_readWriteConnection,
-								@"
+				var clientShortNameField = "right(a.Address, 255)";
+				var orgCount = MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 	SELECT 
 		count(distinct le.Id)
 	FROM 
@@ -1094,13 +804,11 @@ WHERE RowId =" + _updateData.UserId;
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1
-",
-								new MySqlParameter("?UserId", _updateData.UserId))
-						) > 1)
+", new MySqlParameter("?UserId", _updateData.UserId));
+				if (Convert.ToInt32(orgCount) > 1)
 						clientShortNameField = "concat(left(le.Name, 100), ', ', right(a.Address, 153))";
 
-					return
-						String.Format(
+					return String.Format(
 						@"
 	SELECT a.Id as FirmCode,
 		 {0} as ShortName,
@@ -1123,14 +831,12 @@ WHERE RowId =" + _updateData.UserId;
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1
-"
-						,
-						clientShortNameField,
-						networkSelfClientIdColumn,
-						networkSelfClientIdJoin);
-				}
-				else
-					return String.Format(@"
+",
+				clientShortNameField,
+				networkSelfClientIdColumn,
+				networkSelfClientIdJoin);
+			}
+			return String.Format(@"
 	SELECT a.Id as FirmCode,
 		 right(a.Address, 50) as ShortName,
 		 ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
@@ -1151,118 +857,44 @@ WHERE RowId =" + _updateData.UserId;
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1",
-						 isFirebird ? "'', " : "",
-						 isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ",
-						 isFirebird ? "" : networkSelfClientIdColumn,
-						 isFirebird ? "" : networkSelfClientIdJoin);
-			}
-			else
-			{
-				return String.Format(@"
-SELECT clientsdata.firmcode,
-	 ShortName                                         , 
-	 ifnull(?OffersRegionCode, RegionCode)             , 
-	 retclientsset.OverCostPercent                     , 
-	 retclientsset.DifferenceCalculation               , 
-	 retclientsset.MultiUserLevel                      , 
-	 retclientsset.OrderRegionMask                     , 
-	 {0}
-	 retclientsset.CalculateLeader 
-	 {1}
-FROM   retclientsset, 
-	 clientsdata 
-WHERE  clientsdata.firmcode    = ?ClientCode 
- AND retclientsset.clientcode= clientsdata.firmcode 
-
-UNION 
-
-SELECT clientsdata.firmcode,
-	 ShortName,
-	 ifnull(?OffersRegionCode, RegionCode)                                    , 
-	 retclientsset.OverCostPercent                                           , 
-	 retclientsset.DifferenceCalculation                                     , 
-	 retclientsset.MultiUserLevel                                            , 
-	 IF(IncludeType=3, parent.OrderRegionMask, retclientsset.OrderRegionMask), 
-	 {0}
-	 retclientsset.CalculateLeader 
-	 {1}
-FROM   retclientsset       , 
-	 clientsdata         , 
-	 retclientsset parent, 
-	 IncludeRegulation 
-WHERE  clientsdata.firmcode    = IncludeClientCode 
- AND retclientsset.clientcode= clientsdata.firmcode 
- AND parent.clientcode       = Primaryclientcode 
- AND firmstatus              = 1 
- AND IncludeType            IN (0,3) 
- AND Primaryclientcode       = ?ClientCode"
-					,
-					isFirebird ? "'', " : "",
-					isFirebird ? "" : ", retclientsset.AllowDelayOfPayment, clientsdata.FullName, clientsdata.FirmCode ");
-			}
+				isFirebird ? "'', " : "",
+				isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ",
+				isFirebird ? "" : networkSelfClientIdColumn,
+				isFirebird ? "" : networkSelfClientIdJoin);
 		}
 
 		public string GetClientCommand()
 		{
-			if (_updateData.IsFutureClient)
-			{
-				return String.Format(@"
+			return String.Format(@"
 SELECT 
-	 c.Id as ClientId,
-	 left(c.Name, 50) as Name,
-	 regions.CalculateOnProducerCost,
-	 rcs.ParseWaybills,
-	 rcs.SendRetailMarkup,
-	 rcs.ShowAdvertising,
-	 rcs.SendWaybillsFromClient,
-	 rcs.EnableSmartOrder,
-	 rcs.EnableImpersonalPrice
-	{0}
-	{1}
+	c.Id as ClientId,
+	left(c.Name, 50) as Name,
+	regions.CalculateOnProducerCost,
+	rcs.ParseWaybills,
+	rcs.SendRetailMarkup,
+	rcs.ShowAdvertising,
+	rcs.SendWaybillsFromClient,
+	rcs.EnableSmartOrder,
+	rcs.EnableImpersonalPrice
+{0}
+{1}
 FROM Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join farm.regions on regions.RegionCode = c.RegionCode
-  join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
+join future.Clients c on u.ClientId = c.Id
+join farm.regions on regions.RegionCode = c.RegionCode
+join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
 WHERE u.Id = ?UserId
-"
-					,
-					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment " : String.Empty,
-					_updateData.AllowCertificates() ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty
-					 );
-			}
-			else
-			{
-				return String.Format(@"
-SELECT 
-	 clientsdata.firmcode   as ClientId,
-	 clientsdata.ShortName  as Name, 
-	 regions.CalculateOnProducerCost,
-	 rcs.ParseWaybills,
-	 rcs.SendRetailMarkup,
-	 rcs.ShowAdvertising,
-	 rcs.SendWaybillsFromClient,
-	 rcs.EnableSmartOrder,
-	 rcs.EnableImpersonalPrice
-	{0}
-FROM   
-	 clientsdata 
-	 join farm.regions on regions.RegionCode = clientsdata.RegionCode
-	 join usersettings.RetClientsSet rcs on rcs.ClientCode = clientsdata.FirmCode
-WHERE  clientsdata.firmcode    = ?ClientCode",
-					_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment" : String.Empty
-					 );
-			}
+",
+				_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment " : String.Empty,
+				_updateData.AllowCertificates() ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty);
 		}
 
 		public string GetDelayOfPaymentsCommand()
 		{
 			if (_updateData.EnableImpersonalPrice)
-				return "select null from usersettings.clientsdata limit 0";
-			else
-				if (_updateData.AllowDelayByPrice())
-				{
-					if (_updateData.IsFutureClient)
-						return @"
+				return "select null from future.Clients limit 0";
+			else if (_updateData.AllowDelayByPrice())
+			{
+				return @"
 select
 	pi.PriceId,
 	d.DayOfWeek,
@@ -1276,25 +908,10 @@ from
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
 where
 	   u.Id = ?UserId";
-					else
-						return @"
-select
-	pi.PriceId,
-	d.DayOfWeek,
-	d.VitallyImportantDelay,
-	d.OtherDelay
-from
-	UserSettings.SupplierIntersection si
-	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
-	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
-where
-	   si.ClientId = ?ClientCode";
-				}
-				else
-				if (_updateData.AllowDelayWithVitallyImportant())
-				{
-					if (_updateData.IsFutureClient)
-						return @"
+			}
+			else if (_updateData.AllowDelayWithVitallyImportant())
+			{
+				return @"
 select
 	si.SupplierId,
 	d.DayOfWeek,
@@ -1309,26 +926,10 @@ from
 where
 	   u.Id = ?UserId
 group by si.SupplierId, d.DayOfWeek";
-					else
-						return @"
-select
-	si.SupplierId,
-	d.DayOfWeek,
-	min(d.VitallyImportantDelay) as VitallyImportantDelay,
-	min(d.OtherDelay) as OtherDelay
-from
-	UserSettings.SupplierIntersection si
-	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
-	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
-where
-	   si.ClientId = ?ClientCode
-group by si.SupplierId, d.DayOfWeek";
-				}
-				else
-				{
-					if (_updateData.IsFutureClient)
-					{
-						return @"
+			}
+			else
+			{
+				return @"
 select
 	   si.SupplierId   ,
 	   si.DelayOfPayment
@@ -1338,19 +939,7 @@ from
 	   join Usersettings.SupplierIntersection si on si.ClientId = c.Id
 where
 	   u.Id = ?UserId";
-					}
-					else
-					{
-						return @"
-select
-	   si.SupplierId,
-	   si.DelayOfPayment
-from
-	   Usersettings.SupplierIntersection si 
-where
-	   si.ClientId = ?ClientCode";
-					}
-				}
+			}
 		}
 
 		public string GetMNNCommand(bool before1150, bool Cumulative, bool after1263)
@@ -2677,20 +2266,6 @@ where not exists (
 					insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 					insertCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
 					insertCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
-					var updateIntersectionCommand = new MySqlCommand(@"
-update 
-  intersection i 
-set 
-  i.DisabledByClient=?DisabledByClient 
-where 
-	i.ClientCode = ?ClientId
-and i.PriceCode = ?PriceId
-and i.RegionCode = ?RegionId;",
-							  _readWriteConnection);
-					updateIntersectionCommand.Parameters.AddWithValue("?ClientId", _updateData.ClientId);
-					updateIntersectionCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
-					updateIntersectionCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
-					updateIntersectionCommand.Parameters.Add("?DisabledByClient", MySqlDbType.Byte);
 					for (var i = 0; i < injobs.Length; i++)
 					{
 						var row = prices.Select("PriceCode = " + priceIds[i] + " and RegionCode = " + regionIds[i]);
@@ -2698,16 +2273,10 @@ and i.RegionCode = ?RegionId;",
 							addition.Add(String.Format("{0} - {1}", row[0]["FirmName"], injobs[i] ? "вкл" : "выкл"));
 
 						MySqlCommand command;
-						if (!_updateData.IsFutureClient)
-						{
-							command = updateIntersectionCommand;
-							command.Parameters["?DisabledByClient"].Value = injobs[i] ? 0 : 1;
-						}
+						if (injobs[i])
+							command = insertCommand;
 						else
-							if (injobs[i])
-								command = insertCommand;
-							else
-								command = deleteCommand;
+							command = deleteCommand;
 
 						command.Parameters["?PriceId"].Value = priceIds[i];
 						command.Parameters["?RegionId"].Value = regionIds[i];
@@ -2765,11 +2334,8 @@ where
 
 		public string GetMinReqRuleCommand()
 		{
-			if (_updateData.IsFutureClient)
-			{
-				if (_updateData.EnableImpersonalPrice)
-					return
-						@"
+			if (_updateData.EnableImpersonalPrice)
+				return @"
 select
   a.Id as ClientId,
   ?ImpersonalPriceId as PriceCode,
@@ -2783,9 +2349,8 @@ from
   join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 where
   (u.Id = ?UserId)";
-				else
-					return
-						@"
+
+			return @"
 select
   a.Id as ClientId,
   i.PriceId as PriceCode,
@@ -2802,71 +2367,6 @@ from
   join Prices on (Prices.PriceCode = i.PriceId) and (Prices.RegionCode = i.RegionId)
 where
   (u.Id = ?UserId)";
-			}
-			else
-			{
-				if (_updateData.EnableImpersonalPrice)
-					return
-						@"
-select
-  clients.FirmCode as ClientId,
-  ?ImpersonalPriceId as PriceCode,
-  ?OffersRegionCode as RegionCode,
-  0 as ControlMinReq,
-  null as MinReq 
-from
-  (
-SELECT
-  clientsdata.firmcode
-FROM
-  clientsdata
-WHERE
-  clientsdata.firmcode    = ?ClientCode
-UNION
-SELECT
-  clientsdata.firmcode
-FROM
-	 clientsdata         ,
-	 IncludeRegulation
-WHERE
-	 clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
- AND clientsdata.firmstatus               = 1
- AND IncludeRegulation.IncludeType        IN (0,3)
- AND IncludeRegulation.Primaryclientcode  = ?ClientCode
- ) clients
-";
-				else
-					return
-					@"
-select
-  clients.FirmCode as ClientId,
-  Prices.PriceCode,
-  Prices.RegionCode,
-  Prices.ControlMinReq,
-  Prices.MinReq
-from
-  (
-SELECT
-  clientsdata.firmcode
-FROM
-  clientsdata
-WHERE
-  clientsdata.firmcode    = ?ClientCode
-UNION
-SELECT
-  clientsdata.firmcode
-FROM
-	 clientsdata         ,
-	 IncludeRegulation
-WHERE
-	 clientsdata.firmcode                 = IncludeRegulation.IncludeClientCode
- AND clientsdata.firmstatus               = 1
- AND IncludeRegulation.IncludeType        IN (0,3)
- AND IncludeRegulation.Primaryclientcode  = ?ClientCode
- ) clients,
- Prices
-  ";
-			}
 		}
 
 		public void OldCommit(string absentPriceCodes)
@@ -3004,18 +2504,9 @@ AND    UserId            = {0};
 
 					if (updateType != RequestType.ResumeData)
 						command.CommandText += @"update UserUpdateInfo set UncommitedUpdateDate=now() where UserId = ?userId; ";
-
-					//if (updateType != RequestType.ResumeData && updateType != RequestType.PostOrderBatch)
-					//    command.CommandText += @"update UserUpdateInfo set CostSessionKey = usersettings.GeneratePassword() where UserId = ?userId; ";
-
 					command.CommandText += "select UncommitedUpdateDate from UserUpdateInfo where UserId = ?userId;";
-
 					command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-
-					DateTime updateTime = Convert.ToDateTime(command.ExecuteScalar());
-
-					//command.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = ?userId;";
-					//_updateData.CostSessionKey = Convert.ToString(command.ExecuteScalar());
+					var updateTime = Convert.ToDateTime(command.ExecuteScalar());
 
 					transaction.Commit();
 					return updateTime;
@@ -3030,8 +2521,7 @@ AND    UserId            = {0};
 
 		public static void GenerateSessionKey(MySqlConnection readWriteConnection, UpdateData updateData)
 		{
-			With.DeadlockWraper(() =>
-			{
+			With.DeadlockWraper(() => {
 				var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try
 				{
@@ -3104,17 +2594,10 @@ WHERE
 
 		public void PrepareImpersonalOffres(MySqlCommand selectCommand)
 		{
-			if (_updateData.IsFutureClient)
-				selectCommand.CommandText = @"
+			selectCommand.CommandText = @"
 DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
 CALL future.GetActivePrices(?OffersClientCode);
 CALL future.GetOffers(?OffersClientCode);";
-			else
-				selectCommand.CommandText = @"
-DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
-CALL usersettings.GetActivePrices2(?OffersClientCode);
-CALL usersettings.GetOffers(?OffersClientCode, 0);";
-
 			selectCommand.ExecuteNonQuery();
 
 			selectCommand.CommandText = @"

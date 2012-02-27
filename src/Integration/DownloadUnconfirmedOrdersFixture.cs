@@ -189,7 +189,7 @@ namespace Integration
 		{
 			var price = _drugstoreUser.GetActivePricesList()[0];
 
-			var order = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, price.Id.PriceId);
+			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, price.Id.PriceId);
 
 			var converter = new Orders2StringConverter(new List<Order> {order}, 1, 1, false);
 
@@ -218,8 +218,8 @@ namespace Integration
 		[Test(Description = "проверяем удаление неподтвержденных заказов при подтверждении обновления")]
 		public void DeleteUnconfirmedOrders()
 		{
-			var orderFirst = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
-			var orderSecond = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var orderFirst = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var orderSecond = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			TestAnalitFUpdateLog updateLog;
 			using (new TransactionScope())
@@ -274,7 +274,7 @@ namespace Integration
 			var orders = new List<Order>();
 			for (int i = 0; i < 3; i++)
 			{
-				var order = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[i].Id.PriceId);
+				var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[i].Id.PriceId);
 				orders.Add(order);
 			}
 
@@ -312,10 +312,10 @@ namespace Integration
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
 			var orders = new List<Order>();
-			orders.Add(TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
-			orders.Add(TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[1].Id.PriceId));
-			orders.Add(TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
-			orders.Add(TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId));
+			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
+			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[1].Id.PriceId));
+			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
+			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId));
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
@@ -356,7 +356,7 @@ namespace Integration
 				Directory.Delete(extractFolder, true);
 			Directory.CreateDirectory(extractFolder);
 
-			var order = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 			ShouldBeSuccessfull(responce);
@@ -416,13 +416,13 @@ namespace Integration
 		public void LoadOrdersOnNonExistsUnconfirmedOrders()
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
-			var processedOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId);
+			var processedOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId);
 			processedOrder.Processed = true;
 
-			var deletedOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[1].Id.PriceId);
+			var deletedOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[1].Id.PriceId);
 			deletedOrder.Deleted = true;
 
-			var submitedOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId);
+			var submitedOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId);
 			submitedOrder.Submited = true;
 
 			With.Transaction(
@@ -489,8 +489,8 @@ namespace Integration
 		[Test(Description = "Проверям поддержку таблицы UnconfirmedOrdersSendLogs при работе с неподтвержденными заказами")]
 		public void SupportUnconfirmedOrdersSendLog()
 		{
-			var firstOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
-			var secondOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var firstOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var secondOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			using (new TransactionScope())
 			{
@@ -515,7 +515,7 @@ namespace Integration
 				Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
 			}
 
-			var thirdOrder = TestDataManager.GenerateOrderForFutureUser(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var thirdOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			var service = new PrgDataEx();
 			var updateTime = service.CommitExchange(firstUpdateId, false);

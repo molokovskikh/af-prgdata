@@ -25,8 +25,6 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		//TestOldClient _oldClient;
-
 		private string resultsDir = "results\\";
 
 		private TestClient _disabledClient;
@@ -41,7 +39,6 @@ namespace Integration
 
 			_client = TestClient.Create();
 			_disabledClient = TestClient.Create();
-			//_oldClient = TestOldClient.CreateTestClient();
 
 			using (var transaction = new TransactionScope())
 			{
@@ -61,20 +58,6 @@ namespace Integration
 					_disabledUser.AssignedPermissions.RemoveAt(afIndex);
 					_disabledUser.Update();
 				}
-
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", _oldClient.Users[0].Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
 			}
 		}
 
@@ -162,12 +145,6 @@ namespace Integration
 				Assert.IsNullOrEmpty(response, "Ответ от сервера должен быть пустым");
 			}
 		}
-
-		//[Test]
-		//public void Get_reclame_for_old_client()
-		//{
-		//    GetReclameForUser(_oldClient.Users[0].OSUserName, _oldClient.Users[0].Id);
-		//}
 
 		[Test]
 		public void Get_reclame_for_future_client()

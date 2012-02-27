@@ -129,11 +129,6 @@ namespace Integration
 		private TestClient client;
 		private TestUser user;
 		private TestAddress address;
-
-		//private TestOldClient oldClient;
-		//private TestOldUser oldUser;
-
-
 		private bool getOffers;
 		private DataRow activePrice;
 		private DataRow firstOffer;
@@ -151,7 +146,6 @@ namespace Integration
 				FileHelper.DeleteDir("FtpRoot");
 
 			client = TestClient.Create();
-			//oldClient = TestOldClient.CreateTestClient();
 
 			using (var transaction = new TransactionScope())
 			{
@@ -164,37 +158,12 @@ namespace Integration
 				user.Update();
 
 				address = user.AvaliableAddresses[0];
-
-//                oldUser = oldClient.Users[0];
-
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", oldUser.Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
 			}
 
 
 			Directory.CreateDirectory("FtpRoot");
-			//CreateFolders(oldClient.Id.ToString());
 			CreateFolders(address.Id.ToString());
 
-//            MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
-//delete 
-//from orders.OrdersHead 
-//where 
-//	ClientCode = ?ClientCode 
-//and WriteTime > now() - interval 2 week"
-//                ,
-//                new MySqlParameter("?ClientCode", oldClient.Id));
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
 from orders.OrdersHead 
@@ -824,12 +793,6 @@ limit 1
 			}
 		}
 
-		//[Test]
-		//public void Check_double_order_for_old_client()
-		//{
-		//    Check_simple_double_order(oldUser.OSUserName, oldClient.Id);
-		//}
-
 		[Test]
 		public void Check_double_order_for_future_client()
 		{
@@ -876,12 +839,6 @@ limit 1
 			}
 		}
 
-		//[Test]
-		//public void Check_double_order_without_FullDuplicated_for_old_client()
-		//{
-		//    Check_double_order_without_FullDuplicated(oldUser.OSUserName, oldClient.Id);
-		//}
-
 		[Test]
 		public void Check_double_order_without_FullDuplicated_for_future_client()
 		{
@@ -920,12 +877,6 @@ limit 1
 			}
 		}
 
-		//[Test]
-		//public void Check_duplicate_order_and_useCorrectOrders()
-		//{
-		//    Check_simple_double_order_with_correctorders(oldUser.OSUserName, oldClient.Id);
-		//}
-
 		public void Check_order_with_ImpersonalPrice(string userName, uint orderedClientId)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -955,12 +906,6 @@ limit 1
 				Assert.That(countWithSynonymNull, Is.EqualTo(2), "Не совпадает кол-во позиций в заказе, у которых поля SynonymCode SynonymFirmCr в null");
 			}
 		}
-
-		//[Test]
-		//public void Check_order_with_ImpersonalPrice_for_old_client()
-		//{
-		//    Check_order_with_ImpersonalPrice(oldUser.OSUserName, oldClient.Id);
-		//}
 
 		private string CheckServiceResponse(string response)
 		{
@@ -1052,12 +997,6 @@ where
 				Assert.That(leaderInfoCount, Is.EqualTo(1), "Не совпадает кол-во позиций в информации о лидерах в заказе");
 			}
 		}
-
-		//[Test(Description = "Проверяем создание информации о лидерах в заказе для старых клиентов")]
-		//public void Check_simple_order_with_leaders_for_old_client()
-		//{
-		//    Check_simple_order_with_leaders(oldUser.OSUserName, oldClient.Id);
-		//}
 
 		[Test(Description = "Проверяем создание информации о лидерах в заказе для клиентов из новой реальности")]
 		public void Check_simple_order_with_leaders_for_future_client()
@@ -1318,38 +1257,27 @@ and (i.PriceId = :PriceId)
 				transaction.VoteCommit();
 			}
 
-			var firstOrder = new ClientOrderHeader
-			                 	{
-									ActivePrice = new ActivePrice
-									{
-										Id = new PriceKey(new PriceList{PriceCode = price.Id, Firm = new Firm{FirmCode = price.Supplier.Id, ShortName = price.Supplier.Name}}) { RegionCode = client.RegionCode },
-										PriceDate = DateTime.Now,
-									},
-			                 		ClientOrderId = 1,
-			                 	};
+			var firstOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(price),
+				ClientOrderId = 1,
+			};
 			firstOrder.Positions.Add(
 				new ClientOrderPosition
 				{
 					ClientPositionID = 1,
 					ClientServerCoreID = core.Id,
 					OrderedQuantity = 1,
-					Offer = new Offer
-					        	{
-									Id = new OfferKey(core.Id, firstOrder.ActivePrice.Id.RegionCode), 
-									ProductId = core.Product.Id,
-									CodeFirmCr = core.Producer != null ? (uint?)core.Producer.Id : null,
-									SynonymCode = core.ProductSynonym.Id,
-									SynonymFirmCrCode = core.ProducerSynonym != null ? (uint?)core.ProducerSynonym.Id : null,
-					        	}
+					Offer = new Offer {
+						Id = new OfferKey(core.Id, firstOrder.ActivePrice.Id.RegionCode), 
+						ProductId = core.Product.Id,
+						CodeFirmCr = core.Producer != null ? (uint?)core.Producer.Id : null,
+						SynonymCode = core.ProductSynonym.Id,
+						SynonymFirmCrCode = core.ProducerSynonym != null ? (uint?)core.ProducerSynonym.Id : null,
+					}
 				});
 
-			var minReqOrder = new ClientOrderHeader
-			{
-				ActivePrice = new ActivePrice
-				{
-					Id = new PriceKey(new PriceList { PriceCode = minReqPrice.Id, Firm = new Firm { FirmCode = minReqPrice.Supplier.Id, ShortName = minReqPrice.Supplier.Name } }) { RegionCode = client.RegionCode },
-					PriceDate = DateTime.Now,
-				},
+			var minReqOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(minReqPrice),
 				ClientOrderId = 2,
 			};
 			minReqOrder.Positions.Add(
@@ -1404,6 +1332,15 @@ and (i.PriceId = :PriceId)
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы заказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}
+		}
+
+		private ActivePrice BuildActivePrice(TestPrice minReqPrice)
+		{
+			return new ActivePrice
+			{
+				Id = new PriceKey(new PriceList { PriceCode = minReqPrice.Id, Supplier = new Supplier { Id = minReqPrice.Supplier.Id, Name = minReqPrice.Supplier.Name } }) { RegionCode = client.RegionCode },
+				PriceDate = DateTime.Now,
+			};
 		}
 
 		[Test(Description = "Проверяем сохранение отсрочки платежа в заказе для клиентов из новой реальности")]

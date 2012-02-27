@@ -4,12 +4,10 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using MySql.Data.MySqlClient;
-using Common.MySql;
 using Common.Models;
 using System.IO;
 using log4net;
 using Inforoom.Common;
-
 using Castle.Windsor;
 using Castle.MicroKernel.Registration;
 using Common.Models.Repositories;
@@ -20,7 +18,6 @@ using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using NHibernate.Mapping.Attributes;
-using MySqlHelper = Common.MySql.MySqlHelper;
 using With = Common.MySql.With;
 
 
@@ -38,7 +35,7 @@ namespace PrgData.Common
 		private UpdateData _updateData;
 
 		public uint OrderedClientCode { get; private set; }
-		public IOrderable Orderable { get; private set; }
+		public User User { get; private set; }
 		public Address Address { get; private set; }
 
 		private string _tmpBatchFolder;
@@ -89,15 +86,10 @@ namespace PrgData.Common
 				if (_smartOrderRule == null)
 					throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Не настроены правила для автоматического формирования заказа; ", RequestType.Forbidden);
 
-				if (_updateData.IsFutureClient)
-				{
-					Orderable = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
-					NHibernateUtil.Initialize(((User)Orderable).AvaliableAddresses);
-					Address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
-					NHibernateUtil.Initialize(Address.Users);
-				}
-				else
-					Orderable = IoC.Resolve<IRepository<Client>>().Load(orderedClientCode);
+				User = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
+				NHibernateUtil.Initialize(User.AvaliableAddresses);
+				Address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
+				NHibernateUtil.Initialize(Address.Users);
 			}
 
 			_tmpBatchFolder = Path.GetTempPath() + Path.GetRandomFileName();
@@ -136,7 +128,7 @@ namespace PrgData.Common
 			{
 				try
 				{
-					_handler = new SmartOrderBatchHandler(Orderable, Address, stream);
+					_handler = new SmartOrderBatchHandler(User, Address, stream);
 				}
 				catch (EmptyDefectureException)
 				{
@@ -341,7 +333,7 @@ namespace PrgData.Common
 			var sessionFactoryHolder = new SessionFactoryHolder(Settings.ConnectionName);
 			sessionFactoryHolder
 				.Configuration
-				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))
+				.AddInputStream(HbmSerializer.Default.Serialize(typeof(FutureClient).Assembly))
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(SmartOrderRule).Assembly))
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(AnalitFVersionRule).Assembly));
 			IoC.Initialize(new WindsorContainer()

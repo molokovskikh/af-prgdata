@@ -13,7 +13,7 @@ namespace PrgData.FileHandlers
 
 		public AbstractHttpHandler()
 		{
-			Log = LogManager.GetLogger(this.GetType());
+			Log = LogManager.GetLogger(GetType());
 		}
 
 		protected const int BufferSize = 4096;
@@ -38,33 +38,14 @@ namespace PrgData.FileHandlers
 
 		protected string GetUserId(HttpContext context)
 		{
-			var UserName = ServiceContext.GetShortUserName();
+			var userName = ServiceContext.GetShortUserName();
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
-			string userId = null;
 			try
 			{
 				using (var connection = Settings.GetConnection())
 				{
-					var command = new MySqlCommand(@"SELECT ouar.RowId
-FROM clientsdata cd
-	JOIN osuseraccessright ouar on ouar.clientcode = cd.firmcode
-		JOIN AssignedPermissions ap on ap.UserId = ouar.RowId
-			JOIN UserPermissions up on up.Id = ap.PermissionId
-where cd.firmstatus = 1
-	  and up.Shortcut = 'AF'
-	  and ouar.OSUserName = ?Username", connection);
-					command.Parameters.AddWithValue("?Username", UserName);
 					connection.Open();
-					using (var sqlr = command.ExecuteReader())
-					{
-						if (sqlr.Read())
-							userId = sqlr["RowId"].ToString();
-					}
-
-					if (!String.IsNullOrEmpty(userId))
-						return userId;
-
-					command.CommandText = @"
+					var command = new MySqlCommand(@"
 SELECT u.Id
 FROM Future.Clients c
 	JOIN Future.Users u on u.ClientId = c.Id
@@ -72,7 +53,8 @@ FROM Future.Clients c
 			JOIN UserPermissions up on up.Id = ap.PermissionId
 where c.Status = 1
 	  and up.Shortcut = 'AF'
-	  and u.Login = ?Username";
+	  and u.Login = ?Username", connection);
+					command.Parameters.AddWithValue("?Username", userName);
 					using (var sqlr = command.ExecuteReader())
 					{
 						if (sqlr.Read())

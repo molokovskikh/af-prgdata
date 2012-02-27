@@ -28,14 +28,10 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		//TestOldClient _oldClient;
-		//TestOldUser _oldUser;
-
 		[SetUp]
 		public void SetUp()
 		{
 			_client = TestClient.Create();
-			//_oldClient = TestOldClient.CreateTestClient();
 			using (var transaction = new TransactionScope())
 			{
 				_user = _client.Users[0];
@@ -46,22 +42,6 @@ namespace Integration
 					u.SendWaybills = true;
 				});
 				_user.Update();
-
-
-//                _oldUser = _oldClient.Users[0];
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", _oldUser.Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
 			}
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
@@ -101,7 +81,6 @@ select @LastRuleId;
 						,
 						new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId),
 						new MySqlParameter("?ConcurentSupplierId", _concurentSupplierId),
-						//new MySqlParameter("?OldClientId", _oldClient.Id),
 						new MySqlParameter("?NewClientId", _client.Id)));
 			}
 		}
@@ -157,20 +136,6 @@ limit 0, 50", conn);
 				}
 			}
 		}
-
-		//[Test(Description = "проверяем создание записей в логах оптимизации для клиента из старой реальности")]
-		//public void CostOptimizerShouldCreateLogsWithSupplierForOldClient()
-		//{
-		//    CostOptimizerShouldCreateLogsWithSupplier(
-		//        _oldClient.Id, 
-		//        command =>
-		//            {
-		//                command.CommandText = "call usersettings.GetOffers(?ClientCodeParam, ?FreshOnly);";
-		//                command.Parameters.AddWithValue("?ClientCodeParam", _oldClient.Id);
-		//                command.Parameters.AddWithValue("?FreshOnly", false);
-		//                command.ExecuteNonQuery();
-		//            });
-		//}
 
 		[Test(Description = "проверяем создание записей в логах оптимизации для клиента из новой реальности")]
 		public void CostOptimizerShouldCreateLogsWithSupplierForFuture()

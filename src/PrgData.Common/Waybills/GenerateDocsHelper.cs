@@ -67,6 +67,8 @@ namespace PrgData.Common.Orders
 
 		private static void GenerateDoc(ulong firmCode, MySqlCommand headerCommand, UpdateData updateData, ClientOrderHeader order, DocumentType documentType, string shortFirmName)
 		{
+			var addressId = MySqlHelper.ExecuteScalar(headerCommand.Connection, "select AddressId from orders.OrdersHead where RowId = " + order.ServerOrderId);
+
 			headerCommand.CommandText = @"
 insert into logs.document_logs 
   (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
@@ -78,29 +80,17 @@ insert into documents.DocumentHeaders
 values
   (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate(), ?AddressId);
 set @LastDocumentId = last_insert_id();
-";
 
-			if (updateData.IsFutureClient)
-			{
-				headerCommand.CommandText += @"
 insert into logs.documentsendlogs (UserId, DocumentId) values (?UserId, @LastDownloadId);
 update logs.document_logs set Ready = 1 where RowId = @LastDownloadId and Ready = 0;
 ";
-			}
 
 			headerCommand.Parameters["?FirmCode"].Value = firmCode;
 			headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
 			headerCommand.Parameters["?OrderId"].Value = order.ServerOrderId;
 			headerCommand.Parameters["?DocumentType"].Value = (int)documentType;
 			headerCommand.Parameters["?FileName"].Value = fileNames[(int)documentType] + ".txt";
-			object addressId = 0;
-			if (updateData.IsFutureClient)
-			{
-				headerCommand.Parameters["?AddressId"].Value = MySqlHelper.ExecuteScalar(headerCommand.Connection, "select AddressId from orders.OrdersHead where RowId = " + order.ServerOrderId);
-				addressId = headerCommand.Parameters["?AddressId"].Value;
-			}
-			else
-				headerCommand.Parameters["?AddressId"].Value = null;
+			headerCommand.Parameters["?AddressId"].Value = addressId;
 			headerCommand.ExecuteNonQuery();
 
 			headerCommand.CommandText = "select @LastDownloadId";
@@ -115,15 +105,9 @@ update logs.document_logs set Ready = 1 where RowId = @LastDownloadId and Ready 
 			if (documentType == DocumentType.Waybills)
 				GenerateInvoice(lastDocumentId, headerCommand, order);
 
-			var createdFileName = 
-				ConfigurationManager.AppSettings["DocumentsPath"] 
-				+ updateData.ClientId.ToString().PadLeft(3, '0') 
-				+ "\\" + documentType.ToString() + "\\"
-				+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
-			if (updateData.IsFutureClient)
-				createdFileName =
+			var createdFileName =
 					ConfigurationManager.AppSettings["DocumentsPath"]
-					+ addressId.ToString()
+					+ addressId
 					+ "\\" + documentType.ToString() + "\\"
 					+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
 			using (var stream = new StreamWriter(createdFileName, false, Encoding.GetEncoding(1251)))
@@ -439,17 +423,12 @@ set @LastDownloadId = last_insert_id();
 			headerCommand.Parameters["?FirmCode"].Value = providerId;
 			headerCommand.Parameters["?FileName"].Value = resultFileName;
 			headerCommand.Parameters["?DocumentType"].Value = (int)DocumentType.Waybills;
-			if (updateData.IsFutureClient)
-			{
-				headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
-				headerCommand.Parameters["?AddressId"].Value = addressId;
-				headerCommand.Parameters.AddWithValue("?UserId", updateData.UserId);
-				headerCommand.CommandText += @"
+			headerCommand.Parameters["?ClientCode"].Value = updateData.ClientId;
+			headerCommand.Parameters["?AddressId"].Value = addressId;
+			headerCommand.Parameters.AddWithValue("?UserId", updateData.UserId);
+			headerCommand.CommandText += @"
 insert into logs.DocumentSendLogs(UserId, DocumentId)
 values (?UserId, @LastDownloadId);";
-			}
-			else
-				headerCommand.Parameters["?ClientCode"].Value = addressId;
 			headerCommand.Parameters["?SendUpdateId"].Value = updateId;
 			headerCommand.ExecuteNonQuery();
 
@@ -469,11 +448,9 @@ values (?UserId, @LastDownloadId);";
 			File.Copy(
 				waybillFileName,
 				Path.Combine(
-					Path.Combine(
-						Path.Combine(
-							ConfigurationManager.AppSettings["DocumentsPath"],
-						addressId.ToString().PadLeft(3, '0')),
-						DocumentType.Waybills.ToString()),
+					ConfigurationManager.AppSettings["DocumentsPath"],
+					addressId.ToString().PadLeft(3, '0'),
+					DocumentType.Waybills.ToString(),
 					resultFileName
 				)
 			);

@@ -2784,19 +2784,16 @@ PostLog:
 						LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
 
 						transaction = connection.BeginTransaction(IsoLevel)
-						If UpdateData.IsFutureClient Then
-							Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId", connection)
-							command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
-							command.Parameters.AddWithValue("?UpdateId", GUpdateId)
-							command.Parameters.Add("?DocumentId", MySqlDbType.UInt32)
+						Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId", connection)
+						command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+						command.Parameters.AddWithValue("?UpdateId", GUpdateId)
+						command.Parameters.Add("?DocumentId", MySqlDbType.UInt32)
 
-							For Each row As DataRow In DS.Tables("ProcessingDocuments").Rows
-								command.Parameters("?DocumentId").Value = row("DocumentId")
-								command.ExecuteNonQuery()
-							Next
-						Else
-							LogDA.Update(DS.Tables("ProcessingDocuments"))
-						End If
+						For Each row As DataRow In DS.Tables("ProcessingDocuments").Rows
+							command.Parameters("?DocumentId").Value = row("DocumentId")
+							command.ExecuteNonQuery()
+						Next
+
 						transaction.Commit()
 
 					End If
@@ -2854,21 +2851,19 @@ PostLog:
 						LogCm.CommandText = "delete from future.ClientToAddressMigrations where UserId = " & UpdateData.UserId
 						LogCm.ExecuteNonQuery()
 
-						If Not UpdateData.IsFutureClient Then
-							Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
+						Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
 
-							For Each DocumentsIdRow As DataRow In processedDocuments.Rows
+						For Each DocumentsIdRow As DataRow In processedDocuments.Rows
 
-								СписокФайлов = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
-								   DocumentsIdRow.Item("ClientCode").ToString & _
-								   "\" & _
-								   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
-								   DocumentsIdRow.Item("DocumentId").ToString & "_*")
+							СписокФайлов = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
+							   DocumentsIdRow.Item("ClientCode").ToString & _
+							   "\" & _
+							   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
+							   DocumentsIdRow.Item("DocumentId").ToString & "_*")
 
-								If СписокФайлов.Length > 0 Then MySQLResultFile.Delete(СписокФайлов(0))
+							If СписокФайлов.Length > 0 Then MySQLResultFile.Delete(СписокФайлов(0))
 
-							Next
-						End If
+						Next
 						LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
 						LogCm.ExecuteNonQuery()
 
@@ -3162,31 +3157,17 @@ RestartTrans2:
 				"            AND regionaldata.regioncode= Prices.regioncode")
 
 
-				If UpdateData.IsFutureClient Then
-					GetMySQLFile("PricesRegionalData", SelProc, _
-					"SELECT PriceCode           , " & _
-					"       RegionCode          , " & _
-					"       STORAGE             , " & _
-					"       0 as PublicUpCost   , " & _
-					"       MinReq              , " & _
-					"       MainFirm            , " & _
-					"       NOT disabledbyclient, " & _
-					"       0 as CostCorrByClient, " & _
-					"       ControlMinReq " & _
-					"FROM   Prices")
-				Else
-					GetMySQLFile("PricesRegionalData", SelProc, _
-					"SELECT PriceCode           , " & _
-					"       RegionCode          , " & _
-					"       STORAGE             , " & _
-					"       PublicUpCost        , " & _
-					"       MinReq              , " & _
-					"       MainFirm            , " & _
-					"       NOT disabledbyclient, " & _
-					"       CostCorrByClient    , " & _
-					"       ControlMinReq " & _
-					"FROM   Prices")
-				End If
+				GetMySQLFile("PricesRegionalData", SelProc, _
+	 "SELECT PriceCode           , " & _
+	 "       RegionCode          , " & _
+	 "       STORAGE             , " & _
+	 "       0 as PublicUpCost   , " & _
+	 "       MinReq              , " & _
+	 "       MainFirm            , " & _
+	 "       NOT disabledbyclient, " & _
+	 "       0 as CostCorrByClient, " & _
+	 "       ControlMinReq " & _
+	 "FROM   Prices")
 
 				SelProc.CommandText = "" & _
 				"CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY; " & _
@@ -3683,10 +3664,6 @@ RestartTrans2:
 					GetMySQLFileWithDefault("Synonyms", SelProc, helper.GetSynonymCommand(GED))
 				End If
 
-				'If UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions() then
-				'    GetMySQLFileWithDefaultEx("SupplierPromotions", SelProc, helper.GetPromotionsCommand(), UpdateData.NeedUpdateToSupplierPromotions(), True)
-				'End If
-
 				If Not UpdateData.EnableImpersonalPrice Then
 
 					SelProc.CommandText = "" & _
@@ -3997,14 +3974,10 @@ RestartTrans2:
 			End If
 
 			'Получаем маску разрешенных для сохранения гридов
-			If Not UpdateData.IsFutureClient Then
-				Cm.CommandText = "SELECT ifnull(sum(SaveGridID), 0) FROM ret_save_grids r where ClientCode = " & CCode
-			Else
-				Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
-				 "from usersettings.AssignedPermissions ap " & _
-				 "join usersettings.UserPermissions up on up.Id = ap.PermissionId " & _
-				 "where ap.UserId=" & UpdateData.UserId
-			End If
+			Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
+	"from usersettings.AssignedPermissions ap " & _
+	"join usersettings.UserPermissions up on up.Id = ap.PermissionId " & _
+	"where ap.UserId=" & UpdateData.UserId
 
 			Dim SaveGridMask As UInt64 = Convert.ToUInt64(Cm.ExecuteScalar())
 
@@ -4398,11 +4371,11 @@ RestartTrans2:
 		Else
 			If UpdateHelper.UserExists(readWriteConnection, UserName) Then
 				Log.Warn(updateException)
-				MailHelper.Mail( _
-					"Хост: " & Environment.MachineName & vbCrLf & _
-					"Пользователь: " & UserName & vbCrLf & _
-					updateException.ToString(), _
-					updateException.Message, Nothing, Nothing, ConfigurationManager.AppSettings("SupportMail"))
+				Common.MailHelper.Mail( _
+  "Хост: " & Environment.MachineName & vbCrLf & _
+  "Пользователь: " & UserName & vbCrLf & _
+  updateException.ToString(), _
+  updateException.Message, Nothing, Nothing, ConfigurationManager.AppSettings("SupportMail"))
 			Else
 				Log.Error(updateException)
 			End If
@@ -4476,13 +4449,8 @@ RestartTrans2:
 					" where "
 
 				Dim ClientIdAsField As String
-				If UpdateData.IsFutureClient Then
-					SelProc.CommandText &= " (useraddresses.UserId is not null and useraddresses.UserId = ?UserId)  "
-					ClientIdAsField = "OrdersHead.AddressId"
-				Else
-					SelProc.CommandText &= " OrdersHead.ClientCode = ?ClientId "
-					ClientIdAsField = "OrdersHead.ClientCode"
-				End If
+				SelProc.CommandText &= " (useraddresses.UserId is not null and useraddresses.UserId = ?UserId)  "
+				ClientIdAsField = "OrdersHead.AddressId"
 
 				SelProc.CommandText &= " and OrdersHead.deleted = 0 and OrdersHead.processed = 1 "
 
@@ -4517,8 +4485,8 @@ RestartTrans2:
 				 "  OrdersHead.DelayOfPayment,  " & _
 				 "  date_sub(OrdersHead.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as PriceDate  " & _
 				 "from " & _
-					" HistoryIds " & _
-					" inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
+				 " HistoryIds " & _
+				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
 
 				'Начинаем архивирование
 				ThreadZipStream.Start()
@@ -4562,10 +4530,10 @@ RestartTrans2:
 				 "  OrderedOffers.NDS, " & _
 				 "  OrdersList.RetailCost " & _
 				 "from " & _
-					" HistoryIds " & _
-					" inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _
-					" inner join orders.OrdersList on OrdersList.OrderId = HistoryIds.ServerOrderId " & _
-					" left join orders.OrderedOffers on OrderedOffers.Id = OrdersList.RowId ")
+				 " HistoryIds " & _
+				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _
+				 " inner join orders.OrdersList on OrdersList.OrderId = HistoryIds.ServerOrderId " & _
+				 " left join orders.OrderedOffers on OrderedOffers.Id = OrdersList.RowId ")
 
 				AddEndOfFiles()
 

@@ -40,9 +40,7 @@ namespace Integration
 	public class ProcedureFixture : PrepareDataFixture
 	{
 		private ISmartOfferRepository repository;
-		//private TestOldClient testOldClient;
 		private TestClient testClient;
-		//private Client client;
 		private User futureUser;
 		private Address futureAddress;
 
@@ -61,27 +59,11 @@ namespace Integration
 
 			repository = IoC.Resolve<ISmartOfferRepository>();
 
-			//Это не нужно, т.к. используются только существующие клиенты 10081 и 10068
-			//testOldClient = TestOldClient.CreateTestClient();
-			//testClient = TestClient.CreateSimple();
-
-			//testOldClient = new TestOldClient() { Id = 1349 };
 			testClient = new TestClient() { Id = 10005 };
 
 			testClient.Users = new List<TestUser>() { new TestUser() { Id = 10081, Login = "10081"} };
 			testClient.Addresses = new List<TestAddress>() { new TestAddress() { Id = 10068 } };
 
-			//Это не нужно
-			//using (var unitOfWork = new UnitOfWork())
-			//{
-
-			//    NHibernateUtil.Initialize(testOldClient);
-			//    NHibernateUtil.Initialize(testClient);
-			//    NHibernateUtil.Initialize(testClient.Users);
-			//    NHibernateUtil.Initialize(testClient.Addresses);
-			//}
-
-			//client = new Client { FirmCode = testOldClient.Id };
 			futureUser = new User
 							{
 								Id = testClient.Users[0].Id,
@@ -174,16 +156,11 @@ call usersettings.GetOffers(1349, 2);");
 			}
 		}
 
-		private void InteralFindAllReducedForSmartOrder(IOrderable orderable, Address address)
+		private void InteralFindAllReducedForSmartOrder(User user, Address address)
 		{
-			var reducedOffers = repository.FindAllReducedForSmartOrder(orderable, address, new SmartOrderRule(), new OrderRules()).ToList();
+			var reducedOffers = repository.FindAllReducedForSmartOrder(user, address, new SmartOrderRule(), new OrderRules()).ToList();
 			Assert.That(reducedOffers.Count, Is.GreaterThan(0), "Нулевое кол-во предложений");
 		}
-
-		//public void FindAllReducedForSmartOrder()
-		//{
-		//    InteralFindAllReducedForSmartOrder(client, null);
-		//}
 
 		public void FutureFindAllReducedForSmartOrder()
 		{
@@ -195,7 +172,6 @@ call usersettings.GetOffers(1349, 2);");
 		{
 			for (int i = 0; i < 10; i++)
 			{
-				//FindAllReducedForSmartOrder();
 				FutureFindAllReducedForSmartOrder();
 			}
 		}
@@ -230,11 +206,10 @@ call usersettings.GetOffers({0}, 0);", clientId));
 			Console.WriteLine("Остановлена нитка: {0}", clientId);
 		}
 
-		public static void DoWorkFactory(object clientId)
+		public static void DoWorkFactory(object userId)
 		{
-			Console.WriteLine("Запущена нитка с factory: {0}", clientId);
-			var _repository = IoC.Resolve<ISmartOfferRepository>();
-			var _client = new Client {FirmCode = Convert.ToUInt32(clientId)};
+			Console.WriteLine("Запущена нитка с factory: {0}", userId);
+			var repository = IoC.Resolve<ISmartOfferRepository>();
 			long elapsedMili = 0;
 			long count = 0;
 
@@ -243,8 +218,15 @@ call usersettings.GetOffers({0}, 0);", clientId));
 				while (!StopThreads)
 				{
 					var loadWithHiber = Stopwatch.StartNew();
-					var reducedOffers = _repository.FindAllReducedForSmartOrder(_client, null, new SmartOrderRule(), new OrderRules()).ToList();
-					//Assert.That(reducedOffers.Count, Is.GreaterThan(0), "Нулевое кол-во предложений");
+					User user;
+					Address address;
+					using(var unit = new UnitOfWork()) {
+						user = unit.CurrentSession.Get<User>(userId);
+						if (user.AvaliableAddresses.Count == 0)
+							return;
+						address = user.AvaliableAddresses.First();
+					}
+					var reducedOffers = repository.FindAllReducedForSmartOrder(user, address, new SmartOrderRule(), new OrderRules()).ToList();
 					loadWithHiber.Stop();
 					elapsedMili += loadWithHiber.ElapsedMilliseconds;
 					count++;
@@ -255,14 +237,14 @@ call usersettings.GetOffers({0}, 0);", clientId));
 			}
 			catch (Exception exception)
 			{
-				Console.WriteLine("Error for client {0} с factory: {1}", clientId, exception);
+				Console.WriteLine("Error for client {0} с factory: {1}", userId, exception);
 				if (count > 0)
-					Console.WriteLine("Статистика для клиента {0} : {1}", clientId, elapsedMili / count);
+					Console.WriteLine("Статистика для клиента {0} : {1}", userId, elapsedMili / count);
 			}
 
-			Console.WriteLine("Остановлена нитка с factory: {0}", clientId);
+			Console.WriteLine("Остановлена нитка с factory: {0}", userId);
 			if (count > 0)
-				Console.WriteLine("Статистика для клиента {0} : {1}", clientId, elapsedMili / count);
+				Console.WriteLine("Статистика для клиента {0} : {1}", userId, elapsedMili / count);
 		}
 
 		public static void DoWorkLogLockWaits()
@@ -305,44 +287,27 @@ show full processlist;
 			StopThreads = false;
 			Console.WriteLine("Запуск теста");
 
-			var dataSet = MySqlHelper.ExecuteDataset(Settings.ConnectionString(),
-									   @"
-select
-#*
-ou.RowId as UserId,
-rcs.ClientCode
-from
-  usersettings.OSUserAccessRight ou,
-  usersettings.RetClientsSet rcs,
-  usersettings.clientsdata cd
-where
-	rcs.ClientCode = ou.ClientCode
-and rcs.ServiceClient = 1
-and cd.FirmCode = rcs.ClientCode
-and cd.FirmStatus = 1
-and cd.BillingStatus = 1
-and cd.BillingCode = 921
-limit 6;");
-
-			var dataTable = dataSet.Tables[0];
-			var threadList = new List<Thread>();
-
-			foreach (DataRow row in dataTable.Rows)
-			{
-				threadList.Add(new Thread(DoWork));
-				threadList[threadList.Count-1].Start(row["ClientCode"]);
+			uint[] userIds;
+			using(new SessionScope()) {
+				userIds = TestUser.Queryable.Where(u => u.Enabled && !u.RootService.Disabled
+					&& u.RootService.Type == ServiceType.Drugstore
+					&& u.Client.Settings.ServiceClient
+					&& u.Payer.Id == 921u)
+					.Select(u => u.Id)
+					.ToArray();
 			}
 
-			//foreach (DataRow row in dataTable.Rows)
-			//{
-			//    threadList.Add(new Thread(DoWork));
-			//    threadList[threadList.Count - 1].Start(row["ClientCode"]);
-			//}
+			var threadList = new List<Thread>();
 
-			foreach (DataRow row in dataTable.Rows)
+			foreach (var id in userIds)
+			{
+				threadList.Add(new Thread(DoWork));
+				threadList[threadList.Count-1].Start(id);
+			}
+			foreach (var id in userIds)
 			{
 				threadList.Add(new Thread(DoWorkFactory));
-				threadList[threadList.Count - 1].Start(row["ClientCode"]);
+				threadList[threadList.Count - 1].Start(id);
 			}
 
 			//Нитка с дампом
@@ -367,11 +332,10 @@ limit 6;");
 			{
 				var user = createSimple.Users[0];
 
-				createSimple.Users.Each(u =>
-									{
-										u.SendRejects = true;
-										u.SendWaybills = true;
-									});
+				createSimple.Users.Each(u => {
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
 				user.Update();
 			}
 
