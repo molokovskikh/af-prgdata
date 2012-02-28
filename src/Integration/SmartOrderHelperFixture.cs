@@ -431,16 +431,5 @@ namespace Integration
 			return 0;
 		}
 
-		[Test(Description = "Проверяем работу функции MySqlEscapeString")]
-		public void TestMySqlEscapeString()
-		{
-			Assert.That(SmartOrderHelper.MySqlEscapeString("123"), Is.EqualTo("123"));
-			Assert.That(SmartOrderHelper.MySqlEscapeString("12\t3"), Is.EqualTo("12\t3"));
-			Assert.That(SmartOrderHelper.MySqlEscapeString("12\r3"), Is.EqualTo("12\r\\\n3"));
-			Assert.That(SmartOrderHelper.MySqlEscapeString("12\n3"), Is.EqualTo("12\r\\\n3"));
-			Assert.That(SmartOrderHelper.MySqlEscapeString("12\r\n3"), Is.EqualTo("12\r\\\n3"));
-		}
-
-
 	}
 }

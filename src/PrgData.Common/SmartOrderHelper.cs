@@ -19,6 +19,7 @@ using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using NHibernate.Mapping.Attributes;
 using With = Common.MySql.With;
+using Common.MySql;
 
 
 namespace PrgData.Common
@@ -235,23 +236,18 @@ namespace PrgData.Common
 				{
 					var serviceValues = "";
 					if (_updateData.BuildNumber > 1271)
-						serviceValues = GetServiceValues(report);
+						serviceValues = report.ServiceValuesToExport();
 
 					if (report.Item != null)
 					{
-						var comments = new List<string>();
-						if (!String.IsNullOrEmpty(report.Comment))
-							comments.Add(MySqlEscapeString(report.Comment));
-						comments.AddRange(report.Item.Comments.Select(MySqlEscapeString));
-						comments = comments.Distinct().ToList();
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
 							_maxBatchId,
 							report.Item.OrderItem != null ? GetOrderedId(report.Item.OrderItem.Order) : OrderedClientCode,
-							MySqlEscapeString(report.ProductName),
-							MySqlEscapeString(report.ProducerName),
+							report.ProductName.ToMySqlExportString(),
+							report.ProducerName.ToMySqlExportString(),
 							report.Quantity,
-							String.Join("\r\\\n", comments.ToArray()),
+							report.CommentToExport(),
 							report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
 							(int)report.Item.Status,
 							report.Item.ProductId,
@@ -263,10 +259,10 @@ namespace PrgData.Common
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N{6}\n",
 							_maxBatchId,
 							OrderedClientCode,
-							MySqlEscapeString(report.ProductName),
-							MySqlEscapeString(report.ProducerName),
+							report.ProductName.ToMySqlExportString(),
+							report.ProducerName.ToMySqlExportString(),
 							report.Quantity,
-							MySqlEscapeString(report.Comment),
+							report.CommentToExport(),
 							serviceValues);
 					_maxBatchId++;
 				}
@@ -277,30 +273,6 @@ namespace PrgData.Common
 			File.WriteAllText(BatchOrderItemsFileName, buildItems.ToString(), Encoding.GetEncoding(1251));
 		}
 
-		public static string MySqlEscapeString(string value)
-		{
-			if (string.IsNullOrWhiteSpace(value))
-				return value;
-
-			var list = value.Split('\r', '\n');
-			var newList = new List<string>();
-			for (int i = 0; i < list.Length; i++) {
-				if (!string.IsNullOrWhiteSpace(list[i])) {
-					newList.Add(MySql.Data.MySqlClient.MySqlHelper.EscapeString(list[i])); 
-				}
-			}
-
-			return string.Join("\r\\\n", newList);
-		}
-
-		private string GetServiceValues(OrderBatchItem report)
-		{
-			var values = new List<string>();
-			foreach (var key in report.ServiceValues.Keys)
-				values.Add(MySql.Data.MySqlClient.MySqlHelper.EscapeString(report.ServiceValues[key]));
-			return "\t" + String.Join("\t", values.ToArray());
-		}
-
 		private void ServiceFieldsToFile()
 		{
 			if (_updateData.BuildNumber > 1271)
@@ -308,7 +280,7 @@ namespace PrgData.Common
 				var buildFields = new StringBuilder();
 
 				foreach (var key in _handler.Source.ServiceFields.Keys)
-					buildFields.AppendLine(MySql.Data.MySqlClient.MySqlHelper.EscapeString(key));
+					buildFields.AppendLine(key.ToMySqlExportString());
 
 				File.WriteAllText(BatchReportServiceFieldsFileName, buildFields.ToString(), Encoding.GetEncoding(1251));
 			}
