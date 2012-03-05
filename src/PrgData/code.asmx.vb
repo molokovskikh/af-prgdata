@@ -98,20 +98,6 @@ Public Class PrgDataEx
 
     Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
 
-
-    Private Function MySqlFilePath() As String
-#If DEBUG Then
-        Return System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath") & "\"
-#Else
-        Return Path.Combine("\\" & Environment.MachineName, System.Configuration.ConfigurationManager.AppSettings("MySqlFilePath")) & "\"
-#End If
-    End Function
-
-
-    Private Function MySqlLocalFilePath() As String
-        Return System.Configuration.ConfigurationManager.AppSettings("MySqlLocalFilePath")
-    End Function
-
     'Получает письмо и отправляет его
     <WebMethod()> _
     Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
@@ -1026,14 +1012,14 @@ endprocNew:
                             Next
 
                             If UpdateData.BuildNumber >= 1027 And DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
-                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "InvoiceHeaders" & UserId & ".txt")
 
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
-                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "InvoiceHeaders" & UserId & ".txt")
 
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
@@ -1068,10 +1054,10 @@ endprocNew:
                                 End If
 
 #If DEBUG Then
-                                ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitFile(MySqlFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
-                                    ShareFileHelper.WaitFile(MySqlFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                    ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
                                 End If
 #End If
 
@@ -1083,7 +1069,7 @@ endprocNew:
                                 startInfo.RedirectStandardError = True
                                 startInfo.UseShellExecute = False
                                 startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-                                startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlLocalFilePath() & "Document*" & UserId & ".txt", SevenZipParam)
+                                startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, ServiceContext.MySqlLocalImportPath() & "Document*" & UserId & ".txt", SevenZipParam)
                                 startInfo.FileName = SevenZipExe
 
                                 Pr.StartInfo = startInfo
@@ -1111,7 +1097,7 @@ endprocNew:
                                     startInfo.RedirectStandardError = True
                                     startInfo.UseShellExecute = False
                                     startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-                                    startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, MySqlLocalFilePath() & "InvoiceHeaders*" & UserId & ".txt", SevenZipParam)
+                                    startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, ServiceContext.MySqlLocalImportPath() & "InvoiceHeaders*" & UserId & ".txt", SevenZipParam)
                                     startInfo.FileName = SevenZipExe
 
                                     Pr.StartInfo = startInfo
@@ -1131,16 +1117,16 @@ endprocNew:
                                     Pr = Nothing
                                 End If
 
-                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
-                                    ShareFileHelper.MySQLFileDelete(MySqlFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                    ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
                                 End If
 
-                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentHeaders" & UserId & ".txt")
-                                ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "DocumentBodies" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
-                                    ShareFileHelper.WaitDeleteFile(MySqlFilePath() & "InvoiceHeaders" & UserId & ".txt")
+                                    ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
                                 End If
                             End If
 
@@ -1305,7 +1291,7 @@ StartZipping:
                             If FileForArchive.FileType Then
                                 FileName = FileForArchive.FileName
                             Else
-                                FileName = MySqlLocalFilePath() & FileForArchive.FileName & UserId & ".txt"
+                                FileName = ServiceContext.MySqlLocalImportPath() & FileForArchive.FileName & UserId & ".txt"
                             End If
 
 
@@ -3024,30 +3010,30 @@ PostLog:
 RestartTrans2:
 				If ErrorFlag Then Exit Try
 
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogCurrency" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientsDataN" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Products" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Catalog" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatalogCurrency" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatDel" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Clients" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "ClientsDataN" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Core" & UserId & ".txt")
 
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PriceAvg" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Section" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Synonym" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogFarmGroups" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PriceAvg" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PricesData" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PricesRegionalData" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "RegionalData" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Regions" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Section" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Synonym" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "SynonymFirmCr" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Rejects" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatalogFarmGroups" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatalogNames" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatFarmGroupsDel" & UserId & ".txt")
 
-				ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
-				ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
-				ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "CatFarmGroupsDel" & UserId & ".txt")
+				ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "Products" & UserId & ".txt")
+				ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "Catalog" & UserId & ".txt")
+				ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "CatFarmGroupsDel" & UserId & ".txt")
 
 				helper.MaintainReplicationInfo()
 
@@ -3071,7 +3057,7 @@ RestartTrans2:
 				SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
 				SelProc.ExecuteNonQuery()
 
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinPrices" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "MinPrices" & UserId & ".txt")
 				GetMySQLFile("PriceAvg", SelProc, "select ''")
 
 				SQLText = "SELECT P.Id       ," & _
@@ -3427,41 +3413,41 @@ RestartTrans2:
 RestartTrans2:
 				If ErrorFlag Then Exit Try
 
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Products" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "User" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Client" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Catalogs" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatDel" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Clients" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "DelayOfPayments" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Providers" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Core" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesData" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PricesRegionalData" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "RegionalData" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Regions" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Synonyms" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SynonymFirmCr" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Rejects" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CatalogNames" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MNN" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Descriptions" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MaxProducerCosts" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Producers" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "ClientToAddressMigrations" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "MinReqRules" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "SupplierPromotions" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PromotionCatalogs" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Schedules" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Mails" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "Attachments" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Products" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "User" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Client" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Catalogs" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatDel" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Clients" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DelayOfPayments" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Providers" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Core" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PricesData" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PricesRegionalData" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "RegionalData" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Regions" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Synonyms" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "SynonymFirmCr" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Rejects" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatalogNames" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "MNN" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Descriptions" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "MaxProducerCosts" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Producers" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "UpdateInfo" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "ClientToAddressMigrations" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "MinReqRules" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "SupplierPromotions" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PromotionCatalogs" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Schedules" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Mails" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Attachments" & UserId & ".txt")
 
-				'ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "CoreTest" & UserId & ".txt")
+				'ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CoreTest" & UserId & ".txt")
 
-				ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Products" & UserId & ".txt")
-				ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "Catalog" & UserId & ".txt")
-				ShareFileHelper.WaitDeleteFile(MySqlLocalFilePath() & "UpdateInfo" & UserId & ".txt")
+				ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "Products" & UserId & ".txt")
+				ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "Catalog" & UserId & ".txt")
+				ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "UpdateInfo" & UserId & ".txt")
 
 				helper.MaintainReplicationInfo()
 
@@ -3493,7 +3479,7 @@ RestartTrans2:
 				Log.DebugFormat("PromotionsList: {0}", UpdateData.SupplierPromotions.Implode())
 
 				If UpdateType <> RequestType.PostOrderBatch Then
-					helper.UnconfirmedOrdersExport(MySqlFilePath(), FilesForArchive)
+					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath(), FilesForArchive)
 				End If
 
 				If helper.NeedClientToAddressMigration() Then
@@ -4253,11 +4239,11 @@ RestartTrans2:
 	End Sub
 
 	Private Function GetShareFileName(ByVal outFileName As String)
-		Return Path.Combine(MySqlFilePath(), outFileName)
+		Return Path.Combine(ServiceContext.MySqlSharedExportPath(), outFileName)
 	End Function
 
 	Private Function GetFileNameForMySql(ByVal outFileName As String) As String
-		Dim fullName = Path.Combine(MySqlFilePath(), outFileName)
+		Dim fullName = Path.Combine(ServiceContext.MySqlSharedExportPath(), outFileName)
 		Return MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName)
 	End Function
 
@@ -4426,8 +4412,8 @@ RestartTrans2:
 
 			Try
 
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PostedOrderHeads" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(MySqlLocalFilePath() & "PostedOrderLists" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PostedOrderHeads" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "PostedOrderLists" & UserId & ".txt")
 
 				SelProc.Parameters.Clear()
 				SelProc.Parameters.AddWithValue("?UserId", UpdateData.UserId)
