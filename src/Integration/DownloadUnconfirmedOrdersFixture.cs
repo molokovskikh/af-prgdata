@@ -599,6 +599,31 @@ namespace Integration
 			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
 		}
 
+		[Test(Description = "Простой асинхронный запрос данных")]
+		public void SimpleAsyncGetDataError()
+		{
+			var firstAsyncResponse = CheckAsyncRequest(1);
+			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
+
+			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			ShouldBeSuccessfull(responce);
+
+			var simpleUpdateId = ParseUpdateId(responce);
+
+			var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
+			Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
+
+			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
+			Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
+			Assert.That(log.UserId, Is.EqualTo(_officeUser.Id));
+			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
+
+			WaitAsyncResponse(simpleUpdateId);
+
+			log.Refresh();
+			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+		}
+
 		[Test(Description = "Простой запрос данных с получением сертификатов")]
 		public void SimpleGetDataWithCertificates()
 		{
