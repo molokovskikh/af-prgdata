@@ -477,18 +477,19 @@ values
 
 		private void CheckOrdersByMinRequest()
 		{
-			foreach (var order in _orders)
-			{
-				var minReq = GetMinReq(_orderedClientCode, order.Order.RegionCode, order.Order.ActivePrice.Id.Price.PriceCode);
-				order.SendResult = OrderSendResult.Success;
-				if ((minReq != null) && minReq.ControlMinReq && (minReq.MinReq > 0))
-					if (order.Order.CalculateSum() < minReq.MinReq)
-					{
-						order.SendResult = OrderSendResult.LessThanMinReq;
-						order.MinReq = minReq.MinReq;
-						order.ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
-					}
-			}
+			if (!_user.IgnoreCheckMinOrder)
+				foreach (var order in _orders)
+				{
+					var minReq = GetMinReq(_orderedClientCode, order.Order.RegionCode, order.Order.ActivePrice.Id.Price.PriceCode);
+					order.SendResult = OrderSendResult.Success;
+					if (minReq != null && minReq.ControlMinReq && minReq.MinReq > 0)
+						if (order.Order.CalculateSum() < minReq.MinReq)
+						{
+							order.SendResult = OrderSendResult.LessThanMinReq;
+							order.MinReq = minReq.MinReq;
+							order.ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
+						}
+				}
 		}
 
 		private bool AllOrdersIsSuccess()

@@ -1796,5 +1796,110 @@ limit 1
 			}
 		}
 
+		[Test(Description = "проверяем работу галочки 'Игнорировать проверку минимальной суммы заказа у Поставщика'")]
+		public void Send_order_with_IgnoreCheckMinOrder()
+		{
+			TestPrice minReqPrice;
+
+			TestCore minReqCore;
+
+			using (var transaction = new TransactionScope())
+			{
+				user.IgnoreCheckMinOrder = true;
+				user.Save();
+				var prices = user.GetActivePrices();
+				minReqPrice = prices[0];
+
+				minReqCore =
+					TestCore.FindFirst(Expression.Eq("Price", minReqPrice));
+
+				NHibernateUtil.Initialize(minReqCore);
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try
+				{
+					session.CreateSQLQuery(@"
+update
+  Future.Users u
+  join future.Clients c on u.ClientId = c.Id
+  join Future.UserAddresses ua on ua.UserId = u.Id
+  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join future.Intersection i on i.ClientId = c.Id
+  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 1,
+  ai.MinReq = 10000
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", minReqPrice.Id)
+						.ExecuteUpdate();
+				}
+				finally
+				{
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+				transaction.VoteCommit();
+			}
+
+			var minReqOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(minReqPrice),
+				ClientOrderId = 2,
+			};
+			minReqOrder.Positions.Add(
+				new ClientOrderPosition
+				{
+					ClientPositionID = 2,
+					ClientServerCoreID = minReqCore.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer
+					{
+						Id = new OfferKey(minReqCore.Id, minReqOrder.ActivePrice.Id.RegionCode),
+						ProductId = minReqCore.Product.Id,
+						CodeFirmCr = minReqCore.Producer != null ? (uint?)minReqCore.Producer.Id : null,
+						SynonymCode = minReqCore.ProductSynonym.Id,
+						SynonymFirmCrCode = minReqCore.ProducerSynonym != null ? (uint?)minReqCore.ProducerSynonym.Id : null,
+					}
+				});
+
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				updateData.BuildNumber = 1272;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				var firstParsedOrders = GetOrders(firstOrderHelper);
+
+				firstParsedOrders.Add(minReqOrder);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var orderResults = firstResult.Split(new []{"ClientOrderID="}, StringSplitOptions.RemoveEmptyEntries);
+
+				Assert.That(orderResults.Length, Is.EqualTo(1), "Должен быть один ответ");
+
+				var minReqOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+
+				Assert.That(minReqOrderResponse.ServerOrderId, Is.GreaterThan(0));
+				Assert.That(minReqOrderResponse.PostResult, Is.EqualTo(OrderSendResult.Success));
+				Assert.IsNullOrEmpty(minReqOrderResponse.ErrorReason);
+			}
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+				Assert.That(logs[0].Addition, Is.Null, "В поле Addition должна быть запись об заказах с ошибками");
+			}
+		}
+
 	}
 }
