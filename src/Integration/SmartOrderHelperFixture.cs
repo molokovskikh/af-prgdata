@@ -159,12 +159,12 @@ namespace Integration
 
 					smartHelper.ProcessBatchFile();
 
-					var fileInfo = new FileInfo(smartHelper.BatchOrderFileName);
-					Assert.That(fileInfo.Length, Is.GreaterThan(0), "Файл с заголовками заказов оказался пустым");
-					fileInfo = new FileInfo(smartHelper.BatchOrderItemsFileName);
-					Assert.That(fileInfo.Length, Is.GreaterThan(0), "Файл с содержимым заказов оказался пустым");
-					fileInfo = new FileInfo(smartHelper.BatchReportFileName);
+					var fileInfo = new FileInfo(smartHelper.BatchReportFileName);
 					Assert.That(fileInfo.Length, Is.GreaterThan(0), "Файл с отчетом АвтоЗаказа оказался пустым");
+					fileInfo = new FileInfo(smartHelper.BatchOrderFileName);
+					Assert.That(fileInfo.Length, Is.GreaterThanOrEqualTo(0), "Файл с заголовками заказов не существует");
+					fileInfo = new FileInfo(smartHelper.BatchOrderItemsFileName);
+					Assert.That(fileInfo.Length, Is.GreaterThanOrEqualTo(0), "Файл с содержимым заказов не существует");
 				}
 				finally
 				{
@@ -403,6 +403,66 @@ namespace Integration
 				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
 				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
 				Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при разборе дефектуры: Index was outside the bounds of the array."));
+			}
+		}
+
+		[Test(Description = "Попытка выполнить обработку дефектуры и получить ошибку в процессе обработки")]
+		public void SmartOrderWithErrorOnProcess()
+		{
+			var appVersion = "1.1.1.1300";
+			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
+
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				SetCurrentUser(user.Login);
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					"update future.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", user.Id));
+
+				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
+				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+
+				var batchFile = Convert.ToBase64String(batchFileBytes);
+
+				SmartOrderHelper.raiseException = true;
+				try {
+					FoldersHelper.CheckTempFolders(() => {
+						var service = new PrgDataEx();
+
+						var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+
+						Assert.That(postBatchResponce, Is.EqualTo("Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."));
+					});
+				}
+				finally {
+					SmartOrderHelper.raiseException = false;
+				}
+
+			}
+
+			using (new SessionScope()) {
+				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
+				Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при обработке дефектуры\r\nSystem.Exception: Тестовое исключение при обработке дефектуры"));
 			}
 		}
 

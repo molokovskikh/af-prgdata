@@ -2585,7 +2585,8 @@ StartZipping:
 			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "Представленная дефектура не содержит данных.")
 			Return "Error=Представленная дефектура не содержит данных.;Desc=Пожалуйста, выберите другой файл."
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке дефектуры", ex)
+			LogRequestHelper.MailWithRequest(Log, "Ошибка при обработке дефектуры", ex)
+			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "Ошибка при обработке дефектуры" & vbCrLf & ex.ToString())
 			Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
 		Finally
 

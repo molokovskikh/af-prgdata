@@ -33,6 +33,9 @@ namespace PrgData.Common
 
 	public class SmartOrderHelper
 	{
+#if DEBUG
+		public static bool raiseException = false;
+#endif
 		private UpdateData _updateData;
 
 		public uint OrderedClientCode { get; private set; }
@@ -125,6 +128,10 @@ namespace PrgData.Common
 
 		public void ProcessBatchFile()
 		{
+#if DEBUG
+			if (raiseException)
+				throw new Exception("Тестовое исключение при обработке дефектуры");
+#endif
 			using (var stream = new FileStream(_tmpBatchFileName, FileMode.Open))
 			{
 				try
