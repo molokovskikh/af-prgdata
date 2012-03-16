@@ -2436,79 +2436,78 @@ StartZipping:
   ByVal VitallyImportantDelayOfPayment As String(), _
   ByVal CostWithDelayOfPayment As Decimal()) As String
 
-        Dim ResStr As String = String.Empty
+		Try
+			UpdateType = RequestType.SendOrders
+			DBConnect()
+			GetClientCode()
+			UpdateData.LastLockId = Counter.TryLock(UserId, "PostOrder")
+			UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
+			If Not String.IsNullOrEmpty(EXEVersion) Then
+				UpdateData.ParseBuildNumber(EXEVersion)
+				UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+			End If
 
-        Try
-            UpdateType = RequestType.SendOrders
-            DBConnect()
-            GetClientCode()
-            UpdateData.LastLockId = Counter.TryLock(UserId, "PostOrder")
-            UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
-            If Not String.IsNullOrEmpty(EXEVersion) Then
-                UpdateData.ParseBuildNumber(EXEVersion)
-                UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
-            End If
+			Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders)
 
-            Dim helper = New ReorderHelper(UpdateData, readWriteConnection, ForceSend, ClientCode, UseCorrectOrders)
+			helper.ParseOrders( _
+			 OrderCount, _
+			 ClientOrderID, _
+			 PriceCode, _
+			 RegionCode, _
+			 PriceDate, _
+			 ClientAddition, _
+			 RowCount, _
+			 ClientPositionID, _
+			 ClientServerCoreID, _
+			 ProductID, _
+			 CodeFirmCr, _
+			 SynonymCode, _
+			 SynonymFirmCrCode, _
+			 Code, _
+			 CodeCr, _
+			 Junk, _
+			 Await, _
+			 RequestRatio, _
+			 OrderCost, _
+			 MinOrderCount, _
+			 Quantity, _
+			 Cost, _
+			 MinCost, _
+			 MinPriceCode, _
+			 LeaderMinCost, _
+			 LeaderMinPriceCode, _
+			 SupplierPriceMarkup, _
+			 DelayOfPayment, _
+			 CoreQuantity, _
+			 Unit, _
+			 Volume, _
+			 Note, _
+			 Period, _
+			 Doc, _
+			 RegistryCost, _
+			 VitallyImportant, _
+			 RetailMarkup, _
+			 ProducerCost, _
+			 NDS, _
+			 RetailCost, _
+			 VitallyImportantDelayOfPayment, _
+			 CostWithDelayOfPayment _
+			)
 
-            helper.ParseOrders( _
-             OrderCount, _
-             ClientOrderID, _
-             PriceCode, _
-             RegionCode, _
-             PriceDate, _
-             ClientAddition, _
-             RowCount, _
-             ClientPositionID, _
-             ClientServerCoreID, _
-             ProductID, _
-             CodeFirmCr, _
-             SynonymCode, _
-             SynonymFirmCrCode, _
-             Code, _
-             CodeCr, _
-             Junk, _
-             Await, _
-             RequestRatio, _
-             OrderCost, _
-             MinOrderCount, _
-             Quantity, _
-             Cost, _
-             MinCost, _
-             MinPriceCode, _
-             LeaderMinCost, _
-             LeaderMinPriceCode, _
-             SupplierPriceMarkup, _
-             DelayOfPayment, _
-             CoreQuantity, _
-             Unit, _
-             Volume, _
-             Note, _
-             Period, _
-             Doc, _
-             RegistryCost, _
-             VitallyImportant, _
-             RetailMarkup, _
-             ProducerCost, _
-             NDS, _
-             RetailCost, _
-             VitallyImportantDelayOfPayment, _
-             CostWithDelayOfPayment _
-            )
-
-            Return helper.PostSomeOrders()
-        Catch updateException As UpdateException
-            Return ProcessUpdateException(updateException)
-        Catch ex As NotEnoughElementsException
-            Log.Warn("Ошибка при отправке заказа", ex)
-            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
-        Catch ex As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
-            Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
-        Finally
-            Counter.ReleaseLock(UserId, "PostOrder", UpdateData)
-            DBDisconnect()
-        End Try
+			Return helper.PostSomeOrders()
+		Catch updateException As UpdateException
+			Return ProcessUpdateException(updateException)
+		Catch ex As NotEnoughElementsException
+			Log.Warn("Ошибка при отправке заказа", ex)
+			Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+		Catch ex As Exception
+			Console.WriteLine(ex)
+			LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
+			Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+		Finally
+			Counter.ReleaseLock(UserId, "PostOrder", UpdateData)
+			DBDisconnect()
+		End Try
 
     End Function
 

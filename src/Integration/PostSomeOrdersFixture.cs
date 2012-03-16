@@ -1,33 +1,25 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
-using Castle.MicroKernel.Registration;
-using Common.Models;
-using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
+using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
 using System.Data;
 using PrgData.Common;
-using SmartOrderFactory.Domain;
-using SmartOrderFactory.Repositories;
 using Test.Support;
-
 
 namespace Integration
 {
 	[TestFixture]
-	public class PostSomeOrdersFixture
+	public class PostSomeOrdersFixture : PrepareDataFixture
 	{
 		private TestClient _client;
 		private TestUser _user;
 		private TestAddress _address;
-
 
 		private bool getOffers;
 		private DataRow activePrice;
@@ -39,31 +31,11 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			ServiceContext.GetResultPath = () => "results\\";
-			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
-			if (Directory.Exists("FtpRoot"))
-				FileHelper.DeleteDir("FtpRoot");
-			Directory.CreateDirectory("FtpRoot");
+			FixtureSetup();
 
-			_client = TestClient.Create();
+			base.Setup();
 
-			using (var transaction = new TransactionScope())
-			{
-				_user = _client.Users[0];
-				_address = _client.Addresses[0];
-
-				ServiceContext.GetUserName = () => _user.Login;
-
-				_client.Users.Each(u =>
-				{
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				_user.Update();
-			}
-
-			CreateFolders(_address.Id.ToString());
+			InitClient();
 
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
@@ -75,6 +47,16 @@ and WriteTime > now() - interval 2 week"
 				new MySqlParameter("?ClientCode", _client.Id));
 
 			GetOffers();
+		}
+
+		private void InitClient()
+		{
+			_user = CreateUser();
+			_client = _user.Client;
+			_address = _client.Addresses[0];
+
+			ServiceContext.GetUserName = () => _user.Login;
+			CreateFolders(_address.Id.ToString());
 		}
 
 		private void GetOffers()
@@ -663,59 +645,7 @@ limit 1
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
-
-				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
-
-				string serverResponse;
-				using (var prgData = new PrgDataEx())
-				{
-					serverResponse = prgData.PostSomeOrdersFullExtend(
-						UniqueId,
-						"7.0.0.1385",
-						true,         //ForceSend
-						false,        //UseCorrectOrders
-						_address.Id, //ClientId => AddressId
-						1,            //OrderCount
-						new ulong[] { 1L },  //ClientOrderId
-						new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
-						new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
-						new DateTime[] { DateTime.Now }, //PriceDate
-						new string[] { "" },             //ClientAddition
-						new ushort[] { 1 },              //RowCount
-						new string[] { "" },             //DelayOfPayment
-						new ulong[] { 1 },               //ClientPositionId
-						new ulong[] { Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9)) },  //ClientServerCoreId
-						new ulong[] { Convert.ToUInt64(firstOffer["ProductId"]) },
-						new string[] { firstOffer["CodeFirmCr"].ToString() },
-						new ulong[] { Convert.ToUInt64(firstOffer["SynonymCode"]) },
-						new string[] { firstOffer["SynonymFirmCrCode"].ToString() },
-						new string[] { firstOffer["Code"].ToString() },
-						new string[] { firstOffer["CodeCr"].ToString() },
-						new bool[] { Convert.ToBoolean(firstOffer["Junk"]) },
-						new bool[] { Convert.ToBoolean(firstOffer["Await"]) },
-						new string[] { firstOffer["RequestRatio"].ToString() },
-						new string[] { firstOffer["OrderCost"].ToString() },
-						new string[] { firstOffer["MinOrderCount"].ToString() },
-						new ushort[] { 1 }, //Quantity
-						new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) },
-						new string[] { firstOffer["Cost"].ToString() },        //minCost
-						new string[] { activePrice["PriceCode"].ToString() },  //MinPriceCode
-						new string[] { firstOffer["Cost"].ToString() },        //leaderMinCost
-						new string[] { activePrice["PriceCode"].ToString() }, //leaderMinPriceCode
-						new string[] { "3.0" },        //SupplierPriceMarkup
-						new string[] { firstOffer["Quantity"].ToString() },        //CoreQuantity
-						new string[] { firstOffer["Unit"].ToString() },        //Unit
-						new string[] { firstOffer["Volume"].ToString() },        //Volume
-						new string[] { firstOffer["Note"].ToString() },        //Note
-						new string[] { firstOffer["Period"].ToString() },        //Period
-						new string[] { firstOffer["Doc"].ToString() },        //Doc
-						new string[] { firstOffer["RegistryCost"].ToString() },        //RegistryCost
-						new bool[] { Convert.ToBoolean(firstOffer["VitallyImportant"]) },        //VitallyImportant
-						new string[] { "" },        //RetailCost
-						new string[] { "" },        //ProducerCost
-						new string[] { "" }        //NDS
-						);
-				}
+				var serverResponse = PostOrder();
 
 				Assert.That(serverResponse, Is.Not.Null);
 				Assert.That(serverResponse, Is.Not.Empty);
@@ -883,9 +813,100 @@ limit 1
 				Assert.That(Convert.ToDecimal(orderItem["Cost"]), Is.EqualTo(Convert.ToDecimal(firstOffer["Cost"])));
 				Assert.That(
 					Convert.ToDecimal(orderItem["CostWithDelayOfPayment"]), 
-					Is.EqualTo( Math.Round((decimal)(Convert.ToDecimal(orderItem["Cost"]) * (1m + -10.0m / 100m)), 2)) );
+					Is.EqualTo( Math.Round(Convert.ToDecimal(orderItem["Cost"]) * (1m + -10.0m / 100m), 2)) );
 			}
 		}
 
+		[Test]
+		public void Reject_order_if_group_over_max_orders_sum()
+		{
+			var maxSum = Convert.ToDecimal(firstOffer["Cost"]) * 150;
+			var priceId = Convert.ToUInt32(activePrice["PriceCode"]);
+			var supplier = TestPrice.Find(priceId).Supplier;
+			var group = new TestRuleGroup();
+			group.Rules.Add(new TestOrderRule(group, supplier, maxSum));
+			group.Save();
+
+			_address.RuleGroup = group;
+			_address.Save();
+
+			var error = GetError(PostOrder(100));
+			Assert.That(error, Is.Empty);
+
+			InitClient();
+
+			_address.RuleGroup = group;
+			_address.Save();
+
+			error = GetError(PostOrder(100));
+
+			using(new SessionScope())
+			{
+				var orderCount = TestOrder.Queryable.Count(o => o.Address == _address);
+				Assert.That(orderCount, Is.EqualTo(0));
+			}
+
+			Assert.That(error, Is.EqualTo("Превышена максимальная сумма заказов."));
+		}
+
+		private string GetError(string error)
+		{
+			var part = error.Split(';')[3];
+			return part.Slice(part.IndexOf("=") + 1, -1);
+		}
+
+		private string PostOrder(ushort quantity = 1)
+		{
+			string serverResponse;
+			using (var prgData = new PrgDataEx()) {
+				serverResponse = prgData.PostSomeOrdersFullExtend(
+					UniqueId,
+					"7.0.0.1385",
+					true, //ForceSend
+					false, //UseCorrectOrders
+					_address.Id, //ClientId => AddressId
+					1, //OrderCount
+					new ulong[] {1L}, //ClientOrderId
+					new ulong[] {Convert.ToUInt64(activePrice["PriceCode"])},
+					new ulong[] {Convert.ToUInt64(activePrice["RegionCode"])},
+					new DateTime[] {DateTime.Now}, //PriceDate
+					new string[] {""}, //ClientAddition
+					new ushort[] {1}, //RowCount
+					new string[] {""}, //DelayOfPayment
+					new ulong[] {1}, //ClientPositionId
+					new ulong[] {Convert.ToUInt64(firstOffer["Id"].ToString().RightSlice(9))}, //ClientServerCoreId
+					new ulong[] {Convert.ToUInt64(firstOffer["ProductId"])},
+					new string[] {firstOffer["CodeFirmCr"].ToString()},
+					new ulong[] {Convert.ToUInt64(firstOffer["SynonymCode"])},
+					new string[] {firstOffer["SynonymFirmCrCode"].ToString()},
+					new string[] {firstOffer["Code"].ToString()},
+					new string[] {firstOffer["CodeCr"].ToString()},
+					new bool[] {Convert.ToBoolean(firstOffer["Junk"])},
+					new bool[] {Convert.ToBoolean(firstOffer["Await"])},
+					new string[] {firstOffer["RequestRatio"].ToString()},
+					new string[] {firstOffer["OrderCost"].ToString()},
+					new string[] {firstOffer["MinOrderCount"].ToString()},
+					new ushort[] {quantity}, //Quantity
+					new decimal[] {Convert.ToDecimal(firstOffer["Cost"])},
+					new string[] {firstOffer["Cost"].ToString()}, //minCost
+					new string[] {activePrice["PriceCode"].ToString()}, //MinPriceCode
+					new string[] {firstOffer["Cost"].ToString()}, //leaderMinCost
+					new string[] {activePrice["PriceCode"].ToString()}, //leaderMinPriceCode
+					new string[] {"3.0"}, //SupplierPriceMarkup
+					new string[] {firstOffer["Quantity"].ToString()}, //CoreQuantity
+					new string[] {firstOffer["Unit"].ToString()}, //Unit
+					new string[] {firstOffer["Volume"].ToString()}, //Volume
+					new string[] {firstOffer["Note"].ToString()}, //Note
+					new string[] {firstOffer["Period"].ToString()}, //Period
+					new string[] {firstOffer["Doc"].ToString()}, //Doc
+					new string[] {firstOffer["RegistryCost"].ToString()}, //RegistryCost
+					new bool[] {Convert.ToBoolean(firstOffer["VitallyImportant"])}, //VitallyImportant
+					new string[] {""}, //RetailCost
+					new string[] {""}, //ProducerCost
+					new string[] {""} //NDS
+					);
+			}
+			return serverResponse;
+		}
 	}
 }

@@ -2,16 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using Common.Models;
-using NHibernate;
-using NHibernate.Mapping.Attributes;
 
 namespace PrgData.Common.Orders
 {
 	public enum OrderSendResult
-	{		
+	{
 		Success = 0,
 		LessThanMinReq = 1,
-		NeedCorrect = 2
+		NeedCorrect = 2,
+		GreateThanMaxOrderSum = 3,
 	}
 
 	public class ClientOrderHeader
@@ -28,6 +27,7 @@ namespace PrgData.Common.Orders
 
 		public uint? MinReq { get; set; }
 
+		public decimal MaxSum { get; set; }
 
 		public Order Order { get; set; }
 
@@ -47,10 +47,14 @@ namespace PrgData.Common.Orders
 
 		public string GetResultToClient(uint? buildNumber)
 		{
+			var postResult = Convert.ToInt32(SendResult);
+			//analitf ничего не знает о коде ошибки 3, поэтому передаем понятный код ошибки
+			if (postResult == 3)
+				postResult = 2;
 			var result = String.Format(
 				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}{5}",
 				Order.ClientOrderId, 
-				Convert.ToInt32(SendResult),
+				postResult,
 				ServerOrderId,
 				ErrorReason,
 				MinReq,
@@ -70,15 +74,24 @@ namespace PrgData.Common.Orders
 
 		public string GetResultToAddition()
 		{
-			if (SendResult != OrderSendResult.LessThanMinReq)
-				return null;
+			if (SendResult == OrderSendResult.LessThanMinReq) {
+				return String.Format(
+					"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения минимальной суммы заказа {3}.",
+					ClientOrderId,
+					Order.CalculateSum(),
+					ActivePrice.Id.Price.Supplier.Name,
+					MinReq);
+			}
 
-			return String.Format(
-				"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения минимальной суммы заказа {3}.",
-				ClientOrderId,
-				Order.CalculateSum(),
-				ActivePrice.Id.Price.Supplier.Name,
-				MinReq);
+			if (SendResult == OrderSendResult.GreateThanMaxOrderSum) {
+				return String.Format(
+					"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения максимальной суммы заказов {3}.",
+					ClientOrderId,
+					Order.CalculateSum(),
+					ActivePrice.Id.Price.Supplier.Name,
+					MaxSum);
+			}
+			return "";
 		}
 
 		public void ClearOnCreate()
@@ -93,7 +106,7 @@ namespace PrgData.Common.Orders
 
 		public uint GetSavedRowCount()
 		{
-			return Convert.ToUInt32( Positions.Count((item) => { return !item.Duplicated; }));
+			return Convert.ToUInt32( Positions.Count(item => !item.Duplicated));
 		}
 	}
 }

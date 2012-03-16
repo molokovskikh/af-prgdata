@@ -224,15 +224,14 @@ values
 
 		private string GetOrdersResultToAddition()
 		{
-			var results = new List<string>();
-			foreach (var clientOrderHeader in _orders)
-				if (clientOrderHeader.SendResult == OrderSendResult.LessThanMinReq)
-					results.Add(clientOrderHeader.GetResultToAddition());
+			var result =  _orders
+				.Select(o => o.GetResultToAddition())
+				.Where(r => !String.IsNullOrEmpty(r))
+				.Implode("\r\n");
 
-			if (results.Count == 0)
+			if (String.IsNullOrEmpty(result))
 				return null;
-
-			return results.Implode("\r\n");
+			return result;
 		}
 
 		private void CreateOrders(ISession session)
@@ -367,7 +366,7 @@ values
 					}
 
 					if (!_postOldOrder)
-						if (order.Positions.Any((item) => { return ((ClientOrderPosition)item).SendResult != PositionSendResult.Success; }))
+						if (order.Positions.Any(item => item.SendResult != PositionSendResult.Success))
 							order.SendResult = OrderSendResult.NeedCorrect;
 				}
 			}
@@ -490,6 +489,19 @@ values
 							order.ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
 						}
 				}
+
+			With.Session(s => {
+				var checker = new GroupSumOrderChecker(s);
+				var rejectedOrders = checker.Check(_orders.Select(o => o.Order));
+				foreach (var order in _orders) {
+					if (rejectedOrders.ContainsKey(order.Order)) {
+						order.SendResult = OrderSendResult.GreateThanMaxOrderSum;
+						order.MaxSum = rejectedOrders[order.Order];
+						order.ErrorReason = String.Format("Ваша заявка на {0} НЕ Принята, поскольку Сумма заказов в этом месяце по Вашему предприятию на поставщика {0} превысила установленный лимит.",
+							order.Order.PriceList.Supplier.Name);
+					}
+				}
+			});
 		}
 
 		private bool AllOrdersIsSuccess()
