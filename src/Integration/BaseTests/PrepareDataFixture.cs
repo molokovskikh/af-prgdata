@@ -64,6 +64,15 @@ namespace Integration.BaseTests
 			return responce;
 		}
 
+		protected string LoadDataAsyncDispose(bool getEtalonData, DateTime accessTime, string appVersion)
+		{
+			using (var service = new PrgDataEx()) {
+				var responce = service.GetUserDataWithOrdersAsync(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false, null, 1, 1, null);
+
+				return responce;
+			}
+		}
+
 		protected string LoadDataAsyncDocs(bool getEtalonData, DateTime accessTime, string appVersion, uint[] documentBodyIds)
 		{
 			var service = new PrgDataEx();

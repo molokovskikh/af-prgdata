@@ -25,7 +25,7 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			CheckDBFiles();
+			PrepareMySqlPaths();
 
 			CreateResultsDir();
 
@@ -43,6 +43,14 @@ namespace Integration
 				);
 		}
 
+		private void PrepareMySqlPaths()
+		{
+			if (!String.Equals(Environment.MachineName, "devsrv", StringComparison.OrdinalIgnoreCase))
+				ServiceContext.SetupMySqlPath();
+			else
+				CheckDBFiles();
+		}
+
 		private void CheckLocalDB()
 		{
 			using (var connection = Settings.GetConnection())
@@ -52,7 +60,7 @@ namespace Integration
 					connection,
 					"select count(*) from farm.Core0"));
 
-				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake ");
+				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake PrepareLocalForPrgData");
 			}
 		}
 
@@ -83,7 +91,7 @@ namespace Integration
 
 		private void CheckDBFiles()
 		{
-			var dbFilesPath = System.Configuration.ConfigurationManager.AppSettings["MySqlLocalFilePath"];
+			var dbFilesPath = ServiceContext.MySqlLocalImportPath();
 			if ((dbFilesPath.Length > 0) && (dbFilesPath[dbFilesPath.Length - 1] == Path.DirectorySeparatorChar))
 				dbFilesPath = dbFilesPath.Slice(dbFilesPath.Length - 1);
 			var testFile = Path.Combine(dbFilesPath, DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt");
