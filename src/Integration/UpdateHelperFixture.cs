@@ -1549,5 +1549,78 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 			}
 		}
 
+		[Test(Description = "проверка экспорта розничных наценок")]
+		public void ExportRetailMargins()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+insert into UserSettings.RetailMargins (ClientId, CatalogId, Markup, MaxMarkup) 
+select 
+	?ClientId, Id, 30, 30
+from
+	catalogs.Catalog
+where
+	hidden = 0
+limit 3;
+",
+					new MySqlParameter("?clientId", _user.Client.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				//Проверяем каталог для предыдущей версии
+				updateData.ParseBuildNumber("1.1.1.1755");
+				var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(false, false), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
+
+				var dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+				Assert.That(dataTable.Columns.Contains("Markup"), Is.False, "Найден столбец Markup в таблице, хотя его там не должно быть");
+
+				//Проверка каталога для версий с розничными наценками
+
+				var updateTime = DateTime.Now;
+				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+
+				updateData.ParseBuildNumber("1.1.1.1766");
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, true);
+
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.GreaterThan(3), "Каталог должен быть выгружен весь");
+				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
+				
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+update UserSettings.RetailMargins
+set
+  Markup = 31
+where
+  ClientId = ?ClientId
+limit 1;
+",
+					new MySqlParameter("?clientId", _user.Client.Id));
+
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, false);
+
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Запись должна быть одна, т.к. только одну запись мы изменили в таблице розничных наценок");
+				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
+			}
+		}
+
 	}
 }

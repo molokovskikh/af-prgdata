@@ -1791,8 +1791,72 @@ AND
 	   )
 AND    C.hidden =0";
 			}
-			else
-				if (Cumulative)
+			else if (_updateData.AllowRetailMargins()) {
+				if (Cumulative) {
+					return @"
+SELECT 
+	C.Id               ,
+	CN.Id              ,
+	LEFT(CN.name, 250) ,
+	LEFT(CF.form, 250) ,
+	C.vitallyimportant ,
+	C.needcold         ,
+	C.fragile          ,
+	C.MandatoryList    ,
+	CN.MnnId           ,
+	CN.DescriptionId   ,
+	C.Hidden,
+	rm.Markup,
+	rm.MaxMarkup,
+	rm.MaxSupplierMarkup
+FROM   
+	(
+	Catalogs.Catalog C       ,
+	Catalogs.CatalogForms CF ,
+	Catalogs.CatalogNames CN
+	)
+	left join usersettings.RetailMargins rm on rm.CatalogId = c.Id and rm.ClientId = ?ClientCode
+WHERE  
+	C.NameId = CN.Id
+AND C.FormId = CF.Id
+AND C.hidden = 0";
+				}
+				else {
+					return @"
+SELECT 
+	C.Id               ,
+	CN.Id              ,
+	LEFT(CN.name, 250) ,
+	LEFT(CF.form, 250) ,
+	C.vitallyimportant ,
+	C.needcold         ,
+	C.fragile          ,
+	C.MandatoryList    ,
+	CN.MnnId           ,
+	CN.DescriptionId   ,
+	C.Hidden,
+	rm.Markup,
+	rm.MaxMarkup,
+	rm.MaxSupplierMarkup
+FROM   
+	(
+	Catalogs.Catalog C       ,
+	Catalogs.CatalogForms CF ,
+	Catalogs.CatalogNames CN
+	)
+	left join usersettings.RetailMargins rm on rm.CatalogId = c.Id and rm.ClientId = ?ClientCode
+WHERE  
+	C.NameId = CN.Id
+AND C.FormId = CF.Id
+AND
+	   (
+			  IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+	   OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+	   OR     IF(NOT ?Cumulative and rm.Id is not null, rm.UpdateTime > ?UpdateTime, ?Cumulative)
+	   )";
+				}
+			}
+			else if (Cumulative)
 				return @"
 SELECT C.Id               ,
 	   CN.Id              ,
@@ -1812,8 +1876,8 @@ WHERE  C.NameId =CN.Id
 AND    C.FormId =CF.Id
 AND    C.hidden =0
 ";
-			else
-				return @"
+		else
+			return @"
 SELECT C.Id               ,
 	   CN.Id              ,
 	   LEFT(CN.name, 250) ,
