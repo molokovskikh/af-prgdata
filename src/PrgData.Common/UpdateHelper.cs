@@ -61,6 +61,14 @@ namespace PrgData.Common
 				+ HttpContext.Current.Request.Url.Authority
 				+ HttpContext.Current.Request.ApplicationPath;
 
+		public static string GetFullUrl(string handlerName)
+		{
+			var downloadUrl = GetDownloadUrl();
+			if (downloadUrl.EndsWith("/"))
+				downloadUrl = downloadUrl.Slice(downloadUrl.Length-1);
+			return downloadUrl + "/" + handlerName;
+		}
+
 		public string GetConfirmDocumentsCommnad(uint? updateId)
 		{
 			return @"

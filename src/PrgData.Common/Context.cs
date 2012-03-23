@@ -34,8 +34,6 @@ namespace PrgData.Common
 		{
 			if (!String.Equals(Environment.MachineName, "devsrv", StringComparison.OrdinalIgnoreCase)) {
 				var parentDir = AppDomain.CurrentDomain.BaseDirectory;
-				if (Directory.Exists(Path.Combine(parentDir, "bin")))
-					parentDir = Path.Combine(parentDir, "bin");
 				var localMysqlPath = Path.Combine(parentDir, "MySqlExportImport");
 				if (!Directory.Exists(localMysqlPath))
 					Directory.CreateDirectory(localMysqlPath);

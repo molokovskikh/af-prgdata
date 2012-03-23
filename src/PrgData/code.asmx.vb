@@ -803,7 +803,7 @@ endprocNew:
                     End If
                 End If
 
-                ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHandler.ashx?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED))
+                ResStr = "URL=" & UpdateHelper.GetFullUrl("GetFileHandler.ashx") & "?Id=" & GUpdateId & ";New=" & NewZip & ";Cumulative=" & (UpdateType = RequestType.GetCumulative Or (UpdateType = RequestType.PostOrderBatch AndAlso GED))
 
                 If Not String.IsNullOrEmpty(UpdateData.Message) Then ResStr &= ";Addition=" & UpdateData.Message
 
@@ -4139,7 +4139,7 @@ RestartTrans2:
 		Else
 			If FileCount > 0 Then
 
-				GetReclame = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileReclameHandler.ashx;New=" & True
+				GetReclame = "URL=" & UpdateHelper.GetFullUrl("GetFileReclameHandler.ashx") & ";New=" & True
 				If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (URL)")
 
 			Else
@@ -4584,7 +4584,7 @@ endproc:
 					Thread.Sleep(500)
 				End While
 
-				ResStr = "URL=" & UpdateHelper.GetDownloadUrl() & "/GetFileHistoryHandler.ashx?Id=" & GUpdateId
+				ResStr = "URL=" & UpdateHelper.GetFullUrl("GetFileHistoryHandler.ashx") & "?Id=" & GUpdateId
 
 			End If
 
