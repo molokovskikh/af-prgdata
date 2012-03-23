@@ -934,7 +934,7 @@ namespace Integration
 
 		private void ShouldBeSuccessfull()
 		{
-			Assert.That(responce, Is.StringStarting("URL=http://localhost//GetFileHandler.ashx?Id"));
+			Assert.That(responce, Is.StringStarting("URL=http://localhost/GetFileHandler.ashx?Id"));
 		}
 
 		private void Confirm()

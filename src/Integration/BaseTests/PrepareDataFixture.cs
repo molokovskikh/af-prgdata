@@ -99,7 +99,7 @@ namespace Integration.BaseTests
 
 		protected void ShouldBeSuccessfull(string responce)
 		{
-			Assert.That(responce, Is.StringStarting("URL=http://localhost//GetFileHandler.ashx?Id"));
+			Assert.That(responce, Is.StringStarting("URL=http://localhost/GetFileHandler.ashx?Id"));
 		}
 
 		protected uint ParseUpdateId(string responce)
