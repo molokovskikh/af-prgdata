@@ -3012,7 +3012,6 @@ RestartTrans2:
 
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Products" & UserId & ".txt")
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Catalog" & UserId & ".txt")
-				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatalogCurrency" & UserId & ".txt")
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CatDel" & UserId & ".txt")
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Clients" & UserId & ".txt")
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "ClientsDataN" & UserId & ".txt")
@@ -3202,14 +3201,6 @@ RestartTrans2:
 				End If
 
 				GetMySQLFile("Synonym", SelProc, SQLText)
-
-				GetMySQLFile("CatalogCurrency", SelProc, _
-				"SELECT currency, " & _
-				"       exchange " & _
-				"FROM   farm.catalogcurrency " & _
-				"WHERE  currency='$' " & _
-				"    OR currency='Eu'")
-
 
 				If Not UpdateData.EnableImpersonalPrice Then
 
