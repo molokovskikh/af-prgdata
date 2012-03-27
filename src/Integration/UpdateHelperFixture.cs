@@ -10,6 +10,7 @@ using MySql.Data.MySqlClient;
 using PrgData.Common;
 using PrgData.Common.Counters;
 using Test.Support;
+using Test.Support.Catalog;
 using Test.Support.Suppliers;
 
 
@@ -1620,6 +1621,123 @@ limit 1;
 				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
 				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
 			}
+		}
+		
+		private void CheckDescriptionIdColumn(MySqlDataAdapter adapter, uint catalogId, uint? descritionId)
+		{
+			var dataTable = new DataTable();
+			adapter.Fill(dataTable);
+			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+			Assert.That(dataTable.Columns.Contains("DescriptionId"), Is.True, "Не найден столбец DescriptionId в таблице, хотя он там должен быть");
+			var rows = dataTable.Select("Id = " + catalogId);
+			Assert.That(rows.Length, Is.EqualTo(1), "Не найдена строка с каталожным продуктом Id:{0}", catalogId);
+			var row = rows[0];
+			if (descritionId.HasValue)
+				Assert.That(row["DescriptionId"], Is.EqualTo(descritionId), "Не совпадает description для продукта Id:{0}", catalogId);
+			else
+				Assert.That(row["DescriptionId"], Is.EqualTo(DBNull.Value), "Не совпадает description для продукта Id:{0}", catalogId);
+		}
+
+		private void ExportDescriptionIdBy(bool before1150, string version)
+		{
+			var updateTime = DateTime.Now.AddSeconds(-1);
+
+			TestCatalogProduct catalogProduct;
+			TestDescription description;
+
+			using (new TransactionScope()) {
+				var product = new TestProduct("тестовый продукт для пользователя " + _user.Id);
+				product.Save();
+				catalogProduct = product.CatalogProduct;
+
+				description = new TestDescription("тестовое описание для пользователя " + _user.Id, "english description for user " + _user.Id);
+				description.Save();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				//Устанавливаем номер версии, если передан параметр
+				if (!string.IsNullOrEmpty(version))
+					updateData.ParseBuildNumber(version);
+
+				//Проверяем обычный запрос данных при неустановленном описании
+				var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(before1150, false), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", updateTime);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
+
+				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+				
+
+				//Проверяем кумулятивный запрос данных при неустановленном описании
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, true);
+				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
+				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+
+
+				updateTime = DateTime.Now.AddSeconds(-1);
+				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+				
+				//добавляем описание к каталогу
+				using (new TransactionScope()) {
+					catalogProduct.CatalogName.Description = description;
+					catalogProduct.Save();
+				}
+
+				//Проверяем обычный запрос данных при установленном неопубликованном описании
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, false);
+				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 0;
+				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+
+				//Проверяем кумулятивный запрос данных при установленном неопубликованном описании
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, true);
+				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
+				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+
+
+				updateTime = DateTime.Now.AddSeconds(-1);
+				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+
+				//публикуем описание
+				using (new TransactionScope()) {
+					description.NeedCorrect = false;
+					description.Save();
+				}
+
+				//Проверяем обычный запрос данных при установленном опубликованном описании
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, false);
+				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 0;
+				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, description.Id);
+
+				//Проверяем кумулятивный запрос данных при установленном опубликованном описании
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, true);
+				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
+				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, description.Id);
+			}
+		}
+
+		[Test(Description = "проверка экспорта ссылки на описание для версий раньше 1150")]
+		public void ExportDescriptionIdByBefore1150()
+		{
+			 ExportDescriptionIdBy(true, null);
+		}
+
+		[Test(Description = "проверка экспорта ссылки на описание для версий до 1755")]
+		public void ExportDescriptionIdBeforeRetailMargins()
+		{
+			 ExportDescriptionIdBy(false, "1.1.1.1755");
+		}
+
+		[Test(Description = "проверка экспорта ссылки на описание для версий после 1755")]
+		public void ExportDescriptionIdWithRetailMargins()
+		{
+			 ExportDescriptionIdBy(false, "1.1.1.1766");
 		}
 
 	}

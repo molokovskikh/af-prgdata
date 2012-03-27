@@ -1761,27 +1761,34 @@ where db.Id in ({0})
 			if (before1150)
 			{
 				return @"
-SELECT C.Id               ,
-	   CN.Id              ,
-	   LEFT(CN.name, 250) ,
-	   LEFT(CF.form, 250) ,
-	   C.vitallyimportant ,
-	   C.needcold         ,
-	   C.fragile          ,
-	   C.MandatoryList    ,
-	   CN.MnnId           ,
-	   CN.DescriptionId
-FROM   Catalogs.Catalog C       ,
-	   Catalogs.CatalogForms CF ,
-	   Catalogs.CatalogNames CN
-WHERE  C.NameId =CN.Id
-AND    C.FormId =CF.Id
+SELECT 
+	C.Id               ,
+	CN.Id              ,
+	LEFT(CN.name, 250) ,
+	LEFT(CF.form, 250) ,
+	C.vitallyimportant ,
+	C.needcold         ,
+	C.fragile          ,
+	C.MandatoryList    ,
+	CN.MnnId           ,
+	if(d.Id is not null and d.NeedCorrect = 0, CN.DescriptionId, null) DescriptionId
+FROM
+	(   
+	Catalogs.Catalog C       ,
+	Catalogs.CatalogForms CF ,
+	Catalogs.CatalogNames CN
+	)
+	left join catalogs.Descriptions d on d.Id = CN.DescriptionId
+WHERE  
+	C.NameId =CN.Id
+AND C.FormId =CF.Id
 AND
-	   (
-			  IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-	   OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-	   )
-AND    C.hidden =0";
+	(
+			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
+	)
+AND C.hidden = 0";
 			}
 			else if (_updateData.AllowRetailMargins()) {
 				if (Cumulative) {
@@ -1796,7 +1803,7 @@ SELECT
 	C.fragile          ,
 	C.MandatoryList    ,
 	CN.MnnId           ,
-	CN.DescriptionId   ,
+	if(d.Id is not null and d.NeedCorrect = 0, CN.DescriptionId, null) DescriptionId,
 	C.Hidden,
 	rm.Markup,
 	rm.MaxMarkup,
@@ -1808,6 +1815,7 @@ FROM
 	Catalogs.CatalogNames CN
 	)
 	left join usersettings.RetailMargins rm on rm.CatalogId = c.Id and rm.ClientId = ?ClientCode
+	left join catalogs.Descriptions d on d.Id = CN.DescriptionId
 WHERE  
 	C.NameId = CN.Id
 AND C.FormId = CF.Id
@@ -1825,7 +1833,7 @@ SELECT
 	C.fragile          ,
 	C.MandatoryList    ,
 	CN.MnnId           ,
-	CN.DescriptionId   ,
+	if(d.Id is not null and d.NeedCorrect = 0, CN.DescriptionId, null) DescriptionId,
 	C.Hidden,
 	rm.Markup,
 	rm.MaxMarkup,
@@ -1837,60 +1845,75 @@ FROM
 	Catalogs.CatalogNames CN
 	)
 	left join usersettings.RetailMargins rm on rm.CatalogId = c.Id and rm.ClientId = ?ClientCode
+	left join catalogs.Descriptions d on d.Id = CN.DescriptionId
 WHERE  
 	C.NameId = CN.Id
 AND C.FormId = CF.Id
 AND
-	   (
-			  IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-	   OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-	   OR     IF(NOT ?Cumulative and rm.Id is not null, rm.UpdateTime > ?UpdateTime, ?Cumulative)
-	   )";
+	(
+			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
+		OR	IF(NOT ?Cumulative and rm.Id is not null, rm.UpdateTime > ?UpdateTime, ?Cumulative)
+	)";
 				}
 			}
 			else if (Cumulative)
 				return @"
-SELECT C.Id               ,
-	   CN.Id              ,
-	   LEFT(CN.name, 250) ,
-	   LEFT(CF.form, 250) ,
-	   C.vitallyimportant ,
-	   C.needcold         ,
-	   C.fragile          ,
-	   C.MandatoryList    ,
-	   CN.MnnId           ,
-	   CN.DescriptionId   ,
-	   C.Hidden
-FROM   Catalogs.Catalog C       ,
-	   Catalogs.CatalogForms CF ,
-	   Catalogs.CatalogNames CN
-WHERE  C.NameId =CN.Id
-AND    C.FormId =CF.Id
-AND    C.hidden =0
+SELECT 
+	C.Id               ,
+	CN.Id              ,
+	LEFT(CN.name, 250) ,
+	LEFT(CF.form, 250) ,
+	C.vitallyimportant ,
+	C.needcold         ,
+	C.fragile          ,
+	C.MandatoryList    ,
+	CN.MnnId           ,
+	if(d.Id is not null and d.NeedCorrect = 0, CN.DescriptionId, null) DescriptionId,
+	C.Hidden
+FROM   
+	(
+	Catalogs.Catalog C       ,
+	Catalogs.CatalogForms CF ,
+	Catalogs.CatalogNames CN
+	)
+	left join catalogs.Descriptions d on d.Id = CN.DescriptionId
+WHERE
+	C.NameId =CN.Id
+AND C.FormId =CF.Id
+AND C.hidden =0
 ";
 		else
 			return @"
-SELECT C.Id               ,
-	   CN.Id              ,
-	   LEFT(CN.name, 250) ,
-	   LEFT(CF.form, 250) ,
-	   C.vitallyimportant ,
-	   C.needcold         ,
-	   C.fragile          ,
-	   C.MandatoryList    ,
-	   CN.MnnId           ,
-	   CN.DescriptionId   ,
-	   C.Hidden
-FROM   Catalogs.Catalog C       ,
-	   Catalogs.CatalogForms CF ,
-	   Catalogs.CatalogNames CN
-WHERE  C.NameId =CN.Id
-AND    C.FormId =CF.Id
+SELECT 
+	C.Id               ,
+	CN.Id              ,
+	LEFT(CN.name, 250) ,
+	LEFT(CF.form, 250) ,
+	C.vitallyimportant ,
+	C.needcold         ,
+	C.fragile          ,
+	C.MandatoryList    ,
+	CN.MnnId           ,
+	if(d.Id is not null and d.NeedCorrect = 0, CN.DescriptionId, null) DescriptionId,
+	C.Hidden
+FROM   
+	(
+	Catalogs.Catalog C       ,
+	Catalogs.CatalogForms CF ,
+	Catalogs.CatalogNames CN
+	)
+	left join catalogs.Descriptions d on d.Id = CN.DescriptionId
+WHERE  
+	C.NameId =CN.Id
+AND C.FormId =CF.Id
 AND
-	   (
-			  IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-	   OR     IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-	   )
+	(
+			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
+		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
+		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
+	)
 ";
 		}
 
