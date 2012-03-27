@@ -824,19 +824,24 @@ limit 1
 			var priceId = Convert.ToUInt32(activePrice["PriceCode"]);
 			var supplier = TestPrice.Find(priceId).Supplier;
 			var group = new TestRuleGroup();
-			group.Rules.Add(new TestOrderRule(group, supplier, maxSum));
-			group.Save();
 
-			_address.RuleGroup = group;
-			_address.Save();
+			using (new TransactionScope()) {
+				group.Rules.Add(new TestOrderRule(group, supplier, maxSum));
+				group.Save();
+
+				_address.RuleGroup = group;
+				_address.Save();
+			}
 
 			var error = GetError(PostOrder(100));
 			Assert.That(error, Is.Empty);
 
 			InitClient();
 
-			_address.RuleGroup = group;
-			_address.Save();
+			using (new TransactionScope()) {
+				_address.RuleGroup = group;
+				_address.Save();
+			}
 
 			error = GetError(PostOrder(100));
 
@@ -846,7 +851,10 @@ limit 1
 				Assert.That(orderCount, Is.EqualTo(0));
 			}
 
-			Assert.That(error, Is.EqualTo("Превышена максимальная сумма заказов."));
+			Assert.That(error, Is.EqualTo(
+				String.Format(
+					"Ваша заявка на {0} НЕ Принята, поскольку Сумма заказов в этом месяце по Вашему предприятию на поставщика {0} превысила установленный лимит.",
+					supplier.Name)));
 		}
 
 		private string GetError(string error)
