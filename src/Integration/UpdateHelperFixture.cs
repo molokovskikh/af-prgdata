@@ -1613,6 +1613,12 @@ limit 1;
 ",
 					new MySqlParameter("?clientId", _user.Client.Id));
 
+				updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+					connection,
+					"select max(UpdateTime) from UserSettings.RetailMargins where ClientId = ?ClientId",
+					new MySqlParameter("?clientId", _user.Client.Id))).AddSeconds(-1);
+				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+
 				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, false);
 
 				dataTable = new DataTable();
@@ -1680,15 +1686,17 @@ limit 1;
 				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
 				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
 
-
-				updateTime = DateTime.Now.AddSeconds(-1);
-				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
-				
 				//добавляем описание к каталогу
 				using (new TransactionScope()) {
 					catalogProduct.CatalogName.Description = description;
 					catalogProduct.Save();
 				}
+
+				updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+					connection,
+					"select UpdateTime from catalogs.CatalogNames where Id = ?Id",
+					new MySqlParameter("?Id", catalogProduct.CatalogName.Id))).AddSeconds(-1);
+				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
 
 				//Проверяем обычный запрос данных при установленном неопубликованном описании
 				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, false);
@@ -1700,15 +1708,18 @@ limit 1;
 				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
 				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
 
-
-				updateTime = DateTime.Now.AddSeconds(-1);
-				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
-
 				//публикуем описание
 				using (new TransactionScope()) {
 					description.NeedCorrect = false;
 					description.Save();
 				}
+
+				//updateTime = description.UpdateTime.AddSeconds(-1);
+				updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+					connection,
+					"select UpdateTime from catalogs.Descriptions where Id = ?Id",
+					new MySqlParameter("?Id", description.Id))).AddSeconds(-1);
+				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
 
 				//Проверяем обычный запрос данных при установленном опубликованном описании
 				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, false);
