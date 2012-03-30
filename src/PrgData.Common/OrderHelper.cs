@@ -33,8 +33,8 @@ SELECT
 ai.ControlMinReq,
 if(ifnull(ai.MinReq, 0) > 0, ai.MinReq, if(ifnull(i.MinReq, 0) > 0, i.MinReq, prd.MinReq))
 FROM
-Future.Intersection i
-join future.AddressIntersection ai on (ai.IntersectionId = i.Id)
+Customers.Intersection i
+join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id)
 join usersettings.pricesregionaldata prd on prd.pricecode = i.PriceId and prd.RegionCode = i.RegionId
 where
 	(i.ClientId = ?ClientCode)
@@ -60,8 +60,8 @@ and (ai.AddressId = ?AddressId)
 		{
 			var command = new MySqlCommand(@"
 select if(ua.UserId is null, 0, 1)
-from Future.Users u
-join Future.UserAddresses ua on ua.UserId = u.Id and ua.AddressId = ?AddressId
+from Customers.Users u
+join Customers.UserAddresses ua on ua.UserId = u.Id and ua.AddressId = ?AddressId
 where u.Id = ?UserId", _readWriteConnection);
 			command.Parameters.AddWithValue("?UserId", _data.UserId);
 			command.Parameters.AddWithValue("?AddressId", clientCode);

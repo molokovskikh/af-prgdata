@@ -70,7 +70,7 @@ and WriteTime > now() - interval 2 week"
 						connection,
 						@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId)",
+call Customers.GetOffers(?UserId)",
 						new MySqlParameter("?UserId", _user.Id));
 
 					activePrice = ExecuteDataRow(

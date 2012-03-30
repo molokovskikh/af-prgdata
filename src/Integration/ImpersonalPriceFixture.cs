@@ -100,8 +100,8 @@ namespace Integration
 				//smartRuleOld.SaveAndFlush();
 
 				smartRuleFuture = new TestSmartOrderRule();
-				smartRuleFuture.OffersClientCode = offersFutureUser.Id;
-				smartRuleFuture.SaveAndFlush();
+				smartRuleCustomers.OffersClientCode = offersFutureUser.Id;
+				smartRuleCustomers.SaveAndFlush();
 
 //                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
 //                try
@@ -121,9 +121,9 @@ namespace Integration
 			using (var transaction = new TransactionScope())
 			{
 				orderRuleFuture = TestDrugstoreSettings.Find(client.Id);
-				orderRuleFuture.SmartOrderRule = smartRuleFuture;
-				orderRuleFuture.EnableImpersonalPrice = true;
-				orderRuleFuture.UpdateAndFlush();
+				orderRuleCustomers.SmartOrderRule = smartRuleFuture;
+				orderRuleCustomers.EnableImpersonalPrice = true;
+				orderRuleCustomers.UpdateAndFlush();
 
 				//orderRuleOld = TestDrugstoreSettings.Find(oldClient.Id);
 				//orderRuleOld.SmartOrderRule = smartRuleOld;
@@ -219,7 +219,7 @@ namespace Integration
 				var ExistsFirms = MySqlHelper.ExecuteScalar(
 					connection,
 					@"
-call future.GetPrices(?OffersClientCode);
+call Customers.GetPrices(?OffersClientCode);
 select
   count(*)
 from
@@ -246,7 +246,7 @@ where
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"call future.GetPrices(?OffersClientCode)",
+					"call Customers.GetPrices(?OffersClientCode)",
 					new MySqlParameter("?OffersClientCode", offersFutureUser.Id));
 
 				var nonExistsFirms = MySqlHelper.ExecuteScalar(
@@ -297,7 +297,7 @@ and afi.ForceReplication = 0",
 				var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
 					connection,
 					@"
-call future.GetPrices(?OffersClientCode);
+call Customers.GetPrices(?OffersClientCode);
 select
   count(*)
 from

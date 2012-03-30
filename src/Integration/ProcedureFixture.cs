@@ -104,7 +104,7 @@ namespace Integration
 			Execute(@"
 drop temporary table if exists Usersettings.Prices;
 drop temporary table if exists Usersettings.ActivePrices;
-call future.GetActivePrices(758);");
+call Customers.GetActivePrices(758);");
 		}
 
 		[Test]
@@ -113,7 +113,7 @@ call future.GetActivePrices(758);");
 			Execute(@"
 drop temporary table if exists Usersettings.Prices;
 drop temporary table if exists Usersettings.ActivePrices;
-call future.GetPrices(10005);");
+call Customers.GetPrices(10005);");
 		}
 
 		[Test]
@@ -122,7 +122,7 @@ call future.GetPrices(10005);");
 			Execute(@"
 drop temporary table if exists Usersettings.Prices;
 drop temporary table if exists Usersettings.ActivePrices;
-call future.GetOffers(10005);");
+call Customers.GetOffers(10005);");
 		}
 
 		public void CallGetOffers()
@@ -135,7 +135,7 @@ DROP TEMPORARY TABLE IF EXISTS usersettings.ActivePrices;
 
 #drop temporary table if exists Usersettings.Prices;
 #drop temporary table if exists Usersettings.ActivePrices;
-call future.GetOffers(10081);");
+call Customers.GetOffers(10081);");
 			Execute(@"
 DROP TEMPORARY TABLE IF EXISTS usersettings.Core;
 DROP TEMPORARY TABLE IF EXISTS usersettings.MinCosts;
@@ -1318,7 +1318,7 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 							@"
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :parentUserId;
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :childUserId;
-delete from future.UserPrices where UserId = :parentUserId and PriceId = :priceId;
+delete from Customers.UserPrices where UserId = :parentUserId and PriceId = :priceId;
 "
 							)
 							.SetParameter("firmCode", deletedPrice.Supplier.Id)
@@ -1345,7 +1345,7 @@ delete from future.UserPrices where UserId = :parentUserId and PriceId = :priceI
 						@"
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :parentUserId;
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :childUserId;
-insert into future.UserPrices (UserId, PriceId, RegionId) values (:parentUserId, :priceId, :regionId);
+insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUserId, :priceId, :regionId);
 "
 						)
 						.SetParameter("firmCode", deletedPrice.Supplier.Id)

@@ -47,8 +47,8 @@ namespace PrgData.FileHandlers
 					connection.Open();
 					var command = new MySqlCommand(@"
 SELECT u.Id
-FROM Future.Clients c
-	JOIN Future.Users u on u.ClientId = c.Id
+FROM Customers.Clients c
+	JOIN Customers.Users u on u.ClientId = c.Id
 		JOIN AssignedPermissions ap on ap.UserId = u.Id
 			JOIN UserPermissions up on up.Id = ap.PermissionId
 where c.Status = 1

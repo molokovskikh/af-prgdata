@@ -104,7 +104,7 @@ namespace PrgData.Common.Orders
 			using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(Helper.ReadWriteConnection))
 			{
 				var addressList = session
-					.CreateSQLQuery("select AddressId from future.UserAddresses where UserId = :userId")
+					.CreateSQLQuery("select AddressId from Customers.UserAddresses where UserId = :userId")
 					.SetParameter("userId", Data.UserId)
 					.List<uint>();
 				var criteria = DetachedCriteria.For<Order>()
@@ -201,7 +201,7 @@ select
 	?UserId, 
 	?OrderId 
 from 
-	future.Users u
+	Customers.Users u
 where 
 	u.Id = ?UserId
 and not exists(select * from logs.UnconfirmedOrdersSendLogs where UserId = ?UserId and OrderId = ?OrderId);

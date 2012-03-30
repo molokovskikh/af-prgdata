@@ -187,7 +187,7 @@ and WriteTime > now() - interval 2 week"
 					connection,
 					@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId)",
+call Customers.GetOffers(?UserId)",
 					new MySqlParameter("?UserId", user.Id));
 
 				activePrice = ExecuteDataRow(
@@ -1210,12 +1210,12 @@ update Orders.OrdersHead set RowCount = RowCount + 1 where RowId = ?OrderId;",
 				{
 					session.CreateSQLQuery(@"
 update
-  Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-  join future.Intersection i on i.ClientId = c.Id
-  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
 set
   ai.ControlMinReq = 0
 where
@@ -1230,12 +1230,12 @@ and (i.PriceId = :PriceId)
 
 					session.CreateSQLQuery(@"
 update
-  Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-  join future.Intersection i on i.ClientId = c.Id
-  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
 set
   ai.ControlMinReq = 1,
   ai.MinReq = 10000
@@ -1495,7 +1495,7 @@ limit 1
 						connection,
 						@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId)",
+call Customers.GetOffers(?UserId)",
 						new MySqlParameter("?UserId", user.Id));
 
 					var priceLists = MySqlHelper.ExecuteDataset(
@@ -1545,9 +1545,9 @@ limit 1
 					MySqlHelper.ExecuteNonQuery(
 						connection,
 						@"
-delete from future.UserPrices where UserId = ?UserId and PriceId <> ?PriceId;
+delete from Customers.UserPrices where UserId = ?UserId and PriceId <> ?PriceId;
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId)",
+call Customers.GetOffers(?UserId)",
 						new MySqlParameter("?UserId", user.Id),
 						new MySqlParameter("?PriceId", activePrice["PriceCode"]));
 
@@ -1820,12 +1820,12 @@ limit 1
 				{
 					session.CreateSQLQuery(@"
 update
-  Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-  join future.Intersection i on i.ClientId = c.Id
-  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
 set
   ai.ControlMinReq = 1,
   ai.MinReq = 10000

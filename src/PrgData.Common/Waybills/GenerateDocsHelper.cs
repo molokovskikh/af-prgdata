@@ -48,7 +48,7 @@ namespace PrgData.Common.Orders
 				headerCommand.Parameters["?PriceCode"].Value = item.Order.ActivePrice.Id.Price.PriceCode;
 				var firmCode = Convert.ToUInt64(headerCommand.ExecuteScalar());
 
-				headerCommand.CommandText = "select cd.Name from usersettings.pricesdata pd, future.Suppliers cd where pd.PriceCode = ?PriceCode and cd.Id = pd.FirmCode";
+				headerCommand.CommandText = "select cd.Name from usersettings.pricesdata pd, Customers.Suppliers cd where pd.PriceCode = ?PriceCode and cd.Id = pd.FirmCode";
 				var shortFirmName = Convert.ToString(headerCommand.ExecuteScalar());
 
 				//Кол-во генерируемых документов относительно данного заказа
@@ -181,12 +181,12 @@ select
 	10
 from
   (
-	future.Suppliers s,
-	future.Clients c
+	Customers.Suppliers s,
+	Customers.Clients c
   )
 	inner join billing.Payers sp on sp.PayerId = s.Payer
 	inner join billing.Payers cp on cp.PayerId = c.PayerId
-	inner join future.Addresses a on a.ClientId = c.Id and a.Id = ?AddressId
+	inner join Customers.Addresses a on a.ClientId = c.Id and a.Id = ?AddressId
 where
 	s.Id = ?FirmCode
 and c.Id = ?ClientCode;
@@ -435,7 +435,7 @@ values (?UserId, @LastDownloadId);";
 			headerCommand.CommandText = "select @LastDownloadId";
 			var lastDownloadId = Convert.ToUInt32(headerCommand.ExecuteScalar());
 
-			headerCommand.CommandText = "select Name from future.Suppliers where Id = ?FirmCode;";
+			headerCommand.CommandText = "select Name from Customers.Suppliers where Id = ?FirmCode;";
 			var shortName = headerCommand.ExecuteScalar();
 
 			resultFileName = 

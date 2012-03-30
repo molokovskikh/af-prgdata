@@ -70,7 +70,7 @@ namespace Integration
 					connection,
 					@"
 drop temporary table if exists Usersettings.Prices, Usersettings.ActivePrices, Usersettings.Core;
-call future.GetOffers(?UserId);
+call Customers.GetOffers(?UserId);
 drop temporary table if exists SelectedActivePrices;
 create temporary table SelectedActivePrices engine=memory as select * from ActivePrices limit 3;
 ",

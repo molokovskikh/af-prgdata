@@ -59,7 +59,7 @@ limit 1", _readWriteConnection);
 
 			command.CommandText = @"
 select RegionCode
-from future.clients
+from Customers.clients
 where Id = ?ClientId";
 			_homeRegionCode = Convert.ToUInt64(command.ExecuteScalar());
 		}

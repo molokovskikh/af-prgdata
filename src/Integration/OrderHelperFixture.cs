@@ -35,7 +35,7 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "проверяем, что маска регионов загружается из future.Users")]
+		[Test(Description = "проверяем, что маска регионов загружается из Customers.Users")]
 		public void check_OrderRegions_for_future_client()
 		{
 			var userName = _user.Login;
@@ -50,7 +50,7 @@ namespace Integration
 
 					var command = new MySqlCommand(@"
 update usersettings.RetClientsSet set OrderRegionMask = 2 where ClientCode = ?clientId ;
-update future.Users set OrderRegionMask = 3 where Id = ?userId ;", connection, trans);
+update Customers.Users set OrderRegionMask = 3 where Id = ?userId ;", connection, trans);
 					command.Parameters.AddWithValue("?userId", updateData.UserId);
 					command.Parameters.AddWithValue("?clientId", updateData.ClientId);
 					command.ExecuteNonQuery();					

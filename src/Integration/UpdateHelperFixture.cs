@@ -701,10 +701,10 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 	SELECT 
 		count(distinct le.Id)
 	FROM 
-	Future.Users u
-	  join future.Clients c on u.ClientId = c.Id
-	  join Future.UserAddresses ua on ua.UserId = u.Id
-	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	Customers.Users u
+	  join Customers.Clients c on u.ClientId = c.Id
+	  join Customers.UserAddresses ua on ua.UserId = u.Id
+	  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 	  join billing.LegalEntities le on le.Id = a.LegalEntityId
 	WHERE 
 		u.Id = ?UserId
@@ -969,7 +969,7 @@ and ForceReplication > 0;",
 					connection,
 					@"
 delete from
-	future.UserPrices
+	Customers.UserPrices
 where
 	PriceId = ?PriceId
 and RegionId = ?RegionId
@@ -1202,7 +1202,7 @@ and ForceReplication > 0;",
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update Future.Users set UseAdjustmentOrders = 0, ShowSupplierCost = 0 where Id = ?UserId",
+					"update Customers.Users set UseAdjustmentOrders = 0, ShowSupplierCost = 0 where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id));
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -1219,7 +1219,7 @@ and ForceReplication > 0;",
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update Future.Users set UseAdjustmentOrders = 1, ShowSupplierCost = 1 where Id = ?UserId",
+					"update Customers.Users set UseAdjustmentOrders = 1, ShowSupplierCost = 1 where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id));
 
 				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);

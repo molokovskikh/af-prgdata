@@ -164,9 +164,9 @@ INTO   Usersettings.AnalitFReplicationInfo
 SELECT u.Id,
 	   supplier.Id,
 	   1
-FROM Future.Clients drugstore
-	JOIN Future.Users u ON u.ClientId = drugstore.Id
-	JOIN future.Suppliers supplier ON supplier.regionmask & ?OffersRegionCode > 0
+FROM Customers.Clients drugstore
+	JOIN Customers.Users u ON u.ClientId = drugstore.Id
+	JOIN Customers.Suppliers supplier ON supplier.regionmask & ?OffersRegionCode > 0
 	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
 	AND drugstore.Id = ?ClientCode
@@ -186,9 +186,9 @@ INTO   Usersettings.AnalitFReplicationInfo
 SELECT u.Id,
 	   supplier.Id,
 	   1
-FROM Future.Clients drugstore
-	JOIN Future.Users u ON u.ClientId = drugstore.Id
-	JOIN future.Suppliers supplier ON supplier.regionmask & drugstore.maskregion > 0
+FROM Customers.Clients drugstore
+	JOIN Customers.Users u ON u.ClientId = drugstore.Id
+	JOIN Customers.Suppliers supplier ON supplier.regionmask & drugstore.maskregion > 0
 	LEFT JOIN Usersettings.AnalitFReplicationInfo ari ON ari.UserId   = u.Id AND ari.FirmCode = supplier.Id
 WHERE ari.UserId IS NULL 
 	AND drugstore.Id = ?ClientCode
@@ -215,7 +215,7 @@ where r.RegionCode = ?OffersRegionCode
 SELECT 
   r.regioncode,
   left(r.region, 25) as region
-FROM future.Clients c
+FROM Customers.Clients c
 	join farm.regions r on r.RegionCode & c.maskregion > 0
 where c.Id = ?ClientCode
 ";
@@ -258,8 +258,8 @@ SELECT
 	u.SendRejects,
 	ap.UserId is not null as AFPermissionExists
 FROM  
-  future.users u
-  join future.Clients c                         on c.Id = u.ClientId
+  Customers.users u
+  join Customers.Clients c                         on c.Id = u.ClientId
   join usersettings.retclientsset               on retclientsset.clientcode = c.Id
   join usersettings.UserUpdateInfo rui          on rui.UserId = u.Id 
   join usersettings.UserPermissions up          on up.Shortcut = 'AF'
@@ -274,7 +274,7 @@ select
 	AnalitFUpdates.Addition
 from
 	logs.AnalitFUpdates,
-	future.users u
+	Customers.users u
 where
 	u.Login = ?user
 and AnalitFUpdates.UserId = u.Id
@@ -301,8 +301,8 @@ SELECT
   c.RegionCode as OfferRegionCode
 FROM retclientsset r
 	join OrderSendRules.smart_order_rules s
-	left join Future.Users u on u.Id = s.OffersClientCode
-	left join Future.Clients c on c.Id = u.ClientId
+	left join Customers.Users u on u.Id = s.OffersClientCode
+	left join Customers.Clients c on c.Id = u.ClientId
 WHERE r.clientcode = ?ClientCode
 	and s.id = r.smartorderruleid
 	and s.offersclientcode != r.clientcode;";
@@ -335,7 +335,7 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 				command.ExecuteNonQuery();
 			}
 			else {
-				var command = new MySqlCommand("call future.AFGetActivePrices(?UserId);", _readWriteConnection);
+				var command = new MySqlCommand("call Customers.AFGetActivePrices(?UserId);", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
@@ -344,12 +344,12 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 		public void SelectPrices()
 		{
 			if (_updateData.EnableImpersonalPrice) {
-				var command = new MySqlCommand("call future.GetPrices(?OffersClientCode)", _readWriteConnection);
+				var command = new MySqlCommand("call Customers.GetPrices(?OffersClientCode)", _readWriteConnection);
 				command.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 				command.ExecuteNonQuery();
 			}
 			else {
-				var command = new MySqlCommand("CALL future.GetPrices(?UserId)", _readWriteConnection);
+				var command = new MySqlCommand("CALL Customers.GetPrices(?UserId)", _readWriteConnection);
 				command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				command.ExecuteNonQuery();
 			}
@@ -357,7 +357,7 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 
 		public void SelectOffers()
 		{
-			var command = new MySqlCommand("call future.GetOffers(?UserId)", _readWriteConnection);
+			var command = new MySqlCommand("call Customers.GetOffers(?UserId)", _readWriteConnection);
 			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			command.ExecuteNonQuery();
 		}
@@ -368,8 +368,8 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 SELECT r.Region,
 	   uui.ReclameDate,
 	   rcs.ShowAdvertising
-FROM Future.Clients c
-	join Future.Users u on c.Id = u.Clientid
+FROM Customers.Clients c
+	join Customers.Users u on c.Id = u.Clientid
 	join usersettings.RetClientsSet rcs on rcs.ClientCode = u.Clientid
 	join farm.regions r on r.RegionCode = c.RegionCode
 	join UserUpdateInfo uui on u.Id = uui.UserId
@@ -659,7 +659,7 @@ select
   DocumentHeaders.OrderId
 from
   documents.DocumentHeaders,
-  future.Clients,
+  Customers.Clients,
   farm.regions
 where
 	DocumentHeaders.DownloadId in ({0})
@@ -773,10 +773,10 @@ SELECT
 	u.UseAdjustmentOrders,
 	u.ShowSupplierCost
 FROM 
-  Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  left join Future.UserAddresses ua on ua.UserId = u.Id
-  left join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  left join Customers.UserAddresses ua on ua.UserId = u.Id
+  left join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 WHERE u.Id = " + _updateData.UserId +
 @"
 limit 1";
@@ -792,9 +792,9 @@ limit 1";
 				networkSelfClientIdColumn = _updateData.NetworkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId";
 				networkSelfClientIdJoin =
 					_updateData.NetworkPriceId.HasValue
-						? " left join future.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " +
+						? " left join Customers.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " +
 							_updateData.NetworkPriceId +
-							" left join future.AddressIntersection ai on ai.IntersectionId = i.Id and ai.AddressId = a.Id  "
+							" left join Customers.AddressIntersection ai on ai.IntersectionId = i.Id and ai.AddressId = a.Id  "
 						: "";
 			}
 
@@ -805,9 +805,9 @@ limit 1";
 	SELECT 
 		count(distinct le.Id)
 	FROM 
-	Future.Users u
-	  join future.Clients c on u.ClientId = c.Id
-	  join future.Addresses a on c.Id = a.ClientId
+	Customers.Users u
+	  join Customers.Clients c on u.ClientId = c.Id
+	  join Customers.Addresses a on c.Id = a.ClientId
 	  join billing.LegalEntities le on le.Id = a.LegalEntityId
 	WHERE 
 		u.Id = ?UserId
@@ -829,11 +829,11 @@ limit 1";
 		 rcs.AllowDelayOfPayment, 
 		 c.FullName
 		{1}
-	FROM Future.Users u
-	  join future.Clients c on u.ClientId = c.Id
+	FROM Customers.Users u
+	  join Customers.Clients c on u.ClientId = c.Id
 	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
-	  join Future.UserAddresses ua on ua.UserId = u.Id
-	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	  join Customers.UserAddresses ua on ua.UserId = u.Id
+	  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 	  join billing.LegalEntities le on le.Id = a.LegalEntityId
 	  {2}
 	WHERE 
@@ -856,11 +856,11 @@ limit 1";
 		 rcs.CalculateLeader
 		 {1}
 		 {2}
-	FROM Future.Users u
-	  join future.Clients c on u.ClientId = c.Id
+	FROM Customers.Users u
+	  join Customers.Clients c on u.ClientId = c.Id
 	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
-	  join Future.UserAddresses ua on ua.UserId = u.Id
-	  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	  join Customers.UserAddresses ua on ua.UserId = u.Id
+	  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 	  {3}
 	WHERE 
 		u.Id = ?UserId
@@ -886,8 +886,8 @@ SELECT
 	rcs.EnableImpersonalPrice
 {0}
 {1}
-FROM Future.Users u
-join future.Clients c on u.ClientId = c.Id
+FROM Customers.Users u
+join Customers.Clients c on u.ClientId = c.Id
 join farm.regions on regions.RegionCode = c.RegionCode
 join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
 WHERE u.Id = ?UserId
@@ -899,7 +899,7 @@ WHERE u.Id = ?UserId
 		public string GetDelayOfPaymentsCommand()
 		{
 			if (_updateData.EnableImpersonalPrice)
-				return "select null from future.Clients limit 0";
+				return "select null from Customers.Clients limit 0";
 			else if (_updateData.AllowDelayByPrice())
 			{
 				return @"
@@ -909,8 +909,8 @@ select
 	d.VitallyImportantDelay,
 	d.OtherDelay
 from
-	Future.Users u
-	join future.Clients c on u.ClientId = c.Id
+	Customers.Users u
+	join Customers.Clients c on u.ClientId = c.Id
 	join UserSettings.SupplierIntersection si on si.ClientId = c.Id
 	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
@@ -926,8 +926,8 @@ select
 	min(d.VitallyImportantDelay) as VitallyImportantDelay,
 	min(d.OtherDelay) as OtherDelay
 from
-	Future.Users u
-	join future.Clients c on u.ClientId = c.Id
+	Customers.Users u
+	join Customers.Clients c on u.ClientId = c.Id
 	join UserSettings.SupplierIntersection si on si.ClientId = c.Id
 	join UserSettings.PriceIntersections pi on pi.SupplierIntersectionId = si.Id
 	join Usersettings.DelayOfPayments d on d.PriceIntersectionId = pi.Id
@@ -942,8 +942,8 @@ select
 	   si.SupplierId   ,
 	   si.DelayOfPayment
 from
-	   Future.Users u
-	   join future.Clients c on u.ClientId = c.Id
+	   Customers.Users u
+	   join Customers.Clients c on u.ClientId = c.Id
 	   join Usersettings.SupplierIntersection si on si.ClientId = c.Id
 where
 	   u.Id = ?UserId";
@@ -2322,24 +2322,24 @@ select
   concat(cd.Name, ' (', Prices.PriceName, ') ', r.Region) as FirmName 
 from 
   Prices
-  inner join future.Suppliers cd on cd.Id = Prices.FirmCode
+  inner join Customers.Suppliers cd on cd.Id = Prices.FirmCode
   inner join farm.regions r on r.RegionCode = Prices.RegionCode
   ");
 					var prices = pricesSet.Tables[0];
 
 					var addition = new List<string>();
 
-					var deleteCommand = new MySqlCommand("delete from Future.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
+					var deleteCommand = new MySqlCommand("delete from Customers.UserPrices where PriceId = ?PriceId and UserId = ?UserId and RegionId = ?RegionId", _readWriteConnection);
 					deleteCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 					deleteCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
 					deleteCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
 					var insertCommand = new MySqlCommand(@"
-insert into Future.UserPrices(UserId, PriceId, RegionId)
+insert into Customers.UserPrices(UserId, PriceId, RegionId)
 select ?UserId, ?PriceId, ?RegionId
 from (select 1) as c
 where not exists (
 	select *
-	from Future.UserPrices up
+	from Customers.UserPrices up
 	where up.UserId = ?UserId and up.PriceId = ?PriceId and up.RegionId = ?RegionId
 );", _readWriteConnection);
 					insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
@@ -2390,7 +2390,7 @@ where not exists (
 			var userId = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 select UserId 
 from 
-  future.ClientToAddressMigrations
+  Customers.ClientToAddressMigrations
 where
 	(UserId = ?UserId)
 limit 1
@@ -2406,7 +2406,7 @@ limit 1
 select 
   ClientCode, AddressId
 from 
-  future.ClientToAddressMigrations
+  Customers.ClientToAddressMigrations
 where
 	UserId = " + _updateData.UserId;
 		}
@@ -2422,10 +2422,10 @@ select
   0 as ControlMinReq,
   null as MinReq 
 from
-  Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 where
   (u.Id = ?UserId)";
 
@@ -2437,12 +2437,12 @@ select
   ai.ControlMinReq,
   if(ai.MinReq > 0, ai.MinReq, Prices.MinReq) as MinReq 
 from
-  Future.Users u
-  join future.Clients c on u.ClientId = c.Id
-  join Future.UserAddresses ua on ua.UserId = u.Id
-  join future.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-  join future.Intersection i on i.ClientId = c.Id
-  join future.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
   join Prices on (Prices.PriceCode = i.PriceId) and (Prices.RegionCode = i.RegionId)
 where
   (u.Id = ?UserId)";
@@ -2675,8 +2675,8 @@ WHERE
 		{
 			selectCommand.CommandText = @"
 DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
-CALL future.GetActivePrices(?OffersClientCode);
-CALL future.GetOffers(?OffersClientCode);";
+CALL Customers.GetActivePrices(?OffersClientCode);
+CALL Customers.GetOffers(?OffersClientCode);";
 			selectCommand.ExecuteNonQuery();
 
 			selectCommand.CommandText = @"
@@ -2806,7 +2806,7 @@ CREATE TEMPORARY TABLE ProviderContacts engine=MEMORY
 AS
 SELECT DISTINCT c.contactText,
 				cd.Id as FirmCode
-FROM            future.Suppliers cd
+FROM            Customers.Suppliers cd
 				JOIN contacts.contact_groups cg
 				ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
 				JOIN contacts.contacts c
@@ -2822,7 +2822,7 @@ INSERT
 INTO   ProviderContacts
 SELECT DISTINCT c.contactText,
 				cd.Id as FirmCode
-FROM            future.Suppliers cd
+FROM            Customers.Suppliers cd
 				JOIN contacts.contact_groups cg
 				ON              cd.ContactGroupOwnerId = cg.ContactGroupOwnerId
 				JOIN contacts.persons p
@@ -2858,7 +2858,7 @@ SELECT
 		 firm.Name
 FROM     
 		 usersettings.PricesData pd
-		 inner join future.Suppliers AS firm on firm.Id = pd.FirmCode
+		 inner join Customers.Suppliers AS firm on firm.Id = pd.FirmCode
 WHERE    
 		 pd.PriceCode = ?ImpersonalPriceId";
 			else
@@ -2870,7 +2870,7 @@ SELECT
 		 LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
 		 firm.Name,
 		if(ss.CertificateSourceId is not null, 1, 0) as CertificateSourceExists
-FROM     future.Suppliers AS firm
+FROM     Customers.Suppliers AS firm
 		 LEFT JOIN ProviderContacts
 		 ON       ProviderContacts.FirmCode = firm.Id
 		left join Documents.SourceSuppliers ss on ss.SupplierId = firm.Id		
@@ -2894,7 +2894,7 @@ SELECT
 		 ?ImpersonalPriceFresh                                                                                          as Fresh
 FROM     
 		 usersettings.pricesdata pd
-		 join future.Suppliers AS firm on firm.Id = pd.FirmCode
+		 join Customers.Suppliers AS firm on firm.Id = pd.FirmCode
 WHERE    
    pd.PriceCode = ?ImpersonalPriceId
 ";
@@ -2909,7 +2909,7 @@ SELECT
 		 max(ifnull(ActivePrices.Fresh, ARI.ForceReplication > 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
 FROM     
 		 (
-		 future.Suppliers AS firm,
+		 Customers.Suppliers AS firm,
 		 PriceCounts             ,
 		 Prices             ,
 		 CurrentReplicationInfo ARI
@@ -3157,7 +3157,7 @@ WHERE
 and s.Enable = 1
 order by s.Hour, s.Minute";
 				
-			return "select null from future.Clients limit 0";
+			return "select null from Customers.Clients limit 0";
 		}
 
 		public static bool UserExists(MySqlConnection connection, string userName)
@@ -3166,7 +3166,7 @@ order by s.Hour, s.Minute";
 
 			var userId = MySqlHelper.ExecuteScalar(
 				connection,
-				"select Id from future.Users where Login = ?userName",
+				"select Id from Customers.Users where Login = ?userName",
 				new MySqlParameter("?userName", userName));
 			if (userId != null)
 				exists = true;
@@ -3332,7 +3332,7 @@ select
 	Mails.Body
 from
 	Documents.Mails
-	inner join future.Suppliers on Suppliers.Id = Mails.SupplierId
+	inner join Customers.Suppliers on Suppliers.Id = Mails.SupplierId
 where
   Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
 		}

@@ -48,7 +48,7 @@ namespace Integration
 				command.Parameters.AddWithValue("?RowId", documentId);
 				var filename = command.ExecuteScalar().ToString();
 
-				command.CommandText = @"select Name from future.Suppliers where Id = ?FirmCode";
+				command.CommandText = @"select Name from Customers.Suppliers where Id = ?FirmCode";
 				command.Parameters.AddWithValue("?FirmCode", supplierId);
 				var supplierName = command.ExecuteScalar().ToString();
 

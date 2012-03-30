@@ -249,7 +249,7 @@ insert into usersettings.AnalitFVersionRules
 (SourceVersion, DestinationVersion)
 values
 (1378, 1380);
-update future.Users
+update Customers.Users
 set
   TargetVersion = null
 where

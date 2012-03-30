@@ -49,7 +49,7 @@ namespace Integration.BaseTests
 					Assert.That(newPrices.Count, Is.EqualTo(4), "Не нашли достаточное кол-во прайс-листов для тестов");
 
 					s.CreateSQLQuery(
-						"delete from future.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
+						"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
 						.SetParameter("userId", user.Id)
 						.SetParameterList("priceIds", newPrices.ToArray())
 						.ExecuteUpdate();

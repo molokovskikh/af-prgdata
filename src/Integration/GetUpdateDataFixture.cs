@@ -517,7 +517,7 @@ namespace Integration
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update future.Users set TargetVersion = null where Id = ?UserId",
+					"update Customers.Users set TargetVersion = null where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id));
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -526,7 +526,7 @@ namespace Integration
 				const int targetVersion = 1300;
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"update future.Users set TargetVersion = ?TargetVersion where Id = ?UserId",
+					"update Customers.Users set TargetVersion = ?TargetVersion where Id = ?UserId",
 					new MySqlParameter("?UserId", _user.Id),
 					new MySqlParameter("?TargetVersion", targetVersion));
 				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);

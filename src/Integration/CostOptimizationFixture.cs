@@ -50,7 +50,7 @@ namespace Integration
 
 				MySqlHelper.ExecuteNonQuery(
 					connection,
-					"call future.GetPrices(?UserId)",
+					"call Customers.GetPrices(?UserId)",
 					new MySqlParameter("?UserId", _user.Id));
 
 				_optimizationPriceId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
@@ -144,7 +144,7 @@ limit 0, 50", conn);
 				_client.Id,
 				command =>
 				{
-					command.CommandText = "call future.GetOffers(?UserId);";
+					command.CommandText = "call Customers.GetOffers(?UserId);";
 					command.Parameters.AddWithValue("?UserId", _user.Id);
 					command.ExecuteNonQuery();
 				});

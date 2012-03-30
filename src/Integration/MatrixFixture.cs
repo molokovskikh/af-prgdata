@@ -72,7 +72,7 @@ namespace Integration
 				s =>
 					{
 						s.CreateSQLQuery(
-							"delete from future.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
+							"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
 							.SetParameter("userId", _user.Id)
 							.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
 							.SetParameter("offerPriceId", _offerPrice.Id.PriceId)

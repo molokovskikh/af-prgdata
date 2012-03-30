@@ -2834,7 +2834,7 @@ PostLog:
 
 						Dim helper = New UpdateHelper(UpdateData, connection)
 
-						LogCm.CommandText = "delete from future.ClientToAddressMigrations where UserId = " & UpdateData.UserId
+						LogCm.CommandText = "delete from Customers.ClientToAddressMigrations where UserId = " & UpdateData.UserId
 						LogCm.ExecuteNonQuery()
 
 						Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
@@ -3123,7 +3123,7 @@ RestartTrans2:
 				"       '-'          , " & _
 				"       '-'          , " & _
 				"       '-' " & _
-				"FROM   future.Suppliers AS firm " & _
+				"FROM   Customers.Suppliers AS firm " & _
 				"WHERE  firm.Id IN " & _
 				"                   (SELECT DISTINCT FirmCode " & _
 				"                   FROM             Prices " & _
@@ -3349,7 +3349,7 @@ RestartTrans2:
 				  "         ''          , " & _
 				  "         ''          , " & _
 				  "         '0' " & _
-				  "FROM     (future.Suppliers AS firm, " & _
+				  "FROM     (Customers.Suppliers AS firm, " & _
 				  "         PriceCounts             , " & _
 				  "         Prices, " & _
 				  "         CurrentReplicationInfo ARI ) " & _
@@ -4422,7 +4422,7 @@ RestartTrans2:
 						" (@MaxOrderId := @MaxOrderId + 1) as PostOrderId, " & _
 						" RowId as ServerOrderId " & _
 					" from orders.OrdersHead " & _
-					"      left join future.useraddresses on useraddresses.AddressId = OrdersHead.AddressId " & _
+					"      left join Customers.useraddresses on useraddresses.AddressId = OrdersHead.AddressId " & _
 					" where "
 
 				Dim ClientIdAsField As String

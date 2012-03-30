@@ -330,7 +330,7 @@ namespace Integration
 
 				MySqlHelper.ExecuteScalar(
 					connection,
-					"update future.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
 					new MySqlParameter("?UserId", user.Id));
 
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
@@ -381,7 +381,7 @@ namespace Integration
 
 				MySqlHelper.ExecuteScalar(
 					connection,
-					"update future.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
 					new MySqlParameter("?UserId", user.Id));
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderError.7z");
@@ -436,7 +436,7 @@ namespace Integration
 
 				MySqlHelper.ExecuteScalar(
 					connection,
-					"update future.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
 					new MySqlParameter("?UserId", user.Id));
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
