@@ -15,6 +15,7 @@ using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Integration.BaseTests;
+using Test.Support.Logs;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -1364,6 +1365,44 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 
 			childForceReplication = GetForceReplication(deletedPrice.Supplier.Id, childUser.Id);
 			Assert.That(childForceReplication, Is.True, "При включении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", childUser);
+		}
+
+		[Test(Description = "попытка получить данные при неккорректном номере версии")]
+		public void CheckGetUserDataOnBuildNumber()
+		{
+			var appVersion = "";
+
+			var testUser = CreateUserForAnalitF();
+
+			SetCurrentUser(testUser.Login);
+
+			ProcessWithLog(memoryAppender => { 
+				var service = new PrgDataEx();
+				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+				Assert.That(responce, Is.StringContaining("Desc=Пожалуйста, повторите попытку через несколько минут.").IgnoreCase);
+				Assert.That(responce, Is.StringContaining("Error=При выполнении Вашего запроса произошла ошибка.").IgnoreCase);
+
+				var events = memoryAppender.GetEvents();
+
+				var lastEvent = events[events.Length - 1];
+				Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
+				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
+				var updateException = (UpdateException)lastEvent.MessageObject;
+				Assert.That(updateException.Message, Is.EqualTo("Пожалуйста, повторите попытку через несколько минут."));
+				Assert.That(updateException.Addition, Is.StringStarting("Ошибка при разборе номера версии '';"));
+				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Error));
+			},
+			false);
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == testUser.Id).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1), "Не найдена запись в логах для пользователя {0}", testUser.Id);
+				var log = logs[0];
+				Assert.That(log.UpdateType, Is.EqualTo((uint)RequestType.Error));
+				Assert.That(log.Addition, Is.StringContaining("Ошибка при разборе номера версии '';"));
+			}
 		}
 
 	}
