@@ -100,8 +100,8 @@ namespace Integration
 				//smartRuleOld.SaveAndFlush();
 
 				smartRuleFuture = new TestSmartOrderRule();
-				smartRuleCustomers.OffersClientCode = offersFutureUser.Id;
-				smartRuleCustomers.SaveAndFlush();
+				smartRuleFuture.OffersClientCode = offersFutureUser.Id;
+				smartRuleFuture.SaveAndFlush();
 
 //                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
 //                try
@@ -121,9 +121,9 @@ namespace Integration
 			using (var transaction = new TransactionScope())
 			{
 				orderRuleFuture = TestDrugstoreSettings.Find(client.Id);
-				orderRuleCustomers.SmartOrderRule = smartRuleFuture;
-				orderRuleCustomers.EnableImpersonalPrice = true;
-				orderRuleCustomers.UpdateAndFlush();
+				orderRuleFuture.SmartOrderRule = smartRuleFuture;
+				orderRuleFuture.EnableImpersonalPrice = true;
+				orderRuleFuture.UpdateAndFlush();
 
 				//orderRuleOld = TestDrugstoreSettings.Find(oldClient.Id);
 				//orderRuleOld.SmartOrderRule = smartRuleOld;
