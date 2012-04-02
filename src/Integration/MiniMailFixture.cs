@@ -128,8 +128,7 @@ namespace Integration
 
 			ProcessWithLog(() => {
 				var response = LoadData(true, DateTime.Now, "1.1.1.1413");
-				ShouldBeSuccessfull(response);
-				var simpleUpdateId = ParseUpdateId(response);
+				var simpleUpdateId = ShouldBeSuccessfull(response);
 
 				using (new SessionScope()) {
 					log.Refresh();
@@ -169,8 +168,7 @@ namespace Integration
 
 				var response = LoadDataAttachments(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
 
-				ShouldBeSuccessfull(response);
-				var simpleUpdateId = ParseUpdateId(response);
+				var simpleUpdateId = ShouldBeSuccessfull(response);
 
 				using (new SessionScope()) {
 					log.Refresh();
@@ -229,8 +227,7 @@ namespace Integration
 
 				var response = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
 
-				ShouldBeSuccessfull(response);
-				var simpleUpdateId = ParseUpdateId(response);
+				var simpleUpdateId = ShouldBeSuccessfull(response);
 
 				WaitAsyncResponse(simpleUpdateId);
 
@@ -285,8 +282,7 @@ namespace Integration
 			ProcessWithLog(() => {
 				var response = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
 
-				ShouldBeSuccessfull(response);
-				var simpleUpdateId = ParseUpdateId(response);
+				var simpleUpdateId = ShouldBeSuccessfull(response);
 
 				WaitAsyncResponse(simpleUpdateId);
 
@@ -331,8 +327,7 @@ namespace Integration
 			ProcessWithLog(() => {
 				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
 
-				ShouldBeSuccessfull(cumulativeResponse);
-				var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
 
 				WaitAsyncResponse(cumulativeUpdateId);
 
@@ -352,8 +347,7 @@ namespace Integration
 				}
 
 				var response = LoadDataAttachmentsAsync(false, lastUpdate, "1.1.1.1413", null);
-				ShouldBeSuccessfull(response);
-				var simpleUpdateId = ParseUpdateId(response);
+				var simpleUpdateId = ShouldBeSuccessfull(response);
 				WaitAsyncResponse(simpleUpdateId);
 				CommitExchange(simpleUpdateId, RequestType.GetData);
 			});
@@ -366,14 +360,12 @@ namespace Integration
 			ProcessWithLog(() => {
 
 				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
-				ShouldBeSuccessfull(cumulativeResponse);
-				var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
+				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
 				WaitAsyncResponse(cumulativeUpdateId);
 
 				var nextCumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
 
-				ShouldBeSuccessfull(nextCumulativeResponse);
-				var nextCumulativeUpdateId = ParseUpdateId(nextCumulativeResponse);
+				var nextCumulativeUpdateId = ShouldBeSuccessfull(nextCumulativeResponse);
 
 				Assert.That(nextCumulativeUpdateId, Is.EqualTo(cumulativeUpdateId));
 

@@ -97,9 +97,10 @@ namespace Integration.BaseTests
 			return responce;
 		}
 
-		protected void ShouldBeSuccessfull(string responce)
+		protected uint ShouldBeSuccessfull(string responce)
 		{
 			Assert.That(responce, Is.StringStarting("URL=http://localhost/GetFileHandler.ashx?Id"));
+			return ParseUpdateId(responce);
 		}
 
 		protected uint ParseUpdateId(string responce)

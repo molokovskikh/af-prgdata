@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using Common.Tools;
@@ -92,9 +93,13 @@ values (?UpdateId, ?DocumentBodyId, ?CertificateId, ?Filename)";
 			command.Parameters.Add("DocumentBodyId", MySqlDbType.UInt32);
 			command.Parameters.Add("CertificateId", MySqlDbType.UInt32);
 			command.Parameters.Add("Filename", MySqlDbType.VarChar);
-			foreach (var request in data.CertificateRequests)
-			{
-				foreach (var file in request.SendedFiles)
+			foreach (var request in data.CertificateRequests) {
+				var files = request.SendedFiles;
+				//нам нужно запротоколировать то что файл мы не нашли
+				if (files.Count == 0) {
+					files = new List<string>{ null };
+				}
+				foreach (var file in files)
 				{
 					command.Parameters["UpdateId"].Value = updateId;
 					command.Parameters["DocumentBodyId"].Value = request.DocumentBodyId;

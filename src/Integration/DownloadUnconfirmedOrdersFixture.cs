@@ -359,9 +359,7 @@ namespace Integration
 			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
-			ShouldBeSuccessfull(responce);
-
-			var simpleUpdateId = ParseUpdateId(responce);
+			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
 			Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
@@ -460,9 +458,7 @@ namespace Integration
 			Directory.CreateDirectory(extractFolder);
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
-			ShouldBeSuccessfull(responce);
-
-			var simpleUpdateId = ParseUpdateId(responce);
+			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			var afterSimpleFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_officeUser.Id));
 			Assert.That(afterSimpleFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterSimpleFiles.Implode());
@@ -501,9 +497,7 @@ namespace Integration
 			}
 
 			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
-			ShouldBeSuccessfull(responce);
-
-			var firstUpdateId = ParseUpdateId(responce);
+			var firstUpdateId = ShouldBeSuccessfull(responce);
 
 			List<TestUnconfirmedOrdersSendLog> sendLogs;
 			using (new SessionScope()) {
@@ -568,9 +562,7 @@ namespace Integration
 			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
 
 			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
-			ShouldBeSuccessfull(responce);
-
-			var simpleUpdateId = ParseUpdateId(responce);
+			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
 			Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
@@ -606,9 +598,7 @@ namespace Integration
 			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
 
 			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
-			ShouldBeSuccessfull(responce);
-
-			var simpleUpdateId = ParseUpdateId(responce);
+			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
 			Assert.That(afterAsyncFiles.Length, Is.EqualTo(0), "Файлов быть не должно, т.к. это асинхронный запрос: {0}", afterAsyncFiles.Implode());
@@ -632,23 +622,14 @@ namespace Integration
 			TestProduct product;
 			using(new SessionScope())
 			{
-				var supplier = TestSupplier.Create();
-				var certificateSource = new TestCertificateSource(supplier);
+				var builder = new DocumentBuilder(_client);
+				document = builder.Build();
+				product = builder.Product;
 
-				product = new TestProduct("Тестовый продукт");
 				var certificate = new TestCertificate(product.CatalogProduct, "20111226");
-				certificateFile = certificate.NewFile(new TestCertificateFile(certificateSource));
+				certificateFile = certificate.NewFile(new TestCertificateFile(builder.Source));
+				document.Lines[0].Certificate = certificate;
 
-				var documentLog = new TestDocumentLog(supplier, _client);
-				document = new TestWaybill(documentLog);
-				document.Lines.Add(new TestWaybillLine {
-					CatalogProduct = product,
-					Waybill = document,
-					Certificate = certificate
-				});
-
-				certificateSource.Save();
-				product.Save();
 				certificate.Save();
 				document.Save();
 
@@ -662,9 +643,8 @@ namespace Integration
 			File.WriteAllBytes(Path.Combine(certificatePath, String.Format("{0}.tif", certificateFile.Id)), new byte[0]);
 
 			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] {document.Lines[0].Id});
-			ShouldBeSuccessfull(responce);
+			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
-			var simpleUpdateId = ParseUpdateId(responce);
 			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
 			var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
 			Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
@@ -692,7 +672,60 @@ namespace Integration
 			}
 
 			Assert.That(log.Log, Is.EqualTo(message));
+		}
 
+		[Test]
+		public void Log_fail_secrificate_request()
+		{
+			TestWaybill document;
+			using(new SessionScope())
+			{
+				var builder = new DocumentBuilder(_client);
+				document = builder.Build();
+			}
+
+			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] {document.Lines[0].Id});
+			var simpleUpdateId = ShouldBeSuccessfull(responce);
+
+			using(new SessionScope())
+			{
+				var logs = TestCertificateRequestLog.Queryable.Where(l => l.Update.Id == simpleUpdateId).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+				Assert.That(logs[0].Filename, Is.Null);
+			}
+		}
+	}
+
+	public class DocumentBuilder
+	{
+		public TestSupplier Supplier;
+		public TestProduct Product;
+		public TestCertificateSource Source;
+		public TestClient Client;
+
+		public DocumentBuilder(TestClient client)
+		{
+			Client = client;
+		}
+
+		public TestWaybill Build()
+		{
+			Supplier = TestSupplier.Create();
+			Source = new TestCertificateSource(Supplier);
+
+			Product = new TestProduct("Тестовый продукт");
+
+			var documentLog = new TestDocumentLog(Supplier, Client);
+			var document = new TestWaybill(documentLog);
+			document.Lines.Add(new TestWaybillLine {
+				CatalogProduct = Product,
+				Waybill = document,
+			});
+
+			Source.Save();
+			Product.Save();
+			document.Save();
+			return document;
 		}
 	}
 }
