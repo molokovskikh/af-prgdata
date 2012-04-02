@@ -256,8 +256,15 @@ namespace PrgData.Common
 					//NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
 					NeedUpdateToNewClientsWithLegalEntity = CheckNeedUpdateToNewClientsWithLegalEntity();
 					NeedUpdateToSupplierPromotions = CheckNeedUpdateToSupplierPromotions();
+					return;
 				}
 			}
+
+			throw new UpdateException(
+				"Пожалуйста, повторите попытку через несколько минут.",
+				"При выполнении Вашего запроса произошла ошибка.",
+				"Ошибка при разборе номера версии '" + exeVersion + "'; ",
+				RequestType.Error);
 		}
 
 		private void CheckBuildNumber()
