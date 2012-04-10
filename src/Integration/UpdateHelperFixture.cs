@@ -8,6 +8,7 @@ using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
+using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Counters;
 using Test.Support;
 using Test.Support.Catalog;
@@ -1580,6 +1581,7 @@ limit 3;
 
 				//Проверяем каталог для предыдущей версии
 				updateData.ParseBuildNumber("1.1.1.1755");
+				Assert.That(updateData.NeedUpdateForRetailMargins(), Is.False);
 				var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(false, false), connection);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
 				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
@@ -1590,12 +1592,26 @@ limit 3;
 				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
 				Assert.That(dataTable.Columns.Contains("Markup"), Is.False, "Найден столбец Markup в таблице, хотя его там не должно быть");
 
+
+				//Проверяем экспорт каталога при обновлении версий
+				updateData.UpdateExeVersionInfo = new VersionInfo(1791);
+				Assert.That(updateData.NeedUpdateForRetailMargins(), Is.True);
+				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, false);
+
+				dataTable = new DataTable();
+				dataAdapter.Fill(dataTable);
+				Assert.That(dataTable.Rows.Count, Is.EqualTo(3), "Каталог должен быть выгружен весь");
+				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
+
+
 				//Проверка каталога для версий с розничными наценками
 
 				var updateTime = DateTime.Now;
 				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
 
 				updateData.ParseBuildNumber("1.1.1.1766");
+				updateData.UpdateExeVersionInfo = null;
 				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, true);
 
 				dataTable = new DataTable();

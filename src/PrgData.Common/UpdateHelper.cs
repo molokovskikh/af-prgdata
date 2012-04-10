@@ -1824,7 +1824,7 @@ AND C.FormId = CF.Id
 AND C.hidden = 0";
 				}
 				else {
-					return @"
+					return String.Format(@"
 SELECT 
 	C.Id               ,
 	CN.Id              ,
@@ -1856,8 +1856,10 @@ AND
 			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
 		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
 		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
-		OR	IF(NOT ?Cumulative and rm.Id is not null, rm.UpdateTime > ?UpdateTime, ?Cumulative)
-	)";
+		OR	IF(NOT ?Cumulative and rm.Id is not null, {0}, ?Cumulative)
+	)"
+						,
+						_updateData.NeedUpdateForRetailMargins() ? "1" : "rm.UpdateTime > ?UpdateTime");
 				}
 			}
 			else if (Cumulative)

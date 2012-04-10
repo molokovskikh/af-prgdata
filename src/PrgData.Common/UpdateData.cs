@@ -526,6 +526,12 @@ namespace PrgData.Common
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExcessAvgOrderTimes);
 		}
 
+		public bool NeedUpdateForRetailMargins()
+		{
+			return (BuildNumber <= _versionBeforeRetailMargins)
+				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeRetailMargins);
+		}
+
 		public bool AllowDocumentType(int documentType)
 		{
 			if ((GenerateDocsHelper.DocumentType)documentType == GenerateDocsHelper.DocumentType.Waybills && !SendWaybills)
