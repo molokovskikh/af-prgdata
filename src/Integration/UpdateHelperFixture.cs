@@ -532,8 +532,8 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
 				DataRow row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
+				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 			}
 		}
 
@@ -588,13 +588,13 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
 				DataRow row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
+				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 			}
 		}
 
-		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkPriceId")]
-		public void Check_SelfClientId_by_NetworkPriceId()
+		[Test(Description = "Проверяем установку поля SelfAddressId в зависимости от значений параметра NetworkPriceId")]
+		public void Check_SelfAddressId_by_NetworkPriceId()
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
@@ -614,20 +614,22 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				dataAdapter.Fill(clients);
 
 				var row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
+				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 
 				//Установили параметр в null
 				updateData.NetworkPriceId = null;
 				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
-				Assert.That(clients.Columns.Contains("SelfClientId"), Is.EqualTo(false));
+				Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
+				row = clients.Rows[0];
+				Assert.That(row["SelfAddressId"], Is.EqualTo(DBNull.Value));
 			}
 		}
 
-		[Test(Description = "Проверяем установку поля SelfClientId в зависимости от значений параметра NetworkPriceId для клиентов с несколькими юридическими лицами")]
-		public void Check_SelfClientId_for_future_client_with_version_greater_than_1271_and_same_LegalEntities()
+		[Test(Description = "Проверяем установку поля SelfAddressId в зависимости от значений параметра NetworkPriceId для клиентов с несколькими юридическими лицами")]
+		public void Check_SelfAddressId_for_future_client_with_version_greater_than_1271_and_same_LegalEntities()
 		{
 			TestAddress newAddress;
 			TestLegalEntity newLegalEntity;
@@ -665,15 +667,17 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				dataAdapter.Fill(clients);
 
 				var row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfClientId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfClientId"].ToString()));
+				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 
 				//Установили параметр в null
 				updateData.NetworkPriceId = null;
 				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
 				clients = new DataTable();
 				dataAdapter.Fill(clients);
-				Assert.That(clients.Columns.Contains("SelfClientId"), Is.EqualTo(false));
+				Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
+				row = clients.Rows[0];
+				Assert.That(row["SelfAddressId"], Is.EqualTo(DBNull.Value));
 			}
 		}
 
@@ -1750,6 +1754,40 @@ limit 1;
 		{
 			 ExportDescriptionIdBy(false, "1.1.1.1766");
 		}
+
+		[Test(Description = "Проверяем установку поля ExcessAvgOrderTimes при экспорте для различных версий")]
+		public void Check_ExcessAvgOrderTimes_for_client_with_version_greater_than_1791()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				updateData.BuildNumber = 1272;
+
+				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+
+				var clients = new DataTable();
+				dataAdapter.Fill(clients);
+
+				Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.False, "При обновлении старой версии столбец ExcessAvgOrderTimes не должен присутствовать");
+
+				//установили версию больше, чем 1800
+				updateData.BuildNumber = 1801;
+
+				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+				clients = new DataTable();
+				dataAdapter.Fill(clients);
+				Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.True, "Отсутствует столбец ExcessAvgOrderTimes");
+
+				var row = clients.Rows[0];
+				Assert.That(row["ExcessAvgOrderTimes"], Is.EqualTo(5), "Неожидаемое значение по умолчанию для столбца ExcessAvgOrderTimes");
+			}
+		}
+
 
 	}
 }

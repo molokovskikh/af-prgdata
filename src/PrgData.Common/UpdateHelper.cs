@@ -785,12 +785,12 @@ limit 1";
 		public string GetClientsCommand(bool isFirebird)
 		{
 			uint? networkPriceId = null;
-			var networkSelfClientIdColumn = String.Empty;
-			var networkSelfClientIdJoin = String.Empty; 
+			var networkSelfAddressIdColumn = " , null as SelfAddressId ";
+			var networkSelfAddressIdJoin = String.Empty; 
 			if (_updateData.NetworkPriceId.HasValue)
 			{
-				networkSelfClientIdColumn = _updateData.NetworkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfClientId " : ", a.Id as SelfClientId";
-				networkSelfClientIdJoin =
+				networkSelfAddressIdColumn = _updateData.NetworkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfAddressId " : ", a.Id as SelfAddressId";
+				networkSelfAddressIdJoin =
 					_updateData.NetworkPriceId.HasValue
 						? " left join Customers.Intersection i on i.ClientId = a.ClientId and i.RegionId = c.RegionCode and i.LegalEntityId = a.LegalEntityId and i.PriceId = " +
 							_updateData.NetworkPriceId +
@@ -829,6 +829,7 @@ limit 1";
 		 rcs.AllowDelayOfPayment, 
 		 c.FullName
 		{1}
+		{3}
 	FROM Customers.Users u
 	  join Customers.Clients c on u.ClientId = c.Id
 	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
@@ -841,8 +842,9 @@ limit 1";
 	and a.Enabled = 1
 ",
 				clientShortNameField,
-				networkSelfClientIdColumn,
-				networkSelfClientIdJoin);
+				networkSelfAddressIdColumn,
+				networkSelfAddressIdJoin,
+				_updateData.AllowExcessAvgOrderTimes() ? " , rcs.ExcessAvgOrderTimes " : "");
 			}
 			return String.Format(@"
 	SELECT a.Id as FirmCode,
@@ -867,8 +869,8 @@ limit 1";
 	and a.Enabled = 1",
 				isFirebird ? "'', " : "",
 				isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ",
-				isFirebird ? "" : networkSelfClientIdColumn,
-				isFirebird ? "" : networkSelfClientIdJoin);
+				isFirebird ? "" : networkSelfAddressIdColumn,
+				isFirebird ? "" : networkSelfAddressIdJoin);
 		}
 
 		public string GetClientCommand()

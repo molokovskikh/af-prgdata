@@ -59,6 +59,8 @@ namespace PrgData.Common
 		private static int _versionBeforeCertificates = 1580;
 		//версия AnalitF до поддержки розничных наценок по каждому препарату (от 1755)
 		private static int _versionBeforeRetailMargins = 1765;
+		//версия AnalitF до поддержки розничных наценок по каждому препарату (от 1791)
+		private static int _versionBeforeExcessAvgOrderTimes = 1800;
 
 		public string ShortName;
 		public uint ClientId;
@@ -516,6 +518,12 @@ namespace PrgData.Common
 		{
 			return BuildNumberGreaterThen(_versionBeforeRetailMargins)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeRetailMargins);
+		}
+
+		public bool AllowExcessAvgOrderTimes()
+		{
+			return BuildNumberGreaterThen(_versionBeforeExcessAvgOrderTimes)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExcessAvgOrderTimes);
 		}
 
 		public bool AllowDocumentType(int documentType)
