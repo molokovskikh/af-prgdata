@@ -3252,14 +3252,15 @@ RestartTrans2:
 						"       Core.doc                          , " & _
 						"       ifnull(Core.RegistryCost, '')     , " & _
 						"       Core.VitallyImportant             , " & _
-						"       ifnull(Core.RequestRatio, '')     , " & _
+						"       ifnull(ifnull(cc.RequestRatio, Core.RequestRatio), '')     , " & _
 						"       CT.CryptCost                      , " & _
 						"       RIGHT(CT.ID, 9)                   , " & _
-						"       ifnull(OrderCost, '')             , " & _
-						"       ifnull(MinOrderCount, '') " & _
-						"FROM   Core CT        , " & _
+						"       ifnull(ifnull(cc.MinOrderSum, core.OrderCost), '')             , " & _
+						"       ifnull(ifnull(cc.MinOrderCount, core.MinOrderCount), '') " & _
+						"FROM   (Core CT        , " & _
 						"       ActivePrices AT, " & _
-						"       farm.core0 Core " & _
+						"       farm.core0 Core) " & _
+						"       join farm.CoreCosts cc on cc.PC_CostCode = at.CostCode and cc.Core_Id = core.Id" & _
 						"WHERE  ct.pricecode =at.pricecode " & _
 						"   AND ct.regioncode=at.regioncode " & _
 						"   AND Core.id      =CT.id " & _

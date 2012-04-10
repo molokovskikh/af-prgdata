@@ -316,7 +316,7 @@ values
 		{
 			var offersRepository = IoC.Resolve<ISmartOfferRepository>();
 
-			return offersRepository.SimpleGetByProductIds(_user, productIds).ToList();
+			return offersRepository.GetByProductIds(_user, productIds).ToList();
 		}
 
 		private List<uint> GetSearchedProductIds()

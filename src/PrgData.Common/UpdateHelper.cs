@@ -2171,20 +2171,18 @@ SELECT CT.PriceCode               ,
 	   Core.doc                   ,
 	   Core.RegistryCost          ,
 	   Core.VitallyImportant      ,
-	   Core.RequestRatio          ,
-	   {3} as               Cost  ,
-	   RIGHT(CT.ID, 9) as CoreID  ,
-	   OrderCost                  ,
-	   MinOrderCount
+	   ifnull(cc.RequestRatio, Core.RequestRatio) as RequestRatio,
+	   {3} as Cost,
+	   RIGHT(CT.ID, 9) as CoreID,
+	   ifnull(cc.MinOrderSum, core.OrderCost) as OrderCost,
+	   ifnull(cc.MinOrderCount, core.MinOrderCount) as MinOrderCount
 	   {0}
 	   {4}
 	   {1}
-FROM   
-	   (
-	   Core CT        ,
-	   ActivePrices AT,
-	   farm.core0 Core
-	   )
+FROM (Core CT,
+		ActivePrices AT,
+		farm.core0 Core)
+	join Farm.CoreCosts cc on cc.PC_CostCode = at.CostCode and cc.Core_Id = core.Id
 		left join catalogs.Products on Products.Id = CT.ProductId
 		left join catalogs.catalog on catalog.Id = Products.CatalogId
 	   {2}
