@@ -1,0 +1,2 @@
+﻿alter table UserSettings.RetClientsSet
+  add column `ExcessAvgOrderTimes` int unsigned not null default 5 comment 'предупреждать, если заказанное количество превышает среднее кол-во по предыд. заказам в X раз';
