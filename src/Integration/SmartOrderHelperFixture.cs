@@ -12,6 +12,7 @@ using Common.Models.Repositories;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
+using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NHibernate;
 using NUnit.Framework;
@@ -27,37 +28,21 @@ using Test.Support.Logs;
 namespace Integration
 {
 	[TestFixture]
-	public class SmartOrderHelperFixture
+	public class SmartOrderHelperFixture : PrepareDataFixture
 	{
 		TestClient client;
 		TestUser user;
 		TestAddress address;
 
-		private string UniqueId;
-
 		[SetUp]
 		public void SetUp()
 		{
-			UniqueId = "123";
+			base.FixtureSetup();
+			base.Setup();
 
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ServiceContext.GetResultPath = () => "results\\";
-
-			client = TestClient.Create();
-
-			using (new TransactionScope())
-			{
-				user = client.Users[0];
-				address = client.Addresses[0];
-
-				client.Users.Each(u =>
-				{
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
-			}
+			user = CreateUser();
+			client = user.Client;
+			address = client.Addresses[0];
 		}
 
 		[Test]
@@ -123,8 +108,6 @@ namespace Integration
 		[Test]
 		public void SimpleSmartOrder()
 		{
-			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
-
 			using (new TransactionScope())
 			{
 				var smartRule = new TestSmartOrderRule();
@@ -305,8 +288,6 @@ namespace Integration
 		public void CheckBatchSave()
 		{
 			var appVersion = "1.1.1.1300";
-			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
-
 			using (new TransactionScope())
 			{
 				var smartRule = new TestSmartOrderRule();
@@ -356,7 +337,6 @@ namespace Integration
 		public void SmartOrderWithErrorFile()
 		{
 			var appVersion = "1.1.1.1300";
-			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
 
 			using (new TransactionScope())
 			{
@@ -411,7 +391,6 @@ namespace Integration
 		public void SmartOrderWithErrorOnProcess()
 		{
 			var appVersion = "1.1.1.1300";
-			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
 
 			using (new TransactionScope())
 			{

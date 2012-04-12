@@ -22,7 +22,6 @@ namespace Integration
 				ulong supplierId = 3;
 				string sourceFilePath = @"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.sst";
 				connection.Open();
-				ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
 
 				var waybillDirectory = Path.Combine(ConfigurationManager.AppSettings["DocumentsPath"], String.Format(@"{0}\Waybills", updateData.ClientId));

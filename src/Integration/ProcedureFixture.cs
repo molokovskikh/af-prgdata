@@ -1360,8 +1360,9 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 			Assert.That(parentUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.True, "У родительского клиента найден включенный прайс-лист: {0}", deletedPrice);
 			Assert.That(childUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.True, "У подчиненного клиента найден включенный прайс-лист: {0}", deletedPrice);
 
+			Console.WriteLine(deletedPrice.Id);
 			parentForceReplication = GetForceReplication(deletedPrice.Supplier.Id, parentUser.Id);
-			Assert.That(parentForceReplication, Is.True, "При включении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", parentUser);
+			Assert.That(parentForceReplication, Is.True, "При включении прайс-листа поставщика {1} не был установлен флаг ForceReplication для пользователя: {0}", parentUser, deletedPrice.Supplier.Id);
 
 			childForceReplication = GetForceReplication(deletedPrice.Supplier.Id, childUser.Id);
 			Assert.That(childForceReplication, Is.True, "При включении прайс-листа не был установлен флаг ForceReplication для пользователя: {0}", childUser);

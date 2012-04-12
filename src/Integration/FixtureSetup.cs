@@ -25,6 +25,8 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
+			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
+
 			PrepareMySqlPaths();
 
 			CreateResultsDir();

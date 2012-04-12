@@ -316,7 +316,7 @@ values
 		{
 			var offersRepository = IoC.Resolve<ISmartOfferRepository>();
 
-			return offersRepository.GetByProductIds(_user, productIds).ToList();
+			return offersRepository.GetByProductIds(_user, productIds, false).ToList();
 		}
 
 		private List<uint> GetSearchedProductIds()
@@ -344,7 +344,7 @@ values
 
 				foreach (var order in _orders)
 				{
-					foreach (ClientOrderPosition position in order.Positions)
+					foreach (var position in order.Positions)
 					{
 						if (!position.Duplicated)
 						{

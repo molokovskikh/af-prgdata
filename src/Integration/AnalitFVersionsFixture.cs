@@ -228,7 +228,6 @@ values
 		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
 		public void CheckGetUserDataOnDisabledClient()
 		{
-			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\NetworkUpdates\\";
 			
 			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");

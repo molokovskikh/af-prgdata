@@ -3260,7 +3260,7 @@ RestartTrans2:
 						"FROM   (Core CT        , " & _
 						"       ActivePrices AT, " & _
 						"       farm.core0 Core) " & _
-						"       join farm.CoreCosts cc on cc.PC_CostCode = at.CostCode and cc.Core_Id = core.Id" & _
+						"       join farm.CoreCosts cc on cc.PC_CostCode = at.CostCode and cc.Core_Id = core.Id " & _
 						"WHERE  ct.pricecode =at.pricecode " & _
 						"   AND ct.regioncode=at.regioncode " & _
 						"   AND Core.id      =CT.id " & _
