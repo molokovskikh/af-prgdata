@@ -8,6 +8,7 @@ using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.Orders;
+using Test.Support;
 
 namespace Integration
 {
@@ -17,12 +18,14 @@ namespace Integration
 		[Test]
 		public void ProcessWaybills()
 		{			
+			var user = TestClient.Create().Users[0];
+
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				ulong supplierId = 3;
 				string sourceFilePath = @"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.sst";
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, "sergei");
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 
 				var waybillDirectory = Path.Combine(ConfigurationManager.AppSettings["DocumentsPath"], String.Format(@"{0}\Waybills", updateData.ClientId));
 				if (Directory.Exists(waybillDirectory))
