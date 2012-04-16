@@ -35,7 +35,9 @@ namespace PrgData.Common
 	{
 #if DEBUG
 		public static bool raiseException = false;
+		public static bool raiseExceptionOnEmpty = false;
 #endif
+
 		private UpdateData _updateData;
 
 		public uint OrderedClientCode { get; private set; }
@@ -126,12 +128,9 @@ namespace PrgData.Common
 			_tmpBatchFileName = files[0];
 		}
 
-		public void ProcessBatchFile()
+
+		private void InternalProcessBatchFile()
 		{
-#if DEBUG
-			if (raiseException)
-				throw new Exception("Тестовое исключение при обработке дефектуры");
-#endif
 			using (var stream = new FileStream(_tmpBatchFileName, FileMode.Open))
 			{
 				try
@@ -150,6 +149,35 @@ namespace PrgData.Common
 				var orders = _handler.ProcessOrderBatch();
 				SaveToFile(_handler.OrderBatchItems, orders);
 			}
+		}
+
+		public void ProcessBatchFile()
+		{
+#if DEBUG
+			if (raiseException)
+				throw new Exception("Тестовое исключение при обработке дефектуры");
+#endif
+			var success = false;
+			var errorCount = 0;
+			var startTime = DateTime.Now;
+			do {
+
+				try {
+#if DEBUG
+					if (raiseExceptionOnEmpty && errorCount < 2)
+						throw new EmptyOffersListException("Тестовое исключение при пустом списке предложений");
+#endif
+					InternalProcessBatchFile();
+					success = true;
+				}
+				catch (EmptyOffersListException) {
+					errorCount++;
+					if (errorCount >= 3 || DateTime.Now.Subtract(startTime).TotalMinutes > 2)
+						throw;
+				}
+
+			} while (!success);
+
 		}
 
 		private string GetCryptCost(MySqlConnection connection, float cost, string sessionKey)
