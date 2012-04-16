@@ -446,6 +446,67 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "Попытка выполнить обработку дефектуры повторно после получения ошибки EmptyOffersListException")]
+		public void SmartOrderWithErrorOnEmptyOffersListException()
+		{
+			var appVersion = "1.1.1.1300";
+
+			var updateTime = GetLastUpdateTime();
+
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				SetCurrentUser(user.Login);
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", user.Id));
+
+				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
+				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
+
+				var batchFile = Convert.ToBase64String(batchFileBytes);
+
+				SmartOrderHelper.raiseExceptionOnEmpty = true;
+				try {
+					FoldersHelper.CheckTempFolders(() => {
+						var service = new PrgDataEx();
+
+						var postBatchResponce = service.PostOrderBatch(updateTime, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+
+						var postBatchUpdateId = ParseUpdateId(postBatchResponce);
+						Assert.That(postBatchUpdateId, Is.GreaterThan(0));
+					});
+				}
+				finally {
+					SmartOrderHelper.raiseExceptionOnEmpty = false;
+				}
+
+			}
+
+			using (new SessionScope()) {
+				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.PostOrderBatch), "Не совпадает тип обновления");
+			}
+		}
+
 		private void SetCurrentUser(string login)
 		{
 			ServiceContext.GetUserName = () => login;
@@ -470,6 +531,25 @@ namespace Integration
 			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
 			return 0;
 		}
+
+		private DateTime GetLastUpdateTime()
+		{
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			using (new TransactionScope()) {
+				user.UpdateInfo.UpdateDate = simpleUpdateTime;
+				user.Save();
+			}
+
+			return simpleUpdateTime;
+		}
+
 
 	}
 }
