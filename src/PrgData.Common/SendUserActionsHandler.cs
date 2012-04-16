@@ -83,17 +83,38 @@ namespace PrgData.Common
 			{
 				File.Copy(_tmpExtractLogFileName, localImportFileName);
 
+				var temporaryTableName = "UserSettings.tempUserActions" + _updateData.UserId;
+
 				var command = String.Format(@"
-LOAD DATA INFILE '{0}' into table logs.AnalitFUserActionLogs
+drop temporary table IF EXISTS {0};
+create temporary table {0} (   
+  Id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  LogTime DATETIME NOT NULL,
+  UserId INT(10) UNSIGNED NOT NULL,
+  UpdateId INT(10) UNSIGNED NOT NULL,
+  UserActionId INT(10) UNSIGNED NOT NULL,
+  Context VARCHAR(255) DEFAULT NULL ,
+  PRIMARY KEY (Id)
+ ) engine=MEMORY;
+LOAD DATA INFILE '{1}' into table {0}
 ( LogTime, UserActionId, Context)
-set UserId = {1}, UpdateId = {2};
+set UserId = {2}, UpdateId = {3};
 "
 					,
+					temporaryTableName,
 					MySqlHelper.EscapeString(serverImportFileName),
 					_updateData.UserId,
 					_updateId);
 
-				return MySqlHelper.ExecuteNonQuery(_connection, command);
+				var insertCount = MySqlHelper.ExecuteNonQuery(_connection, command);
+
+				MySqlHelper.ExecuteNonQuery(_connection, String.Format(@"
+insert into logs.AnalitFUserActionLogs (LogTime, UserId, UpdateId, UserActionId, Context)
+select LogTime, UserId, UpdateId, UserActionId, Context from {0};
+drop temporary table IF EXISTS {0};
+", temporaryTableName));
+
+				return insertCount;
 			}
 			finally
 			{
