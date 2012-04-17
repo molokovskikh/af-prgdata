@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.IO;
 using Inforoom.Common;
 using log4net;
@@ -85,7 +86,14 @@ namespace PrgData.Common
 
 				var temporaryTableName = "UserSettings.tempUserActions" + _updateData.UserId;
 
-				var command = String.Format(@"
+				var transaction = _connection.BeginTransaction(IsolationLevel.ReadCommitted);
+				try
+				{
+					var command = new MySqlCommand();
+					command.Connection = _connection;
+					command.Transaction = transaction;
+
+					command.CommandText = String.Format(@"
 drop temporary table IF EXISTS {0};
 create temporary table {0} (   
   Id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -106,15 +114,26 @@ set UserId = {2}, UpdateId = {3};
 					_updateData.UserId,
 					_updateId);
 
-				var insertCount = MySqlHelper.ExecuteNonQuery(_connection, command);
+					var insertCount = command.ExecuteNonQuery();
 
-				MySqlHelper.ExecuteNonQuery(_connection, String.Format(@"
+					command.CommandText = String.Format(@"
 insert into logs.AnalitFUserActionLogs (LogTime, UserId, UpdateId, UserActionId, Context)
 select LogTime, UserId, UpdateId, UserActionId, Context from {0};
 drop temporary table IF EXISTS {0};
-", temporaryTableName));
+", temporaryTableName);
 
-				return insertCount;
+					command.ExecuteNonQuery();
+
+					transaction.Commit();
+
+					return insertCount;
+				}
+				catch
+				{
+					ConnectionHelper.SafeRollback(transaction);
+					throw;
+				}
+
 			}
 			finally
 			{
