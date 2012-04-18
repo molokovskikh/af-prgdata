@@ -105,6 +105,7 @@
     <Compile Include="GetReclameFixture.cs" />
     <Compile Include="GetUpdateDataFixture.cs" />
     <Compile Include="ImpersonalPriceFixture.cs" />
+    <Compile Include="log4netMySqlAdoNetAdapter.cs" />
     <Compile Include="MatrixFixture.cs" />
     <Compile Include="MiniMailFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
@@ -171,6 +172,9 @@
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Include="TestData\log4netMySql.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="TestData\TestOrderError.7z">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
