@@ -1023,7 +1023,7 @@ endprocNew:
 
 								'Данный метод должен работать только в релизе, чтобы время тестов не увеличивалось
 #If Not DEBUG Then
-								helper.WaitParsedDocs();
+								helper.WaitParsedDocs()
 #End If
 
                                 Dim ids As String = String.Empty
