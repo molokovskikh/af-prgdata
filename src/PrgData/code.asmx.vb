@@ -1021,6 +1021,11 @@ endprocNew:
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "InvoiceHeaders" & UserId & ".txt")
 
+								'Данный метод должен работать только в релизе, чтобы время тестов не увеличивалось
+#If Not DEBUG Then
+								helper.WaitParsedDocs();
+#End If
+
                                 Dim ids As String = String.Empty
                                 For Each documentRow As DataRow In DS.Tables("ProcessingDocuments").Rows
                                     If String.IsNullOrEmpty(ids) Then

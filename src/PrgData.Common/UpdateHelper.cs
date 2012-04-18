@@ -3367,5 +3367,28 @@ where ms.updateid = {0};"
 					.Format(updateId);
 		}
 
+		public void WaitParsedDocs()
+		{
+			var startTime = DateTime.Now;
+			int? waitCount = null;
+			do {
+				var realWaitCount = MySqlHelper.ExecuteScalar(_readWriteConnection, @"
+select
+	count(dl.RowId)-count(dh.Id) as waitCount
+from
+	logs.AnalitFUpdates afu
+	inner join logs.document_logs dl on dl.SendUpdateId = afu.UpdateId
+	left join documents.DocumentHeaders dh on dh.DownloadId = dl.RowId
+where
+	afu.RequestTime > curdate() - interval 1 day
+and afu.UserId = ?UserId
+and afu.UpdateType = ?UpdateType
+group by afu.UserId"
+					,
+					new MySqlParameter("?UserId", _updateData.UserId),
+					new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills));
+				waitCount = realWaitCount != null ? (int?) Convert.ToInt32(realWaitCount) : null;
+			} while (waitCount > 0 && DateTime.Now.Subtract(startTime).TotalSeconds < 60);
+		}
 	}
 }

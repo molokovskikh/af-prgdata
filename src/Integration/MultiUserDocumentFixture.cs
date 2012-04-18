@@ -8,6 +8,7 @@ using System.Threading;
 using Castle.ActiveRecord;
 using Common.Tools;
 using Inforoom.Common;
+using MySql.Data.MySqlClient;
 using Test.Support.Suppliers;
 using log4net;
 using log4net.Appender;
@@ -871,6 +872,81 @@ namespace Integration
 
 			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
 			Assert.That(log.Log, Is.Null);
+		}
+
+		[Test(Description = "проверяем работу метода WaitParsedDocs при отсутствии запроса на разбор документов")]
+		public void SuccessWaitParsedDocs()
+		{
+			var user = client.Users[0];
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var startTime = DateTime.Now;
+				helper.WaitParsedDocs();
+				Assert.That(DateTime.Now.Subtract(startTime).TotalSeconds, Is.LessThan(10), "Выполнение метода производилось больше чем 10 секунд");
+			}
+		}
+
+		[Test(Description = "проверяем работу метода WaitParsedDocs при длительном ожидании")]
+		public void LongWaitParsedDocs()
+		{
+			var user = client.Users[0];
+
+			SendWaybill();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var startTime = DateTime.Now;
+				helper.WaitParsedDocs();
+				Assert.That(DateTime.Now.Subtract(startTime).TotalSeconds, Is.GreaterThan(55), "Выполнение метода производилось меньше чем 55 секунд");
+			}
+		}
+
+		[Test(Description = "проверяем работу метода WaitParsedDocs при успешных разобранных документах")]
+		public void SuccessWaitParsedDocsWithParse()
+		{
+			var user = client.Users[0];
+
+			SendWaybill();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					@"
+insert into Documents.DocumentHeaders (DownloadId, FirmCode, ClientCode, AddressId, DocumentType)
+select
+	dl.RowId,
+	dl.FirmCode,
+	dl.ClientCode,
+	dl.AddressId,
+	1
+from
+	logs.AnalitFUpdates afu
+	inner join logs.document_logs dl on dl.SendUpdateId = afu.UpdateId
+where
+	afu.UserId = ?UserId
+and afu.UpdateType = ?UpdateType"
+					,
+					new MySqlParameter("?UserId", user.Id),
+					new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills));
+
+				var startTime = DateTime.Now;
+				helper.WaitParsedDocs();
+				Assert.That(DateTime.Now.Subtract(startTime).TotalSeconds, Is.LessThan(10), "Выполнение метода производилось больше чем 10 секунд");
+			}
 		}
 
 		private void ShouldNotBeDocuments()
