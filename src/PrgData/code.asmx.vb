@@ -905,7 +905,7 @@ endprocNew:
 
 
                 'Если не реклама
-                Dim helper = New UpdateHelper(UpdateData, Nothing)
+                Dim helper = New UpdateHelper(UpdateData, connection)
                 If Not Reclame AndAlso Not GetHistory Then
 
                     Try
