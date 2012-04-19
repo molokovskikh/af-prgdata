@@ -589,13 +589,13 @@ namespace Integration
 			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
 		}
 
-		[Test(Description = "Простой асинхронный запрос данных")]
+		[Test(Description = "Попытка воспроизвести ошибку по требованию Ошибка #8627 Обновление на подготовке данных висит неограниченное время (версия 1723)")]
 		public void SimpleAsyncGetDataError()
 		{
 			var firstAsyncResponse = CheckAsyncRequest(1);
 			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
 
-			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			var responce = LoadDataAsyncDispose(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			var afterAsyncFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_officeUser.Id, simpleUpdateId));
@@ -610,6 +610,8 @@ namespace Integration
 
 			log.Refresh();
 			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+
+			CommitExchange(simpleUpdateId, RequestType.GetData);
 		}
 
 		[Test(Description = "Простой запрос данных с получением сертификатов")]
