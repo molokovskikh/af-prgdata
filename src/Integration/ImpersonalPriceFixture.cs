@@ -39,17 +39,11 @@ namespace Integration
 		private TestClient client;
 		private TestUser user;
 
-		//private TestOldClient offersOldClient;
 		private TestClient offersFutureClient;
 		private TestUser offersFutureUser;
 
-		//private TestSmartOrderRule smartRuleOld;
 		private TestSmartOrderRule smartRuleFuture;
 		private TestDrugstoreSettings orderRuleFuture;
-		//private TestDrugstoreSettings orderRuleOld;
-
-		//TestOldClient oldClient;
-		//TestOldUser oldUser;
 
 		private uint lastUpdateId;
 		private string responce;
@@ -69,7 +63,6 @@ namespace Integration
 			var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
 			Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
 
-			//offersOldClient = TestOldClient.CreateTestClient(offersRegion.Id);
 			offersFutureClient = TestClient.Create(offersRegion.Id, offersRegion.Id);
 
 			client = TestClient.Create(offersRegion.Id, offersRegion.Id);
@@ -92,30 +85,9 @@ namespace Integration
 									});
 				user.Update();
 
-				//oldClient = TestOldClient.CreateTestClient(offersRegion.Id);
-				//oldUser = oldClient.Users[0];
-
-				//smartRuleOld = new TestSmartOrderRule();
-				//smartRuleOld.OffersClientCode = offersOldClient.Id;
-				//smartRuleOld.SaveAndFlush();
-
 				smartRuleFuture = new TestSmartOrderRule();
 				smartRuleFuture.OffersClientCode = offersFutureUser.Id;
 				smartRuleFuture.SaveAndFlush();
-
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", oldUser.Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
 			}
 
 			using (var transaction = new TransactionScope())
@@ -124,11 +96,6 @@ namespace Integration
 				orderRuleFuture.SmartOrderRule = smartRuleFuture;
 				orderRuleFuture.EnableImpersonalPrice = true;
 				orderRuleFuture.UpdateAndFlush();
-
-				//orderRuleOld = TestDrugstoreSettings.Find(oldClient.Id);
-				//orderRuleOld.SmartOrderRule = smartRuleOld;
-				//orderRuleOld.EnableImpersonalPrice = true;
-				//orderRuleOld.UpdateAndFlush();
 			}
 
 			if (Directory.Exists("FtpRoot"))

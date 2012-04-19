@@ -30,9 +30,9 @@ namespace Integration
 	[TestFixture]
 	public class SmartOrderHelperFixture : PrepareDataFixture
 	{
-		TestClient client;
-		TestUser user;
-		TestAddress address;
+		TestClient _client;
+		TestUser _user;
+		TestAddress _address;
 
 		[SetUp]
 		public void SetUp()
@@ -40,9 +40,9 @@ namespace Integration
 			base.FixtureSetup();
 			base.Setup();
 
-			user = CreateUser();
-			client = user.Client;
-			address = client.Addresses[0];
+			_user = CreateUser();
+			_client = _user.Client;
+			_address = _client.Addresses[0];
 		}
 
 		[Test]
@@ -53,10 +53,10 @@ namespace Integration
 			Address realAddress;
 			using (var unitOfWork = new UnitOfWork())
 			{
-				orderable = IoC.Resolve<IRepository<User>>().Load(user.Id);
+				orderable = IoC.Resolve<IRepository<User>>().Load(_user.Id);
 				NHibernateUtil.Initialize(orderable.AvaliableAddresses);
 
-				realAddress = IoC.Resolve<IRepository<Address>>().Load(address.Id);
+				realAddress = IoC.Resolve<IRepository<Address>>().Load(_address.Id);
 				NHibernateUtil.Initialize(realAddress.Users);
 			}
 
@@ -78,9 +78,9 @@ namespace Integration
 			{
 				connection.Open();
 
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, _address.Id, 1, 1, 1);
 			}
 		}
 
@@ -90,7 +90,7 @@ namespace Integration
 		{
 			using (new TransactionScope())
 			{
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.EnableSmartOrder = true;
 				orderRule.Update();
 			}
@@ -99,9 +99,9 @@ namespace Integration
 			{
 				connection.Open();
 
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, _address.Id, 1, 1, 1);
 			}
 		}
 
@@ -117,7 +117,7 @@ namespace Integration
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
 
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.SmartOrderRule = smartRule;
 				orderRule.EnableSmartOrder = true;
 				orderRule.UpdateAndFlush();
@@ -127,9 +127,9 @@ namespace Integration
 			{
 				connection.Open();
 
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, _address.Id, 1, 1, 1);
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
@@ -163,11 +163,11 @@ namespace Integration
 
 			using (new TransactionScope())
 			{
-				newAddress = client.CreateAddress();
-				newAddress.LegalEntity = address.LegalEntity;
-				user.JoinAddress(newAddress);
+				newAddress = _client.CreateAddress();
+				newAddress.LegalEntity = _address.LegalEntity;
+				_user.JoinAddress(newAddress);
 
-				client.Update();
+				_client.Update();
 
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
@@ -176,7 +176,7 @@ namespace Integration
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
 
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.SmartOrderRule = smartRule;
 				orderRule.EnableSmartOrder = true;
 				orderRule.UpdateAndFlush();
@@ -188,10 +188,10 @@ namespace Integration
 
 			using (var unitOfWork = new UnitOfWork())
 			{
-				realUser = IoC.Resolve<IRepository<User>>().Load(user.Id);
+				realUser = IoC.Resolve<IRepository<User>>().Load(_user.Id);
 				NHibernateUtil.Initialize(realUser.AvaliableAddresses);
 
-				firstAddress = IoC.Resolve<IRepository<Address>>().Load(address.Id);
+				firstAddress = IoC.Resolve<IRepository<Address>>().Load(_address.Id);
 				NHibernateUtil.Initialize(firstAddress.Users);
 
 				secondAddress = IoC.Resolve<IRepository<Address>>().Load(newAddress.Id);
@@ -202,9 +202,9 @@ namespace Integration
 			{
 				connection.Open();
 
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 4, 7);
+				var smartHelper = new SmartOrderHelper(updateData, _address.Id, 1, 4, 7);
 
 				var methodSaveToFile = smartHelper.GetType().GetMethod("SaveToFile", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -297,7 +297,7 @@ namespace Integration
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
 
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.SmartOrderRule = smartRule;
 				orderRule.EnableSmartOrder = true;
 				orderRule.UpdateAndFlush();
@@ -307,16 +307,16 @@ namespace Integration
 			{
 				connection.Open();
 
-				SetCurrentUser(user.Login);
+				SetCurrentUser(_user.Login);
 
 				MySqlHelper.ExecuteScalar(
 					connection,
 					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
-					new MySqlParameter("?UserId", user.Id));
+					new MySqlParameter("?UserId", _user.Id));
 
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				var smartHelper = new SmartOrderHelper(updateData, address.Id, 1, 1, 1);
+				var smartHelper = new SmartOrderHelper(updateData, _address.Id, 1, 1, 1);
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
@@ -325,11 +325,11 @@ namespace Integration
 
 				var postBatchResponce = String.Empty;
 				FoldersHelper.CheckTempFolders(() => {
-					postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, user.AvaliableAddresses[0].Id, batchFile);
+					postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, _user.AvaliableAddresses[0].Id, batchFile);
 				});
 
 				var postBatchUpdateId = ParseUpdateId(postBatchResponce);
-				Assert.That(File.Exists(Path.Combine("results", "Archive", user.Id.ToString(), postBatchUpdateId + "_Batch.7z")), Is.True);
+				Assert.That(File.Exists(Path.Combine("results", "Archive", _user.Id.ToString(), postBatchUpdateId + "_Batch.7z")), Is.True);
 			}
 		}
 
@@ -347,7 +347,7 @@ namespace Integration
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
 
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.SmartOrderRule = smartRule;
 				orderRule.EnableSmartOrder = true;
 				orderRule.UpdateAndFlush();
@@ -357,12 +357,12 @@ namespace Integration
 			{
 				connection.Open();
 
-				SetCurrentUser(user.Login);
+				SetCurrentUser(_user.Login);
 
 				MySqlHelper.ExecuteScalar(
 					connection,
 					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
-					new MySqlParameter("?UserId", user.Id));
+					new MySqlParameter("?UserId", _user.Id));
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderError.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
@@ -372,7 +372,7 @@ namespace Integration
 				FoldersHelper.CheckTempFolders(() => {
 					var service = new PrgDataEx();
 
-					var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+					var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, _user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
 
 					Assert.That(postBatchResponce, Is.EqualTo("Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."));
 				});
@@ -381,7 +381,7 @@ namespace Integration
 		
 			using (new SessionScope()) {
 				var exception = new IndexOutOfRangeException();
-				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
 				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
 				Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при разборе дефектуры: " + exception.Message));
 			}
@@ -401,7 +401,7 @@ namespace Integration
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
 
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.SmartOrderRule = smartRule;
 				orderRule.EnableSmartOrder = true;
 				orderRule.UpdateAndFlush();
@@ -411,12 +411,12 @@ namespace Integration
 			{
 				connection.Open();
 
-				SetCurrentUser(user.Login);
+				SetCurrentUser(_user.Login);
 
 				MySqlHelper.ExecuteScalar(
 					connection,
 					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
-					new MySqlParameter("?UserId", user.Id));
+					new MySqlParameter("?UserId", _user.Id));
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
@@ -428,7 +428,7 @@ namespace Integration
 					FoldersHelper.CheckTempFolders(() => {
 						var service = new PrgDataEx();
 
-						var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+						var postBatchResponce = service.PostOrderBatch(DateTime.Now, false, appVersion, 50, UniqueId, "", "", new uint[] { }, _user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
 
 						Assert.That(postBatchResponce, Is.EqualTo("Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."));
 					});
@@ -440,7 +440,7 @@ namespace Integration
 			}
 
 			using (new SessionScope()) {
-				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
 				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
 				Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при обработке дефектуры\r\nSystem.Exception: Тестовое исключение при обработке дефектуры"));
 			}
@@ -462,7 +462,7 @@ namespace Integration
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
 
-				var orderRule = TestDrugstoreSettings.Find(client.Id);
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.SmartOrderRule = smartRule;
 				orderRule.EnableSmartOrder = true;
 				orderRule.UpdateAndFlush();
@@ -472,12 +472,12 @@ namespace Integration
 			{
 				connection.Open();
 
-				SetCurrentUser(user.Login);
+				SetCurrentUser(_user.Login);
 
 				MySqlHelper.ExecuteScalar(
 					connection,
 					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
-					new MySqlParameter("?UserId", user.Id));
+					new MySqlParameter("?UserId", _user.Id));
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
@@ -489,7 +489,7 @@ namespace Integration
 					FoldersHelper.CheckTempFolders(() => {
 						var service = new PrgDataEx();
 
-						var postBatchResponce = service.PostOrderBatch(updateTime, false, appVersion, 50, UniqueId, "", "", new uint[] { }, user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
+						var postBatchResponce = service.PostOrderBatch(updateTime, false, appVersion, 50, UniqueId, "", "", new uint[] { }, _user.AvaliableAddresses[0].Id, batchFile, 1, 1, 1);
 
 						var postBatchUpdateId = ParseUpdateId(postBatchResponce);
 						Assert.That(postBatchUpdateId, Is.GreaterThan(0));
@@ -502,14 +502,9 @@ namespace Integration
 			}
 
 			using (new SessionScope()) {
-				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id).OrderByDescending(l => l.Id).First();
+				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
 				Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.PostOrderBatch), "Не совпадает тип обновления");
 			}
-		}
-
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
 		}
 
 		private string PostOrderBatch(bool getEtalonData, DateTime accessTime, string appVersion, uint adresssId, string batchFileName)
@@ -520,16 +515,6 @@ namespace Integration
 			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
 
 			return responce;
-		}
-
-		private uint ParseUpdateId(string responce)
-		{
-			var match = Regex.Match(responce, @"\d+").Value;
-			if (match.Length > 0)
-				return Convert.ToUInt32(match);
-
-			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
-			return 0;
 		}
 
 		private DateTime GetLastUpdateTime()
@@ -543,8 +528,8 @@ namespace Integration
 				.AddSeconds(simpleUpdateTime.Second);
 
 			using (new TransactionScope()) {
-				user.UpdateInfo.UpdateDate = simpleUpdateTime;
-				user.Save();
+				_user.UpdateInfo.UpdateDate = simpleUpdateTime;
+				_user.Save();
 			}
 
 			return simpleUpdateTime;

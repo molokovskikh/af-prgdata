@@ -3,6 +3,7 @@ using System.IO;
 using Castle.ActiveRecord;
 using Common.Tools;
 using Inforoom.Common;
+using Integration.BaseTests;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
@@ -16,68 +17,22 @@ using NHibernate.Criterion;
 namespace Integration
 {
 	[TestFixture]
-	public class GetHistoryOrdersFixture
+	public class GetHistoryOrdersFixture : PrepareDataFixture
 	{
-		private TestClient client;
-		private TestUser user;
+		private TestUser _user;
 
-		//TestOldClient oldClient;
-		//TestOldUser oldUser;
-
-		private uint lastUpdateId;
-		private bool fullHistory;
-		private string responce;
-
-		private string UniqueId;
+		private uint _lastUpdateId;
+		private bool _fullHistory;
+		private string _responce;
 
 		[SetUp]
-		public void Setup()
+		public override void Setup()
 		{
-			UniqueId = "123";
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			ServiceContext.GetResultPath = () => "results\\";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
+			FixtureSetup();
 
-			client = TestClient.Create();
-			//oldClient = TestOldClient.CreateTestClient();
-			using (var transaction = new TransactionScope())
-			{
-				user = client.Users[0];
+			base.Setup();
 
-				client.Users.Each(u =>
-				{
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
-
-//                oldUser = oldClient.Users[0];
-
-//                var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
-//                try
-//                {
-//                    session.CreateSQLQuery(@"
-//				insert into usersettings.AssignedPermissions (PermissionId, UserId) values (:permissionid, :userid)")
-//                        .SetParameter("permissionid", permission.Id)
-//                        .SetParameter("userid", oldUser.Id)
-//                        .ExecuteUpdate();
-//                }
-//                finally
-//                {
-//                    ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
-//                }
-			}
-
-			if (Directory.Exists("FtpRoot"))
-				FileHelper.DeleteDir("FtpRoot");
-
-			Directory.CreateDirectory("FtpRoot");
-		}
-
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
+			_user = CreateUser();
 		}
 
 		private string SimpleLoadData()
@@ -88,55 +43,55 @@ namespace Integration
 		private string LoadData(string appVersion)
 		{
 			var service = new PrgDataEx();
-			responce = service.GetHistoryOrders(appVersion, UniqueId, new ulong[0], 1, 1);
+			_responce = service.GetHistoryOrders(appVersion, UniqueId, new ulong[0], 1, 1);
 
-			if (responce.Contains("FullHistory=True"))
-				fullHistory = true;
+			if (_responce.Contains("FullHistory=True"))
+				_fullHistory = true;
 			else
 			{
-				if (responce.Contains("GetFileHistoryHandler.ashx?Id="))
+				if (_responce.Contains("GetFileHistoryHandler.ashx?Id="))
 				{
-					var match = Regex.Match(responce, @"\d+").Value;
+					var match = Regex.Match(_responce, @"\d+").Value;
 					if (match.Length > 0)
-						lastUpdateId = Convert.ToUInt32(match);
+						_lastUpdateId = Convert.ToUInt32(match);
 				}
 				else
-					Assert.Fail("Нераспознанный ответ от сервера при запросе истории заказов: {0}", responce);
+					Assert.Fail("Нераспознанный ответ от сервера при запросе истории заказов: {0}", _responce);
 			}
-			return responce;
+			return _responce;
 		}
 
 		private void CommitExchange()
 		{
 			var service = new PrgDataEx();
 
-			service.CommitHistoryOrders(lastUpdateId);
+			service.CommitHistoryOrders(_lastUpdateId);
 		}
 
 		private void CheckGetHistoryOrders(string login)
 		{
 			SetCurrentUser(login);
-			lastUpdateId = 0;
-			fullHistory = false;
+			_lastUpdateId = 0;
+			_fullHistory = false;
 			SimpleLoadData();
 
-			Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка");
+			Assert.That(_responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка");
 
-			if (!fullHistory)
-				Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен");
+			if (!_fullHistory)
+				Assert.That(_lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен");
 		}
 
 		[Test]
 		public void Get_history_orders()
 		{
-			CheckGetHistoryOrders(user.Login);
+			CheckGetHistoryOrders(_user.Login);
 
-			if (!fullHistory)
+			if (!_fullHistory)
 			{
 				var commit =
 					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
 																"select Commit from logs.AnalitFUpdates where UpdateId = " +
-																lastUpdateId));
+																_lastUpdateId));
 				Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
 
 				CommitExchange();
@@ -144,7 +99,7 @@ namespace Integration
 				commit =
 					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
 																"select Commit from logs.AnalitFUpdates where UpdateId = " +
-																lastUpdateId));
+																_lastUpdateId));
 				Assert.IsTrue(commit, "Запрос с историей заказов считается неподтвержденным");
 			}
 		}

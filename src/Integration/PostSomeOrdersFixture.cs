@@ -29,7 +29,7 @@ namespace Integration
 		private DataRow fourOffer;
 
 		[SetUp]
-		public void Setup()
+		public override void Setup()
 		{
 			FixtureSetup();
 
@@ -55,7 +55,7 @@ and WriteTime > now() - interval 2 week"
 			_client = _user.Client;
 			_address = _client.Addresses[0];
 
-			ServiceContext.GetUserName = () => _user.Login;
+			SetCurrentUser(_user.Login);
 			CreateFolders(_address.Id.ToString());
 		}
 

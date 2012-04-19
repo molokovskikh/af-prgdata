@@ -39,7 +39,6 @@ namespace Integration
 		private TestUser _drugstoreUser;
 		private TestAddress _drugstoreAddress;
 
-		private string _uniqueId;
 		private string _afAppVersion;
 		private DateTime _lastUpdateTime;
 
@@ -48,7 +47,6 @@ namespace Integration
 		{
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 
-			_uniqueId = "123";
 			_afAppVersion = "1.1.1.1413";
 
 			FixtureSetup();

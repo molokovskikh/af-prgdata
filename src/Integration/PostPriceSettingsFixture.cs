@@ -2,6 +2,7 @@
 using System.Data;
 using Castle.ActiveRecord;
 using Common.Tools;
+using Integration.BaseTests;
 using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
@@ -11,35 +12,20 @@ using MySql.Data.MySqlClient;
 namespace Integration
 {
 	[TestFixture]
-	public class PostPriceSettingsFixture
+	public class PostPriceSettingsFixture : PrepareDataFixture
 	{
-		private TestClient client;
-		private TestUser user;
-		private DataTable offers;
-
-		private string UniqueId;
+		private TestClient _client;
+		private TestUser _user;
 
 		[SetUp]
-		public void Setup()
+		public override void Setup()
 		{
-			UniqueId = "123";
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			ServiceContext.GetResultPath = () => "results\\";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
+			FixtureSetup();
 
-			client = TestClient.Create();
+			base.Setup();
 
-			using (var transaction = new TransactionScope())
-			{
-				user = client.Users[0];
-
-				client.Users.Each(u =>
-				{
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
-			}
+			_user = CreateUser();
+			_client = _user.Client;
 		}
 
 		private void PostPriceSettings(string login)
@@ -73,12 +59,7 @@ namespace Integration
 		[Test]
 		public void Post_settings_for_future()
 		{
-			PostPriceSettings(user.Login);
-		}
-
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
+			PostPriceSettings(_user.Login);
 		}
 
 		private string PostSettings(int[] priceIds, long[] regionIds, bool[] injobs)

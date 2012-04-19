@@ -29,35 +29,16 @@ namespace Integration
 	[TestFixture]
 	public class AnalitFVersionsFixture : PrepareDataFixture
 	{
-		private TestClient client;
-		private TestUser user;
-		private TestAddress address;
-
-		private string UniqueId;
+		private TestUser _user;
 
 		[SetUp]
-		public void Setup()
+		public override void Setup()
 		{
-			UniqueId = "123";
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ServiceContext.GetResultPath = () => "results\\";
+			FixtureSetup();
 
-			client = TestClient.Create();
+			base.Setup();
 
-			using (var transaction = new TransactionScope())
-			{
-				user = client.Users[0];
-
-				client.Users.Each(u =>
-				{
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
-
-				address = user.AvaliableAddresses[0];
-			}
+			_user = CreateUser();
 
 			InsertEtalonVersions();
 
@@ -210,21 +191,6 @@ values
 			Assert.That(info.Folder, Is.StringEnding("Release1380"));
 		}
 
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
-		}
-
-		private uint ParseUpdateId(string responce)
-		{
-			var match = Regex.Match(responce, @"\d+").Value;
-			if (match.Length > 0)
-				return Convert.ToUInt32(match);
-
-			Assert.Fail("Не найден номер UpdateId в ответе сервера: {0}", responce);
-			return 0;
-		}
-
 		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
 		public void CheckGetUserDataOnDisabledClient()
 		{
@@ -255,11 +221,11 @@ where
   Id = ?UserId;
 "
 				,
-				new MySqlParameter("?UserId", user.Id));
+				new MySqlParameter("?UserId", _user.Id));
 
 			try
 			{
-				SetCurrentUser(user.Login);
+				SetCurrentUser(_user.Login);
 
 				var service = new PrgDataEx();
 				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
@@ -267,7 +233,7 @@ where
 				Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
 				var updateId = ParseUpdateId(responce);
 
-				var updateFile = Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(user.Id, updateId));
+				var updateFile = Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, updateId));
 				Assert.That(File.Exists(updateFile), Is.True, "Не найден файл с подготовленными данными");
 
 				ArchiveHelper.Extract(updateFile, "*.*", extractFolder);

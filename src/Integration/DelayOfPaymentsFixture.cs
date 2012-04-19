@@ -18,12 +18,9 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
-		private string UniqueId;
-
 		[SetUp]
 		public void SetUp()
 		{
-			UniqueId = "123";
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
@@ -225,11 +222,11 @@ namespace Integration
 
 				var newSupplier = TestSupplier.Create();
 
-				var firstIntersection = TestSupplierIntersection.Queryable.Where(i => i.Client == newClient).FirstOrDefault();
+				var firstIntersection = TestSupplierIntersection.Queryable.FirstOrDefault(i => i.Client == newClient);
 				Assert.That(firstIntersection, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection по клиенту: {0}", newClient.Id);
 				Assert.That(firstIntersection.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", firstIntersection.Id);
 
-				var firstDelayRule = TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).FirstOrDefault();
+				var firstDelayRule = TestDelayOfPayment.Queryable.FirstOrDefault(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id);
 				Assert.That(firstDelayRule, Is.Not.Null, "Не найдена какая-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
 
 				var rulesBySupplier =
@@ -252,7 +249,7 @@ namespace Integration
 				Assert.That(afterNewSupplierCount, Is.GreaterThan(afterNewClientCount), "После создания нового поставщика не были создано записи в отсрочках платежей, возможно, не работает триггер");
 
 				var intersectionByNewSupplier =
-					TestSupplierIntersection.Queryable.Where(i => i.Client == newClient && i.Supplier == newSupplier).FirstOrDefault();
+					TestSupplierIntersection.Queryable.FirstOrDefault(i => i.Client == newClient && i.Supplier == newSupplier);
 				Assert.That(intersectionByNewSupplier, Is.Not.Null, "Не найдена какая-либо запись в SupplierIntersection после создания нового поставщика по клиенту: {0}", newClient.Id);
 				Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
 
