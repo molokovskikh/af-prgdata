@@ -175,6 +175,7 @@
     </None>
     <None Include="TestData\log4netMySql.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
     </None>
     <None Include="TestData\TestOrderError.7z">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
