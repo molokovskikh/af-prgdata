@@ -59,7 +59,7 @@ namespace PrgData.Common
 		private static int _versionBeforeCertificates = 1580;
 		//версия AnalitF до поддержки розничных наценок по каждому препарату (от 1755)
 		private static int _versionBeforeRetailMargins = 1765;
-		//версия AnalitF до поддержки розничных наценок по каждому препарату (от 1791)
+		//версия AnalitF до поддержки превышения по среднему заказанному количеству (от 1791)
 		private static int _versionBeforeExcessAvgOrderTimes = 1800;
 
 		public string ShortName;
