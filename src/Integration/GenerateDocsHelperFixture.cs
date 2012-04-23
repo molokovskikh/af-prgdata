@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using Common.Tools;
 using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
