@@ -695,6 +695,7 @@ AND    RCS.clientcode          = ?ClientCode"
 
 					for (uint detailIndex = detailsPosition; detailIndex < (detailsPosition + currentRowCount); detailIndex++)
 					{
+						uint tempCoreQuantity;
 						var offer = new Offer()
 						{
 							Id = new OfferKey(0, regionCode[i]),
@@ -722,9 +723,7 @@ AND    RCS.clientcode          = ?ClientCode"
 								String.IsNullOrEmpty(minOrderCount[detailIndex]) ? null : (uint?)uint.Parse(minOrderCount[detailIndex]),
 
 							Cost = Convert.ToSingle(cost[detailIndex]),
-							Quantity =
-								String.IsNullOrEmpty(coreQuantity[detailIndex]) ? null : (uint?)uint.Parse(coreQuantity[detailIndex]),
-
+							Quantity = !String.IsNullOrEmpty(coreQuantity[detailIndex]) && uint.TryParse(coreQuantity[detailIndex], out tempCoreQuantity) ? (uint?)tempCoreQuantity : null,
 							Unit = unit[detailIndex],
 							Volume = volume[detailIndex],
 							Note = note[detailIndex],
