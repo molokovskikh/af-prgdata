@@ -595,6 +595,23 @@ and afu.UserId = ?UserId
 and ms.UpdateId = afu.UpdateId
 and ms.UserId = afu.UserId
 and ms.Committed = 1;
+
+update
+  logs.AnalitFUpdates afu,
+  Logs.UnconfirmedOrdersSendLogs sendlogs,
+  orders.OrdersHead
+set
+  sendlogs.Committed = 0,
+  sendlogs.UpdateId = null,
+  OrdersHead.Deleted = 0
+where
+	afu.RequestTime > ?oldUpdateTime
+and afu.UserId = ?UserId
+and sendlogs.UpdateId = afu.UpdateId
+and sendlogs.UserId = afu.UserId
+and sendlogs.Committed = 1
+and OrdersHead.RowId = sendlogs.OrderId;
+
 ";
 
 				var command = new MySqlCommand(commandText, _readWriteConnection);
@@ -3001,7 +3018,25 @@ where
 and afu.UserId = ?UserId
 and ds.UpdateId = afu.UpdateId
 and ds.UserId = afu.UserId
-and ds.Committed = 1;", _readWriteConnection, transaction);
+and ds.Committed = 1;
+
+update
+  logs.AnalitFUpdates afu,
+  Logs.UnconfirmedOrdersSendLogs sendlogs,
+  orders.OrdersHead
+set
+  sendlogs.Committed = 0,
+  sendlogs.UpdateId = null,
+  OrdersHead.Deleted = 0
+where
+	afu.RequestTime > ?resetDate
+and afu.UserId = ?UserId
+and sendlogs.UpdateId = afu.UpdateId
+and sendlogs.UserId = afu.UserId
+and sendlogs.Committed = 1
+and OrdersHead.RowId = sendlogs.OrderId;
+
+", _readWriteConnection, transaction);
 				resetCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				resetCommand.Parameters.AddWithValue("?resetDate", resetDate);
 				resetCommand.ExecuteNonQuery();

@@ -45,12 +45,14 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
-			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
-
 			_afAppVersion = "1.1.1.1413";
 
 			FixtureSetup();
+		}
 
+		[SetUp]
+		public void SetUp()
+		{
 			_client = TestClient.Create();
 
 			using (var transaction = new TransactionScope())
@@ -101,11 +103,7 @@ namespace Integration
 					.SetParameterList("priceIds", newPrices.ToArray())
 					.ExecuteUpdate();
 			});
-		}
 
-		[SetUp]
-		public void SetUp()
-		{
 			_lastUpdateTime = GetLastUpdateTime();
 			SetCurrentUser(_officeUser.Login);
 			TestDataManager.DeleteAllOrdersForClient(_client.Id);
@@ -694,6 +692,87 @@ namespace Integration
 				Assert.That(logs[0].Filename, Is.Null);
 			}
 		}
+
+		[Test(Description = "при запросе частичного КО должен быть сброшен статус доставки для уже выгруженных неподтвержденных заказов")]
+		public void ResetUnconfirmedOrdersSendLogAfterCumulative()
+		{
+			var firstOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			var secondOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+
+			using (new TransactionScope())
+			{
+				var log = new TestUnconfirmedOrdersSendLog();
+				log.User = _officeUser;
+				log.OrderId = secondOrder.RowId;
+				log.Create();
+			}
+
+			var responce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			var firstUpdateId = ShouldBeSuccessfull(responce);
+
+			List<TestUnconfirmedOrdersSendLog> sendLogs;
+			using (new SessionScope()) {
+				sendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId).ToList();
+				Assert.That(sendLogs.Count, Is.EqualTo(2), "Должен быть 2 заказа, экспортированных пользователю в данном обновлении");
+				Assert.That(sendLogs.Any(l => l.OrderId == firstOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs.Any(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
+				Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
+				Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+			}
+
+			var thirdOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+
+			var service = new PrgDataEx();
+			var updateTime = service.CommitExchange(firstUpdateId, false);
+
+			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
+			Thread.Sleep(3000);
+
+			using (new SessionScope())
+			{
+				var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
+				Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
+
+				sendLogs.ForEach(l => l.Refresh());
+				Assert.That(sendLogs.All(l => l.Committed), Is.True, "Имееются неподтвержденные заказы");
+				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");
+			}
+
+			var deletedStatusFirst = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", firstOrder.RowId)));
+			Assert.That(deletedStatusFirst, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", firstOrder.RowId);
+
+			var deletedStatusSecond = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", secondOrder.RowId)));
+			Assert.That(deletedStatusSecond, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", secondOrder.RowId);
+
+			var deletedStatusThird = Convert.ToBoolean(
+				MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+					new MySqlParameter("?OrderId", thirdOrder.RowId)));
+			Assert.That(deletedStatusThird, Is.False, "Неподтвержденный заказ {0} помечен как удаленный", thirdOrder.RowId);
+
+			var secondResponce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
+			var secondUpdateId = ShouldBeSuccessfull(secondResponce);
+
+			using (new SessionScope()) {
+				var sendLogsAfterCumulative = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == secondUpdateId).ToList();
+				Assert.That(sendLogsAfterCumulative.Count, Is.EqualTo(3), "Должен быть 3 заказа, экспортированных пользователю в данном обновлении");
+				Assert.That(sendLogsAfterCumulative.Any(l => l.OrderId == firstOrder.RowId), Is.True, "Не найден номер экспортированного заказа {0}", firstOrder.RowId);
+				Assert.That(sendLogsAfterCumulative.Any(l => l.OrderId == secondOrder.RowId), Is.True, "Не найден номер экспортированного заказа {0}", secondOrder.RowId);
+				Assert.That(sendLogsAfterCumulative.Any(l => l.OrderId == thirdOrder.RowId), Is.True, "Не найден номер экспортированного заказа {0}", thirdOrder.RowId);
+				Assert.That(sendLogsAfterCumulative.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
+				Assert.That(sendLogsAfterCumulative.All(l => !l.Committed), Is.True, "Есть подтвержденные заказы");
+			}
+		}
+
 	}
 
 	public class DocumentBuilder
