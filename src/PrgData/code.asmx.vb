@@ -906,7 +906,7 @@ endprocNew:
 
                 'Если не реклама
                 Dim helper = New UpdateHelper(UpdateData, connection)
-                If Not Reclame AndAlso Not GetHistory Then
+                If Not Reclame AndAlso (UpdateData.AllowHistoryDocs() Or Not GetHistory) Then
 
                     Try
                         ArchCmd.Connection = connection
@@ -1194,7 +1194,7 @@ endprocNew:
 
 
                     'Если не документы
-                    If Not Documents Then
+                    If Not Documents AndAlso GetHistory Then
 
                         'Архивирование обновления программы
                         Try
@@ -4375,6 +4375,20 @@ RestartTrans2:
 		ByVal MaxOrderListId As UInt64 _
 	) As String
 
+		Return GetHistoryOrdersWithDocs(EXEVersion, UniqueID, ExistsServerOrderIds, MaxOrderId, MaxOrderListId, Nothing)
+
+	End Function
+
+	<WebMethod()> _
+	Public Function GetHistoryOrdersWithDocs( _
+		ByVal EXEVersion As String, _
+		ByVal UniqueID As String, _
+		ByVal ExistsServerOrderIds As UInt64(), _
+		ByVal MaxOrderId As UInt64, _
+		ByVal MaxOrderListId As UInt64, _
+		ByVal ExistsDocIds As UInt64() _
+	) As String
+
 		Dim ResStr As String = String.Empty
 
 		Try
@@ -4400,6 +4414,16 @@ RestartTrans2:
 			If (ExistsServerOrderIds.Length > 0) AndAlso (ExistsServerOrderIds(0) <> 0) Then
 				Dim d = ExistsServerOrderIds.Select(Function(item) item.ToString())
 				If d.Count > 0 Then historyIds = String.Join(",", d.ToArray())
+			End If
+
+			Dim historyDocIds As String = Nothing
+			if UpdateData.AllowHistoryDocs() Then
+				If (ExistsDocIds IsNot Nothing) AndAlso (ExistsDocIds.Length > 0) AndAlso (ExistsDocIds(0) <> 0) Then
+					Dim d = ExistsDocIds.Select(Function(item) item.ToString())
+					If d.Count > 0 Then historyDocIds = String.Join(",", d.ToArray())
+				Else 
+					historyDocIds = String.Empty
+				End If
 			End If
 
 			SelProc = New MySqlCommand
@@ -4447,9 +4471,33 @@ RestartTrans2:
 
 				SelProc.CommandText = "select count(*) from HistoryIds"
 				Dim historyOrdersCount = Convert.ToInt32(SelProc.ExecuteScalar())
-				If historyOrdersCount = 0 Then
-					AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "С сервера загружена вся история заказов")
-					Return "FullHistory=True"
+
+				Dim historyDocsCount As Int32 = 0
+
+				if (historyDocIds Isnot Nothing) Then
+					SelProc.CommandText = _
+						" update Logs.DocumentSendLogs ds " & _
+						" set ds.Committed = 0 " & _
+						" where ds.UserId = " & + UpdateData.UserId.ToString()
+						
+					if Not String.IsNullOrEmpty(historyDocIds) then
+						SelProc.CommandText &= " and ds.DocumentId not in (" & historyDocIds & ")"
+					End If
+
+					historyDocsCount = SelProc.ExecuteNonQuery()
+				End If
+
+
+				if historyDocIds Is Nothing then
+					If historyOrdersCount = 0 Then
+						AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "С сервера загружена вся история заказов")
+						Return "FullHistory=True"
+					End If
+				Else 
+					If historyOrdersCount = 0 AndAlso historyDocsCount = 0 Then
+						AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "С сервера загружена вся история заказов/документов")
+						Return "FullHistory=True"
+					End If
 				End If
 
 				'OrdersHead
@@ -4470,9 +4518,6 @@ RestartTrans2:
 				 "from " & _
 				 " HistoryIds " & _
 				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
-
-				'Начинаем архивирование
-				ThreadZipStream.Start()
 
 				'OrdersList
 				'RowID, OrderID, CoreId, 
@@ -4517,6 +4562,11 @@ RestartTrans2:
 				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _
 				 " inner join orders.OrdersList on OrdersList.OrderId = HistoryIds.ServerOrderId " & _
 				 " left join orders.OrderedOffers on OrderedOffers.Id = OrdersList.RowId ")
+
+				transaction.Commit()
+
+				'Начинаем архивирование
+				ThreadZipStream.Start()
 
 				AddEndOfFiles()
 
@@ -4620,6 +4670,10 @@ endproc:
                 Cm.Parameters.AddWithValue("?UpdateId", UpdateId)
                 Cm.Connection = readWriteConnection
                 Cm.ExecuteNonQuery()
+
+				Cm.CommandText = UpdateHelper.GetConfirmDocumentsCommnad(UpdateId)
+				Cm.ExecuteNonQuery()
+
                 transaction.Commit()
 
                 If Log.IsDebugEnabled Then Log.Debug("Архив с заказами успешно подтвержден")

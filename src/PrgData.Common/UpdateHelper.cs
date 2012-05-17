@@ -69,7 +69,7 @@ namespace PrgData.Common
 			return downloadUrl + "/" + handlerName;
 		}
 
-		public string GetConfirmDocumentsCommnad(uint? updateId)
+		public static string GetConfirmDocumentsCommnad(uint? updateId)
 		{
 			return @"
 update Logs.DocumentSendLogs ds

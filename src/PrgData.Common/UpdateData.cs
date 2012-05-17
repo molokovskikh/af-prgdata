@@ -61,6 +61,8 @@ namespace PrgData.Common
 		private static int _versionBeforeRetailMargins = 1765;
 		//версия AnalitF до поддержки превышения по среднему заказанному количеству (от 1791)
 		private static int _versionBeforeExcessAvgOrderTimes = 1800;
+		//версия AnalitF до поддержки принудительной загрузки истории документов (от 1809)
+		private static int _versionBeforeHistoryDocs = 1820;
 
 		public string ShortName;
 		public uint ClientId;
@@ -524,6 +526,12 @@ namespace PrgData.Common
 		{
 			return BuildNumberGreaterThen(_versionBeforeExcessAvgOrderTimes)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExcessAvgOrderTimes);
+		}
+
+		public bool AllowHistoryDocs()
+		{
+			return BuildNumberGreaterThen(_versionBeforeHistoryDocs)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeHistoryDocs);
 		}
 
 		public bool NeedUpdateForRetailMargins()

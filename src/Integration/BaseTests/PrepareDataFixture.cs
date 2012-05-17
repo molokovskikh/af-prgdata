@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Castle.ActiveRecord;
 using Common.Tools;
 using Inforoom.Common;
+using Test.Support.Documents;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -251,5 +253,44 @@ where
 			{AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter()});
 			BasicConfigurator.Configure((IAppender) MemoryAppender);
 		}
+
+		protected TestDocumentLog CreateDocument(TestUser user)
+		{
+			TestDocumentLog doc;
+			var address = user.AvaliableAddresses[0];
+
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				var supplier = user.GetActivePrices()[0].Supplier;
+				doc = new TestDocumentLog {
+					LogTime = DateTime.Now,
+					Supplier = supplier,
+					DocumentType = DocumentType.Waybill,
+					Client = user.Client,
+					AddressId = address.Id,
+					FileName = "test.data",
+					Ready = true
+				};
+				doc.Save();
+				new TestDocumentSendLog {
+					ForUser = user,
+					Document = doc
+				}.Save();
+				transaction.VoteCommit();
+			}
+
+
+			var waybills = Path.Combine("FtpRoot", address.Id.ToString(), "Waybills");
+			if (!Directory.Exists(waybills))
+				Directory.CreateDirectory(waybills);
+
+			File.WriteAllText(Path.Combine(waybills, String.Format("{0}_test.data", doc.Id)), "");
+			var waybillsPath = Path.Combine("FtpRoot", address.Id.ToString(), "Waybills");
+			doc.LocalFile = Path.Combine(waybillsPath, String.Format("{0}_test.data", doc.Id));
+
+			return doc;
+		}
+
+
 	}
 }
