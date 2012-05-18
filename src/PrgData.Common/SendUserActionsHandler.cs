@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Data;
 using System.IO;
+using Common.MySql;
+using Common.Tools.Calendar;
 using Inforoom.Common;
 using log4net;
 using MySql.Data.MySqlClient;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace PrgData.Common
 {
@@ -86,53 +89,58 @@ namespace PrgData.Common
 
 				var temporaryTableName = "UserSettings.tempUserActions" + _updateData.UserId;
 
-				var transaction = _connection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
-					var command = new MySqlCommand();
-					command.Connection = _connection;
-					command.Transaction = transaction;
+				return With.DuplicateEntryWraper<int>(() => {
+					var transaction = _connection.BeginTransaction(IsolationLevel.ReadCommitted);
+					try
+					{
+						var command = new MySqlCommand();
+						command.Connection = _connection;
+						command.Transaction = transaction;
 
-					command.CommandText = String.Format(@"
-drop temporary table IF EXISTS {0};
-create temporary table {0} (   
-  Id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  LogTime DATETIME NOT NULL,
-  UserId INT(10) UNSIGNED NOT NULL,
-  UpdateId INT(10) UNSIGNED NOT NULL,
-  UserActionId INT(10) UNSIGNED NOT NULL,
-  Context VARCHAR(255) DEFAULT NULL ,
-  PRIMARY KEY (Id)
- ) engine=MEMORY;
-LOAD DATA INFILE '{1}' into table {0}
-( LogTime, UserActionId, Context)
-set UserId = {2}, UpdateId = {3};
-"
-					,
-					temporaryTableName,
-					MySqlHelper.EscapeString(serverImportFileName),
-					_updateData.UserId,
-					_updateId);
+						command.CommandText = String.Format(@"
+	drop temporary table IF EXISTS {0};
+	create temporary table {0} (   
+	  Id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	  LogTime DATETIME NOT NULL,
+	  UserId INT(10) UNSIGNED NOT NULL,
+	  UpdateId INT(10) UNSIGNED NOT NULL,
+	  UserActionId INT(10) UNSIGNED NOT NULL,
+	  Context VARCHAR(255) DEFAULT NULL ,
+	  PRIMARY KEY (Id)
+	 ) engine=MEMORY;
+	LOAD DATA INFILE '{1}' into table {0}
+	( LogTime, UserActionId, Context)
+	set UserId = {2}, UpdateId = {3};
+	"
+						,
+						temporaryTableName,
+						MySqlHelper.EscapeString(serverImportFileName),
+						_updateData.UserId,
+						_updateId);
 
-					var insertCount = command.ExecuteNonQuery();
+						var insertCount = command.ExecuteNonQuery();
 
-					command.CommandText = String.Format(@"
-insert into logs.AnalitFUserActionLogs (LogTime, UserId, UpdateId, UserActionId, Context)
-select LogTime, UserId, UpdateId, UserActionId, Context from {0};
-drop temporary table IF EXISTS {0};
-", temporaryTableName);
+						command.CommandText = String.Format(@"
+	insert into logs.AnalitFUserActionLogs (LogTime, UserId, UpdateId, UserActionId, Context)
+	select LogTime, UserId, UpdateId, UserActionId, Context from {0};
+	drop temporary table IF EXISTS {0};
+	", temporaryTableName);
 
-					command.ExecuteNonQuery();
+						command.ExecuteNonQuery();
 
-					transaction.Commit();
+						transaction.Commit();
 
-					return insertCount;
-				}
-				catch
-				{
-					ConnectionHelper.SafeRollback(transaction);
-					throw;
-				}
+						return insertCount;
+					}
+					catch
+					{
+						ConnectionHelper.SafeRollback(transaction);
+						throw;
+					}
+				},
+				3,
+				2.Second(),
+				30.Second());
 
 			}
 			finally
