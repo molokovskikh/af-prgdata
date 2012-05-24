@@ -1691,7 +1691,7 @@ StartZipping:
 
     Private Sub DBDisconnect()
         Try
-            If Not readWriteConnection Is Nothing Then readWriteConnection.Dispose()
+        	If Not readWriteConnection Is Nothing Then readWriteConnection.Dispose()
         Catch e As Exception
             Log.Error("Ошибка при закритии соединения", e)
         End Try
@@ -2698,7 +2698,13 @@ StartZipping:
 				File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
 			End If
 
-			UpdateHelper.UpdateRequestType(readWriteConnection, UpdateData, GUpdateId)
+			Using connection = New MySqlConnection
+				connection.ConnectionString = Settings.ConnectionString
+				connection.Open()
+
+				UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId)
+			End Using
+
 
 			AsyncPrgDatas.DeleteFromList(Me)
 		End If
