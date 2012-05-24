@@ -4035,6 +4035,8 @@ RestartTrans2:
 	<WebMethod()> Public Function GetReclame() As String
 		Dim MaxReclameFileDate As Date
 		Dim NewZip As Boolean = True
+		Dim CurrentFilesSize As Long = 0
+		Dim MaxFilesSize As Long = 1024*1024
 
 		If Log.IsDebugEnabled Then Log.Debug("Вызвали GetReclame")
 
@@ -4081,16 +4083,21 @@ RestartTrans2:
 
 				If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
-					If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
-					FileCount += 1
+					if CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
+						If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
+						FileCount += 1
 
-					SyncLock (FilesForArchive)
+						SyncLock (FilesForArchive)
 
-						FilesForArchive.Enqueue(New FileForArchive(FileInfo.Name, True))
+							FilesForArchive.Enqueue(New FileForArchive(FileInfo.Name, True))
 
-					End SyncLock
+						End SyncLock
 
-					If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
+						If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
+					Else 
+						Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", FileName)
+						Exit For
+					End If
 
 				End If
 
