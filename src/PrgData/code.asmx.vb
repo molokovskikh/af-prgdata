@@ -1220,7 +1220,7 @@ endprocNew:
                             End If
 
                         Catch ex As ThreadAbortException
-							Log.Error("Ошибка ThreadAbortException при архивировании обновления программы")
+							'Log.Error("Ошибка ThreadAbortException при архивировании обновления программы")
                             If Not Pr Is Nothing Then
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
@@ -1340,7 +1340,7 @@ StartZipping:
                     End If
 
 				Catch ex As ThreadAbortException
-					Log.Error("Ошибка ThreadAbortException при архивировании данных")
+					'Log.Error("Ошибка ThreadAbortException при архивировании данных")
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
 					Try
@@ -1383,7 +1383,7 @@ StartZipping:
             End Using
 
         Catch tae As ThreadAbortException
-			Log.Error("Ошибка ThreadAbortException глобальное в ZipStream")
+			'Log.Error("Ошибка ThreadAbortException глобальное в ZipStream")
 
         Catch Unhandled As Exception
             Log.Error("Архивирование general", Unhandled)
