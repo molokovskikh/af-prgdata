@@ -1220,6 +1220,7 @@ endprocNew:
                             End If
 
                         Catch ex As ThreadAbortException
+							Log.Error("Ошибка ThreadAbortException при архивировании обновления программы")
                             If Not Pr Is Nothing Then
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
@@ -1285,6 +1286,7 @@ StartZipping:
                             End If
 
                             PackFinished = True
+							'Log.Debug("Будет вызывать PackProtocols()")
                             PackProtocols()
                             Exit Sub
                         End If
@@ -1338,6 +1340,7 @@ StartZipping:
                     End If
 
 				Catch ex As ThreadAbortException
+					Log.Error("Ошибка ThreadAbortException при архивировании данных")
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
 					Try
@@ -1380,6 +1383,7 @@ StartZipping:
             End Using
 
         Catch tae As ThreadAbortException
+			Log.Error("Ошибка ThreadAbortException глобальное в ZipStream")
 
         Catch Unhandled As Exception
             Log.Error("Архивирование general", Unhandled)
@@ -2688,6 +2692,7 @@ StartZipping:
 
 			End If
 
+			'Log.Debug("Попытка запустить ProtocolUpdatesThread.Start()")
 			ProtocolUpdatesThread.Start()
 
 			If UpdateType <> RequestType.ResumeData Then
@@ -2698,6 +2703,7 @@ StartZipping:
 				File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
 			End If
 
+			'Log.Debug("Попытка обновить тип обновления")
 			Using connection = New MySqlConnection
 				connection.ConnectionString = Settings.ConnectionString
 				connection.Open()
@@ -2706,6 +2712,7 @@ StartZipping:
 			End Using
 
 
+			'Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
 			AsyncPrgDatas.DeleteFromList(Me)
 		End If
 	End Sub
@@ -2716,7 +2723,7 @@ StartZipping:
 		Dim LogDA As New MySqlDataAdapter
 		Dim LogCm As New MySqlCommand
 		Dim NoNeedProcessDocuments As Boolean = False
-
+		
 		Using connection = New MySqlConnection
 			Try
 				ThreadContext.Properties("user") = UpdateData.UserName
