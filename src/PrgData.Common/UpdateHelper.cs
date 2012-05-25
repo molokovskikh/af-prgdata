@@ -2430,6 +2430,21 @@ where
 	UserId = " + _updateData.UserId;
 		}
 
+		public string GetUpdateValuesCommand()
+		{
+			return @"
+select
+	BaseFirmCategory,
+	OverCostPercent,
+	ExcessAvgOrderTimes,
+	DifferenceCalculation,
+	ShowPriceName	
+from
+	UserSettings.RetClientsSet
+where
+	ClientCode = "+ _updateData.ClientId;
+		}
+
 		public string GetMinReqRuleCommand()
 		{
 			if (_updateData.EnableImpersonalPrice)
@@ -3211,7 +3226,7 @@ order by s.Hour, s.Minute";
 			return exists;
 		}
 
-		public static void UpdateRequestType(MySqlConnection readWriteConnection, UpdateData updateData, ulong updateId)
+		public static void UpdateRequestType(MySqlConnection readWriteConnection, UpdateData updateData, ulong updateId, string addition, uint resultSize)
 		{
 			With.DeadlockWraper(() => {
 										
@@ -3231,9 +3246,11 @@ order by s.Hour, s.Minute";
 
 						MySqlHelper.ExecuteNonQuery(
 							readWriteConnection,
-							"update logs.AnalitFUpdates set UpdateType = ?UpdateType where UpdateId = ?UpdateId",
+							"update logs.AnalitFUpdates set UpdateType = ?UpdateType, Addition = ?Addition, ResultSize = ?ResultSize where UpdateId = ?UpdateId",
 							new MySqlParameter("?UpdateId", updateId),
-							new MySqlParameter("?UpdateType", Convert.ToInt32(newUpdateType)));
+							new MySqlParameter("?UpdateType", Convert.ToInt32(newUpdateType)),
+							new MySqlParameter("?Addition", addition),
+							new MySqlParameter("?ResultSize", resultSize));
 
 						transaction.Commit();
 					}

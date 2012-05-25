@@ -1137,6 +1137,129 @@ endprocNew:
 
                         End If
 
+						'если версия с поддержкой AllowHistoryDocs() и пользователю отдается реклама, то архивируем рекламу
+                    	if UpdateData.ShowAdvertising AndAlso UpdateData.AllowHistoryDocs() then
+							Dim MaxReclameFileDate As Date
+							Dim NewZip As Boolean = True
+							Dim CurrentFilesSize As Long = 0
+							Dim MaxFilesSize As Long = 1024*1024
+							Dim FileCount = 0
+							Dim RelamePathTemp As String
+                    		
+							Dim reclameData = helper.GetReclame()
+
+							MaxReclameFileDate = reclameData.ReclameDate
+							If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
+
+							RelamePathTemp = ResultFileName & "Reclame\" & reclameData.Region & "\"
+							Dim reclamePreffix = "Reclame\" & reclameData.Region & "\"
+
+							If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", RelamePathTemp)
+
+
+							Dim FileList As String() = New String(){}
+							Dim ReclameFileName As String
+
+							If Not Directory.Exists(RelamePathTemp) Then
+								Try
+									Directory.CreateDirectory(RelamePathTemp)
+									FileList = Directory.GetFiles(RelamePathTemp)
+								Catch ex As Exception
+									Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", RelamePathTemp, ex)
+								End Try
+							Else 
+								FileList = Directory.GetFiles(RelamePathTemp)
+							End If
+
+							If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
+
+							For Each ReclameFileName In FileList
+
+								FileInfo = New FileInfo(ReclameFileName)
+
+								If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
+
+									if CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
+										If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
+										FileCount += 1
+
+
+                                        startInfo = New ProcessStartInfo(SevenZipExe)
+                                        startInfo.CreateNoWindow = True
+                                        startInfo.RedirectStandardOutput = True
+                                        startInfo.RedirectStandardError = True
+                                        startInfo.UseShellExecute = False
+                                        startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+
+                                        startInfo.Arguments = "a """ & _
+                                           SevenZipTmpArchive & """ " & _
+                                           " -i!""" & _
+                                           reclamePreffix & _
+                                           Path.GetFileName(FileInfo.Name) & _
+                                           """ " & _
+                                           SevenZipParam
+
+                                        startInfo.WorkingDirectory = ResultFileName
+
+                                        Pr = New Process
+                                        Pr.StartInfo = startInfo
+                                        Pr = Process.Start(startInfo)
+                                        Pr.WaitForExit()
+
+                                        Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                        Ошибка7Z = Pr.StandardError.ReadToEnd
+
+                                        If Pr.ExitCode <> 0 Then
+
+                                            ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
+                                            Addition &= "Архивирование рекламы, Вышли из 7Z с ошибкой: " & _
+                                               Вывод7Z & _
+                                               "-" & _
+                                               Ошибка7Z & _
+                                               "; "
+
+                                            If Documents Then
+
+                                                Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
+                                                 "-" & _
+                                                 Ошибка7Z))
+
+                                            Else
+                                                Log.Error( _
+                                                    "Архивирование рекламы" & vbCrLf & _
+                                                    "Вышли из 7Z с ошибкой: " & Вывод7Z & "-" & Ошибка7Z)
+                                            End If
+                                        End If
+
+										If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
+									Else 
+										Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", ReclameFileName)
+										Exit For
+									End If
+
+								End If
+
+							Next
+
+							If MaxReclameFileDate > Now() Then MaxReclameFileDate = Now()
+
+							If Log.IsDebugEnabled Then Log.DebugFormat("После обработки файлов MaxReclameFileDate {0}", MaxReclameFileDate)
+
+							If FileCount > 0 Then
+
+								'AddEndOfFiles()
+
+								'ZipStream()
+
+								'If Log.IsDebugEnabled Then Log.Debug("Успешно завершили архивирование")
+
+								'FileInfo = New FileInfo(UpdateData.GetReclameFile())
+								'FileInfo.CreationTime = MaxReclameFileDate
+
+								'If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
+							End If
+                    	End If
+
 
                     Catch ex As Exception
                         Log.Error("Ошибка при архивировании документов", ex)
@@ -1513,7 +1636,27 @@ StartZipping:
 
             Try
 
-                If Not WayBillsOnly Then
+            	If Not WayBillsOnly Then
+            		
+
+            		If UpdateData.AllowHistoryDocs() Then
+						FileInfo = New FileInfo(UpdateData.GetCurrentFile(UpdateId))
+
+						If FileInfo.Exists Then
+
+							If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
+
+							Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
+							Cm.CommandText = "update UserUpdateInfo set ReclameDate=?ReclameDate where UserId=" & UserId
+							Cm.Parameters.AddWithValue("?ReclameDate", FileInfo.CreationTime)
+							Cm.Connection = readWriteConnection
+							Cm.ExecuteNonQuery()
+							transaction.Commit()
+						End If
+            			
+            		End If
+
+
                     Cm.Connection = readWriteConnection
                     Cm.CommandText = "select UncommitedUpdateDate from UserUpdateInfo  where UserId=" & UserId & "; "
                     Using SQLdr As MySqlDataReader = Cm.ExecuteReader
@@ -2708,7 +2851,7 @@ StartZipping:
 				connection.ConnectionString = Settings.ConnectionString
 				connection.Open()
 
-				UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId)
+				UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId, Addition, ResultLenght)
 			End Using
 
 
@@ -3459,6 +3602,7 @@ RestartTrans2:
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Schedules" & UserId & ".txt")
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Mails" & UserId & ".txt")
 				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "Attachments" & UserId & ".txt")
+				ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "UpdateValues" & UserId & ".txt")
 
 				'ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "CoreTest" & UserId & ".txt")
 
@@ -3501,6 +3645,10 @@ RestartTrans2:
 
 				If helper.NeedClientToAddressMigration() Then
 					GetMySQLFileWithDefault("ClientToAddressMigrations", SelProc, helper.GetClientToAddressMigrationCommand())
+				End If
+
+				if UpdateData.NeedUpdateForHistoryDocs() Then
+					GetMySQLFileWithDefault("UpdateValues", SelProc, helper.GetUpdateValuesCommand())
 				End If
 
 				GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())

@@ -5,6 +5,7 @@ using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
+using Integration.BaseTests;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
@@ -20,7 +21,7 @@ using log4net;
 namespace Integration
 {
 	[TestFixture]
-	public class GetReclameFixture
+	public class GetReclameFixture : PrepareDataFixture
 	{
 		TestClient _client;
 		TestUser _user;
@@ -31,11 +32,9 @@ namespace Integration
 		private TestUser _disabledUser;
 
 		[TestFixtureSetUp]
-		public void FixtureSetUp()
+		public override void FixtureSetup()
 		{
-			ServiceContext.GetUserHost = () => "127.0.0.1";
-			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
-			ServiceContext.GetResultPath = () => resultsDir;
+			base.FixtureSetup();
 
 			_client = TestClient.Create();
 			_disabledClient = TestClient.Create();
@@ -61,9 +60,10 @@ namespace Integration
 			}
 		}
 
-		private void SetCurrentUser(string login)
+		[SetUp]
+		public override void Setup()
 		{
-			ServiceContext.GetUserName = () => login;
+			base.Setup();
 		}
 
 		private string GetReclame()
@@ -248,5 +248,53 @@ namespace Integration
 			else
 				Assert.Fail("Некорректный ответ от сервера при получении данных: {0}", responce);
 		}
+
+		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
+		public void GetReclameWithUpdate()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo uui set uui.ReclameDate = null where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+				var reclame = helper.GetReclame();
+				Assert.IsTrue(reclame.ShowAdvertising, "Реклама не включена");
+				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
+				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
+
+				var maxFileTime = SetReclameDir(reclame.Region);
+
+				SetCurrentUser(_user.Login);
+
+				var response = LoadDataAttachments(false, DateTime.Now, "1.0.0.1821", null);
+
+				var updateId = ShouldBeSuccessfull(response);
+
+				var archiveName = CheckArchive(_user, updateId);
+
+				var archFolder = ExtractArchive(archiveName);
+
+				var userReclameDir = Path.Combine(archFolder, "Reclame", reclame.Region);
+				Assert.That(Directory.Exists(userReclameDir), "В архиве с обновлением не найден каталог с рекламой");
+
+				var files = Directory.GetFiles(userReclameDir);
+				Assert.That(files.Length, Is.GreaterThan(0), "В каталоге с рекламой нет файлов");
+
+				var updateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
+
+				var date = MySqlHelper.ExecuteScalar(
+					connection,
+					"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				Assert.That(date, Is.Not.Null);
+				Assert.That(date.GetType(), Is.EqualTo(typeof(DateTime)));
+				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds < 1, "Не совпадают даты");
+			}
+		}
 	}
+
 }

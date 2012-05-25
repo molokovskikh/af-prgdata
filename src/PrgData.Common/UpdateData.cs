@@ -534,6 +534,12 @@ namespace PrgData.Common
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeHistoryDocs);
 		}
 
+		public bool NeedUpdateForHistoryDocs()
+		{
+			return (BuildNumber <= _versionBeforeHistoryDocs)
+				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeHistoryDocs);
+		}
+
 		public bool NeedUpdateForRetailMargins()
 		{
 			return (BuildNumber <= _versionBeforeRetailMargins)

@@ -610,6 +610,12 @@ namespace Integration
 			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
 
 			CommitExchange(simpleUpdateId, RequestType.GetData);
+
+			log.Refresh();
+			Assert.That(log.Commit, Is.True, "Запрос должен быть подтвержден");
+			Assert.IsNotNullOrEmpty(log.Addition);
+			Assert.That(log.ResultSize, Is.Not.Null);
+			Assert.That(log.ResultSize, Is.GreaterThan(1));
 		}
 
 		[Test(Description = "Простой запрос данных с получением сертификатов")]
