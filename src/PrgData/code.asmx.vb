@@ -1220,7 +1220,7 @@ endprocNew:
                             End If
 
                         Catch ex As ThreadAbortException
-							Log.Error("Ошибка ThreadAbortException при архивировании обновления программы")
+							Log.Debug("Ошибка ThreadAbortException при архивировании обновления программы")
                             If Not Pr Is Nothing Then
                                 If Not Pr.HasExited Then Pr.Kill()
                                 Pr.WaitForExit()
@@ -1286,7 +1286,7 @@ StartZipping:
                             End If
 
                             PackFinished = True
-							'Log.Debug("Будет вызывать PackProtocols()")
+							Log.Debug("Будет вызывать PackProtocols()")
                             PackProtocols()
                             Exit Sub
                         End If
@@ -1340,7 +1340,7 @@ StartZipping:
                     End If
 
 				Catch ex As ThreadAbortException
-					Log.Error("Ошибка ThreadAbortException при архивировании данных")
+					Log.Debug("Ошибка ThreadAbortException при архивировании данных")
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
 					Try
@@ -1383,7 +1383,7 @@ StartZipping:
             End Using
 
         Catch tae As ThreadAbortException
-			Log.Error("Ошибка ThreadAbortException глобальное в ZipStream")
+			Log.Debug("Ошибка ThreadAbortException глобальное в ZipStream")
 
         Catch Unhandled As Exception
             Log.Error("Архивирование general", Unhandled)
@@ -2692,7 +2692,7 @@ StartZipping:
 
 			End If
 
-			'Log.Debug("Попытка запустить ProtocolUpdatesThread.Start()")
+			Log.Debug("Попытка запустить ProtocolUpdatesThread.Start()")
 			ProtocolUpdatesThread.Start()
 
 			If UpdateType <> RequestType.ResumeData Then
@@ -2703,7 +2703,7 @@ StartZipping:
 				File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
 			End If
 
-			'Log.Debug("Попытка обновить тип обновления")
+			Log.Debug("Попытка обновить тип обновления")
 			Using connection = New MySqlConnection
 				connection.ConnectionString = Settings.ConnectionString
 				connection.Open()
@@ -2712,7 +2712,7 @@ StartZipping:
 			End Using
 
 
-			'Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
+			Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
 			AsyncPrgDatas.DeleteFromList(Me)
 		End If
 	End Sub
@@ -2723,171 +2723,178 @@ StartZipping:
 		Dim LogDA As New MySqlDataAdapter
 		Dim LogCm As New MySqlCommand
 		Dim NoNeedProcessDocuments As Boolean = False
-		
-		Using connection = New MySqlConnection
-			Try
-				ThreadContext.Properties("user") = UpdateData.UserName
 
-				connection.ConnectionString = Settings.ConnectionString
-				connection.Open()
 
-				LogCm.Connection = connection
-				LogCb.DataAdapter = DA
+		Try
+			Using connection = New MySqlConnection
+				Try
+					ThreadContext.Properties("user") = UpdateData.UserName
 
-				If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Join()
-				If ThreadZipStream.IsAlive Then ThreadZipStream.Join()
+					connection.ConnectionString = Settings.ConnectionString
+					connection.Open()
 
-				If UserId < 1 Then
-					NoNeedProcessDocuments = True
-				End If
+					LogCm.Connection = connection
+					LogCb.DataAdapter = DA
 
-				If (UpdateType = RequestType.GetData) _
-				 Or (UpdateType = RequestType.GetCumulative) _
-				 Or (UpdateType = RequestType.GetLimitedCumulative) _
-				 Or (UpdateType = RequestType.PostOrderBatch) _
-				 Or (UpdateType = RequestType.Forbidden) _
-				 Or (UpdateType = RequestType.Error) _
-				 Or (UpdateType = RequestType.GetDocs) _
-				 Or (UpdateType = RequestType.GetHistoryOrders) Then
+					If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Join()
+					If ThreadZipStream.IsAlive Then ThreadZipStream.Join()
 
-PostLog:
-					If GUpdateId = 0 Then
+					If UserId < 1 Then
+						NoNeedProcessDocuments = True
+					End If
 
-						transaction = connection.BeginTransaction(IsoLevel)
+					If (UpdateType = RequestType.GetData) _
+					 Or (UpdateType = RequestType.GetCumulative) _
+					 Or (UpdateType = RequestType.GetLimitedCumulative) _
+					 Or (UpdateType = RequestType.PostOrderBatch) _
+					 Or (UpdateType = RequestType.Forbidden) _
+					 Or (UpdateType = RequestType.Error) _
+					 Or (UpdateType = RequestType.GetDocs) _
+					 Or (UpdateType = RequestType.GetHistoryOrders) Then
 
-						If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
+	PostLog:
+						If GUpdateId = 0 Then
 
-						'если нет новых документов то и подтверждения не будет
-						'а в интерейсе неподтвержденное обновление это тревога
-						'что бы не было тревог
-						Dim commit = False
-						If MessageH = "Новых файлов документов нет." Then
-							commit = True
+							transaction = connection.BeginTransaction(IsoLevel)
+
+							If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
+
+							'если нет новых документов то и подтверждения не будет
+							'а в интерейсе неподтвержденное обновление это тревога
+							'что бы не было тревог
+							Dim commit = False
+							If MessageH = "Новых файлов документов нет." Then
+								commit = True
+							End If
+
+							GUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(connection, UpdateData, UpdateType, Addition, commit, ResultLenght, ClientLog)
+
+							transaction.Commit()
+
 						End If
 
-						GUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(connection, UpdateData, UpdateType, Addition, commit, ResultLenght, ClientLog)
+						If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
+							Dim DocumentsProcessingCommandBuilder As New MySqlCommandBuilder
 
-						transaction.Commit()
+							For Each DocumentsIdRow As DataRow In DS.Tables("ProcessingDocuments").Rows
+								DocumentsIdRow.Item("UpdateId") = GUpdateId
+							Next
+
+							LogDA.SelectCommand = New MySqlCommand
+							LogDA.SelectCommand.Connection = connection
+							LogDA.SelectCommand.CommandText = "" & _
+							  "SELECT  * " & _
+			"from AnalitFDocumentsProcessing limit 0"
+
+							DocumentsProcessingCommandBuilder.DataAdapter = LogDA
+							LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
+
+							transaction = connection.BeginTransaction(IsoLevel)
+							Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId", connection)
+							command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+							command.Parameters.AddWithValue("?UpdateId", GUpdateId)
+							command.Parameters.Add("?DocumentId", MySqlDbType.UInt32)
+
+							For Each row As DataRow In DS.Tables("ProcessingDocuments").Rows
+								command.Parameters("?DocumentId").Value = row("DocumentId")
+								command.ExecuteNonQuery()
+							Next
+
+							transaction.Commit()
+
+						End If
+
+						UnconfirmedOrdersExporter.InsertUnconfirmedOrdersLogs(UpdateData, connection, GUpdateId)
+
+						AnalitFUpdate.Log(UpdateData, connection, GUpdateId)
+
+						DS.Tables.Clear()
 
 					End If
 
-					If DS.Tables("ProcessingDocuments").Rows.Count > 0 Then
-						Dim DocumentsProcessingCommandBuilder As New MySqlCommandBuilder
-
-						For Each DocumentsIdRow As DataRow In DS.Tables("ProcessingDocuments").Rows
-							DocumentsIdRow.Item("UpdateId") = GUpdateId
-						Next
-
-						LogDA.SelectCommand = New MySqlCommand
-						LogDA.SelectCommand.Connection = connection
-						LogDA.SelectCommand.CommandText = "" & _
-						  "SELECT  * " & _
-		"from AnalitFDocumentsProcessing limit 0"
-
-						DocumentsProcessingCommandBuilder.DataAdapter = LogDA
-						LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
+					If (UpdateType = RequestType.ResumeData) Then
 
 						transaction = connection.BeginTransaction(IsoLevel)
-						Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId", connection)
-						command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
-						command.Parameters.AddWithValue("?UpdateId", GUpdateId)
-						command.Parameters.Add("?DocumentId", MySqlDbType.UInt32)
 
-						For Each row As DataRow In DS.Tables("ProcessingDocuments").Rows
-							command.Parameters("?DocumentId").Value = row("DocumentId")
-							command.ExecuteNonQuery()
-						Next
+						LogCm.CommandText = "" & _
+						   "SELECT  MAX(UpdateId) " & _
+						  "FROM    `logs`.AnalitFUpdates " & _
+						  "WHERE   UpdateType IN (1, 2, 18) " & _
+						   "    AND `Commit`    =0 " & _
+						   "    AND UserId  =" & UpdateData.UserId
 
-						transaction.Commit()
+						GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
+						If GUpdateId < 1 Then
+							GUpdateId = Nothing
+						Else
+							LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Addition=if(instr(ifnull(?Addition, ''), Addition) = 1, ifnull(?Addition, ''), concat(Addition, ifnull(?Addition, '')))   where UpdateId=" & GUpdateId
+							LogCm.Parameters.Add(New MySqlParameter("?Addition", MySqlDbType.VarString))
+							LogCm.Parameters("?Addition").Value = Addition
 
-					End If
-
-					UnconfirmedOrdersExporter.InsertUnconfirmedOrdersLogs(UpdateData, connection, GUpdateId)
-
-					AnalitFUpdate.Log(UpdateData, connection, GUpdateId)
-
-					DS.Tables.Clear()
-
-				End If
-
-				If (UpdateType = RequestType.ResumeData) Then
-
-					transaction = connection.BeginTransaction(IsoLevel)
-
-					LogCm.CommandText = "" & _
-					   "SELECT  MAX(UpdateId) " & _
-					  "FROM    `logs`.AnalitFUpdates " & _
-					  "WHERE   UpdateType IN (1, 2, 18) " & _
-					   "    AND `Commit`    =0 " & _
-					   "    AND UserId  =" & UpdateData.UserId
-
-					GUpdateId = Convert.ToUInt32(LogCm.ExecuteScalar)
-					If GUpdateId < 1 Then
-						GUpdateId = Nothing
-					Else
-						LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Addition=if(instr(ifnull(?Addition, ''), Addition) = 1, ifnull(?Addition, ''), concat(Addition, ifnull(?Addition, '')))   where UpdateId=" & GUpdateId
-						LogCm.Parameters.Add(New MySqlParameter("?Addition", MySqlDbType.VarString))
-						LogCm.Parameters("?Addition").Value = Addition
-
-						LogCm.ExecuteNonQuery()
-					End If
-					transaction.Commit()
-				End If
-
-				If Not NoNeedProcessDocuments Then
-
-					If (UpdateType = RequestType.CommitExchange) Then
-						Dim СписокФайлов() As String
-
-						transaction = connection.BeginTransaction(IsoLevel)
-						LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1, Log = if(?Log is null, Log, concat(ifnull(Log, ''), ifnull(?Log, ''))) , Addition=concat(Addition, ifnull(?Addition, ''))  where UpdateId=" & GUpdateId
-
-						LogCm.Parameters.Add(New MySqlParameter("?Log", MySqlDbType.VarString))
-						LogCm.Parameters("?Log").Value = ClientLog
-
-						LogCm.Parameters.Add(New MySqlParameter("?Addition", MySqlDbType.VarString))
-						LogCm.Parameters("?Addition").Value = Addition
-
-						LogCm.ExecuteNonQuery()
-
-						Dim helper = New UpdateHelper(UpdateData, connection)
-
-						LogCm.CommandText = "delete from Customers.ClientToAddressMigrations where UserId = " & UpdateData.UserId
-						LogCm.ExecuteNonQuery()
-
-						Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
-
-						For Each DocumentsIdRow As DataRow In processedDocuments.Rows
-
-							СписокФайлов = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
-							   DocumentsIdRow.Item("ClientCode").ToString & _
-							   "\" & _
-							   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
-							   DocumentsIdRow.Item("DocumentId").ToString & "_*")
-
-							If СписокФайлов.Length > 0 Then MySQLResultFile.Delete(СписокФайлов(0))
-
-						Next
-						LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
-						LogCm.ExecuteNonQuery()
-
-						LogCm.CommandText = helper.GetConfirmMailsCommnad(GUpdateId)
-						LogCm.ExecuteNonQuery()
-
+							LogCm.ExecuteNonQuery()
+						End If
 						transaction.Commit()
 					End If
 
-				End If
-			Catch ex As Exception
-				PrgData.Common.ConnectionHelper.SafeRollback(transaction)
-				GUpdateId = Nothing
-				If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-					Thread.Sleep(500)
-					GoTo PostLog
-				End If
-				Log.Error("Запись лога", ex)
-			End Try
+					If Not NoNeedProcessDocuments Then
+
+						If (UpdateType = RequestType.CommitExchange) Then
+							Dim СписокФайлов() As String
+
+							transaction = connection.BeginTransaction(IsoLevel)
+							LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1, Log = if(?Log is null, Log, concat(ifnull(Log, ''), ifnull(?Log, ''))) , Addition=concat(Addition, ifnull(?Addition, ''))  where UpdateId=" & GUpdateId
+
+							LogCm.Parameters.Add(New MySqlParameter("?Log", MySqlDbType.VarString))
+							LogCm.Parameters("?Log").Value = ClientLog
+
+							LogCm.Parameters.Add(New MySqlParameter("?Addition", MySqlDbType.VarString))
+							LogCm.Parameters("?Addition").Value = Addition
+
+							LogCm.ExecuteNonQuery()
+
+							Dim helper = New UpdateHelper(UpdateData, connection)
+
+							LogCm.CommandText = "delete from Customers.ClientToAddressMigrations where UserId = " & UpdateData.UserId
+							LogCm.ExecuteNonQuery()
+
+							Dim processedDocuments = helper.GetProcessedDocuments(GUpdateId)
+
+							For Each DocumentsIdRow As DataRow In processedDocuments.Rows
+
+								СписокФайлов = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
+								   DocumentsIdRow.Item("ClientCode").ToString & _
+								   "\" & _
+								   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
+								   DocumentsIdRow.Item("DocumentId").ToString & "_*")
+
+								If СписокФайлов.Length > 0 Then MySQLResultFile.Delete(СписокФайлов(0))
+
+							Next
+							LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
+							LogCm.ExecuteNonQuery()
+
+							LogCm.CommandText = helper.GetConfirmMailsCommnad(GUpdateId)
+							LogCm.ExecuteNonQuery()
+
+							transaction.Commit()
+						End If
+
+					End If
+				Catch ex As Exception
+					PrgData.Common.ConnectionHelper.SafeRollback(transaction)
+					GUpdateId = Nothing
+					If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
+						Thread.Sleep(500)
+						GoTo PostLog
+					End If
+					Log.Error("Запись лога", ex)
+				End Try
 		End Using
+
+		Catch unhandled As Exception
+			Log.Error("Ошибка при завершении подготовки данных", unhandled)
+		End Try
+
 	End Sub
 
 
