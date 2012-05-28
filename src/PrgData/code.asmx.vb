@@ -1317,7 +1317,7 @@ endprocNew:
 
 
                     'Если не документы
-                    If Not Documents AndAlso GetHistory Then
+                    If Not Documents AndAlso Not GetHistory Then
 
                         'Архивирование обновления программы
                         Try

@@ -1,16 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using Castle.ActiveRecord;
-using Castle.MicroKernel.Registration;
 using Common.Models;
-using Common.Models.Repositories;
-using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
@@ -19,9 +11,7 @@ using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
-using PrgData.Common.Model;
 using PrgData.Common.Repositories;
-using SmartOrderFactory.Domain;
 using Test.Support;
 
 namespace Integration
@@ -92,7 +82,8 @@ values
 (1289, 1317),
 (1295, 1317),
 (1299, 1317),
-(1315, 1317);
+(1315, 1317),
+(1809, 1823);
 ");
 		}
 
@@ -118,7 +109,7 @@ values
 		{
 			var dirInfo = new DirectoryInfo("..\\..\\Data\\EtalonUpdates\\Updates");
 			var releaseInfos = dirInfo.GetDirectories("Release*");
-			Assert.That(releaseInfos.Length, Is.EqualTo(7));
+			Assert.That(releaseInfos.Length, Is.EqualTo(8));
 			var infos = new List<VersionInfo>();
 
 			foreach (var releaseInfo in releaseInfos)
@@ -191,8 +182,22 @@ values
 			Assert.That(info.Folder, Is.StringEnding("Release1380"));
 		}
 
-		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
-		public void CheckGetUserDataOnDisabledClient()
+		private void ResetUpdatesFolder()
+		{
+			var files = Directory.GetFiles(ServiceContext.GetResultPath());
+			files.Each(file => File.Delete(file));
+
+			var dirs = Directory.GetDirectories(ServiceContext.GetResultPath());
+			dirs.Each(dir =>
+						{
+							var info = new DirectoryInfo(dir);
+							if (!info.Name.Equals("Updates", StringComparison.OrdinalIgnoreCase))
+								Directory.Delete(dir, true);
+						});
+		}
+
+		[Test(Description = "Проверка подготовки данных с обновлением exe для сетевых версий")]
+		public void CheckGetUserDataWithExeUpdateOnNetworkVersion()
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\NetworkUpdates\\";
 			
@@ -269,17 +274,74 @@ where
 			}
 			finally
 			{
-				var files = Directory.GetFiles(ServiceContext.GetResultPath());
-				files.Each(file => File.Delete(file));
-
-				var dirs = Directory.GetDirectories(ServiceContext.GetResultPath());
-				dirs.Each(dir =>
-							{
-								var info = new DirectoryInfo(dir);
-								if (!info.Name.Equals("Updates", StringComparison.OrdinalIgnoreCase))
-									Directory.Delete(dir, true);
-							});
+				ResetUpdatesFolder();
 			}
+		}
+
+		private void InternalUpdateOnVersion(uint fromVersion, uint toVersion)
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
+			
+			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
+			if (Directory.Exists(extractFolder))
+				Directory.Delete(extractFolder, true);
+			Directory.CreateDirectory(extractFolder);
+
+			var appVersion = "1.1.1." + fromVersion;
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update Customers.Users
+set
+  TargetVersion = ?toVersion
+where
+  Id = ?UserId;
+"
+				,
+				new MySqlParameter("?UserId", _user.Id),
+				new MySqlParameter("?toVersion", toVersion));
+
+			try
+			{
+				SetCurrentUser(_user.Login);
+
+				var service = new PrgDataEx();
+				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+
+				var updateId = ShouldBeSuccessfull(responce);
+
+				var updateFile = Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, updateId));
+				Assert.That(File.Exists(updateFile), Is.True, "Не найден файл с подготовленными данными");
+
+				ArchiveHelper.Extract(updateFile, "*.*", extractFolder);
+
+				var exeFolder = Path.Combine(extractFolder, "Exe");
+				Assert.That(Directory.Exists(exeFolder), Is.True, "На найден каталог с обновлением exe");
+
+				var rootFiles = Directory.GetFiles(exeFolder);
+				Assert.That(rootFiles.Length, Is.GreaterThan(0), "В директории Exe не найдены файлы");
+				Assert.That(
+					rootFiles.Any(file => file.EndsWith("AnalitF.exe", StringComparison.OrdinalIgnoreCase)),
+					Is.True,
+					"Не найден файл с обновлением программы");
+			}
+			finally
+			{
+				ResetUpdatesFolder();
+			}
+		}
+
+		[Test(Description = "Проверка подготовки данных с обновлением exe на версию 1317")]
+		public void CheckGetUserDataWithExeUpdateOn1317()
+		{
+			InternalUpdateOnVersion(1315, 1317);
+		}
+
+		[Test(Description = "Проверка подготовки данных с обновлением exe на версию 1823")]
+		public void CheckGetUserDataWithExeUpdateOn1823()
+		{
+			InternalUpdateOnVersion(1809, 1823);
 		}
 
 
