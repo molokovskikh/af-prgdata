@@ -292,9 +292,12 @@ namespace Integration
 					new MySqlParameter("?UserId", _user.Id));
 				Assert.That(date, Is.Not.Null);
 				Assert.That(date.GetType(), Is.EqualTo(typeof(DateTime)));
-				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds < 1, "Не совпадают даты");
+
+				//Максимальная дата файла рекламы должна быть больше или равна дате рекламы из UserUpdateInfo.ReclameDate, установленной после обновления
+				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds >= 0, "Не совпадают даты maxFileTime: {0}  и  reclameDate: {1}", maxFileTime, date);
 			}
 		}
+
 	}
 
 }
