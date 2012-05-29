@@ -3228,14 +3228,19 @@ order by s.Hour, s.Minute";
 
 		public static void UpdateRequestType(MySqlConnection readWriteConnection, UpdateData updateData, ulong updateId, string addition, uint resultSize)
 		{
+			if (updateId <= 0)
+				throw new Exception("Значение updateId при обновлении типа запроса меньше или равно 0: {0}".Format(updateId));
+
 			With.DeadlockWraper(() => {
 										
 				var realUpdateType = MySqlHelper.ExecuteScalar(
 					readWriteConnection,
-					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId and UpdateType in (16, 17)",
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", updateId));
 
-				if (realUpdateType != null && Convert.ToInt32(realUpdateType) > 0)
+				var allowedTypes = new int[] {Convert.ToInt32(RequestType.GetCumulativeAsync), Convert.ToInt32(RequestType.GetLimitedCumulativeAsync), Convert.ToInt32(RequestType.GetDataAsync)};
+
+				if (realUpdateType != null && Convert.ToInt32(realUpdateType) > 0 && allowedTypes.Any(i => i == Convert.ToInt32(realUpdateType)))
 				{
 					var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
 					try
@@ -3243,6 +3248,8 @@ order by s.Hour, s.Minute";
 						var newUpdateType = RequestType.GetData;
 						if (Convert.ToInt32(realUpdateType) == Convert.ToInt32(RequestType.GetCumulativeAsync))
 							newUpdateType = RequestType.GetCumulative;
+						if (Convert.ToInt32(realUpdateType) == Convert.ToInt32(RequestType.GetLimitedCumulativeAsync))
+							newUpdateType = RequestType.GetLimitedCumulative;
 
 						MySqlHelper.ExecuteNonQuery(
 							readWriteConnection,
@@ -3260,7 +3267,8 @@ order by s.Hour, s.Minute";
 						throw;
 					}
 				}
-
+				else 
+					throw new Exception("Неожидаемый тип {0} у запроса c updateId {1}".Format(realUpdateType, updateId));
 			});
 		}
 
