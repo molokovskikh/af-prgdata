@@ -124,6 +124,12 @@ namespace Integration
 			return doc;
 		}
 
+		private void CheckDelivered(TestDocumentSendLog docLog, bool fileDelivered, bool documentDelivered)
+		{
+			Assert.That(docLog.FileDelivered, Is.EqualTo(fileDelivered), "Некорректно установлено свойство 'Файл доставлен' для лога {0}", docLog.Id);
+			Assert.That(docLog.DocumentDelivered, Is.EqualTo(documentDelivered), "Некорректно установлено свойство 'Документ доставлен' для лога {0}", docLog.Id);
+		}
+
 		[Test]
 		public void Documents_should_be_sended_to_all_user_whom_address_avaliable()
 		{
@@ -173,8 +179,11 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
 				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
@@ -211,6 +220,9 @@ namespace Integration
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
 				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
 				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
+
+				var brokenDocLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+				CheckDelivered(brokenDocLog, false, true);
 			}
 		}
 
@@ -394,8 +406,11 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 			}
 		}
 
@@ -468,6 +483,7 @@ namespace Integration
 			{
 				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
 				Assert.That(brokenDocumentSendLog.Committed, Is.True);
+				CheckDelivered(brokenDocumentSendLog, false, true);
 			}
 
 			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
@@ -510,6 +526,7 @@ namespace Integration
 			{
 				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
 				Assert.That(brokenDocumentSendLog.Committed, Is.True);
+				CheckDelivered(brokenDocumentSendLog, false, true);
 			}
 
 			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
@@ -627,8 +644,11 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 			}
 
 			//Запрашиваем КО еще раз
@@ -651,8 +671,11 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 			}
 		}
 
@@ -694,8 +717,11 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 			}
 
 			//Создаем новый документ, который будет получен при следующем запросе документов
@@ -739,12 +765,16 @@ namespace Integration
 				//эти два документа не будут отдаваться, т.к. у них дата обновления больше чем 1 месяц
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 
 				//Этот документ должен отдаваться
 				newDocumentLog.Refresh();
 				Assert.That(newDocumentLog.Committed, Is.False);
+				CheckDelivered(newDocumentLog, false, false);
 			}
 
 			ConfirmData();
@@ -753,12 +783,16 @@ namespace Integration
 			{
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
+				CheckDelivered(log, true, true);
+
 				fakelog.Refresh();
 				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
 
 			    //После подтверждения КО для этого документа статус доставки должен быть подтвержден
 				newDocumentLog.Refresh();
 				Assert.That(newDocumentLog.Committed, Is.True);
+				CheckDelivered(newDocumentLog, true, true);
 			}
 		}
 
