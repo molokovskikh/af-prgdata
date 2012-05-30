@@ -577,7 +577,9 @@ update
   logs.AnalitFUpdates afu,
   Logs.DocumentSendLogs ds
 set
-  ds.Committed = 0
+  ds.Committed = 0,
+  ds.FileDelivered = 0, 
+  ds.DocumentDelivered = 0
 where
 	afu.RequestTime > ?oldUpdateTime
 and afu.UserId = ?UserId
@@ -3027,7 +3029,9 @@ update
   logs.AnalitFUpdates afu,
   Logs.DocumentSendLogs ds
 set
-  ds.Committed = 0
+  ds.Committed = 0,
+  ds.FileDelivered = 0, 
+  ds.DocumentDelivered = 0
 where
 	afu.RequestTime > ?resetDate
 and afu.UserId = ?UserId

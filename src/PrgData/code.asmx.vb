@@ -921,7 +921,7 @@ endprocNew:
                         If DS.Tables("DocumentsToClient").Rows.Count > 0 Then
 
                             ArchCmd.CommandText = "" & _
-                              "SELECT  * " & _
+                              "SELECT  AnalitFDocumentsProcessing.*, 0 as FileDelivered, 0 as DocumentDelivered " & _
                               "FROM    AnalitFDocumentsProcessing limit 0"
                             ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
                             For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
@@ -930,6 +930,8 @@ endprocNew:
                                 'или если документ фиктивный
                                 xRow = DS.Tables("ProcessingDocuments").NewRow
                                 xRow("Committed") = False
+                                xRow("FileDelivered") = False
+                                xRow("DocumentDelivered") = False
                                 xRow.Item("DocumentId") = Row.Item("RowId").ToString
                                 DS.Tables("ProcessingDocuments").Rows.Add(xRow)
 
@@ -990,6 +992,8 @@ endprocNew:
                                                     "Архивирование документов" & vbCrLf & _
                                                     "Вышли из 7Z с ошибкой: " & Вывод7Z & "-" & Ошибка7Z)
                                             End If
+										Else 
+											xRow("FileDelivered") = True
                                         End If
                                     ElseIf ListOfDocs.Length = 0 Then
                                         If DateTime.Now.Subtract(Convert.ToDateTime(Row.Item("LogTime"))).TotalHours < 1 Then
@@ -1046,6 +1050,21 @@ endprocNew:
 												table.TableName = Path.GetFileNameWithoutExtension(Path.GetRandomFileName())
 											End If
 											Log.DebugFormat("Содержимое таблицы {0}: {1}", table.TableName, DebugReplicationHelper.TableToString(exportDosc, table.TableName))
+
+											if table.Columns.Contains("DownloadId") Then
+												For Each documentProcessedRow As DataRow In DS.Tables("ProcessingDocuments").Rows
+													Dim finded = table.Select("DownloadId = " & documentProcessedRow("DocumentId").ToString())
+													if finded.Length > 0 Then
+														documentProcessedRow("DocumentDelivered") = True
+													End If
+													If String.IsNullOrEmpty(ids) Then
+														ids = documentProcessedRow("DocumentId").ToString()
+													Else
+														ids += ", " & documentProcessedRow("DocumentId").ToString()
+													End If
+												Next
+											End If
+
 										Next
 									Catch ex As Exception
 										Log.DebugFormat("Ошибка при экпорте таблиц: {0}", ex)
@@ -2933,13 +2952,17 @@ StartZipping:
 							LogDA.InsertCommand = DocumentsProcessingCommandBuilder.GetInsertCommand
 
 							transaction = connection.BeginTransaction(IsoLevel)
-							Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and DocumentId = ?DocumentId", connection)
+							Dim command = New MySqlCommand("update Logs.DocumentSendLogs set UpdateId = ?UpdateId, FileDelivered = ?FileDelivered, DocumentDelivered = ?DocumentDelivered where UserId = ?UserId and DocumentId = ?DocumentId", connection)
 							command.Parameters.AddWithValue("?UserId", UpdateData.UserId)
 							command.Parameters.AddWithValue("?UpdateId", GUpdateId)
 							command.Parameters.Add("?DocumentId", MySqlDbType.UInt32)
+							command.Parameters.Add("?FileDelivered", MySqlDbType.Byte)
+							command.Parameters.Add("?DocumentDelivered", MySqlDbType.Byte)
 
 							For Each row As DataRow In DS.Tables("ProcessingDocuments").Rows
 								command.Parameters("?DocumentId").Value = row("DocumentId")
+								command.Parameters("?FileDelivered").Value = row("FileDelivered")
+								command.Parameters("?DocumentDelivered").Value = row("DocumentDelivered")
 								command.ExecuteNonQuery()
 							Next
 
@@ -4652,7 +4675,7 @@ RestartTrans2:
 				if (historyDocIds Isnot Nothing) Then
 					SelProc.CommandText = _
 						" update Logs.DocumentSendLogs ds " & _
-						" set ds.Committed = 0 " & _
+						" set ds.Committed = 0, ds.FileDelivered = 0, ds.DocumentDelivered = 0 " & _
 						" where ds.UserId = " & + UpdateData.UserId.ToString()
 						
 					if Not String.IsNullOrEmpty(historyDocIds) then
