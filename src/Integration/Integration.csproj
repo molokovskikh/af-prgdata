@@ -92,6 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnalitFVersionsFixture.cs" />
+    <Compile Include="AsyncGetDataFixture.cs" />
     <Compile Include="BaseTests\PrepareDataFixture.cs" />
     <Compile Include="BaseTests\UserFixture.cs" />
     <Compile Include="CostOptimizationFixture.cs" />
