@@ -354,7 +354,8 @@ namespace Integration
 			Assert.That(files.Length, Is.GreaterThanOrEqualTo(2), "Не все файлы найдены в архиве: {0}", files.Implode());
 			var documentHeadersFile = files.First(item => item.Contains("DocumentHeaders"));
 			Assert.IsNotNullOrEmpty(documentHeadersFile, "Не найден файл DocumentHeaders: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("WaybillOrders")), "Не найден файл WaybillOrders: {0}", files.Implode());
 
 			var contentHeader = File.ReadAllText(documentHeadersFile);
 			Assert.That(contentHeader, Is.StringStarting(String.Format("{0}\t{1}", waybill.Id, fakeDocument.Id)), "В содержимом DocumentHeaders нет искомого разобранного документа");
@@ -557,8 +558,9 @@ namespace Integration
 			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
 			var files = Directory.GetFiles(extractFolder);
 
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.First(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("WaybillOrders")), "Не найден файл WaybillOrders: {0}", files.Implode());
 			Assert.That(files.Any(item => item.Contains("InvoiceHeaders")), Is.False, "Найден файл InvoiceHeaders: {0}", files.Implode());
 
 			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());

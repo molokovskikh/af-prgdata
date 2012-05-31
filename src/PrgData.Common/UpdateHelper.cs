@@ -742,6 +742,24 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
   DocumentBodies.ProducerId");
 		}
 
+		public string GetWaybillOrdersCommand(string downloadIds)
+		{
+			return String.Format(@"
+select
+  WaybillOrders.DocumentLineId as ServerDocumentLineId,
+  WaybillOrders.OrderLineId as ServerOrderLineId
+from
+  documents.DocumentHeaders,
+  documents.DocumentBodies,
+  documents.WaybillOrders
+where
+	DocumentHeaders.DownloadId in ({0})
+and DocumentBodies.DocumentId = DocumentHeaders.Id
+and WaybillOrders.DocumentLineId = DocumentBodies.Id"
+				, 
+				downloadIds);
+		}
+
 		public string GetInvoiceHeadersCommand(string downloadIds)
 		{
 			return String.Format(@"

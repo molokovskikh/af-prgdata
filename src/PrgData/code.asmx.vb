@@ -1019,11 +1019,13 @@ endprocNew:
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "InvoiceHeaders" & UserId & ".txt")
+                                ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "WaybillOrders" & UserId & ".txt")
 
                                 'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "InvoiceHeaders" & UserId & ".txt")
+                                ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "WaybillOrders" & UserId & ".txt")
 
 								'Данный метод должен работать только в релизе, чтобы время тестов не увеличивалось
 #If Not DEBUG Then
@@ -1075,6 +1077,7 @@ endprocNew:
                                 GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
                                 If UpdateData.AllowInvoiceHeaders() then
                                     GetMySQLFileWithDefaultEx("InvoiceHeaders", ArchCmd, helper.GetInvoiceHeadersCommand(ids), False, False)
+                                    GetMySQLFileWithDefaultEx("WaybillOrders", ArchCmd, helper.GetWaybillOrdersCommand(ids), False, False)
                                 End If
 
 #If DEBUG Then
@@ -1082,6 +1085,7 @@ endprocNew:
                                 ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
                                     ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
+                                    ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
                                 End If
 #End If
 
@@ -1145,12 +1149,14 @@ endprocNew:
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
                                     ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
+                                    ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
                                 End If
 
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
                                     ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
+                                    ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
                                 End If
                             End If
 
