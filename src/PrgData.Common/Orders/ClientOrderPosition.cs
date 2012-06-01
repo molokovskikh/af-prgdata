@@ -45,14 +45,15 @@ namespace PrgData.Common.Orders
 			ClearOnCreate();
 		}
 
-		public string GetResultToClient()
+		public string GetResultToClient(uint? buildNumber)
 		{
 			return String.Format(
-				"ClientPositionID={0};DropReason={1};ServerCost={2};ServerQuantity={3}", 
+				"ClientPositionID={0};DropReason={1};ServerCost={2};ServerQuantity={3}{4}", 
 				ClientPositionID,
 				Convert.ToInt32(SendResult),
 				ServerCost.ToString(CultureInfo.InvariantCulture.NumberFormat),
-				ServerQuantity);
+				ServerQuantity,
+				buildNumber.HasValue && buildNumber.Value > 1827 ? ";ServerOrderListId=" + OrderPosition.RowId : "");
 		}
 
 		public void ClearOnCreate()

@@ -1901,5 +1901,42 @@ and (i.PriceId = :PriceId)
 			}
 		}
 
+		[Test(Description = "проверяем значение ServerOrderListId при отправке заказа")]
+		public void SendSimpleOrderWithServerOrderListId()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				updateData.BuildNumber = 1828;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+
+				ParseSimpleOrder(firstOrderHelper);
+
+				//firstParsedOrders.Add(minReqOrder);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var orderResults = firstResult.Split(new []{"ClientOrderID="}, StringSplitOptions.RemoveEmptyEntries);
+
+				Assert.That(orderResults.Length, Is.EqualTo(1), "Должен быть один ответ");
+
+				var minReqOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+
+				Assert.That(minReqOrderResponse.ServerOrderId, Is.GreaterThan(0));
+				Assert.That(minReqOrderResponse.PostResult, Is.EqualTo(OrderSendResult.Success));
+				Assert.IsNullOrEmpty(minReqOrderResponse.ErrorReason);
+			}
+
+			using (new SessionScope())
+			{
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+				Assert.That(logs[0].Addition, Is.Null, "В поле Addition должна быть запись об заказах с ошибками");
+			}
+		}
+
 	}
 }

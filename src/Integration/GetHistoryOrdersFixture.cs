@@ -130,6 +130,57 @@ namespace Integration
 															_lastUpdateId));
 			Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
 
+			var archiveName = CheckArchive(_user, _lastUpdateId);
+
+			var archFolder = ExtractArchive(archiveName);
+
+			var files = Directory.GetFiles(archFolder);
+			Assert.That(files.Length, Is.GreaterThan(0), "В каталоге с рекламой нет файлов");
+
+			CommitExchange();
+
+			commit =
+				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+															"select Commit from logs.AnalitFUpdates where UpdateId = " +
+															_lastUpdateId));
+			Assert.IsTrue(commit, "Запрос с историей заказов считается неподтвержденным");
+
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.True);
+			}
+		}
+
+		[Test(Description = "запрос истории заказов с документами и сопоставление документов заказам")]
+		public void GetHistoryOrdersWithDocsAndMatching()
+		{
+			var doc = CreateDocument(_user);
+			TestDocumentSendLog log;
+			using (new SessionScope())
+			{
+				log = TestDocumentSendLog.Queryable.First(t => t.Document == doc);
+				Assert.That(log.Committed, Is.False);
+				log.Committed = true;
+				log.Save();
+			}
+
+			CheckGetHistoryOrders(_user.Login, "6.0.7.1828");
+
+			Assert.That(_fullHistory, Is.False, "Не должна быть загружена вся история заказов");
+
+			using (new SessionScope())
+			{
+				log.Refresh();
+				Assert.That(log.Committed, Is.False);
+			}
+
+			var commit =
+				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+															"select Commit from logs.AnalitFUpdates where UpdateId = " +
+															_lastUpdateId));
+			Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
+
 			CommitExchange();
 
 			commit =

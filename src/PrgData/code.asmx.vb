@@ -4760,7 +4760,8 @@ RestartTrans2:
 				 "  OrderedOffers.RegistryCost, " & _
 				 "  OrderedOffers.ProducerCost, " & _
 				 "  OrderedOffers.NDS, " & _
-				 "  OrdersList.RetailCost " & _
+				 "  OrdersList.RetailCost, " & _
+				 "  OrdersList.RowID as ServerOrderListId, " & _
 				 "from " & _
 				 " HistoryIds " & _
 				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _

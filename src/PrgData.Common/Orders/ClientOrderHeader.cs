@@ -65,7 +65,7 @@ namespace PrgData.Common.Orders
 				foreach (var position in Positions)
 				{
 					if ((position.SendResult != PositionSendResult.Success) && !position.Duplicated)
-						result += ";" + position.GetResultToClient();
+						result += ";" + position.GetResultToClient(buildNumber);
 				}
 			}
 
