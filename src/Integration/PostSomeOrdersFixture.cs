@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
 using Common.Tools;
+using Common.Tools.Calendar;
 using Inforoom.Common;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
@@ -915,6 +916,74 @@ limit 1
 					);
 			}
 			return serverResponse;
+		}
+
+		[Test(Description = "Отправляем заказ с групповым контролем суммы заказа с заказом, созданным в начале месяца")]
+		public void Reject_order_if_group_over_max_orders_sum_by_FirstDayOfMonth()
+		{
+			var maxSum = Convert.ToDecimal(firstOffer["Cost"]) * 150;
+			var priceId = Convert.ToUInt32(activePrice["PriceCode"]);
+			var supplier = TestPrice.Find(priceId).Supplier;
+			var group = new TestRuleGroup();
+
+			using (new TransactionScope()) {
+				group.Rules.Add(new TestOrderRule(group, supplier, maxSum));
+				group.Save();
+
+				_address.RuleGroup = group;
+				_address.Save();
+			}
+
+			var response = PostOrder(100);
+
+			var error = GetError(response);
+			Assert.That(error, Is.Empty);
+
+			var orderId = GetFirstOrderId(response);
+
+			//Дату отправленного заказа перемещаем на начало месяца
+			using (new TransactionScope()) {
+				var order = TestOrder.Find(orderId);
+				order.WriteTime = DateTime.Now.FirstDayOfMonth();
+
+				//Если количество часов у даты больше 1, то уменьшаем дату на один час
+				if (order.WriteTime.Hour > 1)
+					order.WriteTime = order.WriteTime.AddHours(-1);
+
+				order.Save();
+			}
+
+			InitClient();
+
+			using (new TransactionScope()) {
+				_address.RuleGroup = group;
+				_address.Save();
+			}
+
+			error = GetError(PostOrder(51));
+
+			using(new SessionScope())
+			{
+				var orderCount = TestOrder.Queryable.Count(o => o.Address == _address);
+				Assert.That(orderCount, Is.EqualTo(0));
+			}
+
+			Assert.That(error, Is.EqualTo(
+				String.Format(
+					"Ваша заявка на {0} НЕ Принята, поскольку Сумма заказов в этом месяце по Вашему предприятию на поставщика {0} превысила установленный лимит.",
+					supplier.Name)));
+		}
+
+		private uint GetFirstOrderId(string response)
+		{
+			var serverParams = response.Split(';');
+			Assert.That(serverParams.Length, Is.GreaterThanOrEqualTo(3));
+
+			var serverOrderId = serverParams[2].Substring(serverParams[2].IndexOf('=') + 1);
+			Assert.That(serverOrderId, Is.Not.Null);
+			Assert.That(serverOrderId, Is.Not.Empty);
+
+			return Convert.ToUInt32(serverOrderId);
 		}
 	}
 }
