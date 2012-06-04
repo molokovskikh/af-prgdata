@@ -215,11 +215,12 @@ where
 			}
 		}
 
-		protected string CheckArchive(TestUser user, ulong updateId)
+		protected string CheckArchive(TestUser user, ulong updateId, string mask = null)
 		{
-			var afterRequestDataFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(user.Id));
+			var afterRequestDataFiles = Directory.GetFiles(ServiceContext.GetResultPath(), (mask ?? "{0}_*.zip").Format(user.Id));
 			Assert.That(afterRequestDataFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterRequestDataFiles.Implode());
-			Assert.That(afterRequestDataFiles[0], Is.StringEnding("{0}_{1}.zip".Format(user.Id, updateId)));
+			if (mask == null)
+				Assert.That(afterRequestDataFiles[0], Is.StringEnding("{0}_{1}.zip".Format(user.Id, updateId)));
 			return afterRequestDataFiles[0];
 		}
 

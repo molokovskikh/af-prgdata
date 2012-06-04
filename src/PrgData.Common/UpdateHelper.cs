@@ -747,7 +747,7 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
 			return String.Format(@"
 select
   WaybillOrders.DocumentLineId as ServerDocumentLineId,
-  WaybillOrders.OrderLineId as ServerOrderLineId
+  WaybillOrders.OrderLineId as ServerOrderListId
 from
   documents.DocumentHeaders,
   documents.DocumentBodies,

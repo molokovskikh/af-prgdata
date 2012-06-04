@@ -355,6 +355,52 @@ namespace Integration
 			var documentHeadersFile = files.First(item => item.Contains("DocumentHeaders"));
 			Assert.IsNotNullOrEmpty(documentHeadersFile, "Не найден файл DocumentHeaders: {0}", files.Implode());
 			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
+
+			var contentHeader = File.ReadAllText(documentHeadersFile);
+			Assert.That(contentHeader, Is.StringStarting(String.Format("{0}\t{1}", waybill.Id, fakeDocument.Id)), "В содержимом DocumentHeaders нет искомого разобранного документа");
+
+			Confirm();
+
+			using (new SessionScope())
+			{
+				var fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
+				Assert.That(fakelog.Committed, Is.True);
+				CheckDelivered(fakelog, false, true);
+			}
+		}
+
+		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом с сопосталением заказов")]
+		public void Get_parsed_fake_docs_with_match_orders()
+		{
+			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
+
+			TestWaybill waybill;
+			using (var transaction = new TransactionScope(OnDispose.Rollback))
+			{
+				waybill = new TestWaybill(fakeDocument);
+				waybill.Lines = new List<TestWaybillLine> { new TestWaybillLine { Waybill = waybill } };
+				waybill.Save();
+				waybill.Lines[0].Save();
+				transaction.VoteCommit();
+			}
+
+			LoadDocuments("1.0.0.1828");
+			ShouldBeSuccessfull();
+
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";
+			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
+
+			var extractFolder = "ResultExtract";
+			if (Directory.Exists(extractFolder))
+				FileHelper.DeleteDir(extractFolder);
+			Directory.CreateDirectory(extractFolder);
+
+			ArchiveHelper.Extract(resultFileName, "*.*", extractFolder);
+			var files = Directory.GetFiles(extractFolder, "*" + client.Users[0].Id + ".txt");
+			Assert.That(files.Length, Is.GreaterThanOrEqualTo(3), "Не все файлы найдены в архиве: {0}", files.Implode());
+			var documentHeadersFile = files.First(item => item.Contains("DocumentHeaders"));
+			Assert.IsNotNullOrEmpty(documentHeadersFile, "Не найден файл DocumentHeaders: {0}", files.Implode());
+			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
 			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("WaybillOrders")), "Не найден файл WaybillOrders: {0}", files.Implode());
 
 			var contentHeader = File.ReadAllText(documentHeadersFile);
@@ -560,8 +606,8 @@ namespace Integration
 
 			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentHeaders")), "Не найден файл DocumentHeaders: {0}", files.Implode());
 			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("DocumentBodies")), "Не найден файл DocumentBodies: {0}", files.Implode());
-			Assert.IsNotNullOrEmpty(files.FirstOrDefault(item => item.Contains("WaybillOrders")), "Не найден файл WaybillOrders: {0}", files.Implode());
 			Assert.That(files.Any(item => item.Contains("InvoiceHeaders")), Is.False, "Найден файл InvoiceHeaders: {0}", files.Implode());
+			Assert.That(files.Any(item => item.Contains("WaybillOrders")), Is.False, "Найден файл WaybillOrders: {0}", files.Implode());
 
 			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
 

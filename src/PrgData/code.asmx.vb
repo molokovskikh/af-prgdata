@@ -1077,16 +1077,20 @@ endprocNew:
                                 GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
                                 If UpdateData.AllowInvoiceHeaders() then
                                     GetMySQLFileWithDefaultEx("InvoiceHeaders", ArchCmd, helper.GetInvoiceHeadersCommand(ids), False, False)
-                                    GetMySQLFileWithDefaultEx("WaybillOrders", ArchCmd, helper.GetWaybillOrdersCommand(ids), False, False)
                                 End If
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    GetMySQLFileWithDefaultEx("WaybillOrders", ArchCmd, helper.GetWaybillOrdersCommand(ids), False, False)
+								End If
 
 #If DEBUG Then
                                 ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
                                     ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
-                                    ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
                                 End If
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    ShareFileHelper.WaitFile(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
+								End If
 #End If
 
                                 Pr = New Process
@@ -1145,19 +1149,52 @@ endprocNew:
                                     Pr = Nothing
                                 End If
 
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    Pr = New Process
+
+                                    startInfo = New ProcessStartInfo(SevenZipExe)
+                                    startInfo.CreateNoWindow = True
+                                    startInfo.RedirectStandardOutput = True
+                                    startInfo.RedirectStandardError = True
+                                    startInfo.UseShellExecute = False
+                                    startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                                    startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, ServiceContext.MySqlLocalImportPath() & "WaybillOrders*" & UserId & ".txt", SevenZipParam)
+                                    startInfo.FileName = SevenZipExe
+
+                                    Pr.StartInfo = startInfo
+
+                                    Pr.Start()
+
+                                    Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                    Ошибка7Z = Pr.StandardError.ReadToEnd
+
+                                    Pr.WaitForExit()
+
+                                    If Pr.ExitCode <> 0 Then
+                                        Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
+                                        Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                                    End If
+                                    Pr = Nothing
+                                End If
+
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
                                     ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
-                                    ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
                                 End If
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
+								End If
 
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentHeaders" & UserId & ".txt")
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() & "DocumentBodies" & UserId & ".txt")
                                 If UpdateData.AllowInvoiceHeaders() then
                                     ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlSharedExportPath() & "InvoiceHeaders" & UserId & ".txt")
-                                    ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
                                 End If
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlSharedExportPath() & "WaybillOrders" & UserId & ".txt")
+								End If
                             End If
 
                         End If
@@ -4761,7 +4798,7 @@ RestartTrans2:
 				 "  OrderedOffers.ProducerCost, " & _
 				 "  OrderedOffers.NDS, " & _
 				 "  OrdersList.RetailCost, " & _
-				 "  OrdersList.RowID as ServerOrderListId, " & _
+				 "  OrdersList.RowID as ServerOrderListId " & _
 				 "from " & _
 				 " HistoryIds " & _
 				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId " & _

@@ -35,6 +35,14 @@ namespace Integration
 			base.Setup();
 
 			_user = CreateUser();
+
+			RegisterLogger();
+		}
+
+		[TearDown]
+		public void TearDown()
+		{
+			CheckForErrors();
 		}
 
 		private string LoadData(string appVersion)
@@ -130,7 +138,7 @@ namespace Integration
 															_lastUpdateId));
 			Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
 
-			var archiveName = CheckArchive(_user, _lastUpdateId);
+			var archiveName = CheckArchive(_user, _lastUpdateId, "Orders{0}.zip");
 
 			var archFolder = ExtractArchive(archiveName);
 

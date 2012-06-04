@@ -51,15 +51,20 @@ namespace Integration
 
 		public uint ServerQuantity { get; set; }
 
-		public static OrderPositionResult Parse(string clientPositionId, string sendResult, string serverCost, string serverQuantity)
+		public uint ServerOrderListId { get; set; }
+
+		public static OrderPositionResult Parse(string clientPositionId, string sendResult, string serverCost, string serverQuantity, string serverOrderListId)
 		{
 			var position = new OrderPositionResult
 							{
 								ClientPositionId = Convert.ToUInt64(ParseHelper.GetValue(clientPositionId, "ClientPositionId")),
-								SendResult = (PositionSendResult)Convert.ToInt32(ParseHelper.GetValue(sendResult, "SendResult")),
+								SendResult = (PositionSendResult)Convert.ToInt32(ParseHelper.GetValue(sendResult, "DropReason")),
 								ServerCost = Convert.ToSingle(ParseHelper.GetValue(serverCost, "ServerCost"), CultureInfo.InvariantCulture.NumberFormat),
 								ServerQuantity = Convert.ToUInt32(ParseHelper.GetValue(serverQuantity, "ServerQuantity"))
 							};
+
+			if (!String.IsNullOrEmpty(serverOrderListId))
+				position.ServerOrderListId = Convert.ToUInt32(ParseHelper.GetValue(serverOrderListId, "ServerOrderListId"));
 
 			return position;
 		}
@@ -100,21 +105,30 @@ namespace Integration
 
 			if (positionResults.Count > 0)
 			{
+				var serverOrderListIdExists = positionResults.Exists(s => s.Contains("ServerOrderListId"));
+				var delta = 3;
+				var paramCount = 4;
+				if (serverOrderListIdExists) {
+					delta = 4;
+					paramCount = 5;
+				}
+
 				var index = 0;
 				while (index < positionResults.Count)
 				{
-					if (index + 3 < positionResults.Count)
+					if (index + delta < positionResults.Count)
 					{
 						var position = OrderPositionResult.Parse(
 							positionResults[index],
 							positionResults[index+1],
 							positionResults[index+2],
-							positionResults[index+3]);
+							positionResults[index+3],
+							serverOrderListIdExists ? positionResults[index+4] : null);
 						responce.Positions.Add(position);
 					}
 					else
 						Assert.Fail("Невозможно распарсить результат позиции начиная с индекса {0}: {1}", index, positionResults.Implode());
-					index += 4;
+					index += paramCount;
 				}
 			}
 
@@ -1923,11 +1937,13 @@ and (i.PriceId = :PriceId)
 
 				Assert.That(orderResults.Length, Is.EqualTo(1), "Должен быть один ответ");
 
-				var minReqOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+				var orderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
 
-				Assert.That(minReqOrderResponse.ServerOrderId, Is.GreaterThan(0));
-				Assert.That(minReqOrderResponse.PostResult, Is.EqualTo(OrderSendResult.Success));
-				Assert.IsNullOrEmpty(minReqOrderResponse.ErrorReason);
+				Assert.That(orderResponse.ServerOrderId, Is.GreaterThan(0));
+				Assert.That(orderResponse.PostResult, Is.EqualTo(OrderSendResult.Success));
+				Assert.IsNullOrEmpty(orderResponse.ErrorReason);
+				Assert.That(orderResponse.Positions.Count, Is.GreaterThan(0), "Для всех позиций заказа должен быть ответ");
+				Assert.That(orderResponse.Positions.All(p => p.ServerOrderListId > 0), Is.True, "У всех позиций заказа должен быть установлен ServerOrderListId");
 			}
 
 			using (new SessionScope())
