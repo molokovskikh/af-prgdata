@@ -45,11 +45,11 @@ namespace PrgData.Common.Orders
 			ClearOnCreate();
 		}
 
-		public string GetResultToClient(uint? buildNumber)
+		public string GetResultToClient(UpdateData updateData)
 		{
 			var postResult = Convert.ToInt32(SendResult);
 			//analitf ничего не знает о коде ошибки 3, поэтому передаем понятный код ошибки
-			if (postResult == 3)
+			if (postResult == 3 && updateData.BuildNumber <= 1827)
 				postResult = 2;
 			var result = String.Format(
 				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}{5}",
@@ -58,7 +58,7 @@ namespace PrgData.Common.Orders
 				ServerOrderId,
 				ErrorReason,
 				MinReq,
-				buildNumber > 1271 ? ";SendDate=" + Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") : "");
+				updateData.BuildNumber > 1271 ? ";SendDate=" + Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") : "");
 
 			if (SendResult == OrderSendResult.NeedCorrect)
 			{

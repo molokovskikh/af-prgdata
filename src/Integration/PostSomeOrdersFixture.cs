@@ -12,6 +12,7 @@ using PrgData;
 using System.Data;
 using PrgData.Common;
 using Test.Support;
+using Test.Support.Logs;
 
 namespace Integration
 {
@@ -966,6 +967,15 @@ limit 1
 			{
 				var orderCount = TestOrder.Queryable.Count(o => o.Address == _address);
 				Assert.That(orderCount, Is.EqualTo(0));
+				var lastLog = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == _user.Id && l.UpdateType == (int)RequestType.SendOrders).OrderByDescending(l => l.Id).FirstOrDefault();
+				Assert.That(lastLog, Is.Not.Null);
+				//В Addition лога должен быть корректный текст причины отказа
+				Assert.That(lastLog.Addition, Is.StringContaining(
+					String.Format(
+						"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения максимальной суммы заказов",
+						1,
+						Convert.ToDecimal(firstOffer["Cost"]) * 51,
+						supplier.Name)));
 			}
 
 			Assert.That(error, Is.EqualTo(
