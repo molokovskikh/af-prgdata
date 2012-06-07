@@ -19,7 +19,7 @@ using LumiSoft.Net.IMAP;
 using LumiSoft.Net.Mail;
 using NUnit.Framework;
 using PrgData.Common;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using PrgData.Common.Repositories;
 using SmartOrderFactory.Domain;
 using Test.Support;

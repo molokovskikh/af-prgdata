@@ -26,7 +26,7 @@ using NHibernate;
 using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using PrgData.Common.Repositories;
 using PrgData.FileHandlers;
 using SmartOrderFactory.Domain;

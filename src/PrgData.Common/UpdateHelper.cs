@@ -9,7 +9,7 @@ using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using log4net;
 using PrgData.Common.Orders;
 using PrgData.Common.SevenZip;
@@ -19,8 +19,6 @@ using Common.Tools;
 
 namespace PrgData.Common
 {
-
-
 	public class Reclame
 	{
 		public string Region { get; set; }
@@ -726,7 +724,7 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
   ,
   DocumentBodies.Amount,
   DocumentBodies.NdsAmount",
-				!_updateData.AllowInvoiceHeaders()
+				!_updateData.AllowInvoiceHeaders
 					? String.Empty
 					: @"
   ,
@@ -734,7 +732,7 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
   DocumentBodies.ExciseTax,
   DocumentBodies.BillOfEntryNumber,
   DocumentBodies.EAN13",
-				!_updateData.AllowCertificates()
+				!_updateData.AllowCertificates
 					? String.Empty
 					: @"
   ,
@@ -863,7 +861,7 @@ limit 1";
 				clientShortNameField,
 				networkSelfAddressIdColumn,
 				networkSelfAddressIdJoin,
-				_updateData.AllowExcessAvgOrderTimes() ? " , rcs.ExcessAvgOrderTimes " : "");
+				_updateData.AllowExcessAvgOrderTimes ? " , rcs.ExcessAvgOrderTimes " : "");
 			}
 			return String.Format(@"
 	SELECT a.Id as FirmCode,
@@ -913,8 +911,8 @@ join farm.regions on regions.RegionCode = c.RegionCode
 join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
 WHERE u.Id = ?UserId
 ",
-				_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment " : String.Empty,
-				_updateData.AllowCertificates() ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty);
+				_updateData.AllowShowSupplierCost ? ", rcs.AllowDelayOfPayment " : String.Empty,
+				_updateData.AllowCertificates ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty);
 		}
 
 		public string GetDelayOfPaymentsCommand()
@@ -1811,7 +1809,7 @@ AND
 	)
 AND C.hidden = 0";
 			}
-			else if (_updateData.AllowRetailMargins()) {
+			else if (_updateData.AllowRetailMargins) {
 				if (Cumulative) {
 					return @"
 SELECT 

@@ -5,7 +5,7 @@ using System.IO;
 using Common.Tools;
 using MySql.Data.MySqlClient;
 
-namespace PrgData.Common.Model
+namespace PrgData.Common.Models
 {
 	public class AnalitFUpdate
 	{

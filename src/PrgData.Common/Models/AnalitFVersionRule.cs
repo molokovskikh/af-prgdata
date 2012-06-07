@@ -1,7 +1,7 @@
 ﻿using System;
 using NHibernate.Mapping.Attributes;
 
-namespace PrgData.Common.Model
+namespace PrgData.Common.Models
 {
 	[
 		Class(Table = "UserSettings.AnalitFVersionRules", Lazy = false),
@@ -21,6 +21,5 @@ namespace PrgData.Common.Model
 
 		[Property]
 		public uint DestinationVersion { get; set; }
-
 	}
 }

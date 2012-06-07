@@ -6,7 +6,7 @@ Imports System.Text
 Imports System.Globalization
 Imports log4net
 Imports Common.MySql
-Imports PrgData.Common.Model
+Imports PrgData.Common.Models
 Imports MySql.Data.MySqlClient
 Imports MySQLResultFile = System.IO.File
 Imports PrgData.Common
@@ -1308,6 +1308,9 @@ endprocNew:
 					If Not Documents AndAlso UpdateData.NeedExportAttachments then
                         helper.ArchiveAttachments(connection, SevenZipTmpArchive, Addition, FilesForArchive)
 					End If
+
+					Dim processor = New ExportProcessor(UpdateData, connection, FilesForArchive)
+					processor.Archive(Documents, SevenZipTmpArchive)
 
                     If Documents Then
                         If File.Exists(SevenZipTmpArchive) Then
@@ -3673,6 +3676,9 @@ RestartTrans2:
 				if UpdateData.NeedUpdateForHistoryDocs() Then
 					GetMySQLFileWithDefault("UpdateValues", SelProc, helper.GetUpdateValuesCommand())
 				End If
+
+				Dim processor = New ExportProcessor(UpdateData, SelProc.Connection, FilesForArchive)
+				processor.Process()
 
 				GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())
 				GetMySQLFileWithDefault("Client", SelProc, helper.GetClientCommand())

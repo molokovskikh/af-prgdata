@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using Common.Models;
 using log4net;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using PrgData.Common.Repositories;
 
 namespace PrgData.Common.AnalitFVersions

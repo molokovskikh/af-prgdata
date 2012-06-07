@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using System.Collections.Generic;
 using Common.Models.Repositories;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 
 namespace PrgData.Common.Repositories
 {

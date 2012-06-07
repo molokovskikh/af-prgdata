@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 
 namespace PrgData.Common.Repositories
 {
