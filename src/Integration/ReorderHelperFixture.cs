@@ -178,6 +178,13 @@ namespace Integration
 			Directory.CreateDirectory("FtpRoot");
 			CreateFolders(address.Id.ToString());
 
+			DeleteOldOrders();
+
+			GetOffers();
+		}
+
+		private void DeleteOldOrders()
+		{
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
 delete 
 from orders.OrdersHead 
@@ -186,8 +193,6 @@ where
 and WriteTime > now() - interval 2 week"
 				,
 				new MySqlParameter("?ClientCode", client.Id));
-
-			GetOffers();
 		}
 
 		private void GetOffers()
@@ -1951,6 +1956,44 @@ and (i.PriceId = :PriceId)
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.Null, "В поле Addition должна быть запись об заказах с ошибками");
+			}
+		}
+
+		[Test(Description = "отправляем заказы под специальным пользователем, чтобы проверить генерацию тестовых документов"), 
+		Ignore("это не тест")]
+		public void SendOrderFrom10005()
+		{
+			using (new SessionScope()) {
+				client = (TestClient)TestClient.Find(10005u);
+
+				user = client.Users[0];
+
+				address = user.AvaliableAddresses[0];
+			}
+
+			CreateFolders(address.Id.ToString());
+			DeleteOldOrders();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				updateData.BuildNumber = 1828;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				ParseSimpleOrderWithNewPosition(firstOrderHelper);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var orderResults = firstResult.Split(new []{"ClientOrderID="}, StringSplitOptions.RemoveEmptyEntries);
+
+				Assert.That(orderResults.Length, Is.EqualTo(1), "Должен быть один ответ");
+
+				var orderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+
+				Assert.That(orderResponse.ServerOrderId, Is.GreaterThan(0));
+				Assert.That(orderResponse.PostResult, Is.EqualTo(OrderSendResult.Success));
 			}
 		}
 

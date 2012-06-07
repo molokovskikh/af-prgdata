@@ -212,13 +212,19 @@ and c.Id = ?ClientCode;
 			detailCommand.Parameters.Add("?Quantity", MySqlDbType.Int32);
 			detailCommand.Parameters.Add("?VitallyImportant", MySqlDbType.Byte);
 			detailCommand.Parameters.Add("?NDS", MySqlDbType.Int32);
+			detailCommand.Parameters.Add("?OrderLineId", MySqlDbType.UInt32);
+
+			var waybillOrdersCommand = new MySqlCommand("insert into documents.waybillorders (DocumentLineId, OrderLineId) values (@LastDocumentLineId, ?OrderLineId)", connection);
+			waybillOrdersCommand.Parameters.Add("?OrderLineId", MySqlDbType.UInt32);
 
 			if (documentType == DocumentType.Waybills)
 				detailCommand.CommandText = @"
 insert into documents.DocumentBodies
   (DocumentId, Product, Code, Period, Producer, ProducerCost, RegistryCost, SupplierPriceMarkup, SupplierCostWithoutNDS, SupplierCost, Quantity, VitallyImportant, NDS)
 values
-  (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?ProducerCost, ?RegistryCost, ?SupplierPriceMarkup, ?SupplierCostWithoutNDS, ?SupplierCost, ?Quantity, ?VitallyImportant, ?NDS);";
+  (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?ProducerCost, ?RegistryCost, ?SupplierPriceMarkup, ?SupplierCostWithoutNDS, ?SupplierCost, ?Quantity, ?VitallyImportant, ?NDS);
+set @LastDocumentLineId = last_insert_id();
+";
 			else
 			  detailCommand.CommandText = @"
 insert into documents.DocumentBodies
@@ -241,6 +247,7 @@ values
 				detailCommand.Parameters["?Producer"].Value = synonymFirmCrName;
 				detailCommand.Parameters["?Quantity"].Value = position.OrderPosition.Quantity;
 				detailCommand.Parameters["?SupplierCost"].Value = position.OrderPosition.Cost;
+				waybillOrdersCommand.Parameters["?OrderLineId"].Value = position.OrderPosition.RowId;
 
 				if (position.OrderPosition.OfferInfo != null)
 				{
@@ -300,6 +307,9 @@ values
 				}
 
 				detailCommand.ExecuteNonQuery();
+
+				if (documentType == DocumentType.Waybills && random.Next(3) <= 1)
+					waybillOrdersCommand.ExecuteNonQuery();
 			}
 		}
 
