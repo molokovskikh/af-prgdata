@@ -93,6 +93,7 @@
   <ItemGroup>
     <Compile Include="AnalitFVersionsFixture.cs" />
     <Compile Include="AsyncGetDataFixture.cs" />
+    <Compile Include="BaseTests\BaseExportFixture.cs" />
     <Compile Include="BaseTests\PrepareDataFixture.cs" />
     <Compile Include="BaseTests\UserFixture.cs" />
     <Compile Include="CostOptimizationFixture.cs" />
@@ -110,6 +111,7 @@
     <Compile Include="MatrixFixture.cs" />
     <Compile Include="MiniMailFixture.cs" />
     <Compile Include="Models\NewsExportFixture.cs" />
+    <Compile Include="Models\RejectsExportFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
     <Compile Include="PostOrderFixture.cs" />

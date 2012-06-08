@@ -158,6 +158,7 @@
     <Compile Include="Models\BaseExport.cs" />
     <Compile Include="Models\ExportProcessor.cs" />
     <Compile Include="Models\NewsExport.cs" />
+    <Compile Include="Models\RejectExport.cs" />
     <Compile Include="OrderHelper.cs" />
     <Compile Include="Orders\ClientOrderPosition.cs" />
     <Compile Include="Orders\Orders2StringConverter.cs" />

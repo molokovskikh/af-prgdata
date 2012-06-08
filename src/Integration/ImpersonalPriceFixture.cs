@@ -131,8 +131,11 @@ namespace Integration
 
 		private void CheckSQL(bool cumulative, MySqlConnection connection, UpdateData updateData, UpdateHelper helper)
 		{
+			updateData.Cumulative = cumulative;
+			updateData.OldUpdateTime = DateTime.Now.AddDays(-10);
+
 			var selectCommand = new MySqlCommand() { Connection = connection };
-			helper.SetUpdateParameters(selectCommand, cumulative, DateTime.Now.AddDays(-10), DateTime.Now);
+			helper.SetUpdateParameters(selectCommand, DateTime.Now);
 
 			CheckFillData(selectCommand, helper.GetSynonymCommand(cumulative), updateData);
 
@@ -392,7 +395,7 @@ where
 					var handler = new IMAP_Client_FetchHandler();
 					var envelops = new List<IMAP_Envelope>();
 
-					handler.Envelope += (object sender, LumiSoft.Net.EventArgs<IMAP_Envelope> e) => envelops.Add(e.Value);
+					handler.Envelope += (sender, e) => envelops.Add(e.Value);
 
 					imapClient.Fetch(false, allset, fetchDataItems, handler);
 
@@ -411,7 +414,7 @@ where
 					imapClient.SelectFolder("INBOX");
 
 					var fetchHandler = new IMAP_Client_FetchHandler();
-					fetchHandler.Envelope += (object sender, LumiSoft.Net.EventArgs<IMAP_Envelope> e) => envelops.Add(e.Value);
+					fetchHandler.Envelope += (sender, e) => envelops.Add(e.Value);
 					var dataItems = new IMAP_Fetch_DataItem[] { new IMAP_Fetch_DataItem_Envelope() };
 
 					imapClient.Fetch(false, allset, dataItems, fetchHandler);

@@ -39,6 +39,7 @@ namespace PrgData.Common.Models
 
 			sql += " INTO OUTFILE '" + exportFile + "' ";
 			var command = new MySqlCommand(sql, connection);
+			command.Parameters.AddWithValue("?UpdateTime", updateData.OldUpdateTime);
 			command.ExecuteNonQuery();
 
 			files.Enqueue(new FileForArchive(name, false));

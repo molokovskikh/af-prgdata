@@ -91,7 +91,9 @@ namespace Integration
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
-				helper.SetUpdateParameters(selectComand, true, DateTime.Now.AddHours(-1), DateTime.Now);
+				updateData.Cumulative = true;
+				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
+				helper.SetUpdateParameters(selectComand, DateTime.Now);
 
 				helper.FillExportMails(selectComand);
 

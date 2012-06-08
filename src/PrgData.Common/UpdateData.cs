@@ -138,7 +138,8 @@ namespace PrgData.Common
 		public List<uint> UnconfirmedOrders = new List<uint>();
 
 		public bool AsyncRequest;
-
+		public bool Cumulative;
+		
 		public List<CertificateRequest> CertificateRequests = new List<CertificateRequest>();
 
 		public bool SendWaybills;
@@ -522,7 +523,9 @@ namespace PrgData.Common
 
 		public bool CheckVersion(int requiredVersion)
 		{
-			return BuildNumberGreaterThen(requiredVersion)
+			//requiredVersion = -1 - выдают модели экспорта если у них нет требований к версии
+			return requiredVersion > 0
+				&& BuildNumberGreaterThen(requiredVersion)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > requiredVersion);
 		}
 

@@ -23,12 +23,29 @@ namespace Integration
 		TestClient _client;
 		TestUser _user;
 
+		Lazy<UpdateData> lazyUpdateData;
+		UpdateData updateDataValue;
+		UpdateData updateData
+		{
+			get { return updateDataValue ?? lazyUpdateData.Value; }
+			set { updateDataValue = value; }
+		}
+
+		Lazy<UpdateHelper> lazyHelper;
+		UpdateHelper helperValue;
+		UpdateHelper helper
+		{
+			get { return helperValue ?? lazyHelper.Value; }
+			set { helperValue = value; }
+		}
+
+		MySqlConnection connection;
+
 		[SetUp]
 		public void SetUp()
 		{
 			_client = TestClient.Create();
-			using (var transaction = new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				_user = _client.Users[0];
 
 				_client.Users.Each(u =>
@@ -38,6 +55,25 @@ namespace Integration
 				});
 				_user.Update();
 			}
+
+			connection = new MySqlConnection(Settings.ConnectionString());
+			connection.Open();
+			//тк тести может иметь инициализацию, нам нужно загружать данные только
+			//после этой инициализации
+			helperValue = null;
+			lazyUpdateData = new Lazy<UpdateData>(() => {
+				var data = UpdateHelper.GetUpdateData(connection, _user.Login);
+				data.OldUpdateTime = DateTime.Now.AddHours(-1);
+				return data;
+			});
+			updateDataValue= null;
+			lazyHelper = new Lazy<UpdateHelper>(() => new UpdateHelper(updateData, connection));
+		}
+
+		[TearDown]
+		public void TearDown()
+		{
+			connection.Clone();
 		}
 
 		private MySqlDataAdapter CreateAdapter(MySqlConnection connection, string sqlCommand, UpdateData updateData)
@@ -100,15 +136,6 @@ namespace Integration
 						{
 							new KeyValuePair<string, int>("Region", 25)
 						});
-			CheckFieldLength(
-				connection,
-				helper.GetRejectsCommand(false),
-				updateData,
-				new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("FullName", 254),
-							new KeyValuePair<string, int>("FirmCr", 150)
-						});
 		}
 
 		private void ClearLocks()
@@ -123,102 +150,81 @@ namespace Integration
 		[Test]
 		public void Check_string_field_lengts_for_future_client()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
-				CheckFields(updateData, helper, connection);
-			}
+			CheckFields(updateData, helper, connection);
 		}
 
 		[Test(Description = "Проверка поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 или обновляющихся на нее")]
 		public void Check_Clients_field_lengts_for_future_client_with_version_greater_than_1271()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
 
-				updateData.BuildNumber = 1272;
+			updateData.BuildNumber = 1272;
 
-				var firebirdSQL = helper.GetClientsCommand(true);
-				var nonFirebirdSQL = helper.GetClientsCommand(false);
+			var firebirdSQL = helper.GetClientsCommand(true);
+			var nonFirebirdSQL = helper.GetClientsCommand(false);
 
-				Assert.That(firebirdSQL, Is.EqualTo(nonFirebirdSQL), "Два SQL-запроса по содержанию не равны");
+			Assert.That(firebirdSQL, Is.EqualTo(nonFirebirdSQL), "Два SQL-запроса по содержанию не равны");
 
-				CheckFieldLength(
-					connection,
-					firebirdSQL,
-					updateData,
-					new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("ShortName", 255)
-						});
+			CheckFieldLength(
+				connection,
+				firebirdSQL,
+				updateData,
+				new[]
+					{
+						new KeyValuePair<string, int>("ShortName", 255)
+					});
 
-				CheckFieldLength(
-					connection,
-					nonFirebirdSQL,
-					updateData,
-					new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("ShortName", 255)
-						});
+			CheckFieldLength(
+				connection,
+				nonFirebirdSQL,
+				updateData,
+				new[]
+					{
+						new KeyValuePair<string, int>("ShortName", 255)
+					});
 
-				updateData.BuildNumber = null;
-				//Явно устанавливаем значение свойства NeedUpdateToNewClientsWithLegalEntity в true, чтобы проверить функциональность при обновлении версий
-				typeof(UpdateData)
-					.GetProperty("NeedUpdateToNewClientsWithLegalEntity")
-					.SetValue(updateData, true, null);
-				Assert.IsTrue(updateData.NeedUpdateToNewClientsWithLegalEntity, "Не получилось установить значение свойства NeedUpdateToNewClientsWithLegalEntity");
+			updateData.BuildNumber = null;
+			//Явно устанавливаем значение свойства NeedUpdateToNewClientsWithLegalEntity в true, чтобы проверить функциональность при обновлении версий
+			typeof(UpdateData)
+				.GetProperty("NeedUpdateToNewClientsWithLegalEntity")
+				.SetValue(updateData, true, null);
+			Assert.IsTrue(updateData.NeedUpdateToNewClientsWithLegalEntity, "Не получилось установить значение свойства NeedUpdateToNewClientsWithLegalEntity");
 
-				var updateToNewClientsSQL = helper.GetClientsCommand(false);
-				Assert.That(firebirdSQL, Is.EqualTo(updateToNewClientsSQL), "Два SQL-запроса по содержанию не равны");
-				CheckFieldLength(
-					connection,
-					updateToNewClientsSQL,
-					updateData,
-					new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("ShortName", 255)
-						});
-			}
+			var updateToNewClientsSQL = helper.GetClientsCommand(false);
+			Assert.That(firebirdSQL, Is.EqualTo(updateToNewClientsSQL), "Два SQL-запроса по содержанию не равны");
+			CheckFieldLength(
+				connection,
+				updateToNewClientsSQL,
+				updateData,
+				new[]
+					{
+						new KeyValuePair<string, int>("ShortName", 255)
+					});
 		}
 
 
 		[Test(Description = "Получаем данные для пользователя, которому не назначен ни один адрес доставки")]
 		public void Get_UserInfo_without_addresses()
 		{
-			TestUser userWithoutAddresses;
-			using (var transaction = new TransactionScope())
-			{
-				userWithoutAddresses = _client.CreateUser();
-
-				userWithoutAddresses.SendRejects = true;
-				userWithoutAddresses.SendWaybills = true;
-				userWithoutAddresses.Update();
+			using (new TransactionScope()) {
+				_user.AvaliableAddresses.Clear();
+				_user.SendRejects = true;
+				_user.SendWaybills = true;
+				_user.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, userWithoutAddresses.Login);
-				var helper = new UpdateHelper(updateData, connection);
-				var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
-				var dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
-				Assert.That(dataTable.Rows[0]["ClientCode"], Is.EqualTo(DBNull.Value), "Столбец ClientCode не содержит значение DBNull, хотя должен, т.к. адреса к пользователю не привязаны");
-				Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(userWithoutAddresses.Id), "Столбец RowId не сопадает с Id пользователя");
+			var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientCode"], Is.EqualTo(DBNull.Value), "Столбец ClientCode не содержит значение DBNull, хотя должен, т.к. адреса к пользователю не привязаны");
+			Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
 
-				dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", userWithoutAddresses.Id);
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
-				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
-			}
+			dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
 		}
 		
 
@@ -234,112 +240,105 @@ namespace Integration
 		[Test]
 		public void Check_core_command_with_NDS()
 		{
-			var states = new List<CheckedState>()
-							{
-								new CheckedState {ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null},
-								new CheckedState {ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null},
-								new CheckedState
-									{ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30/(10*1.1f) - 1)*100},
-								new CheckedState {ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f/10f - 1)*100},
-								new CheckedState
-									{ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30/(10*(1 + 10f/100f)) - 1)*100},
-								new CheckedState
-									{ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30/(10*(1 + 18f/100f)) - 1)*100},
-							};
+			var states = new List<CheckedState> {
+				new CheckedState {ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null},
+				new CheckedState {ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null},
+				new CheckedState
+					{ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30/(10*1.1f) - 1)*100},
+				new CheckedState {ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f/10f - 1)*100},
+				new CheckedState
+					{ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30/(10*(1 + 10f/100f)) - 1)*100},
+				new CheckedState
+					{ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30/(10*(1 + 18f/100f)) - 1)*100},
+			};
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
 
-				helper.MaintainReplicationInfo();
+			helper.MaintainReplicationInfo();
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectOffers();
+			helper.SelectOffers();
 
-				var ids = MySqlHelper.ExecuteDataset(connection,
-													 @"
+			var ids = MySqlHelper.ExecuteDataset(connection,
+													@"
 select
-  Core.Id
+Core.Id
 from
-  Core
-  inner join ActivePrices on ActivePrices.PriceCode = Core.PriceCode and ActivePrices.RegionCode = Core.RegionCode and ActivePrices.Fresh = 1
-  inner join farm.Core0 c on c.Id = Core.Id
+Core
+inner join ActivePrices on ActivePrices.PriceCode = Core.PriceCode and ActivePrices.RegionCode = Core.RegionCode and ActivePrices.Fresh = 1
+inner join farm.Core0 c on c.Id = Core.Id
 limit "
-													 + states.Count);
-				for (var i = 0; i < states.Count; i++)
-					states[i].CoreID = Convert.ToUInt64(ids.Tables[0].Rows[i]["Id"]);
+													+ states.Count);
+			for (var i = 0; i < states.Count; i++)
+				states[i].CoreID = Convert.ToUInt64(ids.Tables[0].Rows[i]["Id"]);
 
-				var updateCommand = new MySqlCommand(@"
+			var updateCommand = new MySqlCommand(@"
 update Core set Cost = ?Cost where Id = ?Id;
 update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 ", connection);
-				updateCommand.Parameters.Add("?Id", MySqlDbType.UInt64);
-				updateCommand.Parameters.Add("?Cost", MySqlDbType.Float);
-				updateCommand.Parameters.Add("?ProducerCost", MySqlDbType.Float);
-				updateCommand.Parameters.Add("?NDS", MySqlDbType.Float);
+			updateCommand.Parameters.Add("?Id", MySqlDbType.UInt64);
+			updateCommand.Parameters.Add("?Cost", MySqlDbType.Float);
+			updateCommand.Parameters.Add("?ProducerCost", MySqlDbType.Float);
+			updateCommand.Parameters.Add("?NDS", MySqlDbType.Float);
 
-				states.ForEach(item =>
-				{
-					updateCommand.Parameters["?Id"].Value = item.CoreID;
-					updateCommand.Parameters["?Cost"].Value = item.Cost;
-					updateCommand.Parameters["?ProducerCost"].Value = item.ProducerCost;
-					updateCommand.Parameters["?NDS"].Value = item.NDS;
-					updateCommand.ExecuteNonQuery();
-				});
+			states.ForEach(item =>
+			{
+				updateCommand.Parameters["?Id"].Value = item.CoreID;
+				updateCommand.Parameters["?Cost"].Value = item.Cost;
+				updateCommand.Parameters["?ProducerCost"].Value = item.ProducerCost;
+				updateCommand.Parameters["?NDS"].Value = item.NDS;
+				updateCommand.ExecuteNonQuery();
+			});
 
-				states.ForEach(item =>
-				{
-					var filledCore = MySqlHelper.ExecuteDataset(
-						connection,
-						helper.GetCoreCommand(false, true, false, false) //+ " and Core.Id = " + item.CoreID
-						,
-						new MySqlParameter("?Cumulative", 0));
+			states.ForEach(item =>
+			{
+				var filledCore = MySqlHelper.ExecuteDataset(
+					connection,
+					helper.GetCoreCommand(false, true, false, false) //+ " and Core.Id = " + item.CoreID
+					,
+					new MySqlParameter("?Cumulative", 0));
 
-					filledCore.Tables[0].DefaultView.RowFilter = "CoreId = '" + item.CoreID.ToString().RightSlice(9) + "'";
+				filledCore.Tables[0].DefaultView.RowFilter = "CoreId = '" + item.CoreID.ToString().RightSlice(9) + "'";
 
 
-					var rows = filledCore.Tables[0].DefaultView.ToTable();
-					if (rows.Rows.Count == 0)
-						Assert.Fail("Не найдено предложение с Id = {0}", item.CoreID);
+				var rows = filledCore.Tables[0].DefaultView.ToTable();
+				if (rows.Rows.Count == 0)
+					Assert.Fail("Не найдено предложение с Id = {0}", item.CoreID);
+				else
+					if (rows.Rows.Count > 1)
+						Assert.Fail("Больше одного предложения с Id = {0}", item.CoreID);
 					else
-						if (rows.Rows.Count > 1)
-							Assert.Fail("Больше одного предложения с Id = {0}", item.CoreID);
+					{
+						var calculatedSupplierPriceMarkup = Convert.IsDBNull(rows.Rows[0]["SupplierPriceMarkup"])
+																? null
+																: (float?) Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
+						if (!item.SupplierPriceMarkup.HasValue)
+							Assert.IsNull(calculatedSupplierPriceMarkup, 
+								"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}",
+								item.ProducerCost,
+								item.Cost,
+								item.NDS);
 						else
-						{
-							var calculatedSupplierPriceMarkup = Convert.IsDBNull(rows.Rows[0]["SupplierPriceMarkup"])
-																	? null
-																	: (float?) Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
-							if (!item.SupplierPriceMarkup.HasValue)
-								Assert.IsNull(calculatedSupplierPriceMarkup, 
-									"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}",
+							if (item.SupplierPriceMarkup.HasValue && !calculatedSupplierPriceMarkup.HasValue)
+								Assert.Fail(
+									"Неправильно расчитана наценка поставщика для параметров (наценка = null): ProducerCost = {0}; Cost = {1}; NDS = {2}",
 									item.ProducerCost,
 									item.Cost,
 									item.NDS);
 							else
-								if (item.SupplierPriceMarkup.HasValue && !calculatedSupplierPriceMarkup.HasValue)
-									Assert.Fail(
-										"Неправильно расчитана наценка поставщика для параметров (наценка = null): ProducerCost = {0}; Cost = {1}; NDS = {2}",
-										item.ProducerCost,
-										item.Cost,
-										item.NDS);
-								else
-									Assert.IsTrue(Math.Abs(item.SupplierPriceMarkup.Value - calculatedSupplierPriceMarkup.Value) < 0.0001f,
-										"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}; calculated = {3}; needed = {4}",
-										item.ProducerCost,
-										item.Cost,
-										item.NDS,
-										calculatedSupplierPriceMarkup,
-										item.SupplierPriceMarkup);
-						}
-				});
-			}
+								Assert.IsTrue(Math.Abs(item.SupplierPriceMarkup.Value - calculatedSupplierPriceMarkup.Value) < 0.0001f,
+									"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}; calculated = {3}; needed = {4}",
+									item.ProducerCost,
+									item.Cost,
+									item.NDS,
+									calculatedSupplierPriceMarkup,
+									item.SupplierPriceMarkup);
+					}
+			});
 		}
 
 
@@ -458,27 +457,20 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с одним юридическим лицом")]
 		public void Check_Clients_content_for_future_client_with_version_greater_than_1271_and_one_LegalEntity()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuildNumber = 1272;
 
-				updateData.BuildNumber = 1272;
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+			var clients = new DataTable();
+			dataAdapter.Fill(clients);
 
-				var clients = new DataTable();
-				dataAdapter.Fill(clients);
-
-				Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
-				var address =
-					_user.AvaliableAddresses.FirstOrDefault(item => item.Id.ToString().Equals(clients.Rows[0]["FirmCode"].ToString()));
-				Assert.That(address, Is.Not.Null, "Не нашли выгруженный адрес доставки");
-				Assert.That(clients.Rows[0]["ShortName"].ToString(), Is.EqualTo(address.Value), "Не совпадает значение адреса");
-			}
+			Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
+			var address =
+				_user.AvaliableAddresses.FirstOrDefault(item => item.Id.ToString().Equals(clients.Rows[0]["FirmCode"].ToString()));
+			Assert.That(address, Is.Not.Null, "Не нашли выгруженный адрес доставки");
+			Assert.That(clients.Rows[0]["ShortName"].ToString(), Is.EqualTo(address.Value), "Не совпадает значение адреса");
 		}
 
 		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с несколькими юридическими лицами")]
@@ -500,42 +492,35 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				transaction.VoteCommit();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuildNumber = 1272;
 
-				updateData.BuildNumber = 1272;
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
-
-				var clients = new DataTable();
-				dataAdapter.Fill(clients);
+			var clients = new DataTable();
+			dataAdapter.Fill(clients);
 				
-				Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
+			Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
 
-				foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
-				{
-					var rows = clients.Select("FirmCode = " + enabledAddress.Id);
-					if (rows == null || rows.Length == 0)
-						Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
-					var addressName = String.Format("{0}, {1}", enabledAddress.LegalEntity.Name, enabledAddress.Value);
-					Assert.That(rows[0]["ShortName"].ToString(), Is.EqualTo(addressName), "Не совпадает значение адреса");
-				}
-
-				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
-				//Установили прайс поставщика Инфорум
-				updateData.NetworkPriceId = 2647;
-				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
-				clients = new DataTable();
-				dataAdapter.Fill(clients);
-				DataRow row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
+			foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
+			{
+				var rows = clients.Select("FirmCode = " + enabledAddress.Id);
+				if (rows == null || rows.Length == 0)
+					Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
+				var addressName = String.Format("{0}, {1}", enabledAddress.LegalEntity.Name, enabledAddress.Value);
+				Assert.That(rows[0]["ShortName"].ToString(), Is.EqualTo(addressName), "Не совпадает значение адреса");
 			}
+
+			//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
+			//Установили прайс поставщика Инфорум
+			updateData.NetworkPriceId = 2647;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			clients = new DataTable();
+			dataAdapter.Fill(clients);
+			DataRow row = clients.Rows[0];
+			if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+				Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 		}
 
 		[Test(Description = "Проверка значения поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 с несколькими юридическими лицами с уникальным набором адресов")]
@@ -556,77 +541,62 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				transaction.VoteCommit();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			updateData.BuildNumber = 1272;
+
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+
+			var clients = new DataTable();
+			dataAdapter.Fill(clients);
+
+			Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
+
+			foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
 			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
-
-				updateData.BuildNumber = 1272;
-
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
-
-				var clients = new DataTable();
-				dataAdapter.Fill(clients);
-
-				Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
-
-				foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
-				{
-					var rows = clients.Select("FirmCode = " + enabledAddress.Id);
-					if (rows == null || rows.Length == 0)
-						Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
-					var addressName = String.Format("{0}, {1}", enabledAddress.LegalEntity.Name, enabledAddress.Value);
-					Assert.That(rows[0]["ShortName"].ToString(), Is.EqualTo(addressName), "Не совпадает значение адреса");
-				}
-
-				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
-				//Установили прайс поставщика Инфорум
-				updateData.NetworkPriceId = 2647;
-				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
-				clients = new DataTable();
-				dataAdapter.Fill(clients);
-				DataRow row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
+				var rows = clients.Select("FirmCode = " + enabledAddress.Id);
+				if (rows == null || rows.Length == 0)
+					Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
+				var addressName = String.Format("{0}, {1}", enabledAddress.LegalEntity.Name, enabledAddress.Value);
+				Assert.That(rows[0]["ShortName"].ToString(), Is.EqualTo(addressName), "Не совпадает значение адреса");
 			}
+
+			//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
+			//Установили прайс поставщика Инфорум
+			updateData.NetworkPriceId = 2647;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			clients = new DataTable();
+			dataAdapter.Fill(clients);
+			DataRow row = clients.Rows[0];
+			if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+				Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 		}
 
 		[Test(Description = "Проверяем установку поля SelfAddressId в зависимости от значений параметра NetworkPriceId")]
 		public void Check_SelfAddressId_by_NetworkPriceId()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+			//Установили прайс поставщика Инфорум
+			updateData.NetworkPriceId = 2647;
 
-				//Установили прайс поставщика Инфорум
-				updateData.NetworkPriceId = 2647;
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
-				var helper = new UpdateHelper(updateData, connection);
+			var clients = new DataTable();
+			dataAdapter.Fill(clients);
 
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+			var row = clients.Rows[0];
+			if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+				Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 
-				var clients = new DataTable();
-				dataAdapter.Fill(clients);
-
-				var row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
-
-				//Установили параметр в null
-				updateData.NetworkPriceId = null;
-				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
-				clients = new DataTable();
-				dataAdapter.Fill(clients);
-				Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
-				row = clients.Rows[0];
-				Assert.That(row["SelfAddressId"], Is.EqualTo(DBNull.Value));
-			}
+			//Установили параметр в null
+			updateData.NetworkPriceId = null;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			clients = new DataTable();
+			dataAdapter.Fill(clients);
+			Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
+			row = clients.Rows[0];
+			Assert.That(row["SelfAddressId"], Is.EqualTo(DBNull.Value));
 		}
 
 		[Test(Description = "Проверяем установку поля SelfAddressId в зависимости от значений параметра NetworkPriceId для клиентов с несколькими юридическими лицами")]
@@ -648,887 +618,771 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				transaction.VoteCommit();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuildNumber = 1272;
 
-				updateData.BuildNumber = 1272;
+			//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
+			//Установили прайс поставщика Инфорум
+			updateData.NetworkPriceId = 2647;
 
-				//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
-				//Установили прайс поставщика Инфорум
-				updateData.NetworkPriceId = 2647;
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+			var clients = new DataTable();
+			dataAdapter.Fill(clients);
 
-				var clients = new DataTable();
-				dataAdapter.Fill(clients);
+			var row = clients.Rows[0];
+			if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
+				Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
 
-				var row = clients.Rows[0];
-				if (!String.IsNullOrEmpty(row["SelfAddressId"].ToString()))
-					Assert.That(row["FirmCode"].ToString(), Is.Not.EqualTo(row["SelfAddressId"].ToString()));
-
-				//Установили параметр в null
-				updateData.NetworkPriceId = null;
-				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
-				clients = new DataTable();
-				dataAdapter.Fill(clients);
-				Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
-				row = clients.Rows[0];
-				Assert.That(row["SelfAddressId"], Is.EqualTo(DBNull.Value));
-			}
+			//Установили параметр в null
+			updateData.NetworkPriceId = null;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			clients = new DataTable();
+			dataAdapter.Fill(clients);
+			Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
+			row = clients.Rows[0];
+			Assert.That(row["SelfAddressId"], Is.EqualTo(DBNull.Value));
 		}
 
 		[Test(Description = "Это тест для проверки чтение с помощью коннектора, надо перенести в другое место")]
 		public void TestCallCount()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
+			var fillSql = helper.GetClientsCommand(true);
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			var dataAdapter = CreateAdapter(connection, fillSql, updateData);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
+			var table = new DataTable();
+			dataAdapter.FillSchema(table, SchemaType.Source);
 
-				var fillSql = helper.GetClientsCommand(true);
+			//В предыдущих версиях коннектера при версии базы данных больше 5.5 после FillSchema запрос ExecuteScalar возвращал null,
+			//что быть не должно
 
-				var dataAdapter = CreateAdapter(connection, fillSql, updateData);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
-				var table = new DataTable();
-				dataAdapter.FillSchema(table, SchemaType.Source);
+			var count = MySqlHelper.ExecuteScalar(connection, @"
+SELECT 
+	count(distinct le.Id)
+FROM 
+Customers.Users u
+	join Customers.Clients c on u.ClientId = c.Id
+	join Customers.UserAddresses ua on ua.UserId = u.Id
+	join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+	join billing.LegalEntities le on le.Id = a.LegalEntityId
+WHERE 
+	u.Id = ?UserId
+and a.Enabled = 1",
+				new MySqlParameter("?UserId", _user.Id));
 
-				//В предыдущих версиях коннектера при версии базы данных больше 5.5 после FillSchema запрос ExecuteScalar возвращал null,
-				//что быть не должно
-
-				var count = MySqlHelper.ExecuteScalar(connection, @"
-	SELECT 
-		count(distinct le.Id)
-	FROM 
-	Customers.Users u
-	  join Customers.Clients c on u.ClientId = c.Id
-	  join Customers.UserAddresses ua on ua.UserId = u.Id
-	  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-	  join billing.LegalEntities le on le.Id = a.LegalEntityId
-	WHERE 
-		u.Id = ?UserId
-	and a.Enabled = 1",
-				  new MySqlParameter("?UserId", _user.Id));
-
-				Assert.That(count, Is.Not.Null);
-			}
+			Assert.That(count, Is.Not.Null);
 		}
 
 		public static DataTable CompareTwoDataTable(DataTable dt1, DataTable dt2)
 		{
-
 			dt1.Merge(dt2);
-
-			DataTable d3 = dt2.GetChanges();
-
+			var d3 = dt2.GetChanges();
 			return d3;
 		}
 
 		[Test]
 		public void Check_core_count_with_GroupBy()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			helper.MaintainReplicationInfo();
 
-				helper.MaintainReplicationInfo();
+			helper.Cleanup();
 
-				helper.Cleanup();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectOffers();
 
-				helper.SelectOffers();
+			var coreSql = helper.GetCoreCommand(false, true, false, false);
+			var lastIndex = coreSql.LastIndexOf("group by", StringComparison.OrdinalIgnoreCase);
+			var withoutGroupCoreSql = coreSql.Slice(lastIndex);
 
-				var coreSql = helper.GetCoreCommand(false, true, false, false);
-				var lastIndex = coreSql.LastIndexOf("group by", StringComparison.OrdinalIgnoreCase);
-				var withoutGroupCoreSql = coreSql.Slice(lastIndex);
-
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					@"
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"
 drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;");
 
-				var startGroupBy = DateTime.Now;
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					String.Format(
-					@"
+			var startGroupBy = DateTime.Now;
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				String.Format(
+				@"
 create temporary table usersettings.GroupByCore engine=memory as 
 {0}
 ;
 "
-					,
-					coreSql),
-					new MySqlParameter("?Cumulative", 0));
-				Console.WriteLine("fill group: {0}", DateTime.Now.Subtract(startGroupBy));
+				,
+				coreSql),
+				new MySqlParameter("?Cumulative", 0));
+			Console.WriteLine("fill group: {0}", DateTime.Now.Subtract(startGroupBy));
 
-				var startPure = DateTime.Now;
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					String.Format(
-					@"
+			var startPure = DateTime.Now;
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				String.Format(
+				@"
 create temporary table usersettings.PureCore engine=memory as
 select * from usersettings.GroupByCore limit 0;
 insert into usersettings.PureCore
 {0}
 ;
 "
-					,
-					withoutGroupCoreSql),
-					new MySqlParameter("?Cumulative", 0));
-				Console.WriteLine("fill pure: {0}", DateTime.Now.Subtract(startPure));
+				,
+				withoutGroupCoreSql),
+				new MySqlParameter("?Cumulative", 0));
+			Console.WriteLine("fill pure: {0}", DateTime.Now.Subtract(startPure));
 
-				var withGroupBy = 
-					MySqlHelper.ExecuteDataset(
-						connection,
-						"select * from usersettings.GroupByCore");
-				var withGroupByCore = withGroupBy.Tables[0];
-
-				var withoutGroupBy =
-					MySqlHelper.ExecuteDataset(
-						connection,
-						"select * from usersettings.PureCore");
-				var withoutGroupByCore = withoutGroupBy.Tables[0];
-
-				Console.WriteLine("withGroupByCore : {0}", withGroupByCore.Rows.Count);
-				Console.WriteLine("withoutGroupByCore : {0}", withoutGroupByCore.Rows.Count);
-
-				var changes = CompareTwoDataTable(withGroupByCore, withoutGroupByCore);
-
-				Assert.That(changes, Is.Null);
-
-				MySqlHelper.ExecuteNonQuery(
+			var withGroupBy = 
+				MySqlHelper.ExecuteDataset(
 					connection,
-					@"
+					"select * from usersettings.GroupByCore");
+			var withGroupByCore = withGroupBy.Tables[0];
+
+			var withoutGroupBy =
+				MySqlHelper.ExecuteDataset(
+					connection,
+					"select * from usersettings.PureCore");
+			var withoutGroupByCore = withoutGroupBy.Tables[0];
+
+			Console.WriteLine("withGroupByCore : {0}", withGroupByCore.Rows.Count);
+			Console.WriteLine("withoutGroupByCore : {0}", withoutGroupByCore.Rows.Count);
+
+			var changes = CompareTwoDataTable(withGroupByCore, withoutGroupByCore);
+
+			Assert.That(changes, Is.Null);
+
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"
 drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;");
-			}
 		}
 
 		[Test(Description = "Все актуальные прайс-листы при первом подключении к клиенту должны быть свежими")]
 		public void CheckActivePricesFreshAfterCreate()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
 
-				helper.MaintainReplicationInfo();
+			helper.MaintainReplicationInfo();
 
-				var SelProc = new MySqlCommand();
-				SelProc.Connection = connection;
+			var SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.PreparePricesData(SelProc);
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.PreparePricesData(SelProc);
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				var notFreshCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var notFreshCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
- count(*)
+count(*)
 from 
-	Prices 
-	left join ActivePrices on ActivePrices.PriceCode = Prices.PriceCode and ActivePrices.RegionCode = ActivePrices.RegionCode
+Prices 
+left join ActivePrices on ActivePrices.PriceCode = Prices.PriceCode and ActivePrices.RegionCode = ActivePrices.RegionCode
 where
-	(ActivePrices.PriceCode is not null and Prices.actual = 1 and ActivePrices.Fresh = 0)"));
+(ActivePrices.PriceCode is not null and Prices.actual = 1 and ActivePrices.Fresh = 0)"));
 
-				Assert.That(notFreshCount, Is.EqualTo(0), "Все актуальные прайсы при первом подключении к клиенту должны быть свежими");
+			Assert.That(notFreshCount, Is.EqualTo(0), "Все актуальные прайсы при первом подключении к клиенту должны быть свежими");
 
-				var notActualCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var notActualCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
- count(*)
+count(*)
 from 
-	Prices 
-	left join ActivePrices on ActivePrices.PriceCode = Prices.PriceCode and ActivePrices.RegionCode = ActivePrices.RegionCode
+Prices 
+left join ActivePrices on ActivePrices.PriceCode = Prices.PriceCode and ActivePrices.RegionCode = ActivePrices.RegionCode
 where
-	(ActivePrices.PriceCode is null and Prices.actual > 0)"));
+(ActivePrices.PriceCode is null and Prices.actual > 0)"));
 
-				Assert.That(notActualCount, Is.EqualTo(0), "Неактуальный прайс-лист был добавлен в ActivePrices");
+			Assert.That(notActualCount, Is.EqualTo(0), "Неактуальный прайс-лист был добавлен в ActivePrices");
 
-				SelProc.CommandText = helper.GetPricesDataCommand();
-				var dataAdapter = new MySqlDataAdapter(SelProc);
-				var prices = new DataTable();
-				dataAdapter.Fill(prices);
+			SelProc.CommandText = helper.GetPricesDataCommand();
+			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var prices = new DataTable();
+			dataAdapter.Fill(prices);
 
-				var freshRows = prices.Select("Fresh = 1");
-				Assert.That(freshRows.Length, Is.EqualTo(prices.Rows.Count), "Все прайсы при первом подключении к клиенту должны быть свежими");
-			}
+			var freshRows = prices.Select("Fresh = 1");
+			Assert.That(freshRows.Length, Is.EqualTo(prices.Rows.Count), "Все прайсы при первом подключении к клиенту должны быть свежими");
 		}
 
 		[Test(Description = "Все прайс-листы должны быть несвежими после подтверждения обновления")]
 		public void CheckActivePricesFreshAfterConfirm()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			helper.MaintainReplicationInfo();
 
-				helper.MaintainReplicationInfo();
-
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 update
-	AnalitFReplicationInfo
+AnalitFReplicationInfo
 set
-	ForceReplication = 0
+ForceReplication = 0
 where
-	UserId = ?UserId
+UserId = ?UserId
 and ForceReplication > 0;",
-					new MySqlParameter("?UserId", _user.Id));
+				new MySqlParameter("?UserId", _user.Id));
 
-				var SelProc = new MySqlCommand();
-				SelProc.Connection = connection;
+			var SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.PreparePricesData(SelProc);
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.PreparePricesData(SelProc);
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				var freshCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var freshCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
- count(*)
+count(*)
 from 
-	Prices 
-	left join ActivePrices on ActivePrices.PriceCode = Prices.PriceCode and ActivePrices.RegionCode = ActivePrices.RegionCode
+Prices 
+left join ActivePrices on ActivePrices.PriceCode = Prices.PriceCode and ActivePrices.RegionCode = ActivePrices.RegionCode
 where
-	(ActivePrices.PriceCode is not null and ActivePrices.Fresh = 1)"));
+(ActivePrices.PriceCode is not null and ActivePrices.Fresh = 1)"));
 
-				Assert.That(freshCount, Is.EqualTo(0), "Все актуальные прайсы после обнвовления должны быть несвежими");
+			Assert.That(freshCount, Is.EqualTo(0), "Все актуальные прайсы после обнвовления должны быть несвежими");
 
-				var nonActualPrices = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonActualPrices = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
- count(*)
+count(*)
 from 
-	Prices 
+Prices 
 where
-	Prices.Actual = 0"));
-				SelProc.CommandText = helper.GetPricesDataCommand();
-				var dataAdapter = new MySqlDataAdapter(SelProc);
-				var prices = new DataTable();
-				dataAdapter.Fill(prices);
+Prices.Actual = 0"));
+			SelProc.CommandText = helper.GetPricesDataCommand();
+			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var prices = new DataTable();
+			dataAdapter.Fill(prices);
 
-				var freshRows = prices.Select("Fresh = 1");
-				Assert.That(freshRows.Length - nonActualPrices, Is.EqualTo(0), "Все актуальные прайсы после обновления должны быть несвежими");
-			}
+			var freshRows = prices.Select("Fresh = 1");
+			Assert.That(freshRows.Length - nonActualPrices, Is.EqualTo(0), "Все актуальные прайсы после обновления должны быть несвежими");
 		}
 
 		[Test(Description = "После отключения прайс-листа клиентом, он должен быть помечен как свежий")]
 		public void CheckActivePricesFreshAfterDeletePrice()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			helper.MaintainReplicationInfo();
 
-				helper.MaintainReplicationInfo();
-
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 update
-	AnalitFReplicationInfo
+AnalitFReplicationInfo
 set
-	ForceReplication = 0
+ForceReplication = 0
 where
-	UserId = ?UserId
+UserId = ?UserId
 and ForceReplication > 0;",
-					new MySqlParameter("?UserId", _user.Id));
+				new MySqlParameter("?UserId", _user.Id));
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
+			helper.SelectPrices();
 
-				var disabledPrice = MySqlHelper.ExecuteDataset(
-					connection,
-					"select * from Prices where Actual = 1 and DisabledByClient = 0 limit 1").Tables[0].Rows[0];
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var disabledPrice = MySqlHelper.ExecuteDataset(
+				connection,
+				"select * from Prices where Actual = 1 and DisabledByClient = 0 limit 1").Tables[0].Rows[0];
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 delete from
-	Customers.UserPrices
+Customers.UserPrices
 where
-	PriceId = ?PriceId
+PriceId = ?PriceId
 and RegionId = ?RegionId
 and UserId = ?UserId;",
-					new MySqlParameter("?UserId", _user.Id),
-					new MySqlParameter("?PriceId", disabledPrice["PriceCode"]),
-					new MySqlParameter("?RegionId", disabledPrice["RegionCode"]));
+				new MySqlParameter("?UserId", _user.Id),
+				new MySqlParameter("?PriceId", disabledPrice["PriceCode"]),
+				new MySqlParameter("?RegionId", disabledPrice["RegionCode"]));
 
 
-				var SelProc = new MySqlCommand();
-				SelProc.Connection = connection;
+			var SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.PreparePricesData(SelProc);
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.PreparePricesData(SelProc);
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				var nonActualPrices = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonActualPrices = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
- count(*)
+count(*)
 from 
-	Prices 
+Prices 
 where
-	Prices.Actual = 0"));
+Prices.Actual = 0"));
 
-				SelProc.CommandText = helper.GetPricesDataCommand();
-				var dataAdapter = new MySqlDataAdapter(SelProc);
-				var prices = new DataTable();
-				dataAdapter.Fill(prices);
+			SelProc.CommandText = helper.GetPricesDataCommand();
+			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var prices = new DataTable();
+			dataAdapter.Fill(prices);
 
-				var disabledPrices = prices.Select("PriceCode = {0}".Format(disabledPrice["PriceCode"]));
-				Assert.That(disabledPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
-				Assert.That(disabledPrices[0]["Fresh"], Is.EqualTo(1), "Отключенный прайс-лист должен быть помечен как свежий");
+			var disabledPrices = prices.Select("PriceCode = {0}".Format(disabledPrice["PriceCode"]));
+			Assert.That(disabledPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
+			Assert.That(disabledPrices[0]["Fresh"], Is.EqualTo(1), "Отключенный прайс-лист должен быть помечен как свежий");
 
-				var pricesBySupplier = prices.Select("FirmCode = {0}".Format(disabledPrice["FirmCode"]));
+			var pricesBySupplier = prices.Select("FirmCode = {0}".Format(disabledPrice["FirmCode"]));
 
-				var freshRows = prices.Select("Fresh = 1");
-				Assert.That(freshRows.Length - nonActualPrices, Is.EqualTo(pricesBySupplier.Length), "Кроме неактуальных прайс-листов свежими должны быть помечены все прайс-листы поставщика, у которого отключили прайс-лист");
-			}
+			var freshRows = prices.Select("Fresh = 1");
+			Assert.That(freshRows.Length - nonActualPrices, Is.EqualTo(pricesBySupplier.Length), "Кроме неактуальных прайс-листов свежими должны быть помечены все прайс-листы поставщика, у которого отключили прайс-лист");
 		}
 
 		[Test(Description = "После потери актуальности прайс-листа, он должен быть помечен как свежий")]
 		public void CheckActivePricesFreshAfterUnactual()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			helper.MaintainReplicationInfo();
 
-				helper.MaintainReplicationInfo();
-
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 update
-	AnalitFReplicationInfo
+AnalitFReplicationInfo
 set
-	ForceReplication = 0
+ForceReplication = 0
 where
-	UserId = ?UserId
+UserId = ?UserId
 and ForceReplication > 0;",
-					new MySqlParameter("?UserId", _user.Id));
+				new MySqlParameter("?UserId", _user.Id));
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
+			helper.SelectPrices();
 
-				var nonActualPricesCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonActualPricesCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
- count(*)
+count(*)
 from 
-	Prices 
+Prices 
 where
-	Prices.Actual = 0"));
+Prices.Actual = 0"));
 
-				var nonActualPrice = MySqlHelper.ExecuteDataset(
-					connection,
-					"select * from Prices where Actual = 1 and DisabledByClient = 0 Order by PriceDate asc limit 1").Tables[0].Rows[0];
+			var nonActualPrice = MySqlHelper.ExecuteDataset(
+				connection,
+				"select * from Prices where Actual = 1 and DisabledByClient = 0 Order by PriceDate asc limit 1").Tables[0].Rows[0];
 
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 update
-  usersettings.PricesCosts,
-  usersettings.PriceItems,
-  farm.FormRules
+usersettings.PricesCosts,
+usersettings.PriceItems,
+farm.FormRules
 set
-  PriceItems.PriceDate = PriceItems.PriceDate - interval (FormRules.MaxOld + 1) day
+PriceItems.PriceDate = PriceItems.PriceDate - interval (FormRules.MaxOld + 1) day
 where
-	PricesCosts.PriceCode = ?PriceId
+PricesCosts.PriceCode = ?PriceId
 and PricesCosts.CostCode = ?CostId
 and PriceItems.Id = PricesCosts.PriceItemId
 and FormRules.Id = PriceItems.FormRuleId;
 ",
-					new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
-					new MySqlParameter("?CostId", nonActualPrice["CostCode"]));
+				new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
+				new MySqlParameter("?CostId", nonActualPrice["CostCode"]));
 
 
-				var SelProc = new MySqlCommand();
-				SelProc.Connection = connection;
+			var SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.PreparePricesData(SelProc);
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.PreparePricesData(SelProc);
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				SelProc.CommandText = helper.GetPricesDataCommand();
-				var dataAdapter = new MySqlDataAdapter(SelProc);
-				var prices = new DataTable();
-				dataAdapter.Fill(prices);
+			SelProc.CommandText = helper.GetPricesDataCommand();
+			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var prices = new DataTable();
+			dataAdapter.Fill(prices);
 
-				var nonActualPrices = prices.Select("PriceCode = {0}".Format(nonActualPrice["PriceCode"]));
-				Assert.That(nonActualPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
-				Assert.That(nonActualPrices[0]["Fresh"], Is.EqualTo(1), "Неактуальный прайс-лист должен быть помечен как свежий");
+			var nonActualPrices = prices.Select("PriceCode = {0}".Format(nonActualPrice["PriceCode"]));
+			Assert.That(nonActualPrices.Length, Is.EqualTo(1), "Не найден отключенный прайс-лист");
+			Assert.That(nonActualPrices[0]["Fresh"], Is.EqualTo(1), "Неактуальный прайс-лист должен быть помечен как свежий");
 
-				var freshRows = prices.Select("Fresh = 1");
-				Assert.That(freshRows.Length, Is.EqualTo(nonActualPricesCount + 1), "Кол-во свежих прайс-листов должно быть увеличено на один");
+			var freshRows = prices.Select("Fresh = 1");
+			Assert.That(freshRows.Length, Is.EqualTo(nonActualPricesCount + 1), "Кол-во свежих прайс-листов должно быть увеличено на один");
 
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 update
-  usersettings.PricesCosts,
-  usersettings.PriceItems,
-  farm.FormRules
+usersettings.PricesCosts,
+usersettings.PriceItems,
+farm.FormRules
 set
-  PriceItems.PriceDate = ?PriceDate
+PriceItems.PriceDate = ?PriceDate
 where
-	PricesCosts.PriceCode = ?PriceId
+PricesCosts.PriceCode = ?PriceId
 and PricesCosts.CostCode = ?CostId
 and PriceItems.Id = PricesCosts.PriceItemId
 and FormRules.Id = PriceItems.FormRuleId;
 ",
-					new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
-					new MySqlParameter("?CostId", nonActualPrice["CostCode"]),
-					new MySqlParameter("?PriceDate", nonActualPrice["PriceDate"]));
-			}
+				new MySqlParameter("?PriceId", nonActualPrice["PriceCode"]),
+				new MySqlParameter("?CostId", nonActualPrice["CostCode"]),
+				new MySqlParameter("?PriceDate", nonActualPrice["PriceDate"]));
 		}
 
 		[Test(Description = "При кумулятивном обновлении все прайс-листы должны быть свежими")]
 		public void CheckActivePricesFreshOnCumulative()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			helper.MaintainReplicationInfo();
 
-				helper.MaintainReplicationInfo();
-
-				MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 update
-	AnalitFReplicationInfo
+AnalitFReplicationInfo
 set
-	ForceReplication = 0
+ForceReplication = 0
 where
-	UserId = ?UserId
+UserId = ?UserId
 and ForceReplication > 0;",
-					new MySqlParameter("?UserId", _user.Id));
+				new MySqlParameter("?UserId", _user.Id));
 
-				var SelProc = new MySqlCommand();
-				SelProc.Connection = connection;
+			var SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, true, DateTime.Now.AddHours(-1), DateTime.Now);
+			updateData.Cumulative = true;
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.PreparePricesData(SelProc);
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.PreparePricesData(SelProc);
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				SelProc.CommandText = helper.GetPricesDataCommand();
-				var dataAdapter = new MySqlDataAdapter(SelProc);
-				var prices = new DataTable();
-				dataAdapter.Fill(prices);
+			SelProc.CommandText = helper.GetPricesDataCommand();
+			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var prices = new DataTable();
+			dataAdapter.Fill(prices);
 
-				var freshRows = prices.Select("Fresh = 1");
-				Assert.That(freshRows.Length, Is.EqualTo(prices.Rows.Count), "Все прайс-листы должны быть свежими");
-			}
+			var freshRows = prices.Select("Fresh = 1");
+			Assert.That(freshRows.Length, Is.EqualTo(prices.Rows.Count), "Все прайс-листы должны быть свежими");
 		}
 
 		[Test(Description = "проверяем работу метода UpdateBuildNumber")]
 		public void TestUpdateBuildNumber()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update usersettings.UserUpdateInfo set AFAppVersion = 0 where UserId = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
 
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					"update usersettings.UserUpdateInfo set AFAppVersion = 0 where UserId = ?UserId",
-					new MySqlParameter("?UserId", _user.Id));
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+			Assert.That(updateData.KnownBuildNumber, Is.EqualTo(0));
 
-				Assert.That(updateData.KnownBuildNumber, Is.EqualTo(0));
+			const int changedBuildNumber = 1300;
+			updateData.BuildNumber = changedBuildNumber;
+			UpdateHelper.UpdateBuildNumber(connection, updateData);
 
-				const int changedBuildNumber = 1300;
-				updateData.BuildNumber = changedBuildNumber;
-				UpdateHelper.UpdateBuildNumber(connection, updateData);
+			var changedUpdateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
-				var changedUpdateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-
-				Assert.That(changedUpdateData.KnownBuildNumber, Is.EqualTo(changedBuildNumber), "Не сохранился номер версии AnalitF");
-			}
+			Assert.That(changedUpdateData.KnownBuildNumber, Is.EqualTo(changedBuildNumber), "Не сохранился номер версии AnalitF");
 		}
 
 		[Test(Description = "Проверяем доступность столбцов UseAdjustmentOrders, ShowSupplierCost")]
 		public void CheckChangeUseAdjustmentOrders()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update Customers.Users set UseAdjustmentOrders = 0, ShowSupplierCost = 0 where Id = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
 
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					"update Customers.Users set UseAdjustmentOrders = 0, ShowSupplierCost = 0 where Id = ?UserId",
-					new MySqlParameter("?UserId", _user.Id));
+			var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
+			Assert.That(dataTable.Columns.Contains("UseAdjustmentOrders"), Is.EqualTo(true), "Не найден столбец UseAdjustmentOrders");
+			Assert.That(Convert.ToBoolean(dataTable.Rows[0]["UseAdjustmentOrders"]), Is.EqualTo(false), "Свойство UseAdjustmentOrders не соответствует значению в базе");
+			Assert.That(dataTable.Columns.Contains("ShowSupplierCost"), Is.EqualTo(true), "Не найден столбец ShowSupplierCost");
+			Assert.That(Convert.ToBoolean(dataTable.Rows[0]["ShowSupplierCost"]), Is.EqualTo(false), "Свойство ShowSupplierCost не соответствует значению в базе");
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
-				var dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
-				var dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
-				Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
-				Assert.That(dataTable.Columns.Contains("UseAdjustmentOrders"), Is.EqualTo(true), "Не найден столбец UseAdjustmentOrders");
-				Assert.That(Convert.ToBoolean(dataTable.Rows[0]["UseAdjustmentOrders"]), Is.EqualTo(false), "Свойство UseAdjustmentOrders не соответствует значению в базе");
-				Assert.That(dataTable.Columns.Contains("ShowSupplierCost"), Is.EqualTo(true), "Не найден столбец ShowSupplierCost");
-				Assert.That(Convert.ToBoolean(dataTable.Rows[0]["ShowSupplierCost"]), Is.EqualTo(false), "Свойство ShowSupplierCost не соответствует значению в базе");
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update Customers.Users set UseAdjustmentOrders = 1, ShowSupplierCost = 1 where Id = ?UserId",
+				new MySqlParameter("?UserId", _user.Id));
 
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					"update Customers.Users set UseAdjustmentOrders = 1, ShowSupplierCost = 1 where Id = ?UserId",
-					new MySqlParameter("?UserId", _user.Id));
-
-				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				helper = new UpdateHelper(updateData, connection);
-				dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
-				Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
-				Assert.That(dataTable.Columns.Contains("UseAdjustmentOrders"), Is.EqualTo(true), "Не найден столбец UseAdjustmentOrders");
-				Assert.That(Convert.ToBoolean(dataTable.Rows[0]["UseAdjustmentOrders"]), Is.EqualTo(true), "Свойство UseAdjustmentOrders не соответствует значению в базе");
-				Assert.That(dataTable.Columns.Contains("ShowSupplierCost"), Is.EqualTo(true), "Не найден столбец ShowSupplierCost");
-				Assert.That(Convert.ToBoolean(dataTable.Rows[0]["ShowSupplierCost"]), Is.EqualTo(true), "Свойство ShowSupplierCost не соответствует значению в базе");
-			}
+			updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+			helper = new UpdateHelper(updateData, connection);
+			dataAdapter = new MySqlDataAdapter(helper.GetUserCommand(), connection);
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в UserInfo не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["RowId"], Is.EqualTo(_user.Id), "Столбец RowId не сопадает с Id пользователя");
+			Assert.That(dataTable.Columns.Contains("UseAdjustmentOrders"), Is.EqualTo(true), "Не найден столбец UseAdjustmentOrders");
+			Assert.That(Convert.ToBoolean(dataTable.Rows[0]["UseAdjustmentOrders"]), Is.EqualTo(true), "Свойство UseAdjustmentOrders не соответствует значению в базе");
+			Assert.That(dataTable.Columns.Contains("ShowSupplierCost"), Is.EqualTo(true), "Не найден столбец ShowSupplierCost");
+			Assert.That(Convert.ToBoolean(dataTable.Rows[0]["ShowSupplierCost"]), Is.EqualTo(true), "Свойство ShowSupplierCost не соответствует значению в базе");
 		}
 
 		[Test]
 		public void CheckCoreForRetailVitallyImportant()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.BuildNumber = 1405;
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuildNumber = 1405;
+			helper.MaintainReplicationInfo();
 
-				helper.MaintainReplicationInfo();
+			helper.Cleanup();
 
-				helper.Cleanup();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectOffers();
 
-				helper.SelectOffers();
+			var coreSql = helper.GetCoreCommand(false, true, false, false);
 
-				var coreSql = helper.GetCoreCommand(false, true, false, false);
+			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			var coreTable = new DataTable();
 
-				var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				var coreTable = new DataTable();
-
-				dataAdapter.Fill(coreTable);
-				Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
-				var index = coreTable.Columns.IndexOf("RetailVitallyImportant");
-				Assert.That(index, Is.EqualTo(coreTable.Columns.Count-1));
-			}
+			dataAdapter.Fill(coreTable);
+			Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
+			var index = coreTable.Columns.IndexOf("RetailVitallyImportant");
+			Assert.That(index, Is.EqualTo(coreTable.Columns.Count-1));
 		}
 
 		[Test]
 		public void CheckCoreForBuyingMatrixType()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.BuyingMatrixPriceId = 4957;
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuyingMatrixPriceId = 4957;
 
-				helper.MaintainReplicationInfo();
+			helper.MaintainReplicationInfo();
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectOffers();
+			helper.SelectOffers();
 
-				var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-				var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				var coreTable = new DataTable();
+			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			var coreTable = new DataTable();
 
-				dataAdapter.Fill(coreTable);
-				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
-				Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.False);
-				var index = coreTable.Columns.IndexOf("BuyingMatrixType");
-				Assert.That(index, Is.EqualTo(coreTable.Columns.Count - 1));
-			}
+			dataAdapter.Fill(coreTable);
+			Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+			Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.False);
+			var index = coreTable.Columns.IndexOf("BuyingMatrixType");
+			Assert.That(index, Is.EqualTo(coreTable.Columns.Count - 1));
 		}
 
 		[Test]
 		public void CheckCoreForBuyingMatrixTypeWithRetailVitallyImportant()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.BuyingMatrixPriceId = 4957;
-				updateData.BuildNumber = 1405;
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuyingMatrixPriceId = 4957;
+			updateData.BuildNumber = 1405;
 
-				helper.MaintainReplicationInfo();
+			helper.MaintainReplicationInfo();
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectOffers();
+			helper.SelectOffers();
 
-				var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-				var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				var coreTable = new DataTable();
+			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			var coreTable = new DataTable();
 
-				dataAdapter.Fill(coreTable);
+			dataAdapter.Fill(coreTable);
 
-				Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
-				var indexRetail = coreTable.Columns.IndexOf("RetailVitallyImportant");
+			Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
+			var indexRetail = coreTable.Columns.IndexOf("RetailVitallyImportant");
 
-				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
-				var indexBuying = coreTable.Columns.IndexOf("BuyingMatrixType");
+			Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+			var indexBuying = coreTable.Columns.IndexOf("BuyingMatrixType");
 
-				Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1));
-				Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
-			}
+			Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1));
+			Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
 		}
 
 		[Test]
 		public void CheckCoreForWhiteOfferMatrix()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.OfferMatrixPriceId = 4957;
-				updateData.OfferMatrixType = 0;
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.OfferMatrixPriceId = 4957;
+			updateData.OfferMatrixType = 0;
 
-				helper.MaintainReplicationInfo();
+			helper.MaintainReplicationInfo();
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectOffers();
+			helper.SelectOffers();
 
-				var existsProductId = MySqlHelper.ExecuteScalar(
-					connection,
-					"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
-					new MySqlParameter("?PriceId", 4957));
+			var existsProductId = MySqlHelper.ExecuteScalar(
+				connection,
+				"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
+				new MySqlParameter("?PriceId", 4957));
 
-				var nonExistsProductId = MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonExistsProductId = MySqlHelper.ExecuteScalar(
+				connection,
+				@"
 select 
-	core.ProductId 
+core.ProductId 
 from 
-	core 
-	left join farm.BuyingMatrix bm on bm.ProductId = core.ProductId and bm.PriceId = ?PriceId
+core 
+left join farm.BuyingMatrix bm on bm.ProductId = core.ProductId and bm.PriceId = ?PriceId
 where 
-	bm.Id is null
+bm.Id is null
 limit 1",
-					new MySqlParameter("?PriceId", 4957));
+				new MySqlParameter("?PriceId", 4957));
 
-				var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
-				Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
+			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
-				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
-				var coreTable = new DataTable();
+			var dataAdapter = new MySqlDataAdapter(coreSql, connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
+			var coreTable = new DataTable();
 
-				dataAdapter.Fill(coreTable);
+			dataAdapter.Fill(coreTable);
 
-				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+			Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
 
-				var existsOffers = coreTable.Select("ProductId = " + existsProductId);
-				Assert.That(existsOffers.Length, Is.GreaterThan(0), "Все предложения по ProductId {0} должны быть в белом списке и присутствовать в доступных предложениях", existsProductId);
+			var existsOffers = coreTable.Select("ProductId = " + existsProductId);
+			Assert.That(existsOffers.Length, Is.GreaterThan(0), "Все предложения по ProductId {0} должны быть в белом списке и присутствовать в доступных предложениях", existsProductId);
 
-				var nonExistsOffers = coreTable.Select("ProductId = " + nonExistsProductId);
-				Assert.That(nonExistsOffers.Length, Is.GreaterThan(0), "Предложения по ProductId {0} не существуют в белом списке и должны присутствовать в предложениях", nonExistsProductId);
-				Assert.That(nonExistsOffers.All(o => o["BuyingMatrixType"].ToString() == "1"), Is.True, "Предложения по ProductId {0} должны быть недоступны к заказу", nonExistsProductId);
-			}
+			var nonExistsOffers = coreTable.Select("ProductId = " + nonExistsProductId);
+			Assert.That(nonExistsOffers.Length, Is.GreaterThan(0), "Предложения по ProductId {0} не существуют в белом списке и должны присутствовать в предложениях", nonExistsProductId);
+			Assert.That(nonExistsOffers.All(o => o["BuyingMatrixType"].ToString() == "1"), Is.True, "Предложения по ProductId {0} должны быть недоступны к заказу", nonExistsProductId);
 		}
 
 		[Test]
 		public void CheckCoreForBlackOfferMatrix()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				updateData.OfferMatrixPriceId = 4957;
-				updateData.OfferMatrixType = 1;
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.OfferMatrixPriceId = 4957;
+			updateData.OfferMatrixType = 1;
 
-				helper.MaintainReplicationInfo();
+			helper.MaintainReplicationInfo();
 
-				helper.Cleanup();
+			helper.Cleanup();
 
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
 
-				helper.SelectOffers();
+			helper.SelectOffers();
 
-				var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-				Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
-				Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
+			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
-				var productId = MySqlHelper.ExecuteScalar(
-					connection,
-					"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
-					new MySqlParameter("?PriceId", 4957));
+			var productId = MySqlHelper.ExecuteScalar(
+				connection,
+				"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
+				new MySqlParameter("?PriceId", 4957));
 
-				var dataAdapter = new MySqlDataAdapter(coreSql, connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
-				var coreTable = new DataTable();
+			var dataAdapter = new MySqlDataAdapter(coreSql, connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _client.Id);
+			var coreTable = new DataTable();
 
-				dataAdapter.Fill(coreTable);
+			dataAdapter.Fill(coreTable);
 
-				Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+			Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
 
-				var offers = coreTable.Select("ProductId = " + productId);
-				Assert.That(offers.Length, Is.GreaterThan(0), "Предложения по ProductId {0} должны присутствовать в предложениях", productId);
-				Assert.That(offers.All(o => o["BuyingMatrixType"].ToString() == "1"), Is.True, "Предложения по ProductId {0} должны быть в черном списке", productId);
-			}
+			var offers = coreTable.Select("ProductId = " + productId);
+			Assert.That(offers.Length, Is.GreaterThan(0), "Предложения по ProductId {0} должны присутствовать в предложениях", productId);
+			Assert.That(offers.All(o => o["BuyingMatrixType"].ToString() == "1"), Is.True, "Предложения по ProductId {0} должны быть в черном списке", productId);
 		}
 
 		[Test(Description = "Настройка AllowDelayOfPayment должна экспортироваться относительно клиента")]
 		public void GetAllowDelayOfPaymentByClient()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 
-				var dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
-				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
 
-				Assert.That(dataTable.Columns.Contains("AllowDelayOfPayment"), Is.False, "Столбец AllowDelayOfPayment должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("AllowDelayOfPayment"), Is.False, "Столбец AllowDelayOfPayment должен экспортироваться с опеределенной версии");
 
-				updateData.BuildNumber = 1490;
-				dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
+			updateData.BuildNumber = 1490;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
 
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
-				Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
 
-				Assert.That(dataTable.Columns.Contains("AllowDelayOfPayment"), Is.True, "Столбец AllowDelayOfPayment должен экспортироваться с опеределенной версии");
-
-			}
+			Assert.That(dataTable.Columns.Contains("AllowDelayOfPayment"), Is.True, "Столбец AllowDelayOfPayment должен экспортироваться с опеределенной версии");
 		}
 
 		[Test(Description = "проверка экспорта расписаний обновлений")]
 		public void GetSchedulesCommand()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					@"
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"
 insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) values (?ClientId, 1, 14, 3);
 insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) values (?ClientId, 0, 15, 40);
 insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) values (?ClientId, 1, 10, 50);
 ",
-					new MySqlParameter("?clientId", _user.Client.Id));
+				new MySqlParameter("?clientId", _user.Client.Id));
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
-				var dataAdapter = new MySqlDataAdapter(helper.GetSchedulesCommand(), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
+			var dataAdapter = new MySqlDataAdapter(helper.GetSchedulesCommand(), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
 
-				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(false));
+			Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(false));
 
-				var dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(0), "Расписаний быть не должно, т.к. механизм не включен");
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(0), "Расписаний быть не должно, т.к. механизм не включен");
 
 				
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					"update UserSettings.RetClientsSet set AllowAnalitFSchedule = 1 where ClientCode = ?clientId",
-					new MySqlParameter("?clientId", _user.Client.Id));
-				updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				helper = new UpdateHelper(updateData, connection);
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update UserSettings.RetClientsSet set AllowAnalitFSchedule = 1 where ClientCode = ?clientId",
+				new MySqlParameter("?clientId", _user.Client.Id));
+			updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+			helper = new UpdateHelper(updateData, connection);
 
-				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(true));
+			Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(true));
 
-				dataAdapter.SelectCommand.CommandText = helper.GetSchedulesCommand();
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(2), "Расписаний должно быть два");
-			}
+			dataAdapter.SelectCommand.CommandText = helper.GetSchedulesCommand();
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(2), "Расписаний должно быть два");
 		}
 
 		[Test(Description = "проверка функции UserExists")]
@@ -1558,95 +1412,88 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 		[Test(Description = "проверка экспорта розничных наценок")]
 		public void ExportRetailMargins()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					@"
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"
 insert into UserSettings.RetailMargins (ClientId, CatalogId, Markup, MaxMarkup) 
 select 
-	?ClientId, Id, 30, 30
+?ClientId, Id, 30, 30
 from
-	catalogs.Catalog
+catalogs.Catalog
 where
-	hidden = 0
+hidden = 0
 limit 3;
 ",
-					new MySqlParameter("?clientId", _user.Client.Id));
+				new MySqlParameter("?clientId", _user.Client.Id));
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			//Проверяем каталог для предыдущей версии
+			updateData.ParseBuildNumber("1.1.1.1755");
+			Assert.That(updateData.NeedUpdateForRetailMargins(), Is.False);
+			var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
 
-				//Проверяем каталог для предыдущей версии
-				updateData.ParseBuildNumber("1.1.1.1755");
-				Assert.That(updateData.NeedUpdateForRetailMargins(), Is.False);
-				var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(false, false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
-
-				var dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
-				Assert.That(dataTable.Columns.Contains("Markup"), Is.False, "Найден столбец Markup в таблице, хотя его там не должно быть");
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+			Assert.That(dataTable.Columns.Contains("Markup"), Is.False, "Найден столбец Markup в таблице, хотя его там не должно быть");
 
 
-				//Проверяем экспорт каталога при обновлении версий
-				updateData.UpdateExeVersionInfo = new VersionInfo(1791);
-				Assert.That(updateData.NeedUpdateForRetailMargins(), Is.True);
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, false);
+			//Проверяем экспорт каталога при обновлении версий
+			updateData.UpdateExeVersionInfo = new VersionInfo(1791);
+			Assert.That(updateData.NeedUpdateForRetailMargins(), Is.True);
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false);
 
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(3), "Каталог должен быть выгружен весь");
-				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
-				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(3), "Каталог должен быть выгружен весь");
+			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+			Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
 
 
-				//Проверка каталога для версий с розничными наценками
+			//Проверка каталога для версий с розничными наценками
 
-				var updateTime = DateTime.Now;
-				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			var updateTime = DateTime.Now;
+			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
 
-				updateData.ParseBuildNumber("1.1.1.1766");
-				updateData.UpdateExeVersionInfo = null;
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, true);
+			updateData.ParseBuildNumber("1.1.1.1766");
+			updateData.UpdateExeVersionInfo = null;
+			updateData.Cumulative = true;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false);
 
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.GreaterThan(3), "Каталог должен быть выгружен весь");
-				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
-				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.GreaterThan(3), "Каталог должен быть выгружен весь");
+			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+			Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
 				
 
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					@"
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"
 update UserSettings.RetailMargins
 set
-  Markup = 31
+Markup = 31
 where
-  ClientId = ?ClientId
+ClientId = ?ClientId
 limit 1;
 ",
-					new MySqlParameter("?clientId", _user.Client.Id));
+				new MySqlParameter("?clientId", _user.Client.Id));
 
-				updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
-					connection,
-					"select max(UpdateTime) from UserSettings.RetailMargins where ClientId = ?ClientId",
-					new MySqlParameter("?clientId", _user.Client.Id))).AddSeconds(-1);
-				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+				connection,
+				"select max(UpdateTime) from UserSettings.RetailMargins where ClientId = ?ClientId",
+				new MySqlParameter("?clientId", _user.Client.Id))).AddSeconds(-1);
+			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			updateData.Cumulative = false;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false);
 
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false, false);
-
-				dataTable = new DataTable();
-				dataAdapter.Fill(dataTable);
-				Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Запись должна быть одна, т.к. только одну запись мы изменили в таблице розничных наценок");
-				Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
-				Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
-			}
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Запись должна быть одна, т.к. только одну запись мы изменили в таблице розничных наценок");
+			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
+			Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
 		}
 		
 		private void CheckDescriptionIdColumn(MySqlDataAdapter adapter, uint catalogId, uint? descritionId)
@@ -1680,77 +1527,73 @@ limit 1;
 				description.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
+			//Устанавливаем номер версии, если передан параметр
+			if (!string.IsNullOrEmpty(version))
+				updateData.ParseBuildNumber(version);
 
+			//Проверяем обычный запрос данных при неустановленном описании
+			var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(before1150), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", updateTime);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
 
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
-
-				//Устанавливаем номер версии, если передан параметр
-				if (!string.IsNullOrEmpty(version))
-					updateData.ParseBuildNumber(version);
-
-				//Проверяем обычный запрос данных при неустановленном описании
-				var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(before1150, false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", updateTime);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
-
-				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
 				
 
-				//Проверяем кумулятивный запрос данных при неустановленном описании
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, true);
-				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
-				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+			//Проверяем кумулятивный запрос данных при неустановленном описании
+			updateData.Cumulative = true;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150);
+			dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
+			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
 
-				//добавляем описание к каталогу
-				using (new TransactionScope()) {
-					catalogProduct.CatalogName.Description = description;
-					catalogProduct.Save();
-				}
-
-				updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
-					connection,
-					"select UpdateTime from catalogs.CatalogNames where Id = ?Id",
-					new MySqlParameter("?Id", catalogProduct.CatalogName.Id))).AddSeconds(-1);
-				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
-
-				//Проверяем обычный запрос данных при установленном неопубликованном описании
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, false);
-				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 0;
-				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
-
-				//Проверяем кумулятивный запрос данных при установленном неопубликованном описании
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, true);
-				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
-				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
-
-				//публикуем описание
-				using (new TransactionScope()) {
-					description.NeedCorrect = false;
-					description.Save();
-				}
-
-				//updateTime = description.UpdateTime.AddSeconds(-1);
-				updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
-					connection,
-					"select UpdateTime from catalogs.Descriptions where Id = ?Id",
-					new MySqlParameter("?Id", description.Id))).AddSeconds(-1);
-				dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
-
-				//Проверяем обычный запрос данных при установленном опубликованном описании
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, false);
-				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 0;
-				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, description.Id);
-
-				//Проверяем кумулятивный запрос данных при установленном опубликованном описании
-				dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150, true);
-				dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
-				CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, description.Id);
+			//добавляем описание к каталогу
+			using (new TransactionScope()) {
+				catalogProduct.CatalogName.Description = description;
+				catalogProduct.Save();
 			}
+
+			updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+				connection,
+				"select UpdateTime from catalogs.CatalogNames where Id = ?Id",
+				new MySqlParameter("?Id", catalogProduct.CatalogName.Id))).AddSeconds(-1);
+			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+
+			//Проверяем обычный запрос данных при установленном неопубликованном описании
+			updateData.Cumulative = false;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150);
+			dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 0;
+			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+
+			//Проверяем кумулятивный запрос данных при установленном неопубликованном описании
+			updateData.Cumulative = true;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150);
+			dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
+			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
+
+			//публикуем описание
+			using (new TransactionScope()) {
+				description.NeedCorrect = false;
+				description.Save();
+			}
+
+			//updateTime = description.UpdateTime.AddSeconds(-1);
+			updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+				connection,
+				"select UpdateTime from catalogs.Descriptions where Id = ?Id",
+				new MySqlParameter("?Id", description.Id))).AddSeconds(-1);
+			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+
+			//Проверяем обычный запрос данных при установленном опубликованном описании
+			updateData.Cumulative = false;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150);
+			dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 0;
+			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, description.Id);
+
+			//Проверяем кумулятивный запрос данных при установленном опубликованном описании
+			updateData.Cumulative = true;
+			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(before1150);
+			dataAdapter.SelectCommand.Parameters["?Cumulative"].Value = 1;
+			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, description.Id);
 		}
 
 		[Test(Description = "проверка экспорта ссылки на описание для версий раньше 1150")]
@@ -1774,36 +1617,27 @@ limit 1;
 		[Test(Description = "Проверяем установку поля ExcessAvgOrderTimes при экспорте для различных версий")]
 		public void Check_ExcessAvgOrderTimes_for_client_with_version_greater_than_1791()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			updateData.BuildNumber = 1272;
 
-				updateData.BuildNumber = 1272;
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
-				var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
-				dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
+			var clients = new DataTable();
+			dataAdapter.Fill(clients);
 
-				var clients = new DataTable();
-				dataAdapter.Fill(clients);
+			Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.False, "При обновлении старой версии столбец ExcessAvgOrderTimes не должен присутствовать");
 
-				Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.False, "При обновлении старой версии столбец ExcessAvgOrderTimes не должен присутствовать");
+			//установили версию больше, чем 1800
+			updateData.BuildNumber = 1801;
 
-				//установили версию больше, чем 1800
-				updateData.BuildNumber = 1801;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			clients = new DataTable();
+			dataAdapter.Fill(clients);
+			Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.True, "Отсутствует столбец ExcessAvgOrderTimes");
 
-				dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
-				clients = new DataTable();
-				dataAdapter.Fill(clients);
-				Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.True, "Отсутствует столбец ExcessAvgOrderTimes");
-
-				var row = clients.Rows[0];
-				Assert.That(row["ExcessAvgOrderTimes"], Is.EqualTo(5), "Неожидаемое значение по умолчанию для столбца ExcessAvgOrderTimes");
-			}
+			var row = clients.Rows[0];
+			Assert.That(row["ExcessAvgOrderTimes"], Is.EqualTo(5), "Неожидаемое значение по умолчанию для столбца ExcessAvgOrderTimes");
 		}
-
-
 	}
 }

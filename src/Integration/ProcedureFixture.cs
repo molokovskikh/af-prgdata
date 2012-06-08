@@ -537,7 +537,8 @@ show full processlist;
 				var SelProc = new MySqlCommand();
 				SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
+				helper.SetUpdateParameters(SelProc, DateTime.Now);
 
 				helper.Cleanup();
 
