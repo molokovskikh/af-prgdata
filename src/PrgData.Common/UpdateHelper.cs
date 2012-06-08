@@ -2822,13 +2822,15 @@ SELECT DISTINCT
 				regionaldata.FirmCode  ,
 				regionaldata.RegionCode,
 				supportphone           ,
-				ContactInfo            ,
+				concat(if(Suppliers.Address is not null and Length(Suppliers.Address) > 0, concat(Suppliers.Address, '\r\n'), ''), ContactInfo) as ContactInfo,
 				OperativeInfo
 FROM            
 				regionaldata,
-				Prices
+				Prices,
+				customers.Suppliers
 WHERE           regionaldata.firmcode  = Prices.firmcode
-AND             regionaldata.regioncode= Prices.regioncode";
+AND             regionaldata.regioncode= Prices.regioncode
+and				Suppliers.Id = regionaldata.firmcode";
 		}
 
 		public void PrepareProviderContacts(MySqlCommand selectCommand)

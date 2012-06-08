@@ -1805,5 +1805,66 @@ limit 1;
 		}
 
 
+		private void CheckContactInfo(MySqlDataAdapter adapter, string sql, TestSupplier supplier, TestSupplierRegionalData supplierRegionalData, string address, string contactInfo, object expectedValue)
+		{
+			using (new TransactionScope()) {
+				supplierRegionalData.ContactInfo = contactInfo;
+				supplier.Address = address;
+				supplier.SaveAndFlush();
+			}
+
+			adapter.SelectCommand.CommandText = sql;
+			var regionalData = new DataTable();
+			adapter.Fill(regionalData);
+
+			var infos = regionalData.Select("FirmCode = " + supplier.Id + " and RegionCode = " + supplier.HomeRegion.Id);
+			Assert.That(infos.Length, Is.EqualTo(1), "Должна быть одна запись для поставщика {0}", supplier.Id);
+			Assert.That(infos[0]["ContactInfo"], Is.EqualTo(expectedValue), "Неожидаемое значение поля ContactInfo для поставщика {0}", supplier.Id);
+		}
+
+		[Test(Description = "проверяем работу метода GetRegionalDataCommand")]
+		public void CheckGetRegionDataCommand()
+		{
+			var supplier = TestSupplier.Create();
+
+			var regionalData = supplier.RegionalData[0];
+
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				helper.MaintainReplicationInfo();
+
+				var dataAdapter = new MySqlDataAdapter("select now()", connection);
+
+				var command = dataAdapter.SelectCommand;
+
+				helper.SetUpdateParameters(command, false, DateTime.Now.AddHours(-1), DateTime.Now);
+
+				helper.Cleanup();
+
+				helper.SelectPrices();
+				helper.PreparePricesData(command);
+				helper.SelectReplicationInfo();
+				helper.SelectActivePrices();
+
+
+				CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, string.Empty, string.Empty);
+
+				CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, string.Empty, string.Empty);
+
+				CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", string.Empty, "test\r\n");
+
+				CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", "contact test info", "test\r\ncontact test info");
+
+				CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, "contact test info", "contact test info");
+
+				CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, "contact test info", "contact test info");
+			}
+		}
+
 	}
 }
