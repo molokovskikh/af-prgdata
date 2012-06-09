@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 
 namespace PrgData.Common.AnalitFVersions
 {

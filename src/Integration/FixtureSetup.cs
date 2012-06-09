@@ -11,7 +11,7 @@ using Inforoom.Common;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData.Common;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using PrgData.Common.Repositories;
 using SmartOrderFactory;
 using SmartOrderFactory.Domain;
@@ -26,6 +26,7 @@ namespace Integration
 		public void Setup()
 		{
 			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
+			Common.MySql.With.DefaultConnectionStringName = Common.MySql.ConnectionHelper.GetConnectionName();
 
 			PrepareMySqlPaths();
 

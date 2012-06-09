@@ -12,7 +12,7 @@ using Castle.Windsor;
 using Castle.MicroKernel.Registration;
 using Common.Models.Repositories;
 using NHibernate;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using PrgData.Common.Repositories;
 using SmartOrderFactory;
 using SmartOrderFactory.Domain;

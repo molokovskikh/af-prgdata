@@ -140,7 +140,8 @@ namespace PrgData.Common
 		public List<uint> UnconfirmedOrders = new List<uint>();
 
 		public bool AsyncRequest;
-
+		public bool Cumulative;
+		
 		public List<CertificateRequest> CertificateRequests = new List<CertificateRequest>();
 
 		public bool SendWaybills;
@@ -446,36 +447,6 @@ namespace PrgData.Common
 			}
 		}
 
-		public bool AllowInvoiceHeaders()
-		{
-			return BuildNumberGreaterThen(_versionBeforeInvoiceHeaders)
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeInvoiceHeaders);
-		}
-
-		public bool AllowShowSupplierCost()
-		{
-			return BuildNumberGreaterThen(_versionBeforeShowSupplierCost)
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeShowSupplierCost);
-		}
-
-		public bool SupportAnalitFSchedule
-		{
-			get
-			{
-				return BuildNumberGreaterThen(_versionBeforeAnalitFSchedule)
-					   || (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeAnalitFSchedule);
-			}
-		}
-
-		public bool AllowExportSendDate
-		{
-			get
-			{
-				return BuildNumberGreaterThen(_versionBeforeExportSendDate)
-					   || (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExportSendDate);
-			}
-		}
-
 		public void FillDocumentBodyIds(uint[] documentBodyIds)
 		{
 			if (documentBodyIds.Length > 50)
@@ -512,28 +483,52 @@ namespace PrgData.Common
 			return builder.ToString();
 		}
 
-		public bool AllowCertificates()
+		public bool AllowInvoiceHeaders
 		{
-			return BuildNumberGreaterThen(_versionBeforeCertificates)
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeCertificates);
+			get { return CheckVersion(_versionBeforeInvoiceHeaders); }
 		}
 
-		public bool AllowRetailMargins()
+		public bool AllowShowSupplierCost
 		{
-			return BuildNumberGreaterThen(_versionBeforeRetailMargins)
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeRetailMargins);
+			get { return CheckVersion(_versionBeforeShowSupplierCost); }
 		}
 
-		public bool AllowExcessAvgOrderTimes()
+		public bool SupportAnalitFSchedule
 		{
-			return BuildNumberGreaterThen(_versionBeforeExcessAvgOrderTimes)
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeExcessAvgOrderTimes);
+			get { return CheckVersion(_versionBeforeAnalitFSchedule); }
 		}
 
-		public bool AllowHistoryDocs()
+		public bool AllowExportSendDate
 		{
-			return BuildNumberGreaterThen(_versionBeforeHistoryDocs)
-				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeHistoryDocs);
+			get { return CheckVersion(_versionBeforeExportSendDate); }
+		}
+
+		public bool AllowCertificates
+		{
+			get { return CheckVersion(_versionBeforeCertificates); }
+		}
+
+		public bool AllowRetailMargins
+		{
+			get { return CheckVersion(_versionBeforeRetailMargins); }
+		}
+
+		public bool AllowExcessAvgOrderTimes
+		{
+			get { return CheckVersion(_versionBeforeExcessAvgOrderTimes); }
+		}
+
+		public bool AllowHistoryDocs
+		{
+			get { return CheckVersion(_versionBeforeHistoryDocs); }
+		}
+
+		public bool CheckVersion(int requiredVersion)
+		{
+			//requiredVersion = -1 - выдают модели экспорта если у них нет требований к версии
+			return requiredVersion > 0
+				&& BuildNumberGreaterThen(requiredVersion)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > requiredVersion);
 		}
 
 		public bool NeedUpdateForHistoryDocs()

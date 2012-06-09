@@ -26,7 +26,7 @@ using NHibernate;
 using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using PrgData.Common.Repositories;
 using PrgData.FileHandlers;
 using SmartOrderFactory.Domain;
@@ -537,7 +537,8 @@ show full processlist;
 				var SelProc = new MySqlCommand();
 				SelProc.Connection = connection;
 
-				helper.SetUpdateParameters(SelProc, false, DateTime.Now.AddHours(-1), DateTime.Now);
+				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
+				helper.SetUpdateParameters(SelProc, DateTime.Now);
 
 				helper.Cleanup();
 

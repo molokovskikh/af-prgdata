@@ -9,7 +9,7 @@ using System.Web;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using Common.MySql;
-using PrgData.Common.Model;
+using PrgData.Common.Models;
 using log4net;
 using PrgData.Common.Orders;
 using PrgData.Common.SevenZip;
@@ -19,8 +19,6 @@ using Common.Tools;
 
 namespace PrgData.Common
 {
-
-
 	public class Reclame
 	{
 		public string Region { get; set; }
@@ -726,7 +724,7 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
   ,
   DocumentBodies.Amount,
   DocumentBodies.NdsAmount",
-				!_updateData.AllowInvoiceHeaders()
+				!_updateData.AllowInvoiceHeaders
 					? String.Empty
 					: @"
   ,
@@ -734,7 +732,7 @@ and DocumentBodies.DocumentId = DocumentHeaders.Id
   DocumentBodies.ExciseTax,
   DocumentBodies.BillOfEntryNumber,
   DocumentBodies.EAN13",
-				!_updateData.AllowCertificates()
+				!_updateData.AllowCertificates
 					? String.Empty
 					: @"
   ,
@@ -881,7 +879,7 @@ limit 1";
 				clientShortNameField,
 				networkSelfAddressIdColumn,
 				networkSelfAddressIdJoin,
-				_updateData.AllowExcessAvgOrderTimes() ? " , rcs.ExcessAvgOrderTimes " : "");
+				_updateData.AllowExcessAvgOrderTimes ? " , rcs.ExcessAvgOrderTimes " : "");
 			}
 			return String.Format(@"
 	SELECT a.Id as FirmCode,
@@ -931,8 +929,8 @@ join farm.regions on regions.RegionCode = c.RegionCode
 join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
 WHERE u.Id = ?UserId
 ",
-				_updateData.AllowShowSupplierCost() ? ", rcs.AllowDelayOfPayment " : String.Empty,
-				_updateData.AllowCertificates() ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty);
+				_updateData.AllowShowSupplierCost ? ", rcs.AllowDelayOfPayment " : String.Empty,
+				_updateData.AllowCertificates ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty);
 		}
 
 		public string GetDelayOfPaymentsCommand()
@@ -989,7 +987,7 @@ where
 			}
 		}
 
-		public string GetMNNCommand(bool before1150, bool Cumulative, bool after1263)
+		public string GetMNNCommand(bool before1150, bool after1263)
 		{
 			if (before1150)
 			{
@@ -1006,7 +1004,7 @@ where
 			else
 				if (after1263)
 				{
-					if (Cumulative)
+					if (_updateData.Cumulative)
 						return @"
 select
   Mnn.Id,
@@ -1038,7 +1036,7 @@ and (MnnLogs.Operation = 2)
 				}
 				else
 				{
-					if (Cumulative)
+					if (_updateData.Cumulative)
 						return @"
 select
   Mnn.Id,
@@ -1073,7 +1071,7 @@ and (MnnLogs.Operation = 2)
 				}
 		}
 
-		public string GetDescriptionCommand(bool before1150, bool Cumulative)
+		public string GetDescriptionCommand(bool before1150)
 		{
 			if (before1150)
 			{
@@ -1100,7 +1098,7 @@ where
 and Descriptions.NeedCorrect = 0";
 			}
 			else
-				if (Cumulative)
+				if (_updateData.Cumulative)
 				return @"
 select
   Descriptions.Id,
@@ -1322,7 +1320,7 @@ where
 			return list;
 		}
 
-		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
+		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
 		{
 			var log = LogManager.GetLogger(typeof(UpdateHelper));
 
@@ -1332,11 +1330,11 @@ where
 
 				var command = new MySqlCommand();
 				command.Connection = connection;
-				SetUpdateParameters(command, cumulative, oldUpdateTime, currentUpdateTime);
+				SetUpdateParameters(command, currentUpdateTime);
 
 				ExportSupplierPromotions(archiveFileName, command, filesForArchive);
 
-				ArchivePromoFiles(archiveFileName, command);
+				ArchivePromoFiles(archiveFileName);
 			}
 			catch (Exception exception)
 			{
@@ -1347,7 +1345,7 @@ where
 			}
 		}
 
-		private void ArchivePromoFiles(string archiveFileName, MySqlCommand command)
+		private void ArchivePromoFiles(string archiveFileName)
 		{
 			var promotionsFolder = "Promotions";
 			var promotionsPath = Path.Combine(_updateData.ResultPath, promotionsFolder);
@@ -1373,8 +1371,6 @@ where
 
 		public void ArchiveCertificates(MySqlConnection connection,
 			string archiveFileName,
-			bool cumulative,
-			DateTime oldUpdateTime,
 			DateTime currentUpdateTime,
 			ref string addition,
 			ref string updateLog,
@@ -1389,7 +1385,7 @@ where
 
 				var command = new MySqlCommand();
 				command.Connection = connection;
-				SetUpdateParameters(command, cumulative, oldUpdateTime, currentUpdateTime);
+				SetUpdateParameters(command, currentUpdateTime);
 
 				ExportCertificates(archiveFileName, command, filesForArchive);
 
@@ -1795,7 +1791,7 @@ where db.Id in ({0})
 			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + catalogFile);
 		}
 
-		public string GetCatalogCommand(bool before1150, bool Cumulative)
+		public string GetCatalogCommand(bool before1150)
 		{
 			if (before1150)
 			{
@@ -1829,8 +1825,8 @@ AND
 	)
 AND C.hidden = 0";
 			}
-			else if (_updateData.AllowRetailMargins()) {
-				if (Cumulative) {
+			else if (_updateData.AllowRetailMargins) {
+				if (_updateData.Cumulative) {
 					return @"
 SELECT 
 	C.Id               ,
@@ -1899,7 +1895,7 @@ AND
 						_updateData.NeedUpdateForRetailMargins() ? "1" : "rm.UpdateTime > ?UpdateTime");
 				}
 			}
-			else if (Cumulative)
+			else if (_updateData.Cumulative)
 				return @"
 SELECT 
 	C.Id               ,
@@ -2255,7 +2251,7 @@ Core.NDS " : "",
 				);
 		}
 
-		public string GetSynonymFirmCrCommand(bool Cumulative)
+		public string GetSynonymFirmCrCommand(bool cumulative)
 		{ 
 			var sql = String.Empty;
 
@@ -2269,7 +2265,7 @@ from
 	catalogs.Producers
 where
 	(Producers.Id > 1)";
-				if (!Cumulative)
+				if (!cumulative)
 					sql += " and Producers.UpdateTime > ?UpdateTime ";
 			}
 			else
@@ -2280,7 +2276,7 @@ SELECT synonymfirmcr.synonymfirmcrcode,
 FROM   farm.synonymfirmcr,
 	   ParentCodes
 WHERE  synonymfirmcr.pricecode = ParentCodes.PriceCode";
-				if (!Cumulative)
+				if (!cumulative)
 					sql += " AND synonymfirmcr.synonymfirmcrcode > MaxSynonymFirmCrCode ";
 			}
 
@@ -2711,12 +2707,12 @@ WHERE
 			});
 		}
 
-		public void SetUpdateParameters(MySqlCommand selectComand, bool cumulative, DateTime oldUpdateTime, DateTime currentUpdateTime)
+		public void SetUpdateParameters(MySqlCommand selectComand, DateTime currentUpdateTime)
 		{
 			selectComand.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);
 			selectComand.Parameters.AddWithValue("?UserId", _updateData.UserId);
-			selectComand.Parameters.AddWithValue("?Cumulative", cumulative);
-			selectComand.Parameters.AddWithValue("?UpdateTime", oldUpdateTime);
+			selectComand.Parameters.AddWithValue("?Cumulative", _updateData.Cumulative);
+			selectComand.Parameters.AddWithValue("?UpdateTime", _updateData.OldUpdateTime);
 			selectComand.Parameters.AddWithValue("?LastUpdateTime", currentUpdateTime);
 			selectComand.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 			selectComand.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
@@ -2763,30 +2759,6 @@ GROUP BY ProductId;
 						
 SET @RowId :=1;";
 			selectCommand.ExecuteNonQuery();
-		}
-
-		public string GetRejectsCommand(bool Cumulative)
-		{
-			var sql = @"
-SELECT 
-	   rejects.RowId         ,
-	   rejects.FullName      ,
-	   rejects.FirmCr        ,
-	   rejects.CountryCr     ,
-	   rejects.Series        ,
-	   rejects.LetterNo      ,
-	   rejects.LetterDate    ,
-	   rejects.LaboratoryName,
-	   rejects.CauseRejects
-FROM   addition.rejects,
-	   retclientsset rcs
-WHERE  rcs.clientcode = ?ClientCode
-AND    alowrejection  = 1 ";
-
-			if (!Cumulative)
-				sql += "   AND accessTime > ?UpdateTime";
-
-			return sql;
 		}
 
 		public string GetPricesRegionalDataCommand()
@@ -2981,7 +2953,7 @@ AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
 GROUP BY Prices.FirmCode,
 		 Prices.pricecode",
-						  _updateData.AllowHistoryDocs() ? " Prices.pricename " : " concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), '')) ");
+						  _updateData.AllowHistoryDocs ? " Prices.pricename " : " concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), '')) ");
 		}
 
 		public void PreparePricesData(MySqlCommand selectCommand)
