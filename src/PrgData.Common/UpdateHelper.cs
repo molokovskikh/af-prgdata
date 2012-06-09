@@ -2840,13 +2840,15 @@ SELECT DISTINCT
 				regionaldata.FirmCode  ,
 				regionaldata.RegionCode,
 				supportphone           ,
-				ContactInfo            ,
+				concat(if(Suppliers.Address is not null and Length(Suppliers.Address) > 0, concat(Suppliers.Address, '\r\n'), ''), ContactInfo) as ContactInfo,
 				OperativeInfo
 FROM            
 				regionaldata,
-				Prices
+				Prices,
+				customers.Suppliers
 WHERE           regionaldata.firmcode  = Prices.firmcode
-AND             regionaldata.regioncode= Prices.regioncode";
+AND             regionaldata.regioncode= Prices.regioncode
+and				Suppliers.Id = regionaldata.firmcode";
 		}
 
 		public void PrepareProviderContacts(MySqlCommand selectCommand)
@@ -2909,7 +2911,9 @@ SELECT
 		 firm.FullName                                                             ,
 		 '' as Fax                                                                 ,
 		 null as ContactText                                                       ,
-		 firm.Name
+		 firm.Name,
+		0 as CertificateSourceExists,
+		0 as SupplierCategory
 FROM     
 		 usersettings.PricesData pd
 		 inner join Customers.Suppliers AS firm on firm.Id = pd.FirmCode
@@ -2923,8 +2927,10 @@ SELECT
 		 '' as Fax                                                                 ,
 		 LEFT(ifnull(group_concat(DISTINCT ProviderContacts.ContactText), ''), 255),
 		 firm.Name,
-		if(ss.CertificateSourceId is not null, 1, 0) as CertificateSourceExists
+		if(ss.CertificateSourceId is not null, 1, 0) as CertificateSourceExists,
+		si.SupplierCategory
 FROM     Customers.Suppliers AS firm
+		inner join usersettings.SupplierIntersection si on si.SupplierId = firm.Id and si.ClientId = ?ClientCode
 		 LEFT JOIN ProviderContacts
 		 ON       ProviderContacts.FirmCode = firm.Id
 		left join Documents.SourceSuppliers ss on ss.SupplierId = firm.Id		
@@ -2953,11 +2959,11 @@ WHERE
    pd.PriceCode = ?ImpersonalPriceId
 ";
 			else 
-				return @"
+				return String.Format(@"
 SELECT   
 		 Prices.FirmCode ,
 		 Prices.pricecode,
-		 concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), ''))    as PriceName,
+		 {0}    as PriceName,
 		 ''                                                                                                  as PRICEINFO,
 		 date_sub(Prices.PriceDate, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second) as DATEPRICE,
 		 max(ifnull(ActivePrices.Fresh, ARI.ForceReplication > 0) OR (Prices.actual = 0) OR ?Cumulative)                                            as Fresh
@@ -2974,7 +2980,8 @@ AND      firm.Id   = Prices.FirmCode
 AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
 GROUP BY Prices.FirmCode,
-		 Prices.pricecode";
+		 Prices.pricecode",
+						  _updateData.AllowHistoryDocs() ? " Prices.pricename " : " concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), '')) ");
 		}
 
 		public void PreparePricesData(MySqlCommand selectCommand)

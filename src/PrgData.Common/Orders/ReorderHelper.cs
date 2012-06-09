@@ -525,9 +525,9 @@ values
 			foreach(var order in _orders)
 			{
 				if (String.IsNullOrEmpty(result))
-					result += order.GetResultToClient(_data.BuildNumber);
+					result += order.GetResultToClient(_data);
 				else
-					result += ";" + order.GetResultToClient(_data.BuildNumber);
+					result += ";" + order.GetResultToClient(_data);
 			}
 
 			return result;

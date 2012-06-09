@@ -3368,13 +3368,14 @@ RestartTrans2:
 				"                regionaldata.RegionCode, " & _
 				"                supportphone           , " & _
 				"                LEFT(adminmail, 50)    , " & _
-				"                ContactInfo            , " & _
+				"                concat(if(Suppliers.Address is not null and Length(Suppliers.Address) > 0, concat(Suppliers.Address, '\r\n'), ''), ContactInfo) as ContactInfo            , " & _
 				"                OperativeInfo " & _
 				"FROM            regionaldata, " & _
-				"                Prices " & _
+				"                Prices, " & _
+				"                customers.Suppliers " & _
 				"WHERE           regionaldata.firmcode  = Prices.firmcode " & _
-				"            AND regionaldata.regioncode= Prices.regioncode")
-
+				"            AND regionaldata.regioncode= Prices.regioncode" & _
+				"            AND Suppliers.Id = regionaldata.firmcode")
 
 				GetMySQLFile("PricesRegionalData", SelProc, _
 	 "SELECT PriceCode           , " & _
