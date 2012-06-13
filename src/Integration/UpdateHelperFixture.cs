@@ -1692,5 +1692,33 @@ limit 1;
 
 			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, "contact test info", "contact test info");
 		}
+
+		[Test(Description = "проверка выгрузки контактной региональной информации относительно клиента")]
+		public void GetRegionTechContactOnClient()
+		{
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
+
+			var dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+
+			Assert.That(dataTable.Columns.Contains("HomeRegion"), Is.False, "Столбец HomeRegion должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("TechContact"), Is.False, "Столбец TechContact должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("OperatingMode"), Is.False, "Столбец OperatingMode должен экспортироваться с опеределенной версии");
+
+			updateData.BuildNumber = 1840;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
+
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+
+			Assert.That(dataTable.Columns.Contains("HomeRegion"), Is.True, "Столбец HomeRegion должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("TechContact"), Is.True, "Столбец TechContact должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("OperatingMode"), Is.True, "Столбец OperatingMode должен экспортироваться с опеределенной версии");
+		}
 	}
 }

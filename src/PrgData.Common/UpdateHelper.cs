@@ -923,6 +923,7 @@ SELECT
 	rcs.EnableImpersonalPrice
 {0}
 {1}
+{2}
 FROM Customers.Users u
 join Customers.Clients c on u.ClientId = c.Id
 join farm.regions on regions.RegionCode = c.RegionCode
@@ -930,7 +931,8 @@ join usersettings.RetClientsSet rcs on rcs.ClientCode = c.Id
 WHERE u.Id = ?UserId
 ",
 				_updateData.AllowShowSupplierCost ? ", rcs.AllowDelayOfPayment " : String.Empty,
-				_updateData.AllowCertificates ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty);
+				_updateData.AllowCertificates ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty,
+				_updateData.AllowMatchWaybillsToOrders() ? ", c.RegionCode as HomeRegion, regions.TechContact, regions.OperatingMode " : String.Empty);
 		}
 
 		public string GetDelayOfPaymentsCommand()

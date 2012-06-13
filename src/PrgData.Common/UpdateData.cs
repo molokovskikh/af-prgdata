@@ -63,8 +63,8 @@ namespace PrgData.Common
 		private static int _versionBeforeExcessAvgOrderTimes = 1800;
 		//версия AnalitF до поддержки принудительной загрузки истории документов (от 1809)
 		private static int _versionBeforeHistoryDocs = 1820;
-		//версия AnalitF до поддержки сопоставления накладных заказам (от 1827)
-		private static int _versionBeforeMatchWaybillsToOrders = 1827;
+		//версия AnalitF до поддержки сопоставления накладных заказам (от 1833)
+		private static int _versionBeforeMatchWaybillsToOrders = 1833;
 
 		public string ShortName;
 		public uint ClientId;
