@@ -526,8 +526,8 @@ namespace PrgData.Common
 		public bool CheckVersion(int requiredVersion)
 		{
 			//requiredVersion = -1 - выдают модели экспорта если у них нет требований к версии
-			return requiredVersion > 0
-				&& BuildNumberGreaterThen(requiredVersion)
+			return requiredVersion < 0
+				|| BuildNumberGreaterThen(requiredVersion)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > requiredVersion);
 		}
 

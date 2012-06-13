@@ -40,6 +40,7 @@ namespace Integration.BaseTests
 		{
 			With.Connection(c => {
 				var export = (BaseExport)Activator.CreateInstance(typeof(T), updateData, c, files);
+				Assert.IsTrue(updateData.CheckVersion(export.RequiredVersion), "ћодель {0} не удовлетвор€ет требуемой версии {1}", typeof(T), export.RequiredVersion);
 				export.Export();
 				export.ArchiveFiles(Path.GetFullPath(archivefile));
 			});

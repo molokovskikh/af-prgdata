@@ -36,5 +36,14 @@ namespace Integration.Models
 
 			ReadExportContent("Rejects");
 		}
+
+		[Test(Description = "проверяем экспорт забраковки при установке только BuildNumber (нет файлов для автообновления)")]
+		public void ExportRejectsWithoutUpdateExe()
+		{
+			updateData.BuildNumber = 1900;
+			Export<RejectExport>();
+
+			ReadExportContent("Rejects");
+		}
 	}
 }

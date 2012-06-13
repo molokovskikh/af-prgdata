@@ -18,7 +18,7 @@ namespace PrgData.Common.Models
 		public override void Export()
 		{
 			string sql;
-			if (updateData.CheckVersion(1900))
+			if (updateData.CheckVersion(1840))
 				sql = GetNewExportSql();
 			else
 				sql = GetOldExportSql();
