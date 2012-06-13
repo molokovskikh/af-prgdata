@@ -92,7 +92,7 @@ namespace PrgData.Common.Orders
 						});
 				});
 
-#if DEBUG
+#if !DEBUG
 			if ((_data.ClientId == 1349) || (_data.ClientId == 10005))
 				global::Common.MySql.With.DeadlockWraper(
 					() =>
