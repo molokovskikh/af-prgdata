@@ -932,7 +932,7 @@ WHERE u.Id = ?UserId
 ",
 				_updateData.AllowShowSupplierCost ? ", rcs.AllowDelayOfPayment " : String.Empty,
 				_updateData.AllowCertificates ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty,
-				_updateData.AllowMatchWaybillsToOrders() ? ", c.RegionCode as HomeRegion, regions.TechContact, regions.OperatingMode " : String.Empty);
+				_updateData.AllowMatchWaybillsToOrders() ? ", c.RegionCode as HomeRegion, regions.TechContact, regions.TechOperatingMode " : String.Empty);
 		}
 
 		public string GetDelayOfPaymentsCommand()

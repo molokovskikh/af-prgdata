@@ -1706,7 +1706,7 @@ limit 1;
 
 			Assert.That(dataTable.Columns.Contains("HomeRegion"), Is.False, "Столбец HomeRegion должен экспортироваться с опеределенной версии");
 			Assert.That(dataTable.Columns.Contains("TechContact"), Is.False, "Столбец TechContact должен экспортироваться с опеределенной версии");
-			Assert.That(dataTable.Columns.Contains("OperatingMode"), Is.False, "Столбец OperatingMode должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("TechOperatingMode"), Is.False, "Столбец TechOperatingMode должен экспортироваться с опеределенной версии");
 
 			updateData.BuildNumber = 1840;
 			dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
@@ -1718,7 +1718,7 @@ limit 1;
 
 			Assert.That(dataTable.Columns.Contains("HomeRegion"), Is.True, "Столбец HomeRegion должен экспортироваться с опеределенной версии");
 			Assert.That(dataTable.Columns.Contains("TechContact"), Is.True, "Столбец TechContact должен экспортироваться с опеределенной версии");
-			Assert.That(dataTable.Columns.Contains("OperatingMode"), Is.True, "Столбец OperatingMode должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("TechOperatingMode"), Is.True, "Столбец TechOperatingMode должен экспортироваться с опеределенной версии");
 		}
 	}
 }
