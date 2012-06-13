@@ -25,7 +25,7 @@ select Id, PublicationDate, Header
 from Usersettings.News
 where PublicationDate >= curdate()
 and Deleted = 0
-order by PublicationDate
+order by PublicationDate desc
 limit 30";
 			Process("News", sql);
 		}
@@ -33,6 +33,14 @@ limit 30";
 		public override void ArchiveFiles(string archiveFile)
 		{
 			var sufix = "News";
+			var template = "<html>"
+				+ "<head>"
+				+ "<meta charset=\"utf-8\">"
+				+ "</head>"
+				+ "<body>"
+				+ "{0}"
+				+ "<body>"
+				+ "</html>";
 
 			var tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 			var newsPath = Path.Combine(tempPath, sufix);
@@ -46,14 +54,14 @@ limit 30";
 				var sql = @"select Id, Body
 from Usersettings.News
 where PublicationDate >= curdate() and Deleted = 0
-order by PublicationDate
+order by PublicationDate desc
 limit 30";
 				var news = Db.Read(sql,
 					r => Tuple.Create(r.GetUInt32("Id"), r["Body"].ToString()));
 
 				foreach (var tuple in news) {
 					var file = Path.Combine(newsPath, tuple.Item1 + ".html");
-					File.WriteAllText(file, tuple.Item2);
+					File.WriteAllText(file, String.Format(template, tuple.Item2));
 				}
 
 				SevenZipHelper.ArchiveFilesWithNames(
