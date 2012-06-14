@@ -15,7 +15,7 @@ namespace PrgData.Common.Models
 
 		public override int RequiredVersion
 		{
-			get { return 1827; }
+			get { return 1833; }
 		}
 
 		public override void Export()
@@ -23,7 +23,7 @@ namespace PrgData.Common.Models
 			var sql = @"
 select Id, PublicationDate, Header
 from Usersettings.News
-where PublicationDate >= curdate()
+where PublicationDate < curdate() + interval 1 day
 and Deleted = 0
 order by PublicationDate desc
 limit 30";
@@ -53,7 +53,7 @@ limit 30";
 
 				var sql = @"select Id, Body
 from Usersettings.News
-where PublicationDate >= curdate() and Deleted = 0
+where PublicationDate < curdate() + interval 1 day and Deleted = 0
 order by PublicationDate desc
 limit 30";
 				var news = Db.Read(sql,

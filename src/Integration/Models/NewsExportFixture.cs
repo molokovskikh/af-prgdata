@@ -22,7 +22,9 @@ namespace Integration.Models
 		{
 			With.Connection(c => {
 				new MySqlCommand("delete from Usersettings.News", c).ExecuteNonQuery();
-				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate(), 'Тестовая Новость', '<p>Тестовая Новость</p>')", c).ExecuteNonQuery();
+				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate(), 'Тестовая Новость Текущая', '<p>Тестовая Новость Текущая</p>')", c).ExecuteNonQuery();
+				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate() + interval 1 day, 'Тестовая Новость Завтрашняя', '<p>Тестовая Новость Завтрашняя</p>')", c).ExecuteNonQuery();
+				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate() - interval 1 day, 'Тестовая Новость Вчерашняя', '<p>Тестовая Новость Вчерашняя</p>')", c).ExecuteNonQuery();
 			});
 			Export<NewsExport>();
 
@@ -31,7 +33,8 @@ namespace Integration.Models
 				Path.GetFullPath(archivefile));
 
 			var content = ReadExportContent("News");
-			Assert.That(content, Is.StringContaining("Тестовая Новость"));
+			Assert.That(content, Is.StringContaining("Тестовая Новость Текущая"));
+			Assert.That(content, Is.StringContaining("Тестовая Новость Вчерашняя"));
 			Assert.That(files.Count, Is.EqualTo(1));
 		}
 	}
