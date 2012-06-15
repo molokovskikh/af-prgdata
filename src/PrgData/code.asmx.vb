@@ -63,7 +63,7 @@ Public Class PrgDataEx
     '—трока с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
     Private AbsentPriceCodes As String
     Private MessageH As String
-    Private ErrorFlag, Documents As Boolean
+    Private ErrorFlag, Documents, RequestAttachments As Boolean
     Private Addition, ClientLog As String
     Private Reclame As Boolean
     Private GetHistory As Boolean
@@ -363,7 +363,8 @@ Public Class PrgDataEx
           Nothing, _
           False, _
           Nothing, _
-          Nothing)
+          Nothing, _
+          False)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrders( _
@@ -396,7 +397,8 @@ Public Class PrgDataEx
           MaxOrderListId, _
           False, _
           Nothing, _
-          Nothing)
+          Nothing, _
+          False)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrdersAsync( _
@@ -429,7 +431,8 @@ Public Class PrgDataEx
           MaxOrderListId, _
           True AndAlso Not WayBillsOnly, _
           Nothing, _
-          Nothing)
+          Nothing, _
+          False)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrdersAsyncCert( _
@@ -463,7 +466,8 @@ Public Class PrgDataEx
           MaxOrderListId, _
           True AndAlso Not WayBillsOnly, _
           DocumentBodyIds, _
-          Nothing)
+          Nothing, _
+          False)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithAttachments( _
@@ -498,7 +502,8 @@ Public Class PrgDataEx
           MaxOrderListId, _
           False, _
           DocumentBodyIds, _
-          AttachmentIds)
+          AttachmentIds, _
+          False)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithAttachmentsAsync( _
@@ -533,8 +538,46 @@ Public Class PrgDataEx
           MaxOrderListId, _
           True, _
           DocumentBodyIds, _
-          AttachmentIds)
+          AttachmentIds, _
+          False)
     End Function
+
+    <WebMethod()> Public Function GetUserDataWithRequestAttachments( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32(), _
+ ByVal DocumentBodyIds As UInt32(), _
+ ByVal AttachmentIds As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          False, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId, _
+          False, _
+          DocumentBodyIds, _
+          AttachmentIds, _
+          True)
+    End Function
+
 
     Private Function InternalGetUserData( _
      ByVal AccessTime As Date, _
@@ -552,7 +595,8 @@ Public Class PrgDataEx
      ByVal MaxOrderListId As UInt32,
      ByVal Async As Boolean, _
      ByVal DocumentBodyIds As UInt32(), _
-	ByVal AttachmentIds As UInt32()) As String
+	 ByVal AttachmentIds As UInt32(), _
+	 ByVal RequestAttachments As Boolean) As String
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
@@ -572,6 +616,7 @@ Public Class PrgDataEx
 
             '“олько накладные
 			Documents = WayBillsOnly
+			Me.RequestAttachments = RequestAttachments
 
 			'ѕолучаем код и параметры клиента клиента
             If (Not ProcessBatch) Then
@@ -596,7 +641,7 @@ Public Class PrgDataEx
 			Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
 
 			'≈сли с момента последнего обновлени€ менее установленного времени
-			If Not Documents Then
+			If Not Documents AndAlso Not Me.RequestAttachments Then
 
 				'≈сли несовпадает врем€ последнего обновлени€ на клиете и сервере
 				If Not UpdateData.Cumulative AndAlso (UpdateData.OldUpdateTime <> AccessTime.ToLocalTime) Then
@@ -717,7 +762,7 @@ Public Class PrgDataEx
 				End If
 			End If
 
-			If Documents Then
+			If Documents Or Me.RequestAttachments Then
 
 				'Ќачинаем архивирование
 				ThreadZipStream.Start()
@@ -2762,7 +2807,7 @@ StartZipping:
 					AddFileToQueue(helper.BatchReportServiceFieldsFileName)
 				End If
 
-				ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing)
+				ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing, False)
 
 				currentUpdateId = GUpdateId
 

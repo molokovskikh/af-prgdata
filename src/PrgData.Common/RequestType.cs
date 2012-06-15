@@ -26,5 +26,6 @@ namespace PrgData.Common
 		GetCumulativeAsync = 17, //Асинхронный запрос для кумулятивного обновления данных
 		GetLimitedCumulative = 18,  //Частичное кумулятивное обновление
 		GetLimitedCumulativeAsync = 19,  //Асинхронный запрос для частичного кумулятивного обновление
+		RequestAttachments = 20, //Запрос вложений мини-почты
 	}
 }

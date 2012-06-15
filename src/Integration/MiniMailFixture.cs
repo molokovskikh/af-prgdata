@@ -391,5 +391,66 @@ namespace Integration
 			});
 		}
 
+		[Test(Description = "проверка запроса только вложений минипочты")]
+		public void RequestAttachmentsOnly()
+		{
+			var log = CreateTestMail();
+			Assert.That(log.Committed, Is.False);
+			Assert.That(log.UpdateLogEntry, Is.Null);
+
+			TestAttachmentSendLog attachmentSendLog;
+			using (new SessionScope()) {
+				attachmentSendLog =
+					TestAttachmentSendLog.Queryable.FirstOrDefault(
+						l => l.Attachment.Id == log.Mail.Attachments[0].Id && l.User.Id == _user.Id);
+			}
+			Assert.That(attachmentSendLog.Committed, Is.False);
+			Assert.That(attachmentSendLog.UpdateLogEntry, Is.Null);
+
+			ProcessWithLog(() => {
+
+				var response = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
+
+				var simpleUpdateId = ShouldBeSuccessfull(response);
+
+				WaitAsyncResponse(simpleUpdateId);
+
+				using (new SessionScope()) {
+					log.Refresh();
+					Assert.That(log.Committed, Is.False);
+					Assert.That(log.UpdateLogEntry, Is.Not.Null);
+					Assert.That(log.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
+
+					attachmentSendLog.Refresh();
+					Assert.That(attachmentSendLog.Committed, Is.False);
+					Assert.That(attachmentSendLog.UpdateLogEntry, Is.Not.Null);
+					Assert.That(attachmentSendLog.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
+				}
+
+				var archiveName = CheckArchive(_user, simpleUpdateId);
+
+				var extractFolder = ExtractArchive(archiveName);
+
+				var attachmentFileName = 
+					Path.Combine("Docs",
+						attachmentSendLog.Attachment.Id + attachmentSendLog.Attachment.Extension);
+				Assert.That(File.Exists(Path.Combine(extractFolder, attachmentFileName)), Is.True);
+
+				CommitExchange(simpleUpdateId, RequestType.GetCumulative);
+
+				using (new SessionScope()) {
+					log.Refresh();
+					Assert.That(log.Committed, Is.True);
+					Assert.That(log.UpdateLogEntry, Is.Not.Null);
+					Assert.That(log.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
+
+					attachmentSendLog.Refresh();
+					Assert.That(attachmentSendLog.Committed, Is.True);
+					Assert.That(attachmentSendLog.UpdateLogEntry, Is.Not.Null);
+					Assert.That(attachmentSendLog.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
+				}
+			});
+		}
+
 	}
 }
