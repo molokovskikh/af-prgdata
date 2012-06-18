@@ -103,7 +103,7 @@ namespace Integration
 
 				helper.FillExportMails(selectComand);
 				Assert.That(updateData.ExportMails.Count, Is.EqualTo(1));
-				Assert.That(updateData.ExportMails[0], Is.EqualTo(log.Mail.Id));
+				Assert.That(updateData.ExportMails[0].MiniMailId, Is.EqualTo(log.Mail.Id));
 
 				var dataAdapter = new MySqlDataAdapter(selectComand);
 
@@ -450,6 +450,64 @@ namespace Integration
 					Assert.That(attachmentSendLog.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
 				}
 			});
+		}
+
+		[Test(Description = "проверяем список запросов вложений на простом поставщике")]
+		public void CheckAttachmentRequestsOnSimpleSupplier()
+		{
+			var log = CreateTestMail();
+			
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var selectComand = new MySqlCommand();
+				selectComand.Connection = connection;
+				updateData.Cumulative = true;
+				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
+				helper.SetUpdateParameters(selectComand, DateTime.Now);
+
+				helper.FillExportMails(selectComand);
+
+				Assert.That(updateData.ExportMails.Count, Is.EqualTo(1));
+				Assert.That(updateData.ExportMails[0].MiniMailId, Is.EqualTo(log.Mail.Id));
+				Assert.That(updateData.AttachmentRequests.Count, Is.EqualTo(0), "Список запрашиваемых вложений должен быть пуст");
+			}
+		}
+
+		[Test(Description = "проверяем список запросов вложений на VIP-поставщике")]
+		public void CheckAttachmentRequestsOnVIPSupplier()
+		{
+			var log = CreateTestMail();
+			using (new TransactionScope()) {
+				log.Mail.SupplierEmail = "test" + log.Mail.Supplier.Id + "@analit.net";
+				log.Mail.Save();
+				var payer = TestPayer.Find(921u);
+				log.Mail.Supplier.Payer = payer;
+				log.Mail.Supplier.Save();
+			}
+			
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+
+				var selectComand = new MySqlCommand();
+				selectComand.Connection = connection;
+				updateData.Cumulative = true;
+				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
+				helper.SetUpdateParameters(selectComand, DateTime.Now);
+
+				helper.FillExportMails(selectComand);
+
+				Assert.That(updateData.ExportMails.Count, Is.EqualTo(1));
+				Assert.That(updateData.ExportMails[0].MiniMailId, Is.EqualTo(log.Mail.Id));
+				Assert.That(updateData.AttachmentRequests.Count, Is.EqualTo(1), "В списоке запрашиваемых вложений должно быть одно вложение");
+				Assert.That(updateData.AttachmentRequests[0].AttachmentId, Is.EqualTo(log.Mail.Attachments[0].Id));
+			}
 		}
 
 	}

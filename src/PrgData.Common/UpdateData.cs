@@ -37,6 +37,12 @@ namespace PrgData.Common
 		public bool Success;
 	}
 
+	public class ExportedMiniMail
+	{
+		public uint MiniMailId;
+		public bool ForceExportAttachments;
+	}
+
 	public class UpdateData
 	{
 		private static int _versionBeforeConfirmUserMessage = 1299;
@@ -150,7 +156,7 @@ namespace PrgData.Common
 		public uint LastLockId;
 
 		public List<AttachmentRequest> AttachmentRequests = new List<AttachmentRequest>();
-		public List<uint> ExportMails = new List<uint>();
+		public List<ExportedMiniMail> ExportMails = new List<ExportedMiniMail>();
 
 		public UpdateData(DataSet data)
 		{
@@ -565,12 +571,6 @@ namespace PrgData.Common
 
 		public void FillAttachmentIds(uint[] attachmentIds)
 		{
-			//if (attachmentIds.Length > 50)
-			//    throw new UpdateException(
-			//        "Количество запрашиваемых сертификатов превышает 50 штук.",
-			//        "Пожалуйста, измените список запрашиваемых сертификатов.", 
-			//        "Количество запрашиваемых сертификатов превышает 50 штук; ", RequestType.Forbidden);
-
 			foreach (var attachmentId in attachmentIds) {
 				var request = new AttachmentRequest {
 					AttachmentId = attachmentId

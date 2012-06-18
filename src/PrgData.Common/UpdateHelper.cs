@@ -3365,10 +3365,12 @@ and AttachmentSendLogs.AttachmentId = ?AttachmentId";
 				//отдать наиболее актуальные
 			var sql = @"
 select 
-	Mails.Id
+	Mails.Id,
+	if(s.Payer = 921 and (Mails.SupplierEmail like '%@analit.net' or Mails.SupplierEmail like '%.analit.net'), 1, 0) as ForceExportAttachments
 from 
 	documents.Mails 
 	inner join Logs.MailSendLogs ms on ms.MailId = Mails.Id
+	inner join customers.Suppliers s on s.Id = Mails.SupplierId
 where 
 	Mails.LogTime > curdate() - interval 30 day
 and ms.UserId = ?UserId 
@@ -3380,7 +3382,36 @@ limit 200;
 			using (var reader = selectCommand.ExecuteReader())
 			{
 				while (reader.Read())
-					_updateData.ExportMails.Add(reader.GetUInt32(0));
+					_updateData.ExportMails.Add(
+						new ExportedMiniMail {
+							MiniMailId = reader.GetUInt32(0),
+							ForceExportAttachments = reader.GetBoolean(1)
+						});
+			}
+
+			var forceAttachments = _updateData.ExportMails.Where(m => m.ForceExportAttachments).Select(m => m.MiniMailId).ToList();
+			if (forceAttachments.Count > 0) {
+				selectCommand.CommandText = @"
+select
+	Attachments.Id
+from
+	Documents.Mails
+	inner join Documents.Attachments on Attachments.MailId = Mails.Id
+where
+  Mails.Id in (" + forceAttachments.Implode() + ")";
+				using (var reader = selectCommand.ExecuteReader())
+				{
+					while (reader.Read()) {
+						var attachmentId = reader.GetUInt32(0);
+
+						//если запрос вложения не находится в списке запросов, то добавляем его туда
+						if (_updateData.AttachmentRequests.All(r => r.AttachmentId != attachmentId))
+							_updateData.AttachmentRequests.Add(
+								new AttachmentRequest {
+									AttachmentId = attachmentId
+								});
+					}
+				}
 			}
 		}
 
@@ -3399,7 +3430,7 @@ from
 	Documents.Mails
 	inner join Customers.Suppliers on Suppliers.Id = Mails.SupplierId
 where
-  Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
+  Mails.Id in (" + _updateData.ExportMails.Select(m => m.MiniMailId).Implode() + ")";
 		}
 
 		public string GetAttachmentsCommand()
@@ -3415,7 +3446,7 @@ from
 	Documents.Mails
 	inner join Documents.Attachments on Attachments.MailId = Mails.Id
 where
-  Mails.Id in (" + _updateData.ExportMails.Implode() + ")";
+  Mails.Id in (" + _updateData.ExportMails.Select(m => m.MiniMailId).Implode() + ")";
 		}
 
 		public string GetConfirmMailsCommnad(uint? updateId)
