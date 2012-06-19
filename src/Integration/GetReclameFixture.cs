@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
@@ -90,6 +91,12 @@ namespace Integration
 			var regionReclameDir = Path.Combine(mainReclameDir, region);
 			Directory.CreateDirectory(regionReclameDir);
 
+			File.WriteAllText(Path.Combine(regionReclameDir, "index.htm"), "contents index.htm");
+			File.WriteAllText(Path.Combine(regionReclameDir, "2block.gif"), "contents 2block.gif");
+			File.WriteAllText(Path.Combine(regionReclameDir, "01.htm"), "contents 01.htm");
+			File.WriteAllText(Path.Combine(regionReclameDir, "02.htm"), "contents 02.htm");
+			File.WriteAllText(Path.Combine(regionReclameDir, "2b.gif"), "contents 2b.gif");
+			File.WriteAllText(Path.Combine(regionReclameDir, "any.jpg"), "contents any.jpg");
 			File.WriteAllText(Path.Combine(regionReclameDir, "main.htm"), "contents main.htm");
 			File.WriteAllText(Path.Combine(regionReclameDir, "main.gif"), "contents main.gif");
 			var info = new FileInfo(Path.Combine(regionReclameDir, "main.gif"));
@@ -119,6 +126,9 @@ namespace Integration
 				Assert.IsNotNullOrEmpty(response, "Некорректный ответ на запрос рекламы");
 				Assert.That(response, Is.StringEnding("New=True"), "Некорректный ответ на запрос рекламы");
 				Assert.That(response, Is.StringStarting("URL="), "Некорректный ответ на запрос рекламы");
+
+				CheckOldReclameArchive(_user, 0, reclame.Region, "r{0}.zip");
+
 				var comlete = ReclameComplete();
 				Assert.IsTrue(comlete, "Рекламу не удалось подтвердить");
 
@@ -149,7 +159,13 @@ namespace Integration
 		[Test]
 		public void Get_reclame_for_future_client()
 		{
-			GetReclameForUser(_user.Login, _user.Id);
+			try {
+				ServiceContext.GetResultPath = () => Path.GetFullPath("results\\");
+				GetReclameForUser(_user.Login, _user.Id);
+			}
+			finally {
+				ServiceContext.GetResultPath = () => "results\\";
+			}
 		}
 
 		[Test(Description = "пытаемся получить рекламу для пользователя, который не привязан к системе")]
@@ -249,6 +265,33 @@ namespace Integration
 				Assert.Fail("Некорректный ответ от сервера при получении данных: {0}", responce);
 		}
 
+		private void CheckOldReclameArchive(TestUser user, uint updateId, string regionName, string  mask = null)
+		{
+			var archiveName = CheckArchive(user, updateId, mask);
+
+			var archFolder = ExtractArchive(archiveName);
+
+			var userReclameDir = string.IsNullOrEmpty(mask) ? Path.Combine(archFolder, "Reclame", regionName) : archFolder;
+			Assert.That(Directory.Exists(userReclameDir), "В архиве с обновлением не найден каталог с рекламой");
+
+			var files = Directory.GetFiles(userReclameDir);
+			Assert.That(files.Length, Is.GreaterThan(0), "В каталоге с рекламой нет файлов");
+
+			//Список файлов для новой рекламы, которые должны отсутствовать в версии до 1833
+			Assert.IsFalse(files.Any(f => f.EndsWith("\\index.htm")));
+			Assert.IsFalse(files.Any(f => f.EndsWith("\\2block.gif")));
+
+			//Список файлов для старой рекламы, которые должны присутствовать в версии до 1833
+			Assert.IsTrue(files.Any(f => f.EndsWith("\\01.htm")));
+			Assert.IsTrue(files.Any(f => f.EndsWith("\\02.htm")));
+			Assert.IsTrue(files.Any(f => f.EndsWith("\\2b.gif")));
+
+			//Список файлов, которые должны присутствовать независимо от версии
+			Assert.IsTrue(files.Any(f => f.EndsWith("\\any.jpg")));
+			Assert.IsTrue(files.Any(f => f.EndsWith("\\main.htm")));
+			Assert.IsTrue(files.Any(f => f.EndsWith("\\main.gif")));
+		}
+
 		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
 		public void GetReclameWithUpdate()
 		{
@@ -274,15 +317,7 @@ namespace Integration
 
 				var updateId = ShouldBeSuccessfull(response);
 
-				var archiveName = CheckArchive(_user, updateId);
-
-				var archFolder = ExtractArchive(archiveName);
-
-				var userReclameDir = Path.Combine(archFolder, "Reclame", reclame.Region);
-				Assert.That(Directory.Exists(userReclameDir), "В архиве с обновлением не найден каталог с рекламой");
-
-				var files = Directory.GetFiles(userReclameDir);
-				Assert.That(files.Length, Is.GreaterThan(0), "В каталоге с рекламой нет файлов");
+				CheckOldReclameArchive(_user, updateId, reclame.Region);
 
 				var updateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
 
@@ -298,6 +333,124 @@ namespace Integration
 			}
 		}
 
+		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
+		public void GetReclameWithUpdateAfterNewReclame()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo uui set uui.ReclameDate = null where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+				var reclame = helper.GetReclame();
+				Assert.IsTrue(reclame.ShowAdvertising, "Реклама не включена");
+				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
+				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
+
+				var maxFileTime = SetReclameDir(reclame.Region);
+
+				SetCurrentUser(_user.Login);
+
+				var response = LoadDataAttachments(false, DateTime.Now, "1.0.0.1840", null);
+
+				var updateId = ShouldBeSuccessfull(response);
+
+				var archiveName = CheckArchive(_user, updateId);
+
+				var archFolder = ExtractArchive(archiveName);
+
+				var userReclameDir = Path.Combine(archFolder, "Reclame", reclame.Region);
+				Assert.That(Directory.Exists(userReclameDir), "В архиве с обновлением не найден каталог с рекламой");
+
+				var files = Directory.GetFiles(userReclameDir);
+				Assert.That(files.Length, Is.GreaterThan(0), "В каталоге с рекламой нет файлов");
+
+				//Список файлов для новой рекламы, которые должны присутствовать в версии после 1833
+				Assert.IsTrue(files.Any(f => f.EndsWith("\\index.htm")));
+				Assert.IsTrue(files.Any(f => f.EndsWith("\\2block.gif")));
+
+				//Список файлов для старой рекламы, которые должны отсутствовать в версии после 1833
+				Assert.IsFalse(files.Any(f => f.EndsWith("\\01.htm")));
+				Assert.IsFalse(files.Any(f => f.EndsWith("\\02.htm")));
+				Assert.IsFalse(files.Any(f => f.EndsWith("\\2b.gif")));
+
+				//Список файлов, которые должны присутствовать независимо от версии
+				Assert.IsTrue(files.Any(f => f.EndsWith("\\any.jpg")));
+				Assert.IsTrue(files.Any(f => f.EndsWith("\\main.htm")));
+				Assert.IsTrue(files.Any(f => f.EndsWith("\\main.gif")));
+
+				var updateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
+
+				var date = MySqlHelper.ExecuteScalar(
+					connection,
+					"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				Assert.That(date, Is.Not.Null);
+				Assert.That(date.GetType(), Is.EqualTo(typeof(DateTime)));
+
+				//Максимальная дата файла рекламы должна быть больше или равна дате рекламы из UserUpdateInfo.ReclameDate, установленной после обновления
+				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds >= 0, "Не совпадают даты maxFileTime: {0}  и  reclameDate: {1}", maxFileTime, date);
+			}
+		}
+
+		[Test(Description = "проверяем работу метода ExcludeFileNames для пустого списка файлов")]
+		public void CheckExludeFileNamesOnEmptyList()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				var helper = new UpdateHelper(updateData, connection);
+
+				var reclame = helper.GetReclame();
+				
+				var files = reclame.ExcludeFileNames(new string[] {});
+				var resultFiles = new string[] {};
+
+				Assert.That(files, Is.EquivalentTo(resultFiles));
+			}
+		}
+
+		[Test(Description = "проверяем работу метода ExcludeFileNames для старого алгоритма рекламы")
+		]
+		public void CheckExludeFileNamesforOldReclame()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				var helper = new UpdateHelper(updateData, connection);
+				var reclame = helper.GetReclame();
+
+				var files = reclame.ExcludeFileNames(new string[] {"index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif"});
+				var resultFiles = new string[] {"01.htm", "02.htm", "2b.gif"};
+				Assert.That(files, Is.EquivalentTo(resultFiles));
+			}
+		}
+
+		[Test(Description = "проверяем работу метода ExcludeFileNames для нового алгоритма рекламы")]
+		public void CheckExludeFileNamesforNewReclame()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1840;
+				var helper = new UpdateHelper(updateData, connection);
+				var reclame = helper.GetReclame();
+
+				var files = reclame.ExcludeFileNames(new string[] {"index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif"});
+				var resultFiles = new string[] {"index.htm", "2block.gif"};
+				Assert.That(files, Is.EquivalentTo(resultFiles));
+			}
+		}
 	}
 
 }

@@ -1267,12 +1267,12 @@ endprocNew:
 							If Not Directory.Exists(RelamePathTemp) Then
 								Try
 									Directory.CreateDirectory(RelamePathTemp)
-									FileList = Directory.GetFiles(RelamePathTemp)
+									FileList = reclameData.GetReclameFiles(RelamePathTemp)
 								Catch ex As Exception
 									Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", RelamePathTemp, ex)
 								End Try
 							Else
-								FileList = Directory.GetFiles(RelamePathTemp)
+								FileList = reclameData.GetReclameFiles(RelamePathTemp)
 							End If
 
 							If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
@@ -4354,7 +4354,7 @@ RestartTrans2:
 				End Try
 			End If
 
-			FileList = Directory.GetFiles(ReclamePath)
+			FileList = reclameData.GetReclameFiles(ReclamePath)
 			If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
 			For Each FileName In FileList
 

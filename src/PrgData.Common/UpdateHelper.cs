@@ -24,10 +24,32 @@ namespace PrgData.Common
 		public string Region { get; set; }
 		public DateTime ReclameDate { get; set;}
 		public bool ShowAdvertising { get; set; }
+		public UpdateData UpdateData { get; set; }
 
 		public Reclame()
 		{
 			ReclameDate = new DateTime(2003, 1, 1);
+		}
+
+		public string[] ExcludeFileNames(string[] fileNames)
+		{
+			if (UpdateData == null)
+				throw new Exception("Не установлено свойство UpdateData");
+
+			var excludeList = UpdateData.AllowMatchWaybillsToOrders() ? new string[] {"01.htm", "02.htm", "2b.gif", "Inforrom-logo.gif"} : new string[] {"index.htm", "2block.gif"};
+
+			return (from file in fileNames 
+					let extractFileName = Path.GetFileName(file) 
+					where !excludeList.Any(f => f.Equals(extractFileName, StringComparison.OrdinalIgnoreCase)) 
+					select file).ToArray();
+		}
+
+		public string[] GetReclameFiles(string reclamePath)
+		{
+			if (Directory.Exists(reclamePath))
+				return ExcludeFileNames(Directory.GetFiles(reclamePath));
+
+			return new string[] {};
 		}
 	}
 
@@ -379,7 +401,8 @@ WHERE u.Id = ?UserId", _readWriteConnection);
 				reader.Read();
 				var reclame = new Reclame {
 					Region = reader.GetString("region"),
-					ShowAdvertising = reader.GetBoolean("ShowAdvertising")
+					ShowAdvertising = reader.GetBoolean("ShowAdvertising"),
+					UpdateData = _updateData
 				};
 				if (!reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
 					reclame.ReclameDate = reader.GetDateTime("ReclameDate");
