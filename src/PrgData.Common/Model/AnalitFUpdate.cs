@@ -18,6 +18,16 @@ namespace PrgData.Common.Model
 				new MySqlParameter("?UpdateId", updateId));
 		}
 
+		public static void UpdateLog(MySqlConnection connection, uint updateId, RequestType updateType, string addition)
+		{
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update logs.AnalitFUpdates set Addition=?Addition, UpdateType=?UpdateType  where UpdateId=?UpdateId",
+				new MySqlParameter("?Addition", addition),
+				new MySqlParameter("?UpdateType", (int)updateType),
+				new MySqlParameter("?UpdateId", updateId));
+		}
+
 		public static uint InsertAnalitFUpdatesLog(MySqlConnection connection, UpdateData updateData, RequestType request)
 		{
 			return InsertAnalitFUpdatesLog(connection, updateData, request, null);

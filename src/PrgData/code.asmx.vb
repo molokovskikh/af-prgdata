@@ -2857,7 +2857,7 @@ StartZipping:
 			Log.Debug("Попытка запустить ProtocolUpdatesThread.Start()")
 			ProtocolUpdatesThread.Start()
 
-			If UpdateType <> RequestType.ResumeData Then
+			If Not ErrorFlag AndAlso UpdateType <> RequestType.ResumeData Then
 				If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
 					Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
 					File.Delete(UpdateData.GetCurrentFile(GUpdateId))
@@ -2870,7 +2870,11 @@ StartZipping:
 				connection.ConnectionString = Settings.ConnectionString
 				connection.Open()
 
-				UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId, Addition, ResultLenght)
+				If UpdateType = RequestType.GetCumulativeAsync Or UpdateType = RequestType.GetDataAsync Or UpdateType = RequestType.GetLimitedCumulativeAsync then
+					UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId, Addition, ResultLenght)
+				Else 
+					AnalitFUpdate.UpdateLog(connection, GUpdateId, UpdateType, Addition)
+				End If
 			End Using
 
 
@@ -3994,6 +3998,7 @@ RestartTrans2:
 			ErrorFlag = True
 			UpdateType = RequestType.Error
 			Addition &= ex.Message
+			PackProtocols()
 		End Try
 	End Sub
 

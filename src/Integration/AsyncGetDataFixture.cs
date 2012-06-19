@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Castle.ActiveRecord;
 using Common.Tools;
@@ -10,6 +11,7 @@ using PrgData;
 using PrgData.Common;
 using Test.Support;
 using Test.Support.Logs;
+using log4net.Core;
 
 namespace Integration
 {
@@ -177,5 +179,123 @@ namespace Integration
 		{
 			CheckUpdateRequestType(RequestType.GetLimitedCumulativeAsync, RequestType.GetLimitedCumulative);
 		}
+
+		[Test(Description = "производим накопительное обновление после успешного кумулятивного")]
+		public void ProcessGetDataAsyncAfterCumulative()
+		{
+			ProcessWithLog(() => {
+				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+
+				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
+
+				WaitAsyncResponse(cumulativeUpdateId);
+
+				TestAnalitFUpdateLog log;
+				using (new SessionScope()) {
+					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
+					Assert.That(log.Commit, Is.False);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				var lastUpdate = CommitExchange(cumulativeUpdateId, RequestType.GetCumulative);
+
+				using (new SessionScope()) {
+					log.Refresh();
+					Assert.That(log.Commit, Is.True);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				var response = LoadDataAttachmentsAsync(false, lastUpdate, "1.1.1.1413", null);
+				var simpleUpdateId = ShouldBeSuccessfull(response);
+				WaitAsyncResponse(simpleUpdateId);
+				CommitExchange(simpleUpdateId, RequestType.GetData);
+			});
+			
+		}
+
+		[Test(Description = "производим проверку докачки файла при асинхоронном запросе")]
+		public void ProcessGetDataAsyncResume()
+		{
+			ProcessWithLog(() => {
+
+				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
+				WaitAsyncResponse(cumulativeUpdateId);
+
+				var nextCumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+
+				var nextCumulativeUpdateId = ShouldBeSuccessfull(nextCumulativeResponse);
+
+				Assert.That(nextCumulativeUpdateId, Is.EqualTo(cumulativeUpdateId));
+
+				WaitAsyncResponse(nextCumulativeUpdateId);
+
+				TestAnalitFUpdateLog log;
+				using (new SessionScope()) {
+					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(nextCumulativeUpdateId));
+					Assert.That(log.Commit, Is.False);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				var lastUpdate = CommitExchange(nextCumulativeUpdateId, RequestType.GetCumulative);
+
+				using (new SessionScope()) {
+					log.Refresh();
+					Assert.That(log.Commit, Is.True);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+			});
+		}
+
+		[Test(Description = "обрабатываем получение ошибки при экспортировании данных при асинхронном запросе")]
+		public void GetErrorOnAsync()
+		{
+			//var oldLocalPath = ServiceContext.MySqlLocalImportPath();
+			//ServiceContext.MySqlLocalImportPath = () => "errorLocal";
+			try {
+
+			ProcessWithLog(memoryAppender => {
+				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+				
+				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
+				
+				//Ломаем экспорт при подготовке данных, указывая несуществующую папку
+				ServiceContext.MySqlSharedExportPath = () => "errorShared";
+
+				WaitAsyncResponse(cumulativeUpdateId);
+
+				TestAnalitFUpdateLog log;
+				using (new SessionScope()) {
+					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
+					Assert.That(log.Commit, Is.False);
+					Assert.IsNullOrEmpty(log.Log);
+				}
+
+				//var lastUpdate = CommitExchange(cumulativeUpdateId, RequestType.GetCumulative);
+
+				//using (new SessionScope()) {
+				//    log.Refresh();
+				//    Assert.That(log.Commit, Is.True);
+				//    Assert.IsNullOrEmpty(log.Log);
+				//}
+
+				//var response = LoadDataAttachmentsAsync(false, lastUpdate, "1.1.1.1413", null);
+				//var simpleUpdateId = ShouldBeSuccessfull(response);
+				//WaitAsyncResponse(simpleUpdateId);
+				//CommitExchange(simpleUpdateId, RequestType.GetData);
+
+				var events = memoryAppender.GetEvents();
+				var errors = events.Where(item => item.Level >= Level.Warn);
+				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => String.Format("{0} {1}", item.RenderedMessage, item.ExceptionObject)).Implode("\r\n"));
+			},
+			false);
+
+			}
+			finally {
+				//ServiceContext.MySqlLocalImportPath = () => oldLocalPath;
+			}
+		}
+
 	}
 }
