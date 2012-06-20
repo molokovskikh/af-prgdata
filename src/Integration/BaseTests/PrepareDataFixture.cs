@@ -123,7 +123,7 @@ namespace Integration.BaseTests
 			return service.CheckAsyncRequest(updateId);
 		}
 
-		protected void WaitAsyncResponse(uint updateId)
+		protected void WaitAsyncResponse(uint updateId, string expectedResponse = "Res=OK")
 		{
 			var asyncResponse = String.Empty;
 			var sleepCount = 0;
@@ -138,7 +138,7 @@ namespace Integration.BaseTests
 
 			} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
 
-			Assert.That(asyncResponse, Is.EqualTo("Res=OK"), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
+			Assert.That(asyncResponse, Is.EqualTo(expectedResponse), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
 		}
 
 		protected DateTime CommitExchange(uint updateId, RequestType waitingRequestType)

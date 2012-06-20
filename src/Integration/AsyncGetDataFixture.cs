@@ -251,49 +251,32 @@ namespace Integration
 		[Test(Description = "обрабатываем получение ошибки при экспортировании данных при асинхронном запросе")]
 		public void GetErrorOnAsync()
 		{
-			//var oldLocalPath = ServiceContext.MySqlLocalImportPath();
-			//ServiceContext.MySqlLocalImportPath = () => "errorLocal";
+			//сохраняем предыдущее значение
+			var oldSharedExportPath = ServiceContext.MySqlSharedExportPath();
 			try {
 
-			ProcessWithLog(memoryAppender => {
 				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
 				
 				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
-				
+
 				//Ломаем экспорт при подготовке данных, указывая несуществующую папку
 				ServiceContext.MySqlSharedExportPath = () => "errorShared";
 
-				WaitAsyncResponse(cumulativeUpdateId);
+				WaitAsyncResponse(cumulativeUpdateId, "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут.");
 
-				TestAnalitFUpdateLog log;
+				//TestAnalitFUpdateLog log;
 				using (new SessionScope()) {
-					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
+					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
 					Assert.That(log.Commit, Is.False);
 					Assert.IsNullOrEmpty(log.Log);
+					Assert.That(log.UpdateType, Is.EqualTo((int)RequestType.Error));
 				}
 
-				//var lastUpdate = CommitExchange(cumulativeUpdateId, RequestType.GetCumulative);
-
-				//using (new SessionScope()) {
-				//    log.Refresh();
-				//    Assert.That(log.Commit, Is.True);
-				//    Assert.IsNullOrEmpty(log.Log);
-				//}
-
-				//var response = LoadDataAttachmentsAsync(false, lastUpdate, "1.1.1.1413", null);
-				//var simpleUpdateId = ShouldBeSuccessfull(response);
-				//WaitAsyncResponse(simpleUpdateId);
-				//CommitExchange(simpleUpdateId, RequestType.GetData);
-
-				var events = memoryAppender.GetEvents();
-				var errors = events.Where(item => item.Level >= Level.Warn);
-				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => String.Format("{0} {1}", item.RenderedMessage, item.ExceptionObject)).Implode("\r\n"));
-			},
-			false);
-
+				//Удаляем события, чтобы не возникало ошибки при завершении теста в TearDown()
+				MemoryAppender.Clear();
 			}
 			finally {
-				//ServiceContext.MySqlLocalImportPath = () => oldLocalPath;
+				ServiceContext.MySqlSharedExportPath = () => oldSharedExportPath;
 			}
 		}
 

@@ -2870,13 +2870,12 @@ StartZipping:
 				connection.ConnectionString = Settings.ConnectionString
 				connection.Open()
 
-				If UpdateType = RequestType.GetCumulativeAsync Or UpdateType = RequestType.GetDataAsync Or UpdateType = RequestType.GetLimitedCumulativeAsync then
-					UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId, Addition, ResultLenght)
-				Else 
+				If UpdateType = RequestType.Error then
 					AnalitFUpdate.UpdateLog(connection, GUpdateId, UpdateType, Addition)
+				Else 
+					UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId, Addition, ResultLenght)
 				End If
 			End Using
-
 
 			Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
 			AsyncPrgDatas.DeleteFromList(Me)
