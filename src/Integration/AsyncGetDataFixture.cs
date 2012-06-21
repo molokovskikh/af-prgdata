@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Castle.ActiveRecord;
 using Common.Tools;
@@ -10,6 +11,7 @@ using PrgData;
 using PrgData.Common;
 using Test.Support;
 using Test.Support.Logs;
+using log4net.Core;
 
 namespace Integration
 {
@@ -243,6 +245,39 @@ namespace Integration
 				}
 
 			});
+		}
+
+
+		[Test(Description = "обрабатываем получение ошибки при экспортировании данных при асинхронном запросе")]
+		public void GetErrorOnAsync()
+		{
+			//сохраняем предыдущее значение
+			var oldSharedExportPath = ServiceContext.MySqlSharedExportPath();
+			try {
+
+				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
+				
+				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
+
+				//Ломаем экспорт при подготовке данных, указывая несуществующую папку
+				ServiceContext.MySqlSharedExportPath = () => "errorShared";
+
+				WaitAsyncResponse(cumulativeUpdateId, "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут.");
+
+				//TestAnalitFUpdateLog log;
+				using (new SessionScope()) {
+					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
+					Assert.That(log.Commit, Is.False);
+					Assert.IsNullOrEmpty(log.Log);
+					Assert.That(log.UpdateType, Is.EqualTo((int)RequestType.Error));
+				}
+
+				//Удаляем события, чтобы не возникало ошибки при завершении теста в TearDown()
+				MemoryAppender.Clear();
+			}
+			finally {
+				ServiceContext.MySqlSharedExportPath = () => oldSharedExportPath;
+			}
 		}
 
 	}
