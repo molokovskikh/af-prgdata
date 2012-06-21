@@ -3,6 +3,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.Tools;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
@@ -323,74 +324,6 @@ namespace Integration
 			});
 		}
 
-		[Test(Description = "производим накопительное обновление после успешного кумулятивного")]
-		public void ProcessGetDataAsyncAfterCumulative()
-		{
-			ProcessWithLog(() => {
-				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
-
-				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
-
-				WaitAsyncResponse(cumulativeUpdateId);
-
-				TestAnalitFUpdateLog log;
-				using (new SessionScope()) {
-					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
-					Assert.That(log.Commit, Is.False);
-					Assert.IsNullOrEmpty(log.Log);
-				}
-
-				var lastUpdate = CommitExchange(cumulativeUpdateId, RequestType.GetCumulative);
-
-				using (new SessionScope()) {
-					log.Refresh();
-					Assert.That(log.Commit, Is.True);
-					Assert.IsNullOrEmpty(log.Log);
-				}
-
-				var response = LoadDataAttachmentsAsync(false, lastUpdate, "1.1.1.1413", null);
-				var simpleUpdateId = ShouldBeSuccessfull(response);
-				WaitAsyncResponse(simpleUpdateId);
-				CommitExchange(simpleUpdateId, RequestType.GetData);
-			});
-			
-		}
-
-		[Test(Description = "производим проверку докачки файла при асинхоронном запросе")]
-		public void ProcessGetDataAsyncResume()
-		{
-			ProcessWithLog(() => {
-
-				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
-				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
-				WaitAsyncResponse(cumulativeUpdateId);
-
-				var nextCumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
-
-				var nextCumulativeUpdateId = ShouldBeSuccessfull(nextCumulativeResponse);
-
-				Assert.That(nextCumulativeUpdateId, Is.EqualTo(cumulativeUpdateId));
-
-				WaitAsyncResponse(nextCumulativeUpdateId);
-
-				TestAnalitFUpdateLog log;
-				using (new SessionScope()) {
-					log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(nextCumulativeUpdateId));
-					Assert.That(log.Commit, Is.False);
-					Assert.IsNullOrEmpty(log.Log);
-				}
-
-				var lastUpdate = CommitExchange(nextCumulativeUpdateId, RequestType.GetCumulative);
-
-				using (new SessionScope()) {
-					log.Refresh();
-					Assert.That(log.Commit, Is.True);
-					Assert.IsNullOrEmpty(log.Log);
-				}
-
-			});
-		}
-
 		[Test(Description = "проверка запроса только вложений минипочты")]
 		public void RequestAttachmentsOnly()
 		{
@@ -409,17 +342,14 @@ namespace Integration
 
 			ProcessWithLog(() => {
 
-				var response = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
+				var response = LoadDataAttachmentsOnly(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
 
 				var simpleUpdateId = ShouldBeSuccessfull(response);
-
-				WaitAsyncResponse(simpleUpdateId);
 
 				using (new SessionScope()) {
 					log.Refresh();
 					Assert.That(log.Committed, Is.False);
-					Assert.That(log.UpdateLogEntry, Is.Not.Null);
-					Assert.That(log.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
+					Assert.That(log.UpdateLogEntry, Is.Null);
 
 					attachmentSendLog.Refresh();
 					Assert.That(attachmentSendLog.Committed, Is.False);
@@ -431,18 +361,23 @@ namespace Integration
 
 				var extractFolder = ExtractArchive(archiveName);
 
+
+				var files = Directory.GetFiles(extractFolder, "*", SearchOption.AllDirectories);
+
+				Assert.That(files.Length, Is.EqualTo(2), "В архиве должны быть два файла: вложение мини-почты и результат запроса вложений мини-почты (AttachmentRequests): {0}", files.Implode());
 				var attachmentFileName = 
 					Path.Combine("Docs",
 						attachmentSendLog.Attachment.Id + attachmentSendLog.Attachment.Extension);
-				Assert.That(File.Exists(Path.Combine(extractFolder, attachmentFileName)), Is.True);
+				Assert.That(files.Any(f => f.EndsWith(attachmentFileName, StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл с вложением мини-почты: {0}", attachmentFileName);
+				var attachmentRequestsResult = "AttachmentRequests" + _user.Id + ".txt";
+				Assert.That(files.Any(f => f.EndsWith(attachmentRequestsResult, StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл результат запроса вложений мини-почты: {0}", attachmentRequestsResult);
 
-				CommitExchange(simpleUpdateId, RequestType.GetCumulative);
+				CommitExchange(simpleUpdateId, RequestType.RequestAttachments);
 
 				using (new SessionScope()) {
 					log.Refresh();
-					Assert.That(log.Committed, Is.True);
-					Assert.That(log.UpdateLogEntry, Is.Not.Null);
-					Assert.That(log.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
+					Assert.That(log.Committed, Is.False);
+					Assert.That(log.UpdateLogEntry, Is.Null);
 
 					attachmentSendLog.Refresh();
 					Assert.That(attachmentSendLog.Committed, Is.True);

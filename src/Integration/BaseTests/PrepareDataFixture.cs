@@ -151,9 +151,10 @@ namespace Integration.BaseTests
 
 		protected DateTime CommitExchange(uint updateId, RequestType waitingRequestType)
 		{
+			var waybillsOnly = waitingRequestType == RequestType.GetDocs || waitingRequestType == RequestType.RequestAttachments;
 			var service = new PrgDataEx();
 
-			var updateTime = service.CommitExchange(updateId, waitingRequestType == RequestType.GetDocs);
+			var updateTime = service.CommitExchange(updateId, waybillsOnly);
 			
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
@@ -171,12 +172,14 @@ where
   afu.UpdateId = ?UpdateId"
 				,
 				new MySqlParameter("?UpdateId", updateId));
-			var dbUpdateTime = Convert.ToDateTime(updateRow["UpdateDate"]);
 			var updateType = Convert.ToInt32(updateRow["UpdateType"]);
 
 			Assert.That(updateType, Is.EqualTo((int)waitingRequestType), "Не совпадает тип обновления");
 
-			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", updateId);
+			if (!waybillsOnly) {
+				var dbUpdateTime = Convert.ToDateTime(updateRow["UpdateDate"]);
+				Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", updateId);
+			}
 
 			return updateTime;
 		}

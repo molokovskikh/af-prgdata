@@ -726,39 +726,44 @@ Public Class PrgDataEx
 
 				UpdateType = RequestType.GetDocs
 			Else
-
 				'Здесь должен помещать запрос на почтовые вложения
 				If AttachmentIds IsNot Nothing AndAlso (AttachmentIds.Length > 0) AndAlso (AttachmentIds(0) <> 0) Then
 					UpdateData.FillAttachmentIds(AttachmentIds)
 				End If
 
-				PackFinished = False
+				If Me.RequestAttachments Then
+					CurUpdTime = Now()
 
-				If CheckZipTimeAndExist(UpdateData.Cumulative) Then
+					UpdateType = RequestType.RequestAttachments
+				Else 
+					PackFinished = False
 
-					UpdateType = RequestType.ResumeData
-					Dim fileInfo = New FileInfo(UpdateData.GetPreviousFile())
-					Addition &= "Отдаем предыдущие подготовленные данные: " & fileInfo.LastWriteTime.ToString() & "; "
-					NewZip = False
-					PackFinished = True
-					Log.DebugFormat("Файл будет докачиваться: {0}", UpdateData.GetPreviousFile())
-					GoTo endproc
+					If CheckZipTimeAndExist(UpdateData.Cumulative) Then
 
-				Else
-
-					Try
-						DeletePreviousFiles()
-					Catch ex As Exception
-						Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
-						UpdateType = RequestType.Forbidden
-						ErrorFlag = True
+						UpdateType = RequestType.ResumeData
+						Dim fileInfo = New FileInfo(UpdateData.GetPreviousFile())
+						Addition &= "Отдаем предыдущие подготовленные данные: " & fileInfo.LastWriteTime.ToString() & "; "
+						NewZip = False
+						PackFinished = True
+						Log.DebugFormat("Файл будет докачиваться: {0}", UpdateData.GetPreviousFile())
 						GoTo endproc
-					End Try
 
-					Log.DebugFormat("Файл будет архивироваться заново: {0}", UpdateData.GetCurrentTempFile())
+					Else
 
-					CurUpdTime = helper.GetCurrentUpdateDate(UpdateType)
+						Try
+							DeletePreviousFiles()
+						Catch ex As Exception
+							Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
+							UpdateType = RequestType.Forbidden
+							ErrorFlag = True
+							GoTo endproc
+						End Try
 
+						Log.DebugFormat("Файл будет архивироваться заново: {0}", UpdateData.GetCurrentTempFile())
+
+						CurUpdTime = helper.GetCurrentUpdateDate(UpdateType)
+
+					End If
 				End If
 			End If
 
@@ -1380,7 +1385,7 @@ endprocNew:
 					Log.DebugFormat("UpdateData.AllowSupplierPromotions(): {0}", UpdateData.AllowSupplierPromotions())
 					Log.DebugFormat("UpdateData.NeedUpdateToSupplierPromotions(): {0}", UpdateData.NeedUpdateToSupplierPromotions())
 					Log.DebugFormat("All djskdjskd : {0}", Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions()))
-					If Not Documents AndAlso UpdateData.ShowAdvertising AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions) Then
+					If Not Documents AndAlso Not Me.RequestAttachments AndAlso UpdateData.ShowAdvertising AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions) Then
 						helper.ArchivePromotions(connection, SevenZipTmpArchive, CurUpdTime, Addition, FilesForArchive)
 					End If
 
@@ -1395,7 +1400,7 @@ endprocNew:
 					End If
 
 					Dim processor = New ExportProcessor(UpdateData, connection, FilesForArchive)
-					processor.Archive(Documents, SevenZipTmpArchive)
+					processor.Archive(Documents, Me.RequestAttachments, SevenZipTmpArchive)
 
 					If Documents Then
 						If File.Exists(SevenZipTmpArchive) Then
@@ -1420,11 +1425,33 @@ endprocNew:
 
 					End If
 
+					If Me.RequestAttachments Then
+						If File.Exists(SevenZipTmpArchive) Then
+
+							File.Move(SevenZipTmpArchive, UpdateData.GetCurrentTempFile())
+							PackFinished = True
+							FileInfo = New FileInfo(UpdateData.GetCurrentTempFile())
+							ResultLenght = Convert.ToUInt32(FileInfo.Length)
+							PackProtocols()
+							Exit Sub
+
+						Else
+
+							MessageH = "Запрошенные вложения не найдены."
+							Addition &= " Запрошенные вложения не найдены"
+							ErrorFlag = True
+							PackFinished = True
+							PackProtocols()
+							Exit Sub
+
+						End If
+
+					End If
 
 
 
 					'Если не документы
-					If Not Documents AndAlso Not GetHistory Then
+					If Not Documents AndAlso Not GetHistory AndAlso Me.RequestAttachments Then
 
 						'Архивирование обновления программы
 						Try
@@ -1476,7 +1503,7 @@ endprocNew:
 				'Архивирование данных, или рекламы
 				Try
 					Dim FileForArchive As FileForArchive
-					If Not Documents Then
+					If Not Documents AndAlso Not Me.RequestAttachments Then
 
 StartZipping:
 						If ErrorFlag Then Exit Sub
@@ -2876,7 +2903,8 @@ StartZipping:
 			 Or (UpdateType = RequestType.Forbidden) _
 			 Or (UpdateType = RequestType.Error) _
 			 Or (UpdateType = RequestType.GetDocs) _
-			 Or (UpdateType = RequestType.GetHistoryOrders) Then
+			 Or (UpdateType = RequestType.GetHistoryOrders) _ 
+			 Or (UpdateType = RequestType.RequestAttachments) Then
 
 				transaction = connection.BeginTransaction(IsoLevel)
 
@@ -2999,7 +3027,8 @@ StartZipping:
 					 Or (UpdateType = RequestType.Forbidden) _
 					 Or (UpdateType = RequestType.Error) _
 					 Or (UpdateType = RequestType.GetDocs) _
-					 Or (UpdateType = RequestType.GetHistoryOrders) Then
+					 Or (UpdateType = RequestType.GetHistoryOrders) _ 
+					 Or (UpdateType = RequestType.RequestAttachments) Then
 
 PostLog:
 						If GUpdateId = 0 Then

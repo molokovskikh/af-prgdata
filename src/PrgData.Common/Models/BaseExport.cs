@@ -24,6 +24,8 @@ namespace PrgData.Common.Models
 
 		public bool SupportDocumentRequest { get; protected set; }
 
+		public bool SupportAttachmentsRequest { get; protected set; }
+
 		public abstract void Export();
 
 		public virtual void ArchiveFiles(string archiveFile) {}

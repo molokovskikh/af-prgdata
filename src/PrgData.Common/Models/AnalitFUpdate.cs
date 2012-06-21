@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using Common.Tools;
 using MySql.Data.MySqlClient;
 
@@ -62,7 +63,7 @@ select last_insert_id()",
 					String sql = String.Empty;
 
 					if (updateData.ExportMails.Count > 0)
-						sql += "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Implode() + ");";
+						sql += "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Select(e => e.MiniMailId).Implode() + ");";
 
 					if (updateData.SuccesAttachmentsExists())
 						sql += "update Logs.AttachmentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and AttachmentId in ("+ updateData.SuccesAttachmentIds().Implode() + ");";
