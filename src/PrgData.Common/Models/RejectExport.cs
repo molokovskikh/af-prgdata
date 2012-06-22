@@ -18,7 +18,7 @@ namespace PrgData.Common.Models
 		public override void Export()
 		{
 			string sql;
-			if (updateData.CheckVersion(1840))
+			if (updateData.CheckVersion(1833))
 				sql = GetNewExportSql();
 			else
 				sql = GetOldExportSql();
@@ -66,7 +66,7 @@ select r.Id,
 from Farm.Rejects r
 where r.CancelDate is null";
 
-			if (!updateData.Cumulative)
+			if (!updateData.Cumulative && !updateData.NeedUpdateForMatchWaybillsToOrders())
 				sql +=
 					@" and r.UpdateTime > ?UpdateTime
 union

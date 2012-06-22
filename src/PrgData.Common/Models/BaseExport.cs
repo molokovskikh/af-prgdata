@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using MySql.Data.MySqlClient;
 using log4net;
@@ -34,6 +34,9 @@ namespace PrgData.Common.Models
 		{
 			var file = name + updateData.UserId + ".txt";
 			var importFile = Path.Combine(ServiceContext.MySqlLocalImportPath(), file);
+			//удаляем файл из папки перед экспортом
+			ShareFileHelper.MySQLFileDelete(importFile);
+			//ожидаем удаление файла
 			ShareFileHelper.WaitDeleteFile(importFile);
 
 			var exportFile = Path.Combine(ServiceContext.MySqlSharedExportPath(), file);
