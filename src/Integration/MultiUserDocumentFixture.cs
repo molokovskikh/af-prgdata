@@ -384,7 +384,7 @@ namespace Integration
 				transaction.VoteCommit();
 			}
 
-			LoadDocuments("1.0.0.1828");
+			LoadDocuments("1.0.0.1840");
 			ShouldBeSuccessfull();
 
 			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";

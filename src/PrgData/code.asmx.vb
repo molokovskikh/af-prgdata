@@ -1451,7 +1451,7 @@ endprocNew:
 
 
 					'Если не документы
-					If Not Documents AndAlso Not GetHistory AndAlso Me.RequestAttachments Then
+					If Not Documents AndAlso Not GetHistory AndAlso Not Me.RequestAttachments Then
 
 						'Архивирование обновления программы
 						Try
