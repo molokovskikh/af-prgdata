@@ -60,11 +60,11 @@ namespace PrgData.Common.Orders
 				MinReq,
 				updateData.BuildNumber > 1271 ? ";SendDate=" + Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") : "");
 
-			if (SendResult == OrderSendResult.NeedCorrect || updateData.BuildNumber > 1827)
+			if (SendResult == OrderSendResult.NeedCorrect || updateData.BuildNumber > 1833)
 			{
 				foreach (var position in Positions)
 				{
-					if (!position.Duplicated && (position.SendResult != PositionSendResult.Success || updateData.BuildNumber > 1827))
+					if (!position.Duplicated && (position.SendResult != PositionSendResult.Success || updateData.BuildNumber > 1833))
 						result += ";" + position.GetResultToClient(updateData.BuildNumber);
 				}
 			}

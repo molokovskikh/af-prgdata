@@ -53,7 +53,7 @@ namespace PrgData.Common.Orders
 				Convert.ToInt32(SendResult),
 				ServerCost.ToString(CultureInfo.InvariantCulture.NumberFormat),
 				ServerQuantity,
-				buildNumber.HasValue && buildNumber.Value > 1827 ? ";ServerOrderListId=" + OrderPosition.RowId : "");
+				buildNumber.HasValue && buildNumber.Value > 1833 ? ";ServerOrderListId=" + OrderPosition.RowId : "");
 		}
 
 		public void ClearOnCreate()
