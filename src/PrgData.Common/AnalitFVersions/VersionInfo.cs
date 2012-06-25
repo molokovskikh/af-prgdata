@@ -36,20 +36,20 @@ namespace PrgData.Common.AnalitFVersions
 			if (uint.TryParse(versionInfo, out version))
 				VersionNumber = version;
 			else
-				throw new Exception(String.Format("Не возможно конвертировать номер версии: {0}", versionInfo));
+				throw new Exception(String.Format("Невозможно конвертировать номер версии: {0}", versionInfo));
 
 			Folder = folder;
 
 			var exeFolder = dirInfo.GetDirectories("Exe");
-			if (exeFolder.Length < 0)
+			if (exeFolder.Length <= 0)
 				throw new Exception(String.Format("Не найдена вложенная директория Exe: {0}", folder));
 
 			var exeFile = exeFolder[0].GetFiles("*.exe");
-			if (exeFile.Length < 0)
+			if (exeFile.Length <= 0)
 				throw new Exception(String.Format("Во вложенной директории Exe не найден файл с расширением .exe: {0}", folder));
 
 			if (exeFile.Length > 1)
-				throw new Exception(String.Format("Во вложенной директории Exe не найдено более одного файла с расширением .exe: {0}", folder));
+				throw new Exception(String.Format("Во вложенной директории Exe найдено более одного файла с расширением .exe: {0}", folder));
 
 			try
 			{
@@ -57,7 +57,7 @@ namespace PrgData.Common.AnalitFVersions
 			}
 			catch(Exception exception)
 			{
-				throw new Exception(String.Format("Не возможно получить информацию о версии для файла: {0}", exeFile[0].FullName), exception);
+				throw new Exception(String.Format("Невозможно получить информацию о версии для файла: {0}", exeFile[0].FullName), exception);
 			}
 
 			if (VersionNumber != ExeVersionNumber())

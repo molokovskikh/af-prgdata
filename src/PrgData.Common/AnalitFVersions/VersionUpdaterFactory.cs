@@ -47,7 +47,7 @@ namespace PrgData.Common.AnalitFVersions
 					}
 					catch (Exception exception)
 					{
-						stringBuilder.AppendLine(exception.ToString());
+						stringBuilder.AppendLine("Папка: " + releaseInfo.FullName + " => " + exception.ToString());
 						stringBuilder.AppendLine();
 					}
 				}

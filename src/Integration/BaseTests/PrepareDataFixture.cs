@@ -255,7 +255,7 @@ where
 			var errors = Enumerable.Where(events, item => item.Level >= Level.Warn);
 			Assert.That(errors.Count(), Is.EqualTo(0),
 				"При подготовке данных возникли ошибки:\r\n{0}",
-				errors.Select(item => item.ExceptionObject).Implode("\r\n"));
+				errors.Select(item => String.Format("{0} - {1}", item.RenderedMessage, item.ExceptionObject)).Implode("\r\n"));
 		}
 
 		protected void RegisterLogger()

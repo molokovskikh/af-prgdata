@@ -344,6 +344,82 @@ where
 			InternalUpdateOnVersion(1809, 1823);
 		}
 
+		[Test(Description = "получаем ошибку при несуществовании папки Exe")]
+		public void GetErrorOnNonExistsExeFolder()
+		{
+			var testFolder = Path.Combine(ServiceContext.GetResultPath(), "Release1800");
+
+			if (!Directory.Exists(testFolder))
+				Directory.CreateDirectory(testFolder);
+
+			try {
+
+				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				Assert.That(exception.Message, Is.StringStarting("Не найдена вложенная директория Exe"));
+
+			}
+			finally {
+				if (Directory.Exists(testFolder))
+					Directory.Delete(testFolder);
+			}
+		}
+
+		private void CheckExeFolder(Action<string, string> action)
+		{
+			var testFolder = Path.Combine(ServiceContext.GetResultPath(), "Release1800");
+
+			if (!Directory.Exists(testFolder))
+				Directory.CreateDirectory(testFolder);
+
+			var exeFolder = Path.Combine(testFolder, "Exe");
+			if (!Directory.Exists(exeFolder))
+				Directory.CreateDirectory(exeFolder);
+
+			try {
+
+				action(testFolder, exeFolder);
+
+			}
+			finally {
+				if (Directory.Exists(testFolder))
+					Directory.Delete(testFolder, true);
+			}
+			
+		}
+
+		[Test(Description = "получаем ошибку при несуществовании файла с exe в папке Exe")]
+		public void GetErrorOnNonExistsExeFile()
+		{
+			CheckExeFolder((testFolder, exeFolder) => {
+				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				Assert.That(exception.Message, Is.StringStarting("Во вложенной директории Exe не найден файл с расширением"));
+			});
+		}
+
+		[Test(Description = "получаем ошибку при нескольких файлов с exe в папке Exe")]
+		public void GetErrorOnSameExistsExeFile()
+		{
+			CheckExeFolder((testFolder, exeFolder) => {
+				File.WriteAllText(Path.Combine(exeFolder, "1.exe"), "1.exe");
+				File.WriteAllText(Path.Combine(exeFolder, "2.exe"), "2.exe");
+
+				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				Assert.That(exception.Message, Is.StringStarting("Во вложенной директории Exe найдено более одного файла с расширением .exe"));
+			});
+		}
+
+		[Test(Description = "получаем ошибку при чтении версии файла с exe в папке Exe")]
+		public void GetErrorOnReadVersionExeFile()
+		{
+			CheckExeFolder((testFolder, exeFolder) => {
+				File.WriteAllText(Path.Combine(exeFolder, "1.exe"), "1.exe");
+
+				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				//исключение при чтении версии файла происходит, только если файла не существует
+				//Если в файле нет информации о версии, то вернется структура с версией = 0
+				Assert.That(exception.Message, Is.StringStarting("Не совпадают номера версий в названии папки"));
+			});
+		}
 
 	}
 }
