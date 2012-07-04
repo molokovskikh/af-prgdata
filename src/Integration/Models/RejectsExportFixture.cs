@@ -4,6 +4,7 @@ using System.Threading;
 using Common.MySql;
 using Integration.BaseTests;
 using NUnit.Framework;
+using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Models;
 using OriginMySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
@@ -101,5 +102,16 @@ namespace Integration.Models
 			Assert.That(rejectList[0], Is.StringStarting("{0}\t".Format(lastRejectId)));
 		}
 
+		[Test]
+		public void CheckAllowedArchiveRequest()
+		{
+			With.Connection(c => {
+				var rejectExport = new RejectExport(updateData, c, files);
+
+				foreach (RequestType request in Enum.GetValues(typeof(RequestType))) {
+					Assert.That(rejectExport.AllowArchiveFiles(request), Is.False);
+				}
+			});
+		}
 	}
 }

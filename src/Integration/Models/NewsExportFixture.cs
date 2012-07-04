@@ -2,6 +2,7 @@
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
+using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using Common.MySql;
 using PrgData.Common.Models;
@@ -37,5 +38,36 @@ namespace Integration.Models
 			Assert.That(content, Is.StringContaining("Тестовая Новость Вчерашняя"));
 			Assert.That(files.Count, Is.EqualTo(1));
 		}
+
+		[Test]
+		public void CheckAllowedArchiveRequest()
+		{
+			With.Connection(c => {
+				var newsExport = new NewsExport(updateData, c, files);
+
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetData), Is.True);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetCumulative), Is.True);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.PostOrderBatch), Is.True);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetDataAsync), Is.True);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetCumulativeAsync), Is.True);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetLimitedCumulative), Is.True);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetLimitedCumulativeAsync), Is.True);
+
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.ResumeData), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.SendOrder), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.Forbidden), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.Error), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.CommitExchange), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetDocs), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.SendWaybills), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.SendOrders), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.PostPriceDataSettings), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.GetHistoryOrders), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.ConfirmUserMessage), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.SendUserActions), Is.False);
+				Assert.That(newsExport.AllowArchiveFiles(RequestType.RequestAttachments), Is.False);
+			});
+		}
+
 	}
 }

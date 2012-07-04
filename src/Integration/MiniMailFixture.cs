@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,7 @@ using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
+using PrgData.Common.Models;
 using Test.Support;
 using Test.Support.Documents;
 using Test.Support.Logs;
@@ -89,6 +91,7 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
+				var mailsExport = new MailsExport(updateData, connection, new Queue<FileForArchive>());
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
@@ -96,25 +99,26 @@ namespace Integration
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
 				helper.SetUpdateParameters(selectComand, DateTime.Now);
 
-				helper.FillExportMails(selectComand);
+
+				mailsExport.FillExportMails(selectComand);
 
 				Assert.That(updateData.ExportMails.Count, Is.EqualTo(0));
 
 				var log = CreateTestMail();
 
-				helper.FillExportMails(selectComand);
+				mailsExport.FillExportMails(selectComand);
 				Assert.That(updateData.ExportMails.Count, Is.EqualTo(1));
 				Assert.That(updateData.ExportMails[0].MiniMailId, Is.EqualTo(log.Mail.Id));
 
 				var dataAdapter = new MySqlDataAdapter(selectComand);
 
-				selectComand.CommandText = helper.GetMailsCommand();
+				selectComand.CommandText = mailsExport.GetMailsCommand();
 				var mailsTable = new DataTable();
 				dataAdapter.Fill(mailsTable);
 				Assert.That(mailsTable.Rows.Count, Is.EqualTo(1));
 				Assert.That(mailsTable.Rows[0]["Id"], Is.EqualTo(log.Mail.Id));
 
-				selectComand.CommandText = helper.GetAttachmentsCommand();
+				selectComand.CommandText = mailsExport.GetAttachmentsCommand();
 				var attachmentsTable = new DataTable();
 				dataAdapter.Fill(attachmentsTable);
 				Assert.That(attachmentsTable.Rows.Count, Is.EqualTo(1));
@@ -349,7 +353,8 @@ namespace Integration
 				using (new SessionScope()) {
 					log.Refresh();
 					Assert.That(log.Committed, Is.False);
-					Assert.That(log.UpdateLogEntry, Is.Null);
+					Assert.That(log.UpdateLogEntry, Is.Not.Null);
+					Assert.That(log.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
 
 					attachmentSendLog.Refresh();
 					Assert.That(attachmentSendLog.Committed, Is.False);
@@ -364,20 +369,22 @@ namespace Integration
 
 				var files = Directory.GetFiles(extractFolder, "*", SearchOption.AllDirectories);
 
-				Assert.That(files.Length, Is.EqualTo(2), "В архиве должны быть два файла: вложение мини-почты и результат запроса вложений мини-почты (AttachmentRequests): {0}", files.Implode());
+				Assert.That(files.Length, Is.EqualTo(4), "В архиве должны быть четыре файла: таблица писем, таблица вложений, вложение мини-почты и результат запроса вложений мини-почты (AttachmentRequests): {0}", files.Implode());
 				var attachmentFileName = 
 					Path.Combine("Docs",
 						attachmentSendLog.Attachment.Id + attachmentSendLog.Attachment.Extension);
 				Assert.That(files.Any(f => f.EndsWith(attachmentFileName, StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл с вложением мини-почты: {0}", attachmentFileName);
-				var attachmentRequestsResult = "AttachmentRequests" + _user.Id + ".txt";
-				Assert.That(files.Any(f => f.EndsWith(attachmentRequestsResult, StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл результат запроса вложений мини-почты: {0}", attachmentRequestsResult);
+				Assert.That(files.Any(f => f.EndsWith("AttachmentRequests" + _user.Id + ".txt", StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл результат запроса вложений мини-почты: AttachmentRequests");
+				Assert.That(files.Any(f => f.EndsWith("Mails" + _user.Id + ".txt", StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл c письмами мини-почты: Mails");
+				Assert.That(files.Any(f => f.EndsWith("Attachments" + _user.Id + ".txt", StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл c вложениями мини-почты: Attachments");
 
 				CommitExchange(simpleUpdateId, RequestType.RequestAttachments);
 
 				using (new SessionScope()) {
 					log.Refresh();
-					Assert.That(log.Committed, Is.False);
-					Assert.That(log.UpdateLogEntry, Is.Null);
+					Assert.That(log.Committed, Is.True);
+					Assert.That(log.UpdateLogEntry, Is.Not.Null);
+					Assert.That(log.UpdateLogEntry.Id, Is.EqualTo(simpleUpdateId));
 
 					attachmentSendLog.Refresh();
 					Assert.That(attachmentSendLog.Committed, Is.True);
@@ -397,6 +404,7 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
+				var mailsExport = new MailsExport(updateData, connection, new Queue<FileForArchive>());
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
@@ -404,7 +412,7 @@ namespace Integration
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
 				helper.SetUpdateParameters(selectComand, DateTime.Now);
 
-				helper.FillExportMails(selectComand);
+				mailsExport.FillExportMails(selectComand);
 
 				Assert.That(updateData.ExportMails.Count, Is.EqualTo(1));
 				Assert.That(updateData.ExportMails[0].MiniMailId, Is.EqualTo(log.Mail.Id));
@@ -429,6 +437,7 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
+				var mailsExport = new MailsExport(updateData, connection, new Queue<FileForArchive>());
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
@@ -436,7 +445,7 @@ namespace Integration
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
 				helper.SetUpdateParameters(selectComand, DateTime.Now);
 
-				helper.FillExportMails(selectComand);
+				mailsExport.FillExportMails(selectComand);
 
 				Assert.That(updateData.ExportMails.Count, Is.EqualTo(1));
 				Assert.That(updateData.ExportMails[0].MiniMailId, Is.EqualTo(log.Mail.Id));

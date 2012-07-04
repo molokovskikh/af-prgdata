@@ -110,6 +110,7 @@
     <Compile Include="log4netMySqlAdoNetAdapter.cs" />
     <Compile Include="MatrixFixture.cs" />
     <Compile Include="MiniMailFixture.cs" />
+    <Compile Include="Models\MailsExportFixture.cs" />
     <Compile Include="Models\NewsExportFixture.cs" />
     <Compile Include="Models\RejectsExportFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />

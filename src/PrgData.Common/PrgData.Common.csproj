@@ -157,6 +157,7 @@
     <Compile Include="Models\AnalitFVersionRule.cs" />
     <Compile Include="Models\BaseExport.cs" />
     <Compile Include="Models\ExportProcessor.cs" />
+    <Compile Include="Models\MailsExport.cs" />
     <Compile Include="Models\NewsExport.cs" />
     <Compile Include="Models\RejectExport.cs" />
     <Compile Include="OrderHelper.cs" />

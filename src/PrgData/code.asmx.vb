@@ -1394,13 +1394,8 @@ endprocNew:
 						helper.ArchiveCertificates(connection, SevenZipTmpArchive, CurUpdTime, Addition, ClientLog, GUpdateId, FilesForArchive)
 					End If
 
-					'здесь будем выгружать запрошенные вложени€
-					If Not Documents AndAlso UpdateData.NeedExportAttachments Then
-						helper.ArchiveAttachments(connection, SevenZipTmpArchive, Addition, FilesForArchive)
-					End If
-
 					Dim processor = New ExportProcessor(UpdateData, connection, FilesForArchive)
-					processor.Archive(Documents, Me.RequestAttachments, SevenZipTmpArchive)
+					processor.Archive(UpdateType, SevenZipTmpArchive)
 
 					If Documents Then
 						If File.Exists(SevenZipTmpArchive) Then
@@ -3801,12 +3796,6 @@ RestartTrans2:
 
 				If UpdateData.SupportAnalitFSchedule Then
 					GetMySQLFileWithDefault("Schedules", SelProc, helper.GetSchedulesCommand())
-				End If
-
-				helper.FillExportMails(SelProc)
-				If UpdateData.ExportMails.Count > 0 Then
-					GetMySQLFileWithDefault("Mails", SelProc, helper.GetMailsCommand())
-					GetMySQLFileWithDefault("Attachments", SelProc, helper.GetAttachmentsCommand())
 				End If
 
 				GetMySQLFileWithDefault("Products", SelProc, _

@@ -30,10 +30,10 @@ namespace PrgData.Common.Models
 			exporters.Each(e => e.Export());
 		}
 
-		public void Archive(bool isDocumentsRequest, bool isAttachmentsRequest, string file)
+		public void Archive(RequestType request, string file)
 		{
 			exporters
-				.Where(e => e.SupportDocumentRequest == isDocumentsRequest && e.SupportAttachmentsRequest == isAttachmentsRequest)
+				.Where(e => e.AllowArchiveFiles(request))
 				.Each(e => e.ArchiveFiles(file));
 		}
 	}

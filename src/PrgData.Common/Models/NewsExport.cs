@@ -18,6 +18,16 @@ namespace PrgData.Common.Models
 			get { return 1833; }
 		}
 
+		public override RequestType[] AllowedArchiveRequests
+		{
+			get { 
+				return new [] {
+					RequestType.GetData, RequestType.GetCumulative, RequestType.PostOrderBatch, RequestType.GetDataAsync,
+					RequestType.GetCumulativeAsync, RequestType.GetLimitedCumulative, RequestType.GetLimitedCumulativeAsync
+				}; 
+			}
+		}
+
 		public override void Export()
 		{
 			var sql = @"

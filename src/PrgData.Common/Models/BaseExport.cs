@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using MySql.Data.MySqlClient;
 using log4net;
 
@@ -22,15 +23,13 @@ namespace PrgData.Common.Models
 
 		public abstract int RequiredVersion { get; }
 
-		public bool SupportDocumentRequest { get; protected set; }
-
-		public bool SupportAttachmentsRequest { get; protected set; }
+		public abstract RequestType[] AllowedArchiveRequests { get; }
 
 		public abstract void Export();
 
 		public virtual void ArchiveFiles(string archiveFile) {}
 
-		protected void Process(string name, string sql)
+		protected string Process(string name, string sql, bool addToQueue = true)
 		{
 			var file = name + updateData.UserId + ".txt";
 			var importFile = Path.Combine(ServiceContext.MySqlLocalImportPath(), file);
@@ -47,7 +46,15 @@ namespace PrgData.Common.Models
 			command.Parameters.AddWithValue("?UpdateTime", updateData.OldUpdateTime);
 			command.ExecuteNonQuery();
 
-			files.Enqueue(new FileForArchive(name, false));
+			if (addToQueue)
+				files.Enqueue(new FileForArchive(name, false));
+
+			return importFile;
+		}
+
+		public bool AllowArchiveFiles(RequestType request)
+		{
+			return AllowedArchiveRequests.Any(r => r == request);
 		}
 	}
 }
