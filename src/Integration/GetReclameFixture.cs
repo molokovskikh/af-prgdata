@@ -7,6 +7,7 @@ using Common.Models.Tests.Repositories;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
+using PrgData.Common.AnalitFVersions;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Core;
@@ -451,6 +452,41 @@ namespace Integration
 				Assert.That(files, Is.EquivalentTo(resultFiles));
 			}
 		}
+
+		[Test(Description = "при автообновлении версий (если доступна новая версия) будем всегда передавать заново все файлы рекламы, чтобы не было проблем в будущем")]
+		public void ResetReclameDateOnUpdateExe()
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo uui set uui.ReclameDate = null where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.BuildNumber = 1840;
+				var helper = new UpdateHelper(updateData, connection);
+
+				var reclame = helper.GetReclame();
+				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "при значении ReclameDate = null дата рекламы должна содержать 01.01.2003");
+
+
+				MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update usersettings.UserUpdateInfo uui set uui.ReclameDate = now() where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				reclame = helper.GetReclame();
+				Assert.That(reclame.ReclameDate, Is.GreaterThan(DateTime.Today), "дата рекламы должна содержать текущую дату");
+
+
+				updateData.UpdateExeVersionInfo = new VersionInfo(1869);
+				reclame = helper.GetReclame();
+				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "при автообновлении дата рекламы должна быть сброшена в 01.01.2003");
+			}
+		}
+
 	}
 
 }

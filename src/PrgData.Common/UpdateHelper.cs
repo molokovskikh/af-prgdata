@@ -404,7 +404,7 @@ WHERE u.Id = ?UserId", _readWriteConnection);
 					ShowAdvertising = reader.GetBoolean("ShowAdvertising"),
 					UpdateData = _updateData
 				};
-				if (!reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
+				if (_updateData.UpdateExeVersionInfo == null && !reader.IsDBNull(reader.GetOrdinal("ReclameDate")))
 					reclame.ReclameDate = reader.GetDateTime("ReclameDate");
 				return reclame;
 			}
