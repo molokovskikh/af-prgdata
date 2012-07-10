@@ -1614,10 +1614,10 @@ StartZipping:
 					End If
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
+					Log.Error("Архивирование", ex)
 					If Not TypeOf ex.InnerException Is ThreadAbortException Then
 						ErrorFlag = True
 						UpdateType = RequestType.Error
-						Log.Error("Архивирование", ex)
 					End If
 					Addition &= " Архивирование: " & ex.ToString() & "; "
 
