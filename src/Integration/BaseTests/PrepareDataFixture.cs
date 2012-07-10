@@ -216,7 +216,9 @@ where
 				if (checkWarnLogs) {
 					var events = memoryAppender.GetEvents();
 					var errors = events.Where(item => item.Level >= Level.Warn);
-					Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
+					Assert.That(errors.Count(), Is.EqualTo(0), 
+						"При подготовке данных возникли ошибки:\r\n{0}", 
+							errors.Select(item => string.Format("{0} {1}", item.RenderedMessage, item.ExceptionObject) ).Implode("\r\n"));
 				}
 
 			}

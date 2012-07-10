@@ -79,9 +79,9 @@ namespace PrgData.Common
 		public int ImportLogFile()
 		{
 			var importFileName = Path.GetFileName(_tmpExtractLogFileName);
-			var localImportFileName = Path.Combine(ServiceContext.MySqlLocalImportPath(), importFileName);
+			var localImportFileName = ServiceContext.GetFileByLocal(importFileName);
 
-			var serverImportFileName = Path.Combine(ServiceContext.MySqlSharedExportPath(), importFileName); 
+			var serverImportFileName = ServiceContext.GetFileByShared(importFileName); 
 
 			try
 			{

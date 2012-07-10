@@ -32,14 +32,14 @@ namespace PrgData.Common.Models
 		protected string Process(string name, string sql, bool addToQueue = true)
 		{
 			var file = name + updateData.UserId + ".txt";
-			var importFile = Path.Combine(ServiceContext.MySqlLocalImportPath(), file);
+			var importFile = ServiceContext.GetFileByLocal(file);
 			//удаляем файл из папки перед экспортом
 			ShareFileHelper.MySQLFileDelete(importFile);
 			//ожидаем удаление файла
 			ShareFileHelper.WaitDeleteFile(importFile);
 
-			var exportFile = Path.Combine(ServiceContext.MySqlSharedExportPath(), file);
-			exportFile = MySqlHelper.EscapeString(exportFile);
+			var waitedExportFile = ServiceContext.GetFileByShared(file);
+			var exportFile = MySqlHelper.EscapeString(waitedExportFile);
 
 			sql += " INTO OUTFILE '" + exportFile + "' ";
 			var command = new MySqlCommand(sql, connection);
@@ -48,6 +48,11 @@ namespace PrgData.Common.Models
 
 			if (addToQueue)
 				files.Enqueue(new FileForArchive(name, false));
+
+#if DEBUG 
+			//в отладочной версии ожидаем экспортирование файла из базы данных MySql
+			ShareFileHelper.WaitFile(waitedExportFile);
+#endif
 
 			return importFile;
 		}

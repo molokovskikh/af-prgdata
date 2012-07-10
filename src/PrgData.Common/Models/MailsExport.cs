@@ -176,13 +176,14 @@ where
 
 		private void ProcessArchiveFile(string processedFile, string archiveFileName)
 		{
+			var fullPathFile = ServiceContext.GetFileByLocal(processedFile);
 #if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + processedFile);
+			ShareFileHelper.WaitFile(fullPathFile);
 #endif
 
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + processedFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, fullPathFile);
 			}
 			catch
 			{
@@ -190,17 +191,17 @@ where
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + processedFile);
+			ShareFileHelper.MySQLFileDelete(fullPathFile);
 
-			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + processedFile);
+			ShareFileHelper.WaitDeleteFile(fullPathFile);
 		}
 
 		private string DeleteFileByPrefix(string prefix)
 		{
 			var deletedFile = prefix + updateData.UserId + ".txt";
-			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + deletedFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(deletedFile));
 
-			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + deletedFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(deletedFile));
 
 			return deletedFile;
 		}
@@ -223,7 +224,7 @@ where
 				ArchiveAttachmentFiles(tempPath, docsPath, archiveFileName, command);
 
 				if (updateData.SuccesAttachmentsExists()) {
-					File.WriteAllText(ServiceContext.MySqlLocalImportPath() + attachmentRequestsFile, updateData.GetAttachmentsResult());
+					File.WriteAllText(ServiceContext.GetFileByLocal(attachmentRequestsFile), updateData.GetAttachmentsResult());
 					ProcessArchiveFile(attachmentRequestsFile, archiveFileName);
 				}
 			}

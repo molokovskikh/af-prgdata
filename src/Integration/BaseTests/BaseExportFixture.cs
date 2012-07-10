@@ -32,7 +32,7 @@ namespace Integration.BaseTests
 
 		protected string ReadExportContent(string prefix)
 		{
-			var fileName = Path.Combine(ServiceContext.MySqlSharedExportPath(), prefix + user.Id + ".txt");
+			var fileName = ServiceContext.GetFileByShared(prefix + user.Id + ".txt");
 			//ожидание необходимо на devsrv при экспортировании из тестовой базы на шару \\fms\AFFiles
 			ShareFileHelper.WaitFile(fileName);
 			return File.ReadAllText(fileName, Encoding.GetEncoding(1251));

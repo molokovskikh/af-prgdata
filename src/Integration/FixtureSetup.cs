@@ -95,9 +95,7 @@ namespace Integration
 		private void CheckDBFiles()
 		{
 			var dbFilesPath = ServiceContext.MySqlLocalImportPath();
-			if ((dbFilesPath.Length > 0) && (dbFilesPath[dbFilesPath.Length - 1] == Path.DirectorySeparatorChar))
-				dbFilesPath = dbFilesPath.Slice(dbFilesPath.Length - 1);
-			var testFile = Path.Combine(dbFilesPath, DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt");
+			var testFile = ServiceContext.GetFileByLocal(DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt");
 
 			var accessExists = false;
 			try

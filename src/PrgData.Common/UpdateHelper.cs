@@ -1436,7 +1436,7 @@ where
 
 			ProcessCertificates(command);
 
-			File.WriteAllText(ServiceContext.MySqlLocalImportPath() + certificateRequestsFile, _updateData.GetCertificatesResult());
+			File.WriteAllText(ServiceContext.GetFileByLocal(certificateRequestsFile), _updateData.GetCertificatesResult());
 
 			ProcessArchiveFile(certificateRequestsFile, archiveFileName);
 
@@ -1630,15 +1630,16 @@ where
 
 		private void ProcessArchiveFile(string processedFile, string archiveFileName)
 		{
+			var fullPathFile = ServiceContext.GetFileByLocal(processedFile);
 #if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + processedFile);
+			ShareFileHelper.WaitFile(fullPathFile);
 #endif
 
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + processedFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, fullPathFile);
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.MySqlLocalImportPath() + processedFile);
+				log.DebugFormat("файл для архивации: {0}", fullPathFile);
 			}
 			catch
 			{
@@ -1646,9 +1647,9 @@ where
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + processedFile);
+			ShareFileHelper.MySQLFileDelete(fullPathFile);
 
-			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + processedFile);
+			ShareFileHelper.WaitDeleteFile(fullPathFile);
 		}
 
 		private string ArchiveCertificatesFiles(string archiveFileName, MySqlCommand command)
@@ -1727,7 +1728,7 @@ where db.Id in ({0})
 					MyCommand.Parameters["?Cumulative"].Value = true;
 				}
 
-				var fullName = Path.Combine(ServiceContext.MySqlSharedExportPath(), FileName + _updateData.UserId + ".txt");
+				var fullName = ServiceContext.GetFileByShared(FileName + _updateData.UserId + ".txt");
 				fullName = MySqlHelper.EscapeString(fullName);
 
 				SQL += " INTO OUTFILE '" + fullName + "' ";
@@ -1756,9 +1757,9 @@ where db.Id in ({0})
 		private string DeleteFileByPrefix(string prefix)
 		{
 			var deletedFile = prefix + _updateData.UserId + ".txt";
-			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + deletedFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(deletedFile));
 
-			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + deletedFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(deletedFile));
 
 			return deletedFile;
 		}
@@ -1773,14 +1774,14 @@ where db.Id in ({0})
 			GetMySQLFileWithDefaultEx("SupplierPromotions", command, GetPromotionsCommandById(ids), false, false, filesForArchive);
 
 #if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + supplierFile);
+			ShareFileHelper.WaitFile(ServiceContext.GetFileByLocal(supplierFile));
 #endif
 
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + supplierFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.GetFileByLocal(supplierFile));
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.MySqlLocalImportPath() + supplierFile);
+				log.DebugFormat("файл для архивации: {0}", ServiceContext.GetFileByLocal(supplierFile));
 			}
 			catch
 			{
@@ -1788,22 +1789,22 @@ where db.Id in ({0})
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + supplierFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(supplierFile));
 
-			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + supplierFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(supplierFile));
 
 
 
 			GetMySQLFileWithDefaultEx("PromotionCatalogs", command, GetPromotionCatalogsCommandById(ids), false, false, filesForArchive);
 
 #if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.MySqlLocalImportPath() + catalogFile);
+			ShareFileHelper.WaitFile(ServiceContext.GetFileByLocal(catalogFile));
 #endif
 			try
 			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.MySqlLocalImportPath() + catalogFile);
+				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.GetFileByLocal(catalogFile));
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.MySqlLocalImportPath() + catalogFile);
+				log.DebugFormat("файл для архивации: {0}", ServiceContext.GetFileByLocal(catalogFile));
 			}
 			catch
 			{
@@ -1811,9 +1812,9 @@ where db.Id in ({0})
 				throw;
 			}
 
-			ShareFileHelper.MySQLFileDelete(ServiceContext.MySqlLocalImportPath() + catalogFile);
+			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(catalogFile));
 
-			ShareFileHelper.WaitDeleteFile(ServiceContext.MySqlLocalImportPath() + catalogFile);
+			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(catalogFile));
 		}
 
 		public string GetCatalogCommand(bool before1150)

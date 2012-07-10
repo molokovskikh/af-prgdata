@@ -15,9 +15,9 @@ namespace PrgData.Common
 
 		public static Func<String> MySqlSharedExportPath = () => 
 #if DEBUG 
-			ConfigurationManager.AppSettings["MySqlFilePath"] + "\\";
+			ConfigurationManager.AppSettings["MySqlFilePath"];
 #else
-			Path.Combine("\\\\" + Environment.MachineName, ConfigurationManager.AppSettings["MySqlFilePath"]) + "\\";
+			Path.Combine("\\\\" + Environment.MachineName, ConfigurationManager.AppSettings["MySqlFilePath"]);
 #endif
 		public static Func<String> MySqlLocalImportPath = () => ConfigurationManager.AppSettings["MySqlLocalFilePath"];
 
@@ -36,9 +36,9 @@ namespace PrgData.Common
 				var parentDir = AppDomain.CurrentDomain.BaseDirectory;
 				var localMysqlPath = Path.Combine(parentDir, "MySqlExportImport");
 				if (!Directory.Exists(localMysqlPath))
-					Directory.CreateDirectory(localMysqlPath);
-				MySqlSharedExportPath = () => localMysqlPath + "\\";
-				MySqlLocalImportPath = () => localMysqlPath + "\\";
+				    Directory.CreateDirectory(localMysqlPath);
+				MySqlSharedExportPath = () => localMysqlPath;
+				MySqlLocalImportPath = () => localMysqlPath;
 			}
 		}
 
@@ -74,5 +74,14 @@ namespace PrgData.Common
 		}
 #endif
 
+		public static string GetFileByLocal(string fileName)
+		{
+			return Path.Combine(MySqlLocalImportPath(), fileName);
+		}
+
+		public static string GetFileByShared(string fileName)
+		{
+			return Path.Combine(MySqlSharedExportPath(), fileName);
+		}
 	}
 }
