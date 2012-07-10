@@ -1354,6 +1354,8 @@ endprocNew:
 
 							If Log.IsDebugEnabled Then Log.DebugFormat("После обработки файлов MaxReclameFileDate {0}", MaxReclameFileDate)
 
+							reclameData.SetUncommitedReclameDate(connection, MaxReclameFileDate)
+
 							If FileCount > 0 Then
 
 								'AddEndOfFiles()
@@ -1769,20 +1771,12 @@ StartZipping:
 
 
 					If UpdateData.AllowHistoryDocs() Then
-						FileInfo = New FileInfo(UpdateData.GetCurrentFile(UpdateId))
-
-						If FileInfo.Exists Then
-
-							If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
-
-							Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
-							Cm.CommandText = "update UserUpdateInfo set ReclameDate=?ReclameDate where UserId=" & UserId
-							Cm.Parameters.AddWithValue("?ReclameDate", FileInfo.CreationTime)
-							Cm.Connection = readWriteConnection
-							Cm.ExecuteNonQuery()
-							transaction.Commit()
-						End If
-
+						Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
+						Cm.CommandText = "update UserUpdateInfo set ReclameDate=UncommitedReclameDate where UserId=" & UserId
+						Cm.Connection = readWriteConnection
+						If Log.IsDebugEnabled Then Log.DebugFormat("Обновляем дату рекламы из UncommitedReclameDate")
+						Cm.ExecuteNonQuery()
+						transaction.Commit()
 					End If
 
 

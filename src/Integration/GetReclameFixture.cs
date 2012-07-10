@@ -101,7 +101,7 @@ namespace Integration
 			File.WriteAllText(Path.Combine(regionReclameDir, "main.htm"), "contents main.htm");
 			File.WriteAllText(Path.Combine(regionReclameDir, "main.gif"), "contents main.gif");
 			var info = new FileInfo(Path.Combine(regionReclameDir, "main.gif"));
-			return info.CreationTime;
+			return info.LastWriteTime;
 		}
 
 		private void GetReclameForUser(string login, uint userId)
@@ -330,7 +330,19 @@ namespace Integration
 				Assert.That(date.GetType(), Is.EqualTo(typeof(DateTime)));
 
 				//Максимальная дата файла рекламы должна быть больше или равна дате рекламы из UserUpdateInfo.ReclameDate, установленной после обновления
-				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds >= 0, "Не совпадают даты maxFileTime: {0}  и  reclameDate: {1}", maxFileTime, date);
+				Assert.That(maxFileTime, Is.EqualTo((DateTime)date).Within(0.9).Seconds, "Не совпадают даты maxFileTime: {0}  и  reclameDate: {1}", maxFileTime, date);
+
+				//Производим повторный запрос данных - дата рекламы не должна измениться
+				response = LoadDataAttachments(false, updateTime, "1.0.0.1821", null);
+				updateId = ShouldBeSuccessfull(response);
+				CommitExchange(updateId, RequestType.GetData);
+				var secondDate = MySqlHelper.ExecuteScalar(
+					connection,
+					"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				Assert.That(secondDate, Is.Not.Null);
+				Assert.That(secondDate.GetType(), Is.EqualTo(typeof(DateTime)));
+				Assert.That(date, Is.EqualTo(secondDate), "дата рекламы не должна измениться");
 			}
 		}
 
@@ -393,7 +405,19 @@ namespace Integration
 				Assert.That(date.GetType(), Is.EqualTo(typeof(DateTime)));
 
 				//Максимальная дата файла рекламы должна быть больше или равна дате рекламы из UserUpdateInfo.ReclameDate, установленной после обновления
-				Assert.IsTrue(maxFileTime.Subtract((DateTime)date).TotalSeconds >= 0, "Не совпадают даты maxFileTime: {0}  и  reclameDate: {1}", maxFileTime, date);
+				Assert.That(maxFileTime, Is.EqualTo((DateTime)date).Within(0.9).Seconds, "Не совпадают даты maxFileTime: {0}  и  reclameDate: {1}", maxFileTime, date);
+
+				//Производим повторный запрос данных - дата рекламы не должна измениться
+				response = LoadDataAttachments(false, updateTime, "1.0.0.1840", null);
+				updateId = ShouldBeSuccessfull(response);
+				CommitExchange(updateId, RequestType.GetData);
+				var secondDate = MySqlHelper.ExecuteScalar(
+					connection,
+					"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+				Assert.That(secondDate, Is.Not.Null);
+				Assert.That(secondDate.GetType(), Is.EqualTo(typeof(DateTime)));
+				Assert.That(date, Is.EqualTo(secondDate), "дата рекламы не должна измениться");
 			}
 		}
 

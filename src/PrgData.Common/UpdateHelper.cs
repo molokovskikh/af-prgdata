@@ -51,6 +51,14 @@ namespace PrgData.Common
 
 			return new string[] {};
 		}
+
+		public void SetUncommitedReclameDate(MySqlConnection connection, DateTime uncommitedReclameDate)
+		{
+			MySqlHelper.ExecuteNonQuery(connection,
+				"update UserSettings.UserUpdateInfo set UncommitedReclameDate = ?UncommitedReclameDate where UserId = ?UserId",
+				new MySqlParameter("?UserId", UpdateData.UserId),
+				new MySqlParameter("?UncommitedReclameDate", uncommitedReclameDate));
+		}
 	}
 
 	public class UpdateHelper
