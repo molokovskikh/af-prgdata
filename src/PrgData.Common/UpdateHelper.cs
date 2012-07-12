@@ -941,6 +941,13 @@ limit 1";
 
 		public string GetClientCommand()
 		{
+			var techInfo = String.Empty;
+			if (_updateData.AllowMatchWaybillsToOrders())
+				techInfo = 
+					_updateData.AllowCorrectTechContact() ? 
+						", c.RegionCode as HomeRegion, regions.TechContact, regions.TechOperatingMode " 
+						: ", c.RegionCode as HomeRegion, concat('<tr> <td class=\"contactText\">', regions.TechContact, '</td> </tr>') as TechContact, concat('<tr> <td class=\"contactText\">', regions.TechOperatingMode, '</td> </tr>') as TechOperatingMode ";
+
 			return String.Format(@"
 SELECT 
 	c.Id as ClientId,
@@ -963,7 +970,7 @@ WHERE u.Id = ?UserId
 ",
 				_updateData.AllowShowSupplierCost ? ", rcs.AllowDelayOfPayment " : String.Empty,
 				_updateData.AllowCertificates ? ", rcs.ShowCertificatesWithoutRefSupplier " : String.Empty,
-				_updateData.AllowMatchWaybillsToOrders() ? ", c.RegionCode as HomeRegion, regions.TechContact, regions.TechOperatingMode " : String.Empty);
+				techInfo);
 		}
 
 		public string GetDelayOfPaymentsCommand()

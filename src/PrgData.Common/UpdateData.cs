@@ -71,6 +71,8 @@ namespace PrgData.Common
 		private static int _versionBeforeHistoryDocs = 1820;
 		//версия AnalitF до поддержки сопоставления накладных заказам (от 1833)
 		private static int _versionBeforeMatchWaybillsToOrders = 1833;
+		//версия AnalitF до коррективки поля TechContact у региона (от 1869)
+		private static int _versionBeforeCorrectTechContact = 1869;
 
 		public string ShortName;
 		public uint ClientId;
@@ -553,6 +555,12 @@ namespace PrgData.Common
 		{
 			return (BuildNumber <= _versionBeforeMatchWaybillsToOrders)
 				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeMatchWaybillsToOrders);
+		}
+
+		public bool AllowCorrectTechContact()
+		{
+			return BuildNumberGreaterThen(_versionBeforeCorrectTechContact)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeCorrectTechContact);
 		}
 
 		public bool NeedUpdateForRetailMargins()

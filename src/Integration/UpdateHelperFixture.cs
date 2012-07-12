@@ -1696,6 +1696,14 @@ limit 1;
 		[Test(Description = "проверка выгрузки контактной региональной информации относительно клиента")]
 		public void GetRegionTechContactOnClient()
 		{
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update farm.Regions set TechContact=?TechContact, TechOperatingMode=?TechOperatingMode where RegionCode=?RegionCode",
+				new MySqlParameter("?RegionCode", _user.Client.RegionCode),
+				new MySqlParameter("?TechContact", "<p>тел.: <strong>260-60-00</strong></p>"),
+				new MySqlParameter("?TechOperatingMode", "будни: с 7.00 до 19.00"));
+			
+			//Проверка для старых версий
 			var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 
@@ -1708,6 +1716,7 @@ limit 1;
 			Assert.That(dataTable.Columns.Contains("TechContact"), Is.False, "Столбец TechContact должен экспортироваться с опеределенной версии");
 			Assert.That(dataTable.Columns.Contains("TechOperatingMode"), Is.False, "Столбец TechOperatingMode должен экспортироваться с опеределенной версии");
 
+			//Проверка для версий в интервале (1833, 1869]
 			updateData.BuildNumber = 1840;
 			dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
 
@@ -1719,6 +1728,27 @@ limit 1;
 			Assert.That(dataTable.Columns.Contains("HomeRegion"), Is.True, "Столбец HomeRegion должен экспортироваться с опеределенной версии");
 			Assert.That(dataTable.Columns.Contains("TechContact"), Is.True, "Столбец TechContact должен экспортироваться с опеределенной версии");
 			Assert.That(dataTable.Columns.Contains("TechOperatingMode"), Is.True, "Столбец TechOperatingMode должен экспортироваться с опеределенной версии");
+			//Эти два поля должны быть помещеных в теги <tr> <td class="contactText"> </td> </tr> для версий от (1833, 1869]
+			Assert.That(dataTable.Rows[0]["TechContact"], Is.StringStarting("<tr> <td class=\"contactText\">"));
+			Assert.That(dataTable.Rows[0]["TechContact"], Is.StringEnding("</td> </tr>"));
+			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.StringStarting("<tr> <td class=\"contactText\">"));
+			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.StringEnding("</td> </tr>"));
+
+			//Проверка для версий от 1869
+			updateData.BuildNumber = 1870;
+			dataAdapter.SelectCommand.CommandText = helper.GetClientCommand();
+			dataTable = new DataTable();
+			dataAdapter.Fill(dataTable);
+			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
+			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
+
+			Assert.That(dataTable.Columns.Contains("HomeRegion"), Is.True, "Столбец HomeRegion должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("TechContact"), Is.True, "Столбец TechContact должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Columns.Contains("TechOperatingMode"), Is.True, "Столбец TechOperatingMode должен экспортироваться с опеределенной версии");
+			Assert.That(dataTable.Rows[0]["TechContact"], Is.Not.StringStarting("<tr> <td class=\"contactText\">"));
+			Assert.That(dataTable.Rows[0]["TechContact"], Is.Not.StringEnding("</td> </tr>"));
+			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.Not.StringStarting("<tr> <td class=\"contactText\">"));
+			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.Not.StringEnding("</td> </tr>"));
 		}
 	}
 }
