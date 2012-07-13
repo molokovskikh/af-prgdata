@@ -51,7 +51,7 @@ Public Class Global_asax
 
     Sub Application_EndRequest(ByVal sender As Object, ByVal e As EventArgs)
         'Логируем все запросы при статусе 500
-        If Context.Response.StatusCode = 500 AndAlso LogRequestHelper.NeedLogged() Then
+        If Context.Response.StatusCode = 500 Then
             LogRequestHelper.MailWithRequest(Nothing, "Данный запрос сгенерировал ошибку 500", Nothing)
         End If
     End Sub
