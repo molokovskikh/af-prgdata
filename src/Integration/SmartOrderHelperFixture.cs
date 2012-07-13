@@ -222,6 +222,8 @@ namespace Integration
 					var secondOffer = new Offer { ProductId = 2, Id = new OfferKey(2, 1) };
 					var secondOrderItem = orders[1].AddOrderItem(secondOffer, 1);
 
+					var firstReducedOffer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = firstOffer.ProductId};
+					var secondReducedOffer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = secondOffer.ProductId};
 					var items = new List<OrderBatchItem>
 					            	{
 					            		new OrderBatchItem(null){Code = "123", ProductName = "test0"},
@@ -231,9 +233,10 @@ namespace Integration
 												ProductName = "test1", 
 												Item = new ItemToOrder(1, 1, null, 1)
 												       	{
+															Offer = firstReducedOffer,
+															MinimalCostOffer = firstReducedOffer,
 												       		OrderItem = firstOrderItem, 
 															Status = ItemToOrderStatus.Ordered,
-															Offer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = firstOffer.ProductId}
 												       	}
 											},
 										new OrderBatchItem(null)
@@ -242,9 +245,10 @@ namespace Integration
 												ProductName = "test2", 
 												Item = new ItemToOrder(2, 1, null, 1)
 												       	{
+															Offer = secondReducedOffer,
+															MinimalCostOffer = secondReducedOffer,
 												       		OrderItem = secondOrderItem, 
 															Status = ItemToOrderStatus.Ordered,
-															Offer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = secondOffer.ProductId}
 												       	}
 											},
 					            	};
