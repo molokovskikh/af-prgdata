@@ -442,7 +442,10 @@ limit 1
 					new string[] { "" }, //nds
 					new string[] { "" }, //retailCost,
 					new string[] { "-10.0" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 } //costWithDelayOfPayment
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 }, //costWithDelayOfPayment
+					new string[] { firstOffer["EAN13"].ToString() },
+					new string[] { firstOffer["CodeOKP"].ToString() },
+					new string[] { firstOffer["Series"].ToString() }
 					);
 		}
 
@@ -490,7 +493,10 @@ limit 1
 					new string[] { "" }, //nds
 					new string[] { "" }, //retailCost,
 					new string[] { "-10.0" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 } //costWithDelayOfPayment
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 }, //costWithDelayOfPayment
+					new string[] { firstOffer["EAN13"].ToString() },
+					new string[] { firstOffer["CodeOKP"].ToString() },
+					new string[] { firstOffer["Series"].ToString() }
 					);
 		}
 
@@ -538,7 +544,10 @@ limit 1
 					new string[] { "" }, //nds
 					new string[] { "" }, //retailCost,
 					new string[] { "-10.0" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 } //costWithDelayOfPayment
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]) + 3 }, //costWithDelayOfPayment
+					new string[] { firstOffer["EAN13"].ToString() },
+					new string[] { firstOffer["CodeOKP"].ToString() },
+					new string[] { firstOffer["Series"].ToString() }
 					);
 		}
 
@@ -586,7 +595,10 @@ limit 1
 					new string[] { "", "" }, //nds
 					new string[] { "", "" }, //retailCost,
 					new string[] { "" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { 100m, 200m } //costWithDelayOfPayment
+					new decimal[] { 100m, 200m }, //costWithDelayOfPayment
+					new string[] { "", "" }, //ean13,
+					new string[] { "", "" }, //codeOKP
+					new string[] { "", "" } //series,
 					);
 		}
 
@@ -634,7 +646,10 @@ limit 1
 					new string[] { "", "" }, //nds
 					new string[] { "", "" }, //retailCost,
 					new string[] { "" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { 100m, 200m } //costWithDelayOfPayment
+					new decimal[] { 100m, 200m }, //costWithDelayOfPayment
+					new string[] { "", "" }, //ean13,
+					new string[] { "", "" }, //codeOKP
+					new string[] { "", "" } //series,
 					);
 		}
 
@@ -682,7 +697,10 @@ limit 1
 					new string[] { "", "", "" }, //nds
 					new string[] { "", "", "" }, //retailCost,
 					new string[] { "" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]), Convert.ToDecimal(firstOffer["Cost"]) } //costWithDelayOfPayment
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]), Convert.ToDecimal(firstOffer["Cost"]) }, //costWithDelayOfPayment
+					new string[] { "", "", "" }, //ean13,
+					new string[] { "", "", "" }, //codeOKP
+					new string[] { "", "", "" } //series,
 					);
 		}
 
@@ -730,7 +748,10 @@ limit 1
 					new string[] { "", "" }, //nds
 					new string[] { "", "" }, //retailCost,
 					new string[] { "" }, //vitallyImportantDelayOfPayment,
-					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]) } //costWithDelayOfPayment
+					new decimal[] { Convert.ToDecimal(firstOffer["Cost"]), Convert.ToDecimal(secondOffer["Cost"]) }, //costWithDelayOfPayment
+					new string[] { firstOffer["EAN13"].ToString(), secondOffer["EAN13"].ToString() }, //ean13,
+					new string[] { firstOffer["CodeOKP"].ToString(), secondOffer["CodeOKP"].ToString() }, //codeOKP
+					new string[] { firstOffer["Series"].ToString(), secondOffer["Series"].ToString() } //series,
 					);
 		}
 

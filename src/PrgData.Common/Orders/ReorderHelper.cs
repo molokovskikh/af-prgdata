@@ -605,7 +605,10 @@ AND    RCS.clientcode          = ?ClientCode"
 			string[] nds,
 			string[] retailCost,
 			string[] vitallyImportantDelayOfPayment,
-			decimal[] costWithDelayOfPayment
+			decimal[] costWithDelayOfPayment,
+			string[] ean13,
+			string[] codeOKP,
+			string[] series
 			)
 		{
 			CheckArrayCount(orderCount, clientOrderId.Length, "clientOrderId");
@@ -657,6 +660,9 @@ AND    RCS.clientcode          = ?ClientCode"
 			CheckArrayCount(allPositionCount, producerCost.Length, "producerCost");
 			CheckArrayCount(allPositionCount, nds.Length, "nds");
 
+			CheckArrayCount(allPositionCount, ean13.Length, "ean13");
+			CheckArrayCount(allPositionCount, codeOKP.Length, "codeOKP");
+			CheckArrayCount(allPositionCount, series.Length, "series");
 
 			using (var unitOfWork = new UnitOfWork())
 			{
@@ -742,6 +748,9 @@ AND    RCS.clientcode          = ?ClientCode"
 										producerCost[detailIndex],
 										System.Globalization.NumberStyles.Currency,
 										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+							EAN13 = ean13[detailIndex],
+							CodeOKP = codeOKP[detailIndex],
+							Series = series[detailIndex],
 						};
 
 						OrderItemLeadersInfo leaderInfo = null;
