@@ -4097,6 +4097,8 @@ RestartTrans2:
 			UpdateType = RequestType.Error
 			Addition &= ex.Message
 			PackProtocols()
+		Finally
+			if UpdateData.AsyncRequest Then DBDisconnect()
 		End Try
 	End Sub
 
