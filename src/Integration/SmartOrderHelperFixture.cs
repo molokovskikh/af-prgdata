@@ -539,6 +539,88 @@ namespace Integration
 			return simpleUpdateTime;
 		}
 
+		[Test(Description = "попытка сформировать автозаказ по пользователю без адресов")]
+		public void UserDoesNotHaveAddresses()
+		{
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+
+				_user.AvaliableAddresses.Clear();
+				_user.Save();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				SetCurrentUser(_user.Login);
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				var exception = Assert.Throws<UpdateException>(
+					() => new SmartOrderHelper(updateData, _address.Id, 1, 1, 1));
+				Assert.That(exception.Message, Is.EqualTo("Услуга 'АвтоЗаказ' не предоставляется"));
+				Assert.That(exception.Addition, Is.StringContaining("У пользователя нет доступных адресов доставки"));
+			}
+		}
+
+		[Test(Description = "попытка сформировать автозаказ по пользователю с указанием недоступного адреса доставки")]
+		public void UserDoesNotAllowAddress()
+		{
+			TestAddress notAllowAddress;
+			using (new TransactionScope())
+			{
+				var smartRule = new TestSmartOrderRule();
+				smartRule.OffersClientCode = null;
+				smartRule.AssortimentPriceCode = 4662;
+				smartRule.UseOrderableOffers = true;
+				smartRule.ParseAlgorithm = "TestSource";
+				smartRule.SaveAndFlush();
+
+				var orderRule = TestDrugstoreSettings.Find(_client.Id);
+				orderRule.SmartOrderRule = smartRule;
+				orderRule.EnableSmartOrder = true;
+				orderRule.UpdateAndFlush();
+
+				notAllowAddress = _client.CreateAddress();
+				notAllowAddress.Save();
+			}
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString()))
+			{
+				connection.Open();
+
+				SetCurrentUser(_user.Login);
+
+				MySqlHelper.ExecuteScalar(
+					connection,
+					"update Customers.Users set SaveAFDataFiles = 1 where Id = ?UserId",
+					new MySqlParameter("?UserId", _user.Id));
+
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+
+				var exception = Assert.Throws<UpdateException>(
+					() => new SmartOrderHelper(updateData, notAllowAddress.Id, 1, 1, 1));
+				Assert.That(exception.Message, Is.EqualTo("Услуга 'АвтоЗаказ' не предоставляется"));
+				Assert.That(exception.Addition, Is.StringContaining("Пользователю не доступен адрес с кодом"));
+			}
+		}
 
 	}
 }

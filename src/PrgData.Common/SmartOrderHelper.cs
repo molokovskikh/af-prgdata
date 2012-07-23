@@ -20,6 +20,7 @@ using SmartOrderFactory.Repositories;
 using NHibernate.Mapping.Attributes;
 using With = Common.MySql.With;
 using Common.MySql;
+using Common.Tools;
 
 
 namespace PrgData.Common
@@ -94,7 +95,12 @@ namespace PrgData.Common
 
 				User = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
 				NHibernateUtil.Initialize(User.AvaliableAddresses);
-				Address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
+				if (User.AvaliableAddresses.Count == 0)
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "У пользователя нет доступных адресов доставки; ", RequestType.Forbidden);
+
+				Address = User.AvaliableAddresses.FirstOrDefault(a => a.Id == orderedClientCode);
+				if (Address == null)
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Пользователю не доступен адрес с кодом {0}; ".Format(orderedClientCode), RequestType.Forbidden);
 				NHibernateUtil.Initialize(Address.Users);
 			}
 
