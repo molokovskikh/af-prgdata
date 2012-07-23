@@ -712,7 +712,7 @@ Public Class PrgDataEx
 					End If
 					If Not String.IsNullOrEmpty(AbsentPriceCodes) Then ProcessResetAbsentPriceCodes(AbsentPriceCodes)
 
-					If UpdateData.NeedUpdateToBuyingMatrix Or UpdateData.NeedUpdateForRetailVitallyImportant() Then helper.SetForceReplication()
+					If UpdateData.NeedUpdateToBuyingMatrix Or UpdateData.NeedUpdateForRetailVitallyImportant() Or UpdateData.NeedUpdateForEAN13() Then helper.SetForceReplication()
 
 				End If
 
@@ -2439,9 +2439,9 @@ StartZipping:
 		  RetailCost.ToArray(), _
 		  VitallyImportantDelayOfPayment.ToArray(), _
 		  CostWithDelayOfPayment, _
-		  EAN13, _
-		  CodeOKP, _
-		  Series _
+		  EAN13.ToArray(), _
+		  CodeOKP.ToArray(), _
+		  Series.ToArray() _
 		  )
 	End Function
 
@@ -2549,9 +2549,9 @@ StartZipping:
 		  RetailCost, _
 		  VitallyImportantDelayOfPayment.ToArray(), _
 		  CostWithDelayOfPayment, _
-		  EAN13, _
-		  CodeOKP, _
-		  Series _
+		  EAN13.ToArray(), _
+		  CodeOKP.ToArray(), _
+		  Series.ToArray() _
 		  )
 	End Function
 
@@ -2659,9 +2659,9 @@ StartZipping:
 		  RetailCost, _
 		  VitallyImportantDelayOfPayment, _
 		  CostWithDelayOfPayment, _
-		  EAN13, _
-		  CodeOKP, _
-		  Series _
+		  EAN13.ToArray(), _
+		  CodeOKP.ToArray(), _
+		  Series.ToArray() _
 		  )
 	End Function
 

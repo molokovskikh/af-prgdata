@@ -73,6 +73,8 @@ namespace PrgData.Common
 		private static int _versionBeforeMatchWaybillsToOrders = 1833;
 		//версия AnalitF до коррективки поля TechContact у региона (от 1869)
 		private static int _versionBeforeCorrectTechContact = 1869;
+		//версия AnalitF до экспорта новых полей в core: EAN13, CodeOKP, Series (от 1877)
+		private static int _versionBeforeEAN13 = 1877;
 
 		public string ShortName;
 		public uint ClientId;
@@ -561,6 +563,18 @@ namespace PrgData.Common
 		{
 			return BuildNumberGreaterThen(_versionBeforeCorrectTechContact)
 				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeCorrectTechContact);
+		}
+
+		public bool AllowEAN13()
+		{
+			return BuildNumberGreaterThen(_versionBeforeEAN13)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeEAN13);
+		}
+
+		public bool NeedUpdateForEAN13()
+		{
+			return (BuildNumber <= _versionBeforeEAN13)
+				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeEAN13);
 		}
 
 		public bool NeedUpdateForRetailMargins()

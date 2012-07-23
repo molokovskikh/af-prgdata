@@ -1750,5 +1750,43 @@ limit 1;
 			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.Not.StringStarting("<tr> <td class=\"contactText\">"));
 			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.Not.StringEnding("</td> </tr>"));
 		}
+
+		[Test(Description = "проверка экспорта новых полей в Core: EAN13, CodeOKP, Series")]
+		public void CheckCoreForEAN13()
+		{
+			updateData.BuildNumber = 1880;
+
+			helper.MaintainReplicationInfo();
+
+			helper.Cleanup();
+
+			helper.SelectPrices();
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
+
+			helper.SelectOffers();
+
+			var coreSql = helper.GetCoreCommand(false, true, true, false);
+
+			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			var coreTable = new DataTable();
+
+			dataAdapter.Fill(coreTable);
+
+			Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
+			var indexRetail = coreTable.Columns.IndexOf("RetailVitallyImportant");
+
+			Assert.That(coreTable.Columns.Contains("BuyingMatrixType"), Is.True);
+			var indexBuying = coreTable.Columns.IndexOf("BuyingMatrixType");
+
+			Assert.That(coreTable.Columns.Contains("EAN13"), Is.True);
+			Assert.That(coreTable.Columns.Contains("CodeOKP"), Is.True);
+			Assert.That(coreTable.Columns.Contains("Series"), Is.True);
+
+			Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1 - 3));
+			Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
+		}
+
 	}
 }

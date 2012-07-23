@@ -2253,6 +2253,7 @@ SELECT CT.PriceCode               ,
 	   {0}
 	   {4}
 	   {1}
+	   {6}
 FROM (Core CT,
 		ActivePrices AT,
 		farm.core0 Core)
@@ -2288,7 +2289,8 @@ Core.NDS " : "",
 				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 				_updateData.OfferMatrixPriceId.HasValue ? @" 
   left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + offerMatrixProducerNullCondition + ", offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
-  left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode " : ""
+  left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode " : "",
+				_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : ""
 				);
 		}
 

@@ -596,9 +596,9 @@ limit 1
 					new string[] { "", "" }, //retailCost,
 					new string[] { "" }, //vitallyImportantDelayOfPayment,
 					new decimal[] { 100m, 200m }, //costWithDelayOfPayment
-					new string[] { "", "" }, //ean13,
-					new string[] { "", "" }, //codeOKP
-					new string[] { "", "" } //series,
+					new string[] { "ean13_1", "ean13_2" }, //ean13,
+					new string[] { "codeOKP_1", "codeOKP_1" }, //codeOKP
+					new string[] { "series_1", "series_2" } //series,
 					);
 		}
 
