@@ -872,7 +872,7 @@ endprocNew:
 
 			InternalGetUserData = ResStr
 		Catch updateException As UpdateException
-			Return ProcessUpdateException(updateException)
+			InternalGetUserData = ProcessUpdateException(updateException)
 		Catch ex As Exception
 			If LogRequestHelper.NeedLogged() Then
 				LogRequestHelper.MailWithRequest(Log, "Ошибка при подготовке данных", ex)
@@ -890,7 +890,8 @@ endprocNew:
 			InternalGetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
 		Finally
 			If (Not ProcessBatch) Then
-				If Not Async Then DBDisconnect()
+				'если не асинхронный запрос и результат не содержит успешный ответ, то освобождаем соединение
+				If Not Async Or Not ResStr.StartsWith("URL=") Then DBDisconnect()
 				Counter.ReleaseLock(UserId, "GetUserData", UpdateData)
 			End If
 		End Try
