@@ -29,17 +29,25 @@ namespace PrgData.Common
 			return userName;
 		}
 
-#if DEBUG 
+#if DEBUG
+		public static string ExpandExportPath(string path)
+		{
+			var fullPath = Path.GetFullPath(path);
+			if (fullPath.Equals(path, StringComparison.CurrentCultureIgnoreCase))
+				return path;
+
+			fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
+			if (!Directory.Exists(fullPath))
+				Directory.CreateDirectory(fullPath);
+			return fullPath;
+		}
+
 		public static void SetupMySqlPath()
 		{
-			if (!String.Equals(Environment.MachineName, "devsrv", StringComparison.OrdinalIgnoreCase)) {
-				var parentDir = AppDomain.CurrentDomain.BaseDirectory;
-				var localMysqlPath = Path.Combine(parentDir, "MySqlExportImport");
-				if (!Directory.Exists(localMysqlPath))
-				    Directory.CreateDirectory(localMysqlPath);
-				MySqlSharedExportPath = () => localMysqlPath;
-				MySqlLocalImportPath = () => localMysqlPath;
-			}
+			var sharedExportPath = ExpandExportPath(MySqlSharedExportPath());
+			var localImportPath = ExpandExportPath(MySqlLocalImportPath());
+			MySqlSharedExportPath = () => sharedExportPath;
+			MySqlLocalImportPath = () => localImportPath;
 		}
 
 		/// <summary>
