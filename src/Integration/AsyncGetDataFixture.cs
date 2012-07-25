@@ -71,6 +71,8 @@ namespace Integration
 		{
 			var firstAsyncResponse = CheckAsyncRequest(1);
 			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
+			//Надо очистить список событий, т.к. после CheckAsyncRequest(1) будет запись с ошибкой о неожидаемом типе обновления
+			MemoryAppender.Clear();
 
 			var responce = LoadDataAsync(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 			var simpleUpdateId = ShouldBeSuccessfull(responce);
@@ -107,6 +109,8 @@ namespace Integration
 		{
 			var firstAsyncResponse = CheckAsyncRequest(1);
 			Assert.That(firstAsyncResponse, Is.StringStarting("Error=При выполнении Вашего запроса произошла ошибка."));
+			//Надо очистить список событий, т.к. после CheckAsyncRequest(1) будет запись с ошибкой о неожидаемом типе обновления
+			MemoryAppender.Clear();
 
 			var responce = LoadDataAsyncDispose(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 			var simpleUpdateId = ShouldBeSuccessfull(responce);

@@ -120,5 +120,18 @@ values (?UpdateId, ?DocumentBodyId, ?CertificateId, ?Filename)";
 				}
 			}
 		}
+
+		public static int? GetUpdateTypeByUpdateId(MySqlConnection connection, uint updateId)
+		{
+			var result = MySqlHelper.ExecuteScalar(
+				connection,
+				"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+				new MySqlParameter("?UpdateId", updateId));
+
+			if (result == null)
+				return null;
+
+			return Convert.ToInt32(result);
+		}
 	}
 }

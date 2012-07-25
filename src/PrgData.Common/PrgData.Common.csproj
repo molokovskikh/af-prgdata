@@ -152,6 +152,7 @@
     <Compile Include="DebugReplicationHelper.cs" />
     <Compile Include="FileForArchive.cs" />
     <Compile Include="HostsFileHelper.cs" />
+    <Compile Include="LogRequestHelper.cs" />
     <Compile Include="MailHelper.cs" />
     <Compile Include="Models\AnalitFUpdate.cs" />
     <Compile Include="Models\AnalitFVersionRule.cs" />
@@ -164,6 +165,9 @@
     <Compile Include="Orders\ClientOrderPosition.cs" />
     <Compile Include="Orders\Orders2StringConverter.cs" />
     <Compile Include="Orders\UnconfirmedOrdersExporter.cs" />
+    <Compile Include="PrgDataNew.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Repositories\IVersionRuleRepository.cs" />
     <Compile Include="Repositories\VersionRuleRepository.cs" />
     <Compile Include="RequestType.cs" />

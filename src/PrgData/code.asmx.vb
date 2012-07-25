@@ -24,12 +24,18 @@ Imports Common.Tools
 
 <WebService(Namespace:="IOS.Service")> _
 Public Class PrgDataEx
-	Inherits System.Web.Services.WebService
+	Inherits PrgDataNew
 
 	Const SevenZipExe As String = "C:\Program Files\7-Zip\7z.exe"
 
 	Public Sub New()
 		MyBase.New()
+
+		Log = LogManager.GetLogger(GetType(PrgDataEx))
+
+		Cm = new MySqlCommand()
+
+		ProtocolUpdatesThread = New Thread(AddressOf ProtocolUpdates)
 
 		InitializeComponent()
 
@@ -59,12 +65,12 @@ Public Class PrgDataEx
 
 	Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
     Private FileInfo As System.IO.FileInfo
-    Private UserName, MessageD As String
+    Private MessageD As String
     'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
     Private AbsentPriceCodes As String
     Private MessageH As String
-    Private ErrorFlag, Documents, RequestAttachments As Boolean
-    Private Addition, ClientLog As String
+    Private Documents, RequestAttachments As Boolean
+    Private ClientLog As String
     Private Reclame As Boolean
     Private GetHistory As Boolean
     Public ResultFileName As String
@@ -73,28 +79,16 @@ Public Class PrgDataEx
     'Потоки
     Private ThreadZipStream As New Thread(AddressOf ZipStream)
     Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
-    Private ProtocolUpdatesThread As New Thread(AddressOf ProtocolUpdates)
 
 	Private CurUpdTime As DateTime
     Private LimitedCumulative As Boolean
-    Private UpdateType As RequestType
 	Private ResultLenght As UInt32
-    Dim CCode, UserId As UInt32
-    Private SpyHostsFile, SpyAccount As Boolean
-    Dim UpdateData As UpdateData
-    Private UserHost, ReclamePath As String
-    Private UncDT As Date
+    Private ReclamePath As String
 	Private PackFinished As Boolean
     Private NewZip As Boolean = True
-    Dim GUpdateId As UInt32? = 0
     Private WithEvents DS As System.Data.DataSet
-    Private WithEvents Cm As MySql.Data.MySqlClient.MySqlCommand
-
-    Private readWriteConnection As MySql.Data.MySqlClient.MySqlConnection
 
     Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
-
-    Private Log As ILog = LogManager.GetLogger(GetType(PrgDataEx))
 
     'Получает письмо и отправляет его
     <WebMethod()> _
@@ -248,8 +242,7 @@ Public Class PrgDataEx
  ByVal LibraryVersion() As String, _
  ByVal LibraryHash() As String) As String
 
-        Dim LibraryNameWOPath As String
-
+        'Dim LibraryNameWOPath As String
 
         'If DBConnect("GetInfo") Then
         '    GetClientCode()
@@ -283,6 +276,7 @@ Public Class PrgDataEx
         '    End If
         '    DBDisconnect()
         'End If
+
         Return ""
     End Function
 
@@ -1888,86 +1882,6 @@ StartZipping:
 		End Try
 	End Function
 
-	Private Sub GetClientCode()
-		UserName = ServiceContext.GetShortUserName()
-		ThreadContext.Properties("user") = ServiceContext.GetUserName()
-		UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName)
-
-		If UpdateData Is Nothing OrElse UpdateData.Disabled() Then
-			If UpdateData Is Nothing Then
-				Throw New UpdateException( _
-					"Доступ закрыт.", _
-					"Пожалуйста, обратитесь в АК ""Инфорум"".[1]", "Для логина " & UserName & " услуга не предоставляется; ", _
-					RequestType.Forbidden)
-			Else
-				If UpdateData.BillingDisabled() Then
-					Throw New UpdateException( _
-						"В связи с неоплатой услуг доступ закрыт.", _
-						"Пожалуйста, обратитесь в бухгалтерию АК ""Инфорум"".[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
-						RequestType.Forbidden)
-				Else
-					Throw New UpdateException( _
-						"Доступ закрыт.", _
-						"Пожалуйста, обратитесь в АК ""Инфорум"".[1]", "Для логина " & UserName & " услуга не предоставляется: " & UpdateData.DisabledMessage() & "; ", _
-						RequestType.Forbidden)
-				End If
-			End If
-		End If
-
-		UpdateData.ResultPath = ServiceContext.GetResultPath()
-		UpdateData.ClientHost = UserHost
-		CCode = UpdateData.ClientId
-		UserId = UpdateData.UserId
-		UncDT = UpdateData.UncommitedUpdateTime
-		SpyHostsFile = UpdateData.Spy
-		SpyAccount = UpdateData.SpyAccount
-		ThreadContext.Properties("user") = UpdateData.UserName
-
-		With Cm
-			.Parameters.Add(New MySqlParameter("?UserName", MySqlDbType.VarString))
-			.Parameters("?UserName").Value = UserName
-
-			.Parameters.Add(New MySqlParameter("?ClientCode", MySqlDbType.Int32))
-			.Parameters("?ClientCode").Value = CCode
-		End With
-
-		Cm.Connection = readWriteConnection
-		Cm.Transaction = Nothing
-		Cm.CommandText = "" & _
-		 "UPDATE Logs.AuthorizationDates A " & _
-		 "SET     AFTime    =now() " & _
-		 "WHERE   UserId=" & UserId
-		Dim AuthorizationDatesCounter As Integer = Cm.ExecuteNonQuery()
-
-		If AuthorizationDatesCounter <> 1 Then
-			Addition &= "Нет записи в AuthorizationDates (" & UserId & "); "
-		End If
-	End Sub
-
-	Private Function DBConnect()
-		UserHost = ServiceContext.GetUserHost()
-		Try
-
-			readWriteConnection = Settings.GetConnection()
-			readWriteConnection.Open()
-
-			Return True
-		Catch ex As Exception
-			DBDisconnect()
-			Throw
-		End Try
-	End Function
-
-	Private Sub DBDisconnect()
-		Try
-			if AsyncPrgDatas.Contains(Me) Then Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
-			AsyncPrgDatas.DeleteFromList(Me)
-			If Not readWriteConnection Is Nothing Then readWriteConnection.Dispose()
-		Catch e As Exception
-			Log.Error("Ошибка при закритии соединения", e)
-		End Try
-	End Sub
-
 	<WebMethod()> Public Function GetArchivedOrdersList() As String
 		'If DBConnect("GetArchivedOrdersList") Then
 
@@ -2004,8 +1918,6 @@ StartZipping:
 		'End If
 		Return String.Empty
 	End Function
-
-
 
 
 	<WebMethod()> _
@@ -3277,7 +3189,7 @@ PostLog:
 								If СписокФайлов.Length > 0 Then MySQLResultFile.Delete(СписокФайлов(0))
 
 							Next
-							LogCm.CommandText = helper.GetConfirmDocumentsCommnad(GUpdateId)
+							LogCm.CommandText = UpdateHelper.GetConfirmDocumentsCommnad(GUpdateId)
 							LogCm.ExecuteNonQuery()
 
 							LogCm.CommandText = helper.GetConfirmMailsCommnad(GUpdateId)
@@ -3309,7 +3221,6 @@ PostLog:
 	Private Sub InitializeComponent()
 		Me.DS = New System.Data.DataSet
 		Me.dtProcessingDocuments = New System.Data.DataTable
-		Me.Cm = New MySql.Data.MySqlClient.MySqlCommand
 		Me.readWriteConnection = New MySql.Data.MySqlClient.MySqlConnection
 		Me.SelProc = New MySql.Data.MySqlClient.MySqlCommand
 		Me.DA = New MySql.Data.MySqlClient.MySqlDataAdapter
@@ -3327,11 +3238,6 @@ PostLog:
 		'
 		Me.dtProcessingDocuments.RemotingFormat = System.Data.SerializationFormat.Binary
 		Me.dtProcessingDocuments.TableName = "ProcessingDocuments"
-		'
-		'Cm
-		'
-		Me.Cm.Connection = Me.readWriteConnection
-		Me.Cm.Transaction = Nothing
 		'
 		'ReadOnlyCn
 		'
@@ -4405,6 +4311,7 @@ RestartTrans2:
 				Log.Error("Ошибка при получении паролей" & vbCrLf & "У клиента не заданы пароли для шифрации данных")
 				Addition = "Не заданы пароли для шифрации данных"
 				ErrorFlag = True
+				Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
 			End If
 		Catch updateException As UpdateException
 			If UpdateData IsNot Nothing Then
@@ -4419,10 +4326,6 @@ RestartTrans2:
 		Finally
 			DBDisconnect()
 		End Try
-
-		If ErrorFlag Then
-			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
-		End If
 	End Function
 
 	<WebMethod()> Public Function PostPriceDataSettings(ByVal UniqueID As String, ByVal PriceCodes As Int32(), ByVal RegionCodes As Int64(), ByVal INJobs As Boolean()) As String
@@ -4454,13 +4357,10 @@ RestartTrans2:
 		Catch ex As Exception
 			LogRequestHelper.MailWithRequest(Log, "Ошибка при применении обновлений настроек прайс-листов", ex)
 			ErrorFlag = True
+			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
 		Finally
 			DBDisconnect()
 		End Try
-
-		If ErrorFlag Then
-			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
-		End If
 	End Function
 
 	<WebMethod()> Public Function GetReclame() As String
@@ -4768,40 +4668,6 @@ RestartTrans2:
 
 		Return Result
 
-	End Function
-
-	Private Function ProcessUpdateException(ByVal updateException As UpdateException) As String
-		Return ProcessUpdateException(updateException, False)
-	End Function
-
-	Private Function ProcessUpdateException(ByVal updateException As UpdateException, ByVal wait As Boolean) As String
-		UpdateType = updateException.UpdateType
-		Addition += updateException.Addition & "; IP:" & UserHost & "; "
-		ErrorFlag = True
-		If UpdateData IsNot Nothing Then
-			Log.Warn(updateException)
-			ProtocolUpdatesThread.Start()
-
-			If wait Then
-				Dim waitCount = 0
-				While GUpdateId = 0 AndAlso waitCount < 30
-					waitCount += 1
-					Thread.Sleep(500)
-				End While
-			End If
-		Else
-			If UpdateHelper.UserExists(readWriteConnection, UserName) Then
-				Log.Warn(updateException)
-				Common.MailHelper.Mail( _
-  "Хост: " & Environment.MachineName & vbCrLf & _
-  "Пользователь: " & UserName & vbCrLf & _
-  updateException.ToString(), _
-  updateException.Message, Nothing, Nothing, ConfigurationManager.AppSettings("SupportMail"))
-			Else
-				Log.Error(updateException)
-			End If
-		End If
-		Return updateException.GetAnalitFMessage()
 	End Function
 
 	<WebMethod()> _
@@ -5174,13 +5040,10 @@ endproc:
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении пользовательского сообщения", ex)
             ErrorFlag = True
+			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
             DBDisconnect()
         End Try
-
-        If ErrorFlag Then
-            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
-        End If
     End Function
 
     <WebMethod()> _
@@ -5191,7 +5054,7 @@ endproc:
     ) As String
 
         Try
-            UpdateType = RequestType.ConfirmUserMessage
+            UpdateType = RequestType.SendUserActions
             DBConnect()
             GetClientCode()
             UpdateData.ParseBuildNumber(EXEVersion)
@@ -5217,48 +5080,10 @@ endproc:
         Catch ex As Exception
             LogRequestHelper.MailWithRequest(Log, "Ошибка при обработки пользовательской статистики", ex)
             ErrorFlag = True
-        Finally
-            DBDisconnect()
-        End Try
-
-        If ErrorFlag Then
-            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
-        End If
-    End Function
-
-    <WebMethod()> _
-    Public Function CheckAsyncRequest( _
-        ByVal UpdateId As UInt32 _
-    ) As String
-
-        Try
-            DBConnect()
-            GetClientCode()
-
-            If UpdateData.PreviousRequest.UpdateId = UpdateId _ 
-                AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetDataAsync _
-                AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetCumulativeAsync _
-                AndAlso UpdateData.PreviousRequest.RequestType <> RequestType.GetLimitedCumulativeAsync _
-            Then
-                Return "Res=OK"
-            Else
-                If UpdateData.PreviousRequest.UpdateId = UpdateId then
-                    Return "Res=Wait"
-                Else
-                    Me.Log.DebugFormat("При проверке статуса асинхронного запроса на найден UpdateId: {0}", UpdateId)
-                    Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
-                End If
-            End If
-
-        Catch updateException As UpdateException
-            Return ProcessUpdateException(updateException)
-        Catch ex As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при обработки пользовательской статистики", ex)
             Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
         Finally
             DBDisconnect()
         End Try
-
     End Function
 
 End Class
