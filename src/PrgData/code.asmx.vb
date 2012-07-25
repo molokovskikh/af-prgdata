@@ -628,7 +628,6 @@ Public Class PrgDataEx
 				UpdateData.AsyncRequest = Async
 				'От клиента пришел запрос на КО
 				UpdateData.Cumulative = GetEtalonData
-				If Async Then AsyncPrgDatas.AddToList(Me)
 				'Присваиваем версии приложения и базы
 				UpdateData.ParseBuildNumber(EXEVersion)
 				UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
@@ -872,7 +871,7 @@ endprocNew:
 
 			InternalGetUserData = ResStr
 		Catch updateException As UpdateException
-			Return ProcessUpdateException(updateException)
+			InternalGetUserData = ProcessUpdateException(updateException)
 		Catch ex As Exception
 			If LogRequestHelper.NeedLogged() Then
 				LogRequestHelper.MailWithRequest(Log, "Ошибка при подготовке данных", ex)
@@ -890,7 +889,8 @@ endprocNew:
 			InternalGetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
 		Finally
 			If (Not ProcessBatch) Then
-				If Not Async Then DBDisconnect()
+				'если не асинхронный запрос или не содержится в списке сервисов, производящих асинхронную подготовку, то освобождаем соединение
+				If Not Async Or Not AsyncPrgDatas.Contains(Me) Then DBDisconnect()
 				Counter.ReleaseLock(UserId, "GetUserData", UpdateData)
 			End If
 		End Try
@@ -1960,6 +1960,8 @@ StartZipping:
 
 	Private Sub DBDisconnect()
 		Try
+			if AsyncPrgDatas.Contains(Me) Then Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
+			AsyncPrgDatas.DeleteFromList(Me)
 			If Not readWriteConnection Is Nothing Then readWriteConnection.Dispose()
 		Catch e As Exception
 			Log.Error("Ошибка при закритии соединения", e)
@@ -3114,9 +3116,6 @@ StartZipping:
 					UpdateHelper.UpdateRequestType(connection, UpdateData, GUpdateId, Addition, ResultLenght)
 				End If
 			End Using
-
-			Log.Debug("Попытка удалить из списка AsyncPrgDatas.DeleteFromList")
-			AsyncPrgDatas.DeleteFromList(Me)
 		End If
 	End Sub
 
@@ -3833,6 +3832,7 @@ RestartTrans2:
 		Dim transaction As MySqlTransaction
 		Try
 			ThreadContext.Properties("user") = UpdateData.UserName
+			If UpdateData.AsyncRequest Then AsyncPrgDatas.AddToList(Me)
 			Dim helper As UpdateHelper = New UpdateHelper(UpdateData, readWriteConnection)
 			Try
 
@@ -4231,6 +4231,8 @@ RestartTrans2:
 			UpdateType = RequestType.Error
 			Addition &= ex.Message
 			PackProtocols()
+		Finally
+			if UpdateData.AsyncRequest Then DBDisconnect()
 		End Try
 	End Sub
 

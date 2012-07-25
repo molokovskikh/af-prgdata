@@ -24,5 +24,10 @@ namespace PrgData.Common
 					_services.Remove(service);
 				}
 		}
+
+		public static bool Contains(WebService service)
+		{
+			return _services.Contains(service);
+		}
 	}
 }
