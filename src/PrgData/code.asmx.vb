@@ -1612,6 +1612,7 @@ StartZipping:
 					If Not TypeOf ex.InnerException Is ThreadAbortException Then
 						ErrorFlag = True
 						UpdateType = RequestType.Error
+						if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
 					End If
 					Addition &= " Архивирование: " & ex.ToString() & "; "
 
@@ -1619,6 +1620,7 @@ StartZipping:
 
 					ErrorFlag = True
 					UpdateType = RequestType.Error
+					if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
 					If Not Pr Is Nothing Then
 						If Not Pr.HasExited Then Pr.Kill()
 						Pr.WaitForExit()
@@ -1636,6 +1638,7 @@ StartZipping:
 		Catch Unhandled As Exception
 			Log.Error("Архивирование general", Unhandled)
 			ErrorFlag = True
+			if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
 		End Try
 	End Sub
 

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using Common.Tools;
 using MySql.Data.MySqlClient;
+using log4net;
 
 namespace PrgData.Common.Models
 {
@@ -132,6 +133,24 @@ values (?UpdateId, ?DocumentBodyId, ?CertificateId, ?Filename)";
 				return null;
 
 			return Convert.ToInt32(result);
+		}
+
+		public static void SetErrorUpdateType(uint updateId)
+		{
+			try {
+				using (var connection = Settings.GetConnection()) {
+					connection.Open();
+					MySqlHelper.ExecuteNonQuery(
+						connection,
+						"update logs.AnalitFUpdates set UpdateType=?UpdateType  where UpdateId=?UpdateId",
+						new MySqlParameter("?UpdateType", (int)RequestType.Error),
+						new MySqlParameter("?UpdateId", updateId));
+				}
+			}
+			catch (Exception exception) {
+				var log = LogManager.GetLogger(typeof(AnalitFUpdate));
+				log.Error("Ошибка при установке типа обновления 'Ошибка' для UpdateId = {0}".Format(updateId), exception);
+			}
 		}
 	}
 }
