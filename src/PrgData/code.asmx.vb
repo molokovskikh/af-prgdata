@@ -1119,9 +1119,6 @@ endprocNew:
 								If UpdateData.AllowInvoiceHeaders() Then
 									GetMySQLFileWithDefaultEx("InvoiceHeaders", ArchCmd, helper.GetInvoiceHeadersCommand(ids), False, False)
 								End If
-                                If UpdateData.AllowMatchWaybillsToOrders() then
-                                    GetMySQLFileWithDefaultEx("WaybillOrders", ArchCmd, helper.GetWaybillOrdersCommand(ids), False, False)
-								End If
 
 #If DEBUG Then
 								ShareFileHelper.WaitFile(ServiceContext.GetFileByShared("DocumentHeaders" & UserId & ".txt"))
