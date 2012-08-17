@@ -1,0 +1,11 @@
+\src\Common.Tools\Common.Tools\ObjectExtentions.cs
+\src\Common.Tools\Common.Tools.Test\DbfFixture.cs
+\src\Common.Tools\Common.Tools.Test\ReleatableCommandFixture.cs
+\src\Integration\MultiUserDocumentFixture.cs
+\src\Integration\ProcedureFixture.cs
+\src\Integration\ReorderHelperFixture.cs
+\src\Integration\UpdateHelperFixture.cs
+\src\Integration\BaseTests\PrepareDataFixture.cs
+\src\SmartOrderFactory\SmartOrderFactory.Tests\SmartOrderFactoryFixture.cs
+\src\Test.Support\Test.Support\log4net\EventFilter.cs
+\src\Test.Support\Test.Support.Web\WatinSetup.cs
