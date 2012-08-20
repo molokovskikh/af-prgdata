@@ -23,7 +23,6 @@ namespace Integration.BaseTests
 {
 	public class PrepareDataFixture : UserFixture
 	{
-
 		protected string UniqueId;
 		protected MemoryAppender MemoryAppender;
 
@@ -135,16 +134,13 @@ namespace Integration.BaseTests
 		{
 			var asyncResponse = String.Empty;
 			var sleepCount = 0;
-			do
-			{
+			do {
 				asyncResponse = CheckAsyncRequest(updateId);
-				if (asyncResponse == "Res=Wait")
-				{
+				if (asyncResponse == "Res=Wait") {
 					sleepCount++;
 					Thread.Sleep(1000);
 				}
-
-			} while (asyncResponse == "Res=Wait" && sleepCount < 5*60);
+			} while (asyncResponse == "Res=Wait" && sleepCount < 5 * 60);
 
 			Assert.That(asyncResponse, Is.EqualTo(expectedResponse), "Неожидаемый ответ от сервера при проверке асинхронного запроса, sleepCount: {0}", sleepCount);
 		}
@@ -155,12 +151,12 @@ namespace Integration.BaseTests
 			var service = new PrgDataEx();
 
 			var updateTime = service.CommitExchange(updateId, waybillsOnly);
-			
+
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
 
 			var updateRow = MySqlHelper.ExecuteDataRow(
-								Settings.ConnectionString(),
+				Settings.ConnectionString(),
 				@"
 select 
   uui.UpdateDate,
@@ -169,8 +165,7 @@ from
   logs.AnalitFUpdates afu
   join usersettings.UserUpdateInfo uui on uui.UserId = afu.UserId
 where
-  afu.UpdateId = ?UpdateId"
-				,
+  afu.UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", updateId));
 			var updateType = Convert.ToInt32(updateRow["UpdateType"]);
 
@@ -186,25 +181,22 @@ where
 
 		protected void ProcessWithLog(Action action)
 		{
-			ProcessWithLog(appender => action() );
+			ProcessWithLog(appender => action());
 		}
 
 		protected void ProcessWithLog(Action<MemoryAppender> action, bool checkWarnLogs = true)
 		{
-			try
-			{
+			try {
 				var memoryAppender = new MemoryAppender();
 				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
-				
+
 				try {
 					action(memoryAppender);
 				}
-				catch
-				{
+				catch {
 					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Протоколирование при подготовке данных:\r\n{0}", logEvents.Select(item =>
-					{
+					Console.WriteLine("Протоколирование при подготовке данных:\r\n{0}", logEvents.Select(item => {
 						if (string.IsNullOrEmpty(item.GetExceptionString()))
 							return item.RenderedMessage;
 						else
@@ -216,14 +208,12 @@ where
 				if (checkWarnLogs) {
 					var events = memoryAppender.GetEvents();
 					var errors = events.Where(item => item.Level >= Level.Warn);
-					Assert.That(errors.Count(), Is.EqualTo(0), 
-						"При подготовке данных возникли ошибки:\r\n{0}", 
-							errors.Select(item => string.Format("{0} {1}", item.RenderedMessage, item.ExceptionObject) ).Implode("\r\n"));
+					Assert.That(errors.Count(), Is.EqualTo(0),
+						"При подготовке данных возникли ошибки:\r\n{0}",
+						errors.Select(item => string.Format("{0} {1}", item.RenderedMessage, item.ExceptionObject)).Implode("\r\n"));
 				}
-
 			}
-			finally
-			{
+			finally {
 				LogManager.ResetConfiguration();
 			}
 		}
@@ -263,9 +253,13 @@ where
 		protected void RegisterLogger()
 		{
 			MemoryAppender = new MemoryAppender();
-			MemoryAppender.AddFilter(new LoggerMatchFilter
-			{AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter()});
-			BasicConfigurator.Configure((IAppender) MemoryAppender);
+			MemoryAppender.AddFilter(
+				new LoggerMatchFilter {
+					AcceptOnMatch = true,
+					LoggerToMatch = "PrgData",
+					Next = new DenyAllFilter()
+				});
+			BasicConfigurator.Configure((IAppender)MemoryAppender);
 		}
 
 		protected TestDocumentLog CreateDocument(TestUser user)
@@ -273,8 +267,7 @@ where
 			TestDocumentLog doc;
 			var address = user.AvaliableAddresses[0];
 
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				var supplier = user.GetActivePrices()[0].Supplier;
 				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
@@ -304,7 +297,5 @@ where
 
 			return doc;
 		}
-
-
 	}
 }

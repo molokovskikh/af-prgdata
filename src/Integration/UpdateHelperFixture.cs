@@ -20,26 +20,28 @@ namespace Integration
 	[TestFixture]
 	public class UpdateHelperFixture
 	{
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
-		Lazy<UpdateData> lazyUpdateData;
-		UpdateData updateDataValue;
-		UpdateData updateData
+		private Lazy<UpdateData> lazyUpdateData;
+		private UpdateData updateDataValue;
+
+		private UpdateData updateData
 		{
 			get { return updateDataValue ?? lazyUpdateData.Value; }
 			set { updateDataValue = value; }
 		}
 
-		Lazy<UpdateHelper> lazyHelper;
-		UpdateHelper helperValue;
-		UpdateHelper helper
+		private Lazy<UpdateHelper> lazyHelper;
+		private UpdateHelper helperValue;
+
+		private UpdateHelper helper
 		{
 			get { return helperValue ?? lazyHelper.Value; }
 			set { helperValue = value; }
 		}
 
-		MySqlConnection connection;
+		private MySqlConnection connection;
 
 		[SetUp]
 		public void SetUp()
@@ -48,8 +50,7 @@ namespace Integration
 			using (new TransactionScope()) {
 				_user = _client.Users[0];
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -66,7 +67,7 @@ namespace Integration
 				data.OldUpdateTime = DateTime.Now.AddHours(-1);
 				return data;
 			});
-			updateDataValue= null;
+			updateDataValue = null;
 			lazyHelper = new Lazy<UpdateHelper>(() => new UpdateHelper(updateData, connection));
 		}
 
@@ -92,8 +93,7 @@ namespace Integration
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
 			var table = new DataTable();
 			dataAdapter.FillSchema(table, SchemaType.Source);
-			foreach (var column in columns)
-			{
+			foreach (var column in columns) {
 				Assert.IsTrue(table.Columns.Contains(column.Key), "Не найден столбец {0}", column);
 				var dataColumn = table.Columns[column.Key];
 				Assert.That(dataColumn.DataType, Is.EqualTo(typeof(string)), "Не сопадает тип столбца {0}", column);
@@ -107,41 +107,36 @@ namespace Integration
 				connection,
 				helper.GetClientCommand(),
 				updateData,
-				new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("Name", 50)
-						});
+				new KeyValuePair<string, int>[] {
+					new KeyValuePair<string, int>("Name", 50)
+				});
 			CheckFieldLength(
 				connection,
 				helper.GetClientsCommand(false),
 				updateData,
-				new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("ShortName", 50),
-							new KeyValuePair<string, int>("FullName", 255)
-						});
+				new KeyValuePair<string, int>[] {
+					new KeyValuePair<string, int>("ShortName", 50),
+					new KeyValuePair<string, int>("FullName", 255)
+				});
 			CheckFieldLength(
 				connection,
 				helper.GetClientsCommand(true),
 				updateData,
-				new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("ShortName", 50)
-						});
+				new KeyValuePair<string, int>[] {
+					new KeyValuePair<string, int>("ShortName", 50)
+				});
 			CheckFieldLength(
 				connection,
 				helper.GetRegionsCommand(),
 				updateData,
-				new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("Region", 25)
-						});
+				new KeyValuePair<string, int>[] {
+					new KeyValuePair<string, int>("Region", 25)
+				});
 		}
 
 		private void ClearLocks()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(connection, "delete from Logs.PrgDataLogs");
 			}
@@ -156,7 +151,6 @@ namespace Integration
 		[Test(Description = "Проверка поля Clients.ShortName для клиентов из новой реальности для версий программы больше 1271 или обновляющихся на нее")]
 		public void Check_Clients_field_lengts_for_future_client_with_version_greater_than_1271()
 		{
-
 			updateData.BuildNumber = 1272;
 
 			var firebirdSQL = helper.GetClientsCommand(true);
@@ -168,19 +162,17 @@ namespace Integration
 				connection,
 				firebirdSQL,
 				updateData,
-				new[]
-					{
-						new KeyValuePair<string, int>("ShortName", 255)
-					});
+				new[] {
+					new KeyValuePair<string, int>("ShortName", 255)
+				});
 
 			CheckFieldLength(
 				connection,
 				nonFirebirdSQL,
 				updateData,
-				new[]
-					{
-						new KeyValuePair<string, int>("ShortName", 255)
-					});
+				new[] {
+					new KeyValuePair<string, int>("ShortName", 255)
+				});
 
 			updateData.BuildNumber = null;
 			//Явно устанавливаем значение свойства NeedUpdateToNewClientsWithLegalEntity в true, чтобы проверить функциональность при обновлении версий
@@ -195,10 +187,9 @@ namespace Integration
 				connection,
 				updateToNewClientsSQL,
 				updateData,
-				new[]
-					{
-						new KeyValuePair<string, int>("ShortName", 255)
-					});
+				new[] {
+					new KeyValuePair<string, int>("ShortName", 255)
+				});
 		}
 
 
@@ -226,9 +217,9 @@ namespace Integration
 			Assert.That(dataTable.Rows.Count, Is.EqualTo(1), "Кол-во записей в Client не равняется 1, хотя там всегда должна быть одна запись");
 			Assert.That(dataTable.Rows[0]["ClientId"], Is.EqualTo(_client.Id), "Столбец ClientId не сопадает с Id клиента");
 		}
-		
 
-		class CheckedState
+
+		private class CheckedState
 		{
 			public ulong CoreID { get; set; }
 			public float? ProducerCost { get; set; }
@@ -241,15 +232,12 @@ namespace Integration
 		public void Check_core_command_with_NDS()
 		{
 			var states = new List<CheckedState> {
-				new CheckedState {ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null},
-				new CheckedState {ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null},
-				new CheckedState
-					{ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30/(10*1.1f) - 1)*100},
-				new CheckedState {ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f/10f - 1)*100},
-				new CheckedState
-					{ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30/(10*(1 + 10f/100f)) - 1)*100},
-				new CheckedState
-					{ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30/(10*(1 + 18f/100f)) - 1)*100},
+				new CheckedState { ProducerCost = null, Cost = 30, NDS = null, SupplierPriceMarkup = null },
+				new CheckedState { ProducerCost = 0, Cost = 30, NDS = null, SupplierPriceMarkup = null },
+				new CheckedState { ProducerCost = 10, Cost = 30, NDS = null, SupplierPriceMarkup = (30 / (10 * 1.1f) - 1) * 100 },
+				new CheckedState { ProducerCost = 10, Cost = 30, NDS = 0, SupplierPriceMarkup = (30f / 10f - 1) * 100 },
+				new CheckedState { ProducerCost = 10, Cost = 30, NDS = 10, SupplierPriceMarkup = (30 / (10 * (1 + 10f / 100f)) - 1) * 100 },
+				new CheckedState { ProducerCost = 10, Cost = 30, NDS = 18, SupplierPriceMarkup = (30 / (10 * (1 + 18f / 100f)) - 1) * 100 },
 			};
 
 
@@ -264,7 +252,7 @@ namespace Integration
 			helper.SelectOffers();
 
 			var ids = MySqlHelper.ExecuteDataset(connection,
-													@"
+				@"
 select
 Core.Id
 from
@@ -272,7 +260,7 @@ Core
 inner join ActivePrices on ActivePrices.PriceCode = Core.PriceCode and ActivePrices.RegionCode = Core.RegionCode and ActivePrices.Fresh = 1
 inner join farm.Core0 c on c.Id = Core.Id
 limit "
-													+ states.Count);
+					+ states.Count);
 			for (var i = 0; i < states.Count; i++)
 				states[i].CoreID = Convert.ToUInt64(ids.Tables[0].Rows[i]["Id"]);
 
@@ -285,8 +273,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			updateCommand.Parameters.Add("?ProducerCost", MySqlDbType.Float);
 			updateCommand.Parameters.Add("?NDS", MySqlDbType.Float);
 
-			states.ForEach(item =>
-			{
+			states.ForEach(item => {
 				updateCommand.Parameters["?Id"].Value = item.CoreID;
 				updateCommand.Parameters["?Cost"].Value = item.Cost;
 				updateCommand.Parameters["?ProducerCost"].Value = item.ProducerCost;
@@ -294,12 +281,10 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				updateCommand.ExecuteNonQuery();
 			});
 
-			states.ForEach(item =>
-			{
+			states.ForEach(item => {
 				var filledCore = MySqlHelper.ExecuteDataset(
 					connection,
-					helper.GetCoreCommand(false, true, false, false) //+ " and Core.Id = " + item.CoreID
-					,
+					helper.GetCoreCommand(false, true, false, false),
 					new MySqlParameter("?Cumulative", 0));
 
 				filledCore.Tables[0].DefaultView.RowFilter = "CoreId = '" + item.CoreID.ToString().RightSlice(9) + "'";
@@ -308,36 +293,33 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				var rows = filledCore.Tables[0].DefaultView.ToTable();
 				if (rows.Rows.Count == 0)
 					Assert.Fail("Не найдено предложение с Id = {0}", item.CoreID);
-				else
-					if (rows.Rows.Count > 1)
-						Assert.Fail("Больше одного предложения с Id = {0}", item.CoreID);
+				else if (rows.Rows.Count > 1)
+					Assert.Fail("Больше одного предложения с Id = {0}", item.CoreID);
+				else {
+					var calculatedSupplierPriceMarkup = Convert.IsDBNull(rows.Rows[0]["SupplierPriceMarkup"])
+						? null
+						: (float?)Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
+					if (!item.SupplierPriceMarkup.HasValue)
+						Assert.IsNull(calculatedSupplierPriceMarkup,
+							"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}",
+							item.ProducerCost,
+							item.Cost,
+							item.NDS);
+					else if (item.SupplierPriceMarkup.HasValue && !calculatedSupplierPriceMarkup.HasValue)
+						Assert.Fail(
+							"Неправильно расчитана наценка поставщика для параметров (наценка = null): ProducerCost = {0}; Cost = {1}; NDS = {2}",
+							item.ProducerCost,
+							item.Cost,
+							item.NDS);
 					else
-					{
-						var calculatedSupplierPriceMarkup = Convert.IsDBNull(rows.Rows[0]["SupplierPriceMarkup"])
-																? null
-																: (float?) Convert.ToSingle(rows.Rows[0]["SupplierPriceMarkup"]);
-						if (!item.SupplierPriceMarkup.HasValue)
-							Assert.IsNull(calculatedSupplierPriceMarkup, 
-								"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}",
-								item.ProducerCost,
-								item.Cost,
-								item.NDS);
-						else
-							if (item.SupplierPriceMarkup.HasValue && !calculatedSupplierPriceMarkup.HasValue)
-								Assert.Fail(
-									"Неправильно расчитана наценка поставщика для параметров (наценка = null): ProducerCost = {0}; Cost = {1}; NDS = {2}",
-									item.ProducerCost,
-									item.Cost,
-									item.NDS);
-							else
-								Assert.IsTrue(Math.Abs(item.SupplierPriceMarkup.Value - calculatedSupplierPriceMarkup.Value) < 0.0001f,
-									"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}; calculated = {3}; needed = {4}",
-									item.ProducerCost,
-									item.Cost,
-									item.NDS,
-									calculatedSupplierPriceMarkup,
-									item.SupplierPriceMarkup);
-					}
+						Assert.IsTrue(Math.Abs(item.SupplierPriceMarkup.Value - calculatedSupplierPriceMarkup.Value) < 0.0001f,
+							"Неправильно расчитана наценка поставщика для параметров: ProducerCost = {0}; Cost = {1}; NDS = {2}; calculated = {3}; needed = {4}",
+							item.ProducerCost,
+							item.Cost,
+							item.NDS,
+							calculatedSupplierPriceMarkup,
+							item.SupplierPriceMarkup);
+				}
 			});
 		}
 
@@ -345,8 +327,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		private void CheckLocks(string firstLock, string secondLock, bool generateException, string exceptionMessage)
 		{
 			uint firstLockId = 0;
-			try
-			{
+			try {
 				ClearLocks();
 
 				firstLockId = Counter.TryLock(_user.Id, firstLock);
@@ -356,14 +337,12 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				if (generateException)
 					Assert.Fail("Ожидалось исключение для пары методов {0}-{1}: {2}", firstLock, secondLock, exceptionMessage);
 			}
-			catch (UpdateException exception)
-			{
+			catch (UpdateException exception) {
 				if (!generateException || !exception.Message.Equals(exceptionMessage))
 					Assert.Fail("Неожидаемое исключение для пары методов {0}-{1}: {2}", firstLock, secondLock, exception);
 			}
 
-			if (generateException)
-			{
+			if (generateException) {
 				Counter.ReleaseLock(_user.Id, firstLock, firstLockId);
 				var errorLockId = Counter.TryLock(_user.Id, secondLock);
 			}
@@ -435,14 +414,12 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 				lastPostOrderBatchLockId = Counter.TryLock(i, "PostOrderBatch");
 			}
 
-			try
-			{
-				uint maxLockId = Counter.TryLock(maxSessionCount+1, "GetUserData");
+			try {
+				uint maxLockId = Counter.TryLock(maxSessionCount + 1, "GetUserData");
 
 				Assert.Fail("Ожидалось исключение при превышении максимального кол-ва пользователей: {0}", "Обновление данных в настоящее время невозможно.");
 			}
-			catch (UpdateException exception)
-			{
+			catch (UpdateException exception) {
 				if (!exception.Message.Equals("Обновление данных в настоящее время невозможно."))
 					Assert.Fail("Неожидаемое исключение при превышении максимального кол-ва пользователей: {0}", exception);
 			}
@@ -479,8 +456,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			TestAddress newAddress;
 			TestLegalEntity newLegalEntity;
 
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				newLegalEntity = _client.CreateLegalEntity();
 
 				newAddress = _client.CreateAddress();
@@ -500,11 +476,10 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			var clients = new DataTable();
 			dataAdapter.Fill(clients);
-				
+
 			Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
 
-			foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
-			{
+			foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled)) {
 				var rows = clients.Select("FirmCode = " + enabledAddress.Id);
 				if (rows == null || rows.Length == 0)
 					Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
@@ -529,8 +504,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			TestAddress newAddress;
 			TestLegalEntity newLegalEntity;
 
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				newLegalEntity = _client.CreateLegalEntity();
 
 				newAddress = _client.CreateAddress();
@@ -552,8 +526,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			Assert.That(clients.Rows.Count, Is.EqualTo(_user.AvaliableAddresses.Count(item => item.Enabled)), "Не совпадает кол-во адресов доставки");
 
-			foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled))
-			{
+			foreach (var enabledAddress in _user.AvaliableAddresses.Where(item => item.Enabled)) {
 				var rows = clients.Select("FirmCode = " + enabledAddress.Id);
 				if (rows == null || rows.Length == 0)
 					Assert.Fail("В списке клиентов не найден включенный адрес доставки: {0}", enabledAddress);
@@ -605,8 +578,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			TestAddress newAddress;
 			TestLegalEntity newLegalEntity;
 
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				newLegalEntity = _client.CreateLegalEntity();
 
 				newAddress = _client.CreateAddress();
@@ -708,13 +680,12 @@ drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;"
 			MySqlHelper.ExecuteNonQuery(
 				connection,
 				String.Format(
-				@"
+					@"
 create temporary table usersettings.GroupByCore engine=memory as 
 {0}
 ;
-"
-				,
-				coreSql),
+",
+					coreSql),
 				new MySqlParameter("?Cumulative", 0));
 			Console.WriteLine("fill group: {0}", DateTime.Now.Subtract(startGroupBy));
 
@@ -722,19 +693,18 @@ create temporary table usersettings.GroupByCore engine=memory as
 			MySqlHelper.ExecuteNonQuery(
 				connection,
 				String.Format(
-				@"
+					@"
 create temporary table usersettings.PureCore engine=memory as
 select * from usersettings.GroupByCore limit 0;
 insert into usersettings.PureCore
 {0}
 ;
-"
-				,
-				withoutGroupCoreSql),
+",
+					withoutGroupCoreSql),
 				new MySqlParameter("?Cumulative", 0));
 			Console.WriteLine("fill pure: {0}", DateTime.Now.Subtract(startPure));
 
-			var withGroupBy = 
+			var withGroupBy =
 				MySqlHelper.ExecuteDataset(
 					connection,
 					"select * from usersettings.GroupByCore");
@@ -762,7 +732,6 @@ drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;"
 		[Test(Description = "Все актуальные прайс-листы при первом подключении к клиенту должны быть свежими")]
 		public void CheckActivePricesFreshAfterCreate()
 		{
-
 			helper.MaintainReplicationInfo();
 
 			var SelProc = new MySqlCommand();
@@ -1163,7 +1132,7 @@ and ForceReplication > 0;",
 			dataAdapter.Fill(coreTable);
 			Assert.That(coreTable.Columns.Contains("RetailVitallyImportant"), Is.True);
 			var index = coreTable.Columns.IndexOf("RetailVitallyImportant");
-			Assert.That(index, Is.EqualTo(coreTable.Columns.Count-1));
+			Assert.That(index, Is.EqualTo(coreTable.Columns.Count - 1));
 		}
 
 		[Test]
@@ -1225,7 +1194,7 @@ and ForceReplication > 0;",
 			var indexBuying = coreTable.Columns.IndexOf("BuyingMatrixType");
 
 			Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1));
-			Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
+			Assert.That(indexRetail, Is.EqualTo(indexBuying - 1));
 		}
 
 		[Test]
@@ -1369,7 +1338,7 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 			dataAdapter.Fill(dataTable);
 			Assert.That(dataTable.Rows.Count, Is.EqualTo(0), "Расписаний быть не должно, т.к. механизм не включен");
 
-				
+
 			MySqlHelper.ExecuteNonQuery(
 				connection,
 				"update UserSettings.RetClientsSet set AllowAnalitFSchedule = 1 where ClientCode = ?clientId",
@@ -1394,8 +1363,7 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 				supplierUser = supplier.Users.First();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var result = UpdateHelper.UserExists(connection, "ddsdsdsdsds");
@@ -1467,7 +1435,7 @@ limit 3;
 			Assert.That(dataTable.Rows.Count, Is.GreaterThan(3), "Каталог должен быть выгружен весь");
 			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
 			Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
-				
+
 
 			MySqlHelper.ExecuteNonQuery(
 				connection,
@@ -1495,7 +1463,7 @@ limit 1;
 			Assert.That(dataTable.Columns.Count, Is.GreaterThan(0), "Нет колонок в таблице");
 			Assert.That(dataTable.Columns.Contains("Markup"), Is.True, "Не найден столбец Markup в таблице");
 		}
-		
+
 		private void CheckDescriptionIdColumn(MySqlDataAdapter adapter, uint catalogId, uint? descritionId)
 		{
 			var dataTable = new DataTable();
@@ -1538,7 +1506,7 @@ limit 1;
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
 
 			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
-				
+
 
 			//Проверяем кумулятивный запрос данных при неустановленном описании
 			updateData.Cumulative = true;
@@ -1599,19 +1567,19 @@ limit 1;
 		[Test(Description = "проверка экспорта ссылки на описание для версий раньше 1150")]
 		public void ExportDescriptionIdByBefore1150()
 		{
-			 ExportDescriptionIdBy(true, null);
+			ExportDescriptionIdBy(true, null);
 		}
 
 		[Test(Description = "проверка экспорта ссылки на описание для версий до 1755")]
 		public void ExportDescriptionIdBeforeRetailMargins()
 		{
-			 ExportDescriptionIdBy(false, "1.1.1.1755");
+			ExportDescriptionIdBy(false, "1.1.1.1755");
 		}
 
 		[Test(Description = "проверка экспорта ссылки на описание для версий после 1755")]
 		public void ExportDescriptionIdWithRetailMargins()
 		{
-			 ExportDescriptionIdBy(false, "1.1.1.1766");
+			ExportDescriptionIdBy(false, "1.1.1.1766");
 		}
 
 		[Test(Description = "Проверяем установку поля ExcessAvgOrderTimes при экспорте для различных версий")]
@@ -1702,7 +1670,7 @@ limit 1;
 				new MySqlParameter("?RegionCode", _user.Client.RegionCode),
 				new MySqlParameter("?TechContact", "<p>тел.: <strong>260-60-00</strong></p>"),
 				new MySqlParameter("?TechOperatingMode", "будни: с 7.00 до 19.00"));
-			
+
 			//Проверка для старых версий
 			var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
@@ -1785,8 +1753,7 @@ limit 1;
 			Assert.That(coreTable.Columns.Contains("Series"), Is.True);
 
 			Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1 - 3));
-			Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
+			Assert.That(indexRetail, Is.EqualTo(indexBuying - 1));
 		}
-
 	}
 }

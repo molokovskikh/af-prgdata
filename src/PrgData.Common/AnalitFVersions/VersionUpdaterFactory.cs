@@ -34,19 +34,15 @@ namespace PrgData.Common.AnalitFVersions
 
 			var dirInfo = new DirectoryInfo(Path.Combine(ServiceContext.GetResultPath(), "Updates"));
 
-			if (dirInfo.Exists)
-			{
+			if (dirInfo.Exists) {
 				var releaseInfos = dirInfo.GetDirectories("Release*");
 
-				foreach (var releaseInfo in releaseInfos)
-				{
-					try
-					{
+				foreach (var releaseInfo in releaseInfos) {
+					try {
 						var info = new VersionInfo(releaseInfo.FullName);
 						infos.Add(info);
 					}
-					catch (Exception exception)
-					{
+					catch (Exception exception) {
 						stringBuilder.AppendLine("Папка: " + releaseInfo.FullName + " => " + exception.ToString());
 						stringBuilder.AppendLine();
 					}
@@ -55,16 +51,13 @@ namespace PrgData.Common.AnalitFVersions
 				var currentErrorMessage = stringBuilder.ToString();
 				if (String.IsNullOrEmpty(currentErrorMessage))
 					_lastVersionErrorMessage = null;
-				else
-					if (!currentErrorMessage.Equals(_lastVersionErrorMessage))
-					{
-						_logger.ErrorFormat("При разборе версий возникли ошибки:\r\n{0}", currentErrorMessage);
-						_lastVersionErrorMessage = currentErrorMessage;
-					}
+				else if (!currentErrorMessage.Equals(_lastVersionErrorMessage)) {
+					_logger.ErrorFormat("При разборе версий возникли ошибки:\r\n{0}", currentErrorMessage);
+					_lastVersionErrorMessage = currentErrorMessage;
+				}
 			}
 
 			return infos;
 		}
-
 	}
 }

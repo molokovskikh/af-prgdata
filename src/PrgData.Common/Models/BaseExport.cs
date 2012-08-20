@@ -27,7 +27,9 @@ namespace PrgData.Common.Models
 
 		public abstract void Export();
 
-		public virtual void ArchiveFiles(string archiveFile) {}
+		public virtual void ArchiveFiles(string archiveFile)
+		{
+		}
 
 		protected string Process(string name, string sql, bool addToQueue = true)
 		{
@@ -49,7 +51,7 @@ namespace PrgData.Common.Models
 			if (addToQueue)
 				files.Enqueue(new FileForArchive(name, false));
 
-#if DEBUG 
+#if DEBUG
 			//в отладочной версии ожидаем экспортирование файла из базы данных MySql
 			ShareFileHelper.WaitFile(waitedExportFile);
 #endif

@@ -42,8 +42,7 @@ namespace Integration
 				Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
 				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
 				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
-				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
-				);
+				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>());
 		}
 
 		private void PrepareMySqlPaths()
@@ -62,8 +61,7 @@ namespace Integration
 
 		private void CheckLocalDB()
 		{
-			using (var connection = Settings.GetConnection())
-			{
+			using (var connection = Settings.GetConnection()) {
 				connection.Open();
 				var coreCount = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
 					connection,
@@ -88,8 +86,7 @@ namespace Integration
 
 			File.WriteAllText(testFile, "this is file");
 
-			if (File.Exists(testFile))
-			{
+			if (File.Exists(testFile)) {
 				var contentFile = File.ReadAllText(testFile);
 				Assert.That(contentFile, Is.EqualTo("this is file"));
 				File.Delete(testFile);
@@ -104,15 +101,12 @@ namespace Integration
 			var testFile = ServiceContext.GetFileByLocal(DateTime.Now.ToString("yyyyMMddHHmmss") + ".txt");
 
 			var accessExists = false;
-			try
-			{
+			try {
 				CheckNetworkFile(testFile);
 
 				accessExists = true;
-
 			}
-			catch (Exception)
-			{
+			catch (Exception) {
 				ConnectToShare(dbFilesPath, "analit\\PrgDataTester", "newpassword");
 			}
 
@@ -124,8 +118,7 @@ namespace Integration
 		{
 			//C:\Users\tester>net use \\fms.adc.analit.net\affiles newpassword /user:analit\PrgDataTester
 
-			using (var process = new Process())
-			{
+			using (var process = new Process()) {
 				var startInfo = new ProcessStartInfo("cmd.exe");
 				startInfo.CreateNoWindow = true;
 				startInfo.RedirectStandardOutput = true;
@@ -135,10 +128,10 @@ namespace Integration
 				startInfo.StandardErrorEncoding = System.Text.Encoding.GetEncoding(866);
 				startInfo.Arguments = String
 					.Format(
-						"/c net use {0} {1} /user:{2}",
-						share,
-						password,
-						userName);
+					"/c net use {0} {1} /user:{2}",
+					share,
+					password,
+					userName);
 
 				process.StartInfo = startInfo;
 
@@ -146,18 +139,15 @@ namespace Integration
 
 				process.WaitForExit();
 
-				if (process.ExitCode != 0)
-				{
+				if (process.ExitCode != 0) {
 					throw new Exception(
 						String.Format(
 							"Команда подлючения завершилась в ошибкой: {0}\r\n{1}\r\n{2}",
 							process.ExitCode,
 							process.StandardOutput.ReadToEnd(),
-							process.StandardError.ReadToEnd()
-							));
+							process.StandardError.ReadToEnd()));
 				}
 			}
 		}
-
 	}
 }

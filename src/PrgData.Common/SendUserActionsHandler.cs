@@ -38,14 +38,12 @@ namespace PrgData.Common
 		}
 
 		public void DeleteTemporaryFiles()
-		{ 
+		{
 			if (Directory.Exists(_tmpLogsFolder))
-				try
-				{
+				try {
 					Directory.Delete(_tmpLogsFolder, true);
 				}
-				catch (Exception exception)
-				{
+				catch (Exception exception) {
 					_log.Error("Ошибка при удалении временнной директории при обработке статистики пользователя", exception);
 				}
 		}
@@ -65,8 +63,7 @@ namespace PrgData.Common
 
 			ArchiveHelper.Extract(_tmpLogArchive, "*.*", extractDir);
 			var files = Directory.GetFiles(extractDir);
-			if (files.Length == 0)
-			{
+			if (files.Length == 0) {
 				_log.DebugFormat("Содержимое полученного архива со статистикой: {0}", logFile);
 				throw new Exception("Полученный архив не содержит файлов.");
 			}
@@ -81,18 +78,16 @@ namespace PrgData.Common
 			var importFileName = Path.GetFileName(_tmpExtractLogFileName);
 			var localImportFileName = ServiceContext.GetFileByLocal(importFileName);
 
-			var serverImportFileName = ServiceContext.GetFileByShared(importFileName); 
+			var serverImportFileName = ServiceContext.GetFileByShared(importFileName);
 
-			try
-			{
+			try {
 				File.Copy(_tmpExtractLogFileName, localImportFileName);
 
 				var temporaryTableName = "UserSettings.tempUserActions" + _updateData.UserId;
 
 				return With.DuplicateEntryWraper<int>(() => {
 					var transaction = _connection.BeginTransaction(IsolationLevel.ReadCommitted);
-					try
-					{
+					try {
 						var command = new MySqlCommand();
 						command.Connection = _connection;
 						command.Transaction = transaction;
@@ -111,12 +106,11 @@ namespace PrgData.Common
 	LOAD DATA INFILE '{1}' into table {0}
 	( LogTime, UserActionId, Context)
 	set UserId = {2}, UpdateId = {3};
-	"
-						,
-						temporaryTableName,
-						MySqlHelper.EscapeString(serverImportFileName),
-						_updateData.UserId,
-						_updateId);
+	",
+							temporaryTableName,
+							MySqlHelper.EscapeString(serverImportFileName),
+							_updateData.UserId,
+							_updateId);
 
 						var insertCount = command.ExecuteNonQuery();
 
@@ -132,23 +126,19 @@ namespace PrgData.Common
 
 						return insertCount;
 					}
-					catch
-					{
+					catch {
 						ConnectionHelper.SafeRollback(transaction);
 						throw;
 					}
 				},
-				3,
-				2.Second(),
-				30.Second());
-
+					3,
+					2.Second(),
+					30.Second());
 			}
-			finally
-			{
+			finally {
 				if (File.Exists(localImportFileName))
 					File.Delete(localImportFileName);
 			}
 		}
-
 	}
 }

@@ -25,8 +25,8 @@ namespace Integration
 	[TestFixture]
 	public class GetReclameFixture : PrepareDataFixture
 	{
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
 		private string resultsDir = "results\\";
 
@@ -41,11 +41,9 @@ namespace Integration
 			_client = TestClient.Create();
 			_disabledClient = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -54,8 +52,7 @@ namespace Integration
 				_disabledUser = _disabledClient.Users[0];
 				var permissionAF = TestUserPermission.ByShortcut("AF");
 				var afIndex = _disabledUser.AssignedPermissions.IndexOf(item => item.Id == permissionAF.Id);
-				if (afIndex > -1)
-				{
+				if (afIndex > -1) {
 					_disabledUser.AssignedPermissions.RemoveAt(afIndex);
 					_disabledUser.Update();
 				}
@@ -106,8 +103,7 @@ namespace Integration
 
 		private void GetReclameForUser(string login, uint userId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -145,8 +141,7 @@ namespace Integration
 
 		private void GetReclameForErrorUser(string login)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -172,8 +167,7 @@ namespace Integration
 		[Test(Description = "пытаемся получить рекламу для пользователя, который не привязан к системе")]
 		public void Get_reclame_for_non_exists_user()
 		{
-			try
-			{
+			try {
 				var memoryAppender = new MemoryAppender();
 				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
@@ -184,17 +178,15 @@ namespace Integration
 				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
 				Assert.That(((UpdateException)lastEvent.MessageObject).Message, Is.EqualTo("Доступ закрыт."));
 			}
-			finally
-			{
-				LogManager.ResetConfiguration();			
+			finally {
+				LogManager.ResetConfiguration();
 			}
 		}
 
 		[Test(Description = "пытаемся получить рекламу для пользователя без права обновлять AnalitF")]
 		public void Get_reclame_for_disabled_user()
 		{
-			try
-			{
+			try {
 				var memoryAppender = new MemoryAppender();
 				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
@@ -203,12 +195,11 @@ namespace Integration
 				var lastEvent = events[events.Length - 1];
 				Assert.That(lastEvent.Level, Is.EqualTo(Level.Warn));
 				Assert.That(lastEvent.MessageObject, Is.TypeOf(typeof(UpdateException)));
-				var updateException = (UpdateException) lastEvent.MessageObject;
+				var updateException = (UpdateException)lastEvent.MessageObject;
 				Assert.That(updateException.Message, Is.EqualTo("Доступ закрыт."));
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + _disabledUser.Login + " услуга не предоставляется: пользователю не разрешено обновлять AnalitF;"));
 			}
-			finally
-			{
+			finally {
 				LogManager.ResetConfiguration();
 			}
 		}
@@ -253,8 +244,7 @@ namespace Integration
 			var responce = service.GetUserData(updateTime, cumulative, "6.0.0.1183", 50, "123", "", "", false);
 
 			var match = Regex.Match(responce, @"\d+").Value;
-			if (match.Length > 0)
-			{
+			if (match.Length > 0) {
 				var lastUpdateId = Convert.ToUInt32(match);
 				service = new PrgDataEx();
 				service.CommitExchange(lastUpdateId, false);
@@ -266,7 +256,7 @@ namespace Integration
 				Assert.Fail("Некорректный ответ от сервера при получении данных: {0}", responce);
 		}
 
-		private void CheckOldReclameArchive(TestUser user, uint updateId, string regionName, string  mask = null)
+		private void CheckOldReclameArchive(TestUser user, uint updateId, string regionName, string mask = null)
 		{
 			var archiveName = CheckArchive(user, updateId, mask);
 
@@ -296,8 +286,7 @@ namespace Integration
 		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
 		public void GetReclameWithUpdate()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -349,8 +338,7 @@ namespace Integration
 		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
 		public void GetReclameWithUpdateAfterNewReclame()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -424,8 +412,7 @@ namespace Integration
 		[Test(Description = "проверяем работу метода ExcludeFileNames для пустого списка файлов")]
 		public void CheckExludeFileNamesOnEmptyList()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -433,9 +420,9 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 
 				var reclame = helper.GetReclame();
-				
-				var files = reclame.ExcludeFileNames(new string[] {});
-				var resultFiles = new string[] {};
+
+				var files = reclame.ExcludeFileNames(new string[] { });
+				var resultFiles = new string[] { };
 
 				Assert.That(files, Is.EquivalentTo(resultFiles));
 			}
@@ -445,16 +432,15 @@ namespace Integration
 		]
 		public void CheckExludeFileNamesforOldReclame()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 
-				var files = reclame.ExcludeFileNames(new string[] {"index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif"});
-				var resultFiles = new string[] {"01.htm", "02.htm", "2b.gif"};
+				var files = reclame.ExcludeFileNames(new string[] { "index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif" });
+				var resultFiles = new string[] { "01.htm", "02.htm", "2b.gif" };
 				Assert.That(files, Is.EquivalentTo(resultFiles));
 			}
 		}
@@ -462,8 +448,7 @@ namespace Integration
 		[Test(Description = "проверяем работу метода ExcludeFileNames для нового алгоритма рекламы")]
 		public void CheckExludeFileNamesforNewReclame()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -471,8 +456,8 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 
-				var files = reclame.ExcludeFileNames(new string[] {"index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif"});
-				var resultFiles = new string[] {"index.htm", "2block.gif"};
+				var files = reclame.ExcludeFileNames(new string[] { "index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif" });
+				var resultFiles = new string[] { "index.htm", "2block.gif" };
 				Assert.That(files, Is.EquivalentTo(resultFiles));
 			}
 		}
@@ -480,8 +465,7 @@ namespace Integration
 		[Test(Description = "при автообновлении версий (если доступна новая версия) будем всегда передавать заново все файлы рекламы, чтобы не было проблем в будущем")]
 		public void ResetReclameDateOnUpdateExe()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				MySqlHelper.ExecuteNonQuery(
@@ -510,7 +494,5 @@ namespace Integration
 				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "при автообновлении дата рекламы должна быть сброшена в 01.01.2003");
 			}
 		}
-
 	}
-
 }

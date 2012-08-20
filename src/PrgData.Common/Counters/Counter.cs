@@ -14,13 +14,9 @@ namespace PrgData.Common.Counters
 	[DataContract]
 	public class ClientStatus
 	{
-
-		[DataMember]
-		public uint _UserId;
-		[DataMember]
-		public string _MethodName;
-		[DataMember]
-		public DateTime _StartTime;
+		[DataMember] public uint _UserId;
+		[DataMember] public string _MethodName;
+		[DataMember] public DateTime _StartTime;
 
 		public int Id;
 
@@ -53,12 +49,10 @@ namespace PrgData.Common.Counters
 				_MethodName,
 				_StartTime);
 		}
-
 	}
 
 	public class Counter
 	{
-
 		private static readonly int MaxSessionCount = Convert.ToInt32(ConfigurationManager.AppSettings["MaxGetUserDataSession"]);
 		private static readonly ILog Log = LogManager.GetLogger(typeof(Counter));
 		private static readonly string[] requestMethods = new string[] { "GetUserData", "PostOrderBatch" };
@@ -79,34 +73,29 @@ namespace PrgData.Common.Counters
 		{
 			uint id = 0;
 
-			if (IsRequestMethods(Method))
-			{
-				if (TotalUpdatingClientCount() > MaxSessionCount)
-				{
+			if (IsRequestMethods(Method)) {
+				if (TotalUpdatingClientCount() > MaxSessionCount) {
 					throw new UpdateException("Обновление данных в настоящее время невозможно.",
-					  "Пожалуйста, повторите попытку через несколько минут.[6]",
-					  "Перегрузка; ",
-					  RequestType.Forbidden);
+						"Пожалуйста, повторите попытку через несколько минут.[6]",
+						"Перегрузка; ",
+						RequestType.Forbidden);
 				}
 			}
 
-			if (!(Method == "ReclameFileHandler" || Method == "FileHandler"))
-			{
+			if (!(Method == "ReclameFileHandler" || Method == "FileHandler")) {
 				var ClientItems = FindLocks(UserId, Method);
-				if (!CanLock(ClientItems.ToList()))
-				{
+				if (!CanLock(ClientItems.ToList())) {
 					var messageHeader = "Обновление данных в настоящее время невозможно.";
 
 					if (Method == "PostOrder")
 						messageHeader = "Отправка заказов в настоящее время невозможна.";
-					else
-						if (IsHistoryMethods(Method))
-							messageHeader = "Загрузка истории заказов в настоящее время невозможна.";
+					else if (IsHistoryMethods(Method))
+						messageHeader = "Загрузка истории заказов в настоящее время невозможна.";
 
 					throw new UpdateException(messageHeader,
-					 "Пожалуйста, повторите попытку через несколько минут.[6]",
-					 "Перегрузка; ",
-					 RequestType.Forbidden);
+						"Пожалуйста, повторите попытку через несколько минут.[6]",
+						"Перегрузка; ",
+						RequestType.Forbidden);
 				}
 			}
 
@@ -123,12 +112,10 @@ namespace PrgData.Common.Counters
 
 		public static void ReleaseLock(uint UserId, string Method, uint lockId)
 		{
-			try
-			{
+			try {
 				Remove(UserId, Method, lockId);
 			}
-			catch (Exception ex)
-			{
+			catch (Exception ex) {
 				Log.Error("Ошибка снятия блокировки", ex);
 			}
 		}
@@ -136,10 +123,8 @@ namespace PrgData.Common.Counters
 		private static bool CanLock(List<ClientStatus> ClientItems)
 		{
 			var isClientInProcess = false;
-			foreach (var Client in ClientItems)
-			{
-				if (Client.IsWaitToLong())
-				{
+			foreach (var Client in ClientItems) {
+				if (Client.IsWaitToLong()) {
 					Log.DebugFormat("В логе присутствует запись, подлежащая удалению: {0}", Client);
 				}
 				else
@@ -153,7 +138,7 @@ namespace PrgData.Common.Counters
 		{
 			Utils.Execute(
 				"delete from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method and Id = ?Id",
-				new {UserId, Method, Id = lockId });
+				new { UserId, Method, Id = lockId });
 		}
 
 		public static int TotalUpdatingClientCount()
@@ -169,15 +154,15 @@ namespace PrgData.Common.Counters
 			if (IsHistoryMethods(Method))
 				return FindHistoryLocks(UserId);
 			return Utils.Request(
-			"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method",
+				"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName = ?Method",
 				new { UserId = UserId, Method = Method });
 		}
 
 		private static IList<ClientStatus> FindMultiplyLocks(uint UserId, string methods)
 		{
 			return Utils.Request(
-		"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName in (" + methods + ")",
-			 new { UserId = UserId });
+				"select * from Logs.PrgDataLogs where UserId = ?UserId and MethodName in (" + methods + ")",
+				new { UserId = UserId });
 		}
 
 		private static IList<ClientStatus> FindUpdateLocks(uint UserId)
@@ -237,6 +222,5 @@ namespace PrgData.Common.Counters
 		{
 			return GetConcat(historyMethods);
 		}
-
 	}
 }

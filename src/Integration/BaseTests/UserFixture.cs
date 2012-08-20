@@ -14,12 +14,10 @@ namespace Integration.BaseTests
 		{
 			var client = TestClient.Create();
 			TestUser user;
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				user = client.Users[0];
 
-				client.Users.Each(u =>
-				{
+				client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -34,12 +32,10 @@ namespace Integration.BaseTests
 			var user = CreateUser();
 
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					var prices = user.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
 					var newPrices = new List<uint>();
-					foreach (var testActivePrice in prices)
-					{
+					foreach (var testActivePrice in prices) {
 						if (testActivePrice.CoreCount() > 0)
 							newPrices.Add(testActivePrice.Id.PriceId);
 						if (newPrices.Count == 4)

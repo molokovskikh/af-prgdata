@@ -22,8 +22,7 @@ namespace PrgData.Common.AnalitFVersions
 				.Where(rule => rule.SourceVersion == buildNumber && (!targetVersion.HasValue || rule.DestinationVersion <= targetVersion))
 				.OrderByDescending(r => r.DestinationVersion);
 
-			foreach (var rule in rules)
-			{
+			foreach (var rule in rules) {
 				var info = VersionInfos.FirstOrDefault(item => item.VersionNumber == rule.DestinationVersion);
 				if (info != null)
 					return info;

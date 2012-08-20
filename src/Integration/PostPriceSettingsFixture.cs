@@ -32,8 +32,7 @@ namespace Integration
 		{
 			SetCurrentUser(login);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -44,9 +43,11 @@ namespace Integration
 				var prices = pricesSet.Tables[0];
 				Assert.That(prices.Rows.Count, Is.EqualTo(2), "Нет необходимого количества прайс-листов для теста");
 
-				var injobs = new bool[] {false, true};
-				var priceIds = new int[]
-				               	{Convert.ToInt32(prices.Rows[0]["PriceCode"]), Convert.ToInt32(prices.Rows[1]["PriceCode"])};
+				var injobs = new bool[] { false, true };
+				var priceIds = new int[] {
+					Convert.ToInt32(prices.Rows[0]["PriceCode"]),
+					Convert.ToInt32(prices.Rows[1]["PriceCode"])
+				};
 				var regionIds = new long[] { Convert.ToInt64(prices.Rows[0]["RegionCode"]), Convert.ToInt64(prices.Rows[1]["RegionCode"]) };
 
 				PostSettings(priceIds, regionIds, injobs);

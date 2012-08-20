@@ -20,7 +20,7 @@ namespace PrgData.Common
 
 	public class CostOptimizer
 	{
-		private readonly ILog _log = LogManager.GetLogger(typeof (CostOptimizer));
+		private readonly ILog _log = LogManager.GetLogger(typeof(CostOptimizer));
 
 		private readonly MySqlConnection _readWriteConnection;
 
@@ -48,10 +48,8 @@ from usersettings.CostOptimizationClients coc
 where coc.ClientId = ?ClientId
 limit 1", _readWriteConnection);
 			command.Parameters.AddWithValue("?ClientId", clientCode);
-			using (var reader = command.ExecuteReader())
-			{
-				if (reader.Read())
-				{
+			using (var reader = command.ExecuteReader()) {
+				if (reader.Read()) {
 					_supplierId = reader.GetUInt32("SupplierId");
 					_ruleId = reader.GetUInt32("Id");
 				}
@@ -87,7 +85,7 @@ select coc.SupplierId
 from Usersettings.CostOptimizationConcurrents coc
 where coc.RuleId = ?Id", _readWriteConnection);
 			command.Parameters.AddWithValue("?Id", _ruleId);
-			using(var reader = command.ExecuteReader())
+			using (var reader = command.ExecuteReader())
 				while (reader.Read())
 					concurents.Add(reader.GetUInt32("SupplierId"));
 
@@ -140,10 +138,8 @@ drop temporary table CoreCopy;
 			optimizeCommand.Parameters.AddWithValue("?HomeRegionCode", _homeRegionCode);
 
 			var logs = new List<CostOptimizationLog>();
-			using(var reader = optimizeCommand.ExecuteReader())
-			{
-				while (reader.Read())
-				{
+			using (var reader = optimizeCommand.ExecuteReader()) {
+				while (reader.Read()) {
 					var log = new CostOptimizationLog {
 						ProducerId = reader.GetUInt32("CodeFirmCr"),
 						ProductId = reader.GetUInt32("ProductId"),
@@ -166,13 +162,11 @@ drop temporary table CoreCopy;
 
 			var begin = 0;
 
-			while (begin < logs.Count)
-			{
+			while (begin < logs.Count) {
 				var commandText = new StringBuilder();
 				commandText.Append(header);
 
-				for (var i = 0; i < 100; i++)
-				{
+				for (var i = 0; i < 100; i++) {
 					if (begin + i >= logs.Count)
 						break;
 
@@ -207,8 +201,7 @@ select *
 from activeprices
 where firmcode in ({0}) and fresh = 1)", String.Join(", ", concurents.Select(c => c.ToString()).ToArray())), _readWriteConnection);
 			var isConcurentUpdated = Convert.ToBoolean(command.ExecuteScalar());
-			if (isConcurentUpdated)
-			{
+			if (isConcurentUpdated) {
 				var updateCommand = new MySqlCommand(@"
 update usersettings.ActivePrices ap
 set fresh = 1

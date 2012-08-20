@@ -12,8 +12,7 @@ namespace PrgData.Common.SevenZip
 
 		public static void ArchiveFiles(string archiveFileName, string fileMask)
 		{
-			using (var process = new Process())
-			{
+			using (var process = new Process()) {
 				var startInfo = new ProcessStartInfo(SevenZipExe);
 				startInfo.CreateNoWindow = true;
 				startInfo.RedirectStandardOutput = true;
@@ -22,10 +21,10 @@ namespace PrgData.Common.SevenZip
 				startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866);
 				startInfo.Arguments = String
 					.Format(
-						" a \"{0}\" \"{1}\" {2}",
-						archiveFileName,
-						fileMask,
-						SevenZipParam + " -w" + Path.GetTempPath());
+					" a \"{0}\" \"{1}\" {2}",
+					archiveFileName,
+					fileMask,
+					SevenZipParam + " -w" + Path.GetTempPath());
 
 				startInfo.FileName = SevenZipExe;
 
@@ -35,12 +34,11 @@ namespace PrgData.Common.SevenZip
 
 				process.WaitForExit();
 
-				if (process.ExitCode != 0)
-				{
+				if (process.ExitCode != 0) {
 					throw new SevenZipArchiveException(
-						process.ExitCode, 
-						startInfo.Arguments, 
-						process.StandardOutput.ReadToEnd(), 
+						process.ExitCode,
+						startInfo.Arguments,
+						process.StandardOutput.ReadToEnd(),
 						process.StandardError.ReadToEnd());
 				}
 			}
@@ -59,22 +57,19 @@ namespace PrgData.Common.SevenZip
 
 			startInfo.WorkingDirectory = workingFolder;
 
-			using(var process = new Process())
-			{
+			using (var process = new Process()) {
 				process.StartInfo = startInfo;
 				process.Start();
 				process.WaitForExit();
 
-				if (process.ExitCode != 0)
-				{
+				if (process.ExitCode != 0) {
 					throw new SevenZipArchiveException(
-						process.ExitCode, 
-						startInfo.Arguments, 
-						process.StandardOutput.ReadToEnd(), 
+						process.ExitCode,
+						startInfo.Arguments,
+						process.StandardOutput.ReadToEnd(),
 						process.StandardError.ReadToEnd());
 				}
 			}
 		}
-
 	}
 }

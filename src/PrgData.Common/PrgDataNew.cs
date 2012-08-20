@@ -41,7 +41,7 @@ namespace PrgData
 
 				return true;
 			}
-			catch  {
+			catch {
 				DBDisconnect();
 				throw;
 			}
@@ -70,27 +70,25 @@ namespace PrgData
 
 			if (UpdateData == null || UpdateData.Disabled()) {
 				if (UpdateData == null) {
-			        throw new UpdateException(
-			            "Доступ закрыт.",
-			            "Пожалуйста, обратитесь в АК \"Инфорум\".[1]",
+					throw new UpdateException(
+						"Доступ закрыт.",
+						"Пожалуйста, обратитесь в АК \"Инфорум\".[1]",
 						"Для логина " + UserName + " услуга не предоставляется; ",
-			            RequestType.Forbidden);
+						RequestType.Forbidden);
+				}
+				else if (UpdateData.BillingDisabled()) {
+					throw new UpdateException(
+						"В связи с неоплатой услуг доступ закрыт.",
+						"Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]",
+						"Для логина " + UserName + " услуга не предоставляется: " + UpdateData.DisabledMessage() + "; ",
+						RequestType.Forbidden);
 				}
 				else {
-					if (UpdateData.BillingDisabled()) {
-			            throw new UpdateException(
-			                "В связи с неоплатой услуг доступ закрыт.",
-			                "Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]",
-							"Для логина " + UserName + " услуга не предоставляется: " + UpdateData.DisabledMessage() + "; ",
-			                RequestType.Forbidden);
-					}
-					else {
-			            throw new UpdateException(
-			                "Доступ закрыт.",
-			                "Пожалуйста, обратитесь в АК \"Инфорум\".[1]",
-							"Для логина " + UserName + " услуга не предоставляется: " + UpdateData.DisabledMessage() + "; ",
-			                RequestType.Forbidden);
-					}
+					throw new UpdateException(
+						"Доступ закрыт.",
+						"Пожалуйста, обратитесь в АК \"Инфорум\".[1]",
+						"Для логина " + UserName + " услуга не предоставляется: " + UpdateData.DisabledMessage() + "; ",
+						RequestType.Forbidden);
 				}
 			}
 
@@ -135,22 +133,19 @@ WHERE   UserId=" + UserId;
 						Thread.Sleep(500);
 					}
 				}
-
 			}
-			else {
-				if (UpdateHelper.UserExists(readWriteConnection, UserName) ) {
-					Log.Warn(updateException);
-					Common.MailHelper.Mail(
-						"Хост: " + Environment.MachineName + Environment.NewLine +
+			else if (UpdateHelper.UserExists(readWriteConnection, UserName)) {
+				Log.Warn(updateException);
+				Common.MailHelper.Mail(
+					"Хост: " + Environment.MachineName + Environment.NewLine +
 						"Пользователь: " + UserName + Environment.NewLine +
 						updateException.ToString(),
-						updateException.Message,
-						null,
-						null, ConfigurationManager.AppSettings["SupportMail"]);
-				}
-				else
-					Log.Error(updateException);
+					updateException.Message,
+					null,
+					null, ConfigurationManager.AppSettings["SupportMail"]);
 			}
+			else
+				Log.Error(updateException);
 			return updateException.GetAnalitFMessage();
 		}
 
@@ -173,14 +168,12 @@ WHERE   UserId=" + UserId;
 
 				RequestType requestType;
 				if (RequestType.TryParse(rawUpdateType.ToString(), out requestType)) {
-
 					if (requestType == RequestType.GetDataAsync || requestType == RequestType.GetCumulativeAsync || requestType == RequestType.GetLimitedCumulativeAsync)
 						return "Res=Wait";
+					else if (requestType == RequestType.GetData || requestType == RequestType.GetCumulative || requestType == RequestType.GetLimitedCumulative)
+						return "Res=OK";
 					else
-						if (requestType == RequestType.GetData || requestType == RequestType.GetCumulative || requestType == RequestType.GetLimitedCumulative)
-							return "Res=OK";
-						else
-							throw new Exception("Получили неожидаемый тип обновления {0} для updateId = {1}".Format(requestType, UpdateId));
+						throw new Exception("Получили неожидаемый тип обновления {0} для updateId = {1}".Format(requestType, UpdateId));
 				}
 				else
 					throw new Exception("Получили неизвестный тип обновления {0} для updateId = {1}".Format(rawUpdateType, UpdateId));
@@ -196,6 +189,5 @@ WHERE   UserId=" + UserId;
 				DBDisconnect();
 			}
 		}
-
 	}
 }

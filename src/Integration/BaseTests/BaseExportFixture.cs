@@ -25,9 +25,7 @@ namespace Integration.BaseTests
 
 			user = CreateUser();
 
-			With.Connection(c => {
-				updateData = UpdateHelper.GetUpdateData(c, user.Login);
-			});
+			With.Connection(c => { updateData = UpdateHelper.GetUpdateData(c, user.Login); });
 		}
 
 		protected string ReadExportContent(string prefix)

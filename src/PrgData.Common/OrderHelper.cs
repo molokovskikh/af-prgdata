@@ -41,8 +41,7 @@ where
 and (prd.PriceCode =  ?PriceCode)
 and (prd.RegionCode = ?RegionCode)
 and (ai.AddressId = ?AddressId)
-"
-				,
+",
 				_readWriteConnection);
 			command.Parameters.AddWithValue("?ClientCode", _data.ClientId);
 			command.Parameters.AddWithValue("?RegionCode", regionCode);

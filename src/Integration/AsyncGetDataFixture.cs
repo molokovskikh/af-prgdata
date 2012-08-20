@@ -18,7 +18,6 @@ namespace Integration
 	[TestFixture(Description = "тесты для асинхронного запроса данных")]
 	public class AsyncGetDataFixture : PrepareDataFixture
 	{
-
 		private TestUser _user;
 
 		private string _afAppVersion;
@@ -151,7 +150,6 @@ namespace Integration
 			}
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -171,7 +169,7 @@ namespace Integration
 		{
 			CheckUpdateRequestType(RequestType.GetCumulativeAsync, RequestType.GetCumulative);
 		}
-	 
+
 		[Test(Description = "проверка обновления для типа обновления Накопитильное")]
 		public void CheckUpdateRequestTypeGetData()
 		{
@@ -220,7 +218,6 @@ namespace Integration
 		public void ProcessGetDataAsyncResume()
 		{
 			ProcessWithLog(() => {
-
 				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
 				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
 				WaitAsyncResponse(cumulativeUpdateId);
@@ -247,7 +244,6 @@ namespace Integration
 					Assert.That(log.Commit, Is.True);
 					Assert.IsNullOrEmpty(log.Log);
 				}
-
 			});
 		}
 
@@ -257,9 +253,8 @@ namespace Integration
 			//сохраняем предыдущее значение
 			var oldSharedExportPath = ServiceContext.MySqlSharedExportPath();
 			try {
-
 				var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
-				
+
 				var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
 
 				//Ломаем экспорт при подготовке данных, указывая несуществующую папку
@@ -356,6 +351,5 @@ namespace Integration
 
 			checkConnectionList();
 		}
-
 	}
 }

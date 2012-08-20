@@ -13,8 +13,8 @@ namespace Integration
 	[TestFixture]
 	public class PromotionsFixture
 	{
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 		private MySqlConnection connection;
 		private UpdateData updateData;
 		private UpdateHelper helper;
@@ -23,12 +23,10 @@ namespace Integration
 		public void SetUp()
 		{
 			_client = TestClient.Create();
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -95,7 +93,7 @@ namespace Integration
 					@"
 insert into usersettings.SupplierPromotions (Status, SupplierId, Name, Annotation, Begin, End) values (1, ?supplierId, 'test', 'test', curdate(), curdate());
 select last_insert_id();",
-						new MySqlParameter("?supplierId", priceWithPromo.Price.Supplier.Id)));
+					new MySqlParameter("?supplierId", priceWithPromo.Price.Supplier.Id)));
 
 			var SelProc = new MySqlCommand();
 			SelProc.Connection = connection;

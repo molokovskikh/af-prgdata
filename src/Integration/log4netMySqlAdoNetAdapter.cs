@@ -10,7 +10,7 @@ namespace Integration
 	[TestFixture(Description = "проверка протоколирования log4net в базу MySql")]
 	public class log4netMySqlAdoNetAdapter
 	{
-		string _connectionString = "Database=analit;Data Source=bdstat.analit.net;Port=3306;User Id=AFdev;Password=password;pooling=true;default command timeout=200;Allow user variables=true;convert zero datetime=yes;";
+		private string _connectionString = "Database=analit;Data Source=bdstat.analit.net;Port=3306;User Id=AFdev;Password=password;pooling=true;default command timeout=200;Allow user variables=true;convert zero datetime=yes;";
 
 		[Test(Description = "Создаем таблицу для протоколирования"), Ignore("Это не тест, а метод для создания таблицы протоколирования в production-сервере")]
 		public void CreateLogTable()

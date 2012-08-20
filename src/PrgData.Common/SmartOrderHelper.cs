@@ -29,7 +29,8 @@ namespace PrgData.Common
 	{
 		public ParseDefectureException(string message, Exception innerException)
 			: base(message, innerException)
-		{ }
+		{
+		}
 	}
 
 	public class SmartOrderHelper
@@ -48,7 +49,10 @@ namespace PrgData.Common
 		private string _tmpBatchFolder;
 		private string _tmpBatchArchive;
 
-		public string TmpBatchArchiveFileName { get { return _tmpBatchArchive; } }
+		public string TmpBatchArchiveFileName
+		{
+			get { return _tmpBatchArchive; }
+		}
 
 		private string _tmpBatchFileName;
 
@@ -82,8 +86,7 @@ namespace PrgData.Common
 			_maxOrderListId = maxOrderListId;
 			_maxBatchId = maxBatchId;
 
-			using(var unitOfWork = new UnitOfWork())
-			{
+			using (var unitOfWork = new UnitOfWork()) {
 				_orderRule = IoC.Resolve<IOrderFactoryRepository>().GetOrderRule(updateData.ClientId);
 				if (!_orderRule.EnableSmartOrder)
 					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
@@ -137,18 +140,14 @@ namespace PrgData.Common
 
 		private void InternalProcessBatchFile()
 		{
-			using (var stream = new FileStream(_tmpBatchFileName, FileMode.Open))
-			{
-				try
-				{
+			using (var stream = new FileStream(_tmpBatchFileName, FileMode.Open)) {
+				try {
 					_handler = new SmartOrderBatchHandler(User, Address, stream);
 				}
-				catch (EmptyDefectureException)
-				{
+				catch (EmptyDefectureException) {
 					throw;
 				}
-				catch (Exception e)
-				{
+				catch (Exception e) {
 					throw new ParseDefectureException("Ошибка при разборе дефектуры", e);
 				}
 
@@ -167,7 +166,6 @@ namespace PrgData.Common
 			var errorCount = 0;
 			var startTime = DateTime.Now;
 			do {
-
 				try {
 #if DEBUG
 					if (raiseExceptionOnEmpty && errorCount < 2)
@@ -181,9 +179,7 @@ namespace PrgData.Common
 					if (errorCount >= 3 || DateTime.Now.Subtract(startTime).TotalMinutes > 2)
 						throw;
 				}
-
 			} while (!success);
-
 		}
 
 		private string GetCryptCost(MySqlConnection connection, float cost, string sessionKey)
@@ -192,8 +188,7 @@ namespace PrgData.Common
 				connection,
 				"select cast(AES_ENCRYPT(?Cost, ?SessionKey) as char);",
 				new MySqlParameter("?Cost", cost),
-				new MySqlParameter("?SessionKey", sessionKey)
-				)
+				new MySqlParameter("?SessionKey", sessionKey))
 				.ToString();
 			return MySql.Data.MySqlClient.MySqlHelper.EscapeString(t);
 		}
@@ -211,12 +206,10 @@ namespace PrgData.Common
 			var buildItems = new StringBuilder();
 			var buildReport = new StringBuilder();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
-				foreach (var order in orders)
-				{
+				foreach (var order in orders) {
 					order.RowId = _maxOrderId;
 					_maxOrderId++;
 					buildOrder.AppendFormat(
@@ -225,8 +218,7 @@ namespace PrgData.Common
 						GetOrderedId(order),
 						order.PriceList.PriceCode,
 						order.RegionCode);
-					foreach (var item in order.OrderItems)
-					{
+					foreach (var item in order.OrderItems) {
 						item.RowId = _maxOrderListId;
 						_maxOrderListId++;
 
@@ -243,9 +235,9 @@ namespace PrgData.Common
 						//}
 						//else
 						{
-							cryptCostWithoutDelayOfPayment =
-								report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat);
-							cryptCost = report.Item.Offer.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat);
+						cryptCostWithoutDelayOfPayment =
+							report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat);
+						cryptCost = report.Item.Offer.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat);
 						}
 
 						buildItems.AppendFormat(
@@ -273,14 +265,12 @@ namespace PrgData.Common
 					}
 				}
 
-				foreach (var report in list)
-				{
+				foreach (var report in list) {
 					var serviceValues = "";
 					if (_updateData.BuildNumber > 1271)
 						serviceValues = report.ServiceValuesToExport();
 
-					if (report.Item != null)
-					{
+					if (report.Item != null) {
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
 							_maxBatchId,
@@ -316,8 +306,7 @@ namespace PrgData.Common
 
 		private void ServiceFieldsToFile()
 		{
-			if (_updateData.BuildNumber > 1271)
-			{
+			if (_updateData.BuildNumber > 1271) {
 				var buildFields = new StringBuilder();
 
 				foreach (var key in _handler.Source.ServiceFields.Keys)
@@ -328,14 +317,12 @@ namespace PrgData.Common
 		}
 
 		public void DeleteTemporaryFiles()
-		{ 
+		{
 			if (Directory.Exists(_tmpBatchFolder))
-				try
-				{
+				try {
 					Directory.Delete(_tmpBatchFolder, true);
 				}
-				catch (Exception exception)
-				{
+				catch (Exception exception) {
 					_log.Error("Ошибка при удалении временнной директории при обработке дефектуры", exception);
 				}
 		}
@@ -350,17 +337,16 @@ namespace PrgData.Common
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(SmartOrderRule).Assembly))
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(AnalitFVersionRule).Assembly));
 			IoC.Initialize(new WindsorContainer()
-			               .Register(
-							Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
-							Component.For<RepositoryInterceptor>(),
-							Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)),
-							Component.For<IOrderFactoryRepository>().ImplementedBy<OrderFactoryRepository>(),
-							Component.For<IOfferRepository>().ImplementedBy<OfferRepository>(),
-							Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
-							Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
-							Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
-							Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()
-			               	));
+				.Register(
+				Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
+				Component.For<RepositoryInterceptor>(),
+				Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)),
+				Component.For<IOrderFactoryRepository>().ImplementedBy<OrderFactoryRepository>(),
+				Component.For<IOfferRepository>().ImplementedBy<OfferRepository>(),
+				Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
+				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
+				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
+				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()));
 		}
 	}
 }

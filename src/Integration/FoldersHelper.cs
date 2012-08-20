@@ -20,7 +20,6 @@ namespace Integration
 			var newTemp = Path.Combine(oldTemp, Path.GetRandomFileName());
 
 			try {
-
 				Directory.CreateDirectory(newTemp);
 				try {
 					//подменяем переменную среды
@@ -41,7 +40,6 @@ namespace Integration
 					//удаляем все после использования
 					FileHelper.DeleteDir(newTemp);
 				}
-
 			}
 			finally {
 				//восстанавливаем оригинальную переменную среды Temp

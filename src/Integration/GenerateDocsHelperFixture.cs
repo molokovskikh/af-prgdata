@@ -18,11 +18,10 @@ namespace Integration
 	{
 		[Test]
 		public void ProcessWaybills()
-		{			
+		{
 			var user = TestClient.Create().Users[0];
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				ulong supplierId = 3;
 				string sourceFilePath = @"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.sst";
 				connection.Open();
@@ -30,7 +29,7 @@ namespace Integration
 
 				var waybillDirectory = Path.Combine(ConfigurationManager.AppSettings["DocumentsPath"], String.Format(@"{0}\Waybills", updateData.ClientId));
 				if (Directory.Exists(waybillDirectory))
-					Directory.Delete(waybillDirectory, true);                           
+					Directory.Delete(waybillDirectory, true);
 				Directory.CreateDirectory(waybillDirectory);
 
 				GenerateDocsHelper.ParseWaybils(connection, updateData, updateData.ClientId,
@@ -67,6 +66,5 @@ namespace Integration
 				FileHelper.DeleteDir(@"..\..\Data\WaybillExtract");
 			}
 		}
-
 	}
 }

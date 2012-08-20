@@ -13,21 +13,18 @@ namespace Integration
 	[TestFixture]
 	public class GetUpdateDataFixture
 	{
-
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
 			_client = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -38,8 +35,7 @@ namespace Integration
 		[Test]
 		public void Get_update_data_for_enabled_future_client()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(_user.Id));
@@ -58,20 +54,17 @@ namespace Integration
 		public void Get_update_data_for_future_client_for_user_without_AF()
 		{
 			TestUser _userWithoutAF;
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_userWithoutAF = _client.CreateUser();
 				var permissionAF = TestUserPermission.ByShortcut("AF");
 				var afIndex = _userWithoutAF.AssignedPermissions.IndexOf(item => item.Id == permissionAF.Id);
-				if (afIndex > -1)
-				{
+				if (afIndex > -1) {
 					_userWithoutAF.AssignedPermissions.RemoveAt(afIndex);
 					_userWithoutAF.Update();
 				}
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _userWithoutAF.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(_userWithoutAF.Id));
@@ -91,8 +84,7 @@ namespace Integration
 		public void Get_update_data_for_future_client_for_disabled_user()
 		{
 			TestUser disabledUser;
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				disabledUser = _client.CreateUser();
 				disabledUser.SendRejects = true;
 				disabledUser.SendWaybills = true;
@@ -100,8 +92,7 @@ namespace Integration
 				disabledUser.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, disabledUser.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(disabledUser.Id));
@@ -122,8 +113,7 @@ namespace Integration
 		{
 			var disabledClient = TestClient.Create();
 			var disabledUser = disabledClient.Users[0];
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				disabledUser.SendRejects = true;
 				disabledUser.SendWaybills = true;
 				disabledUser.Update();
@@ -132,8 +122,7 @@ namespace Integration
 				disabledClient.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, disabledUser.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(disabledUser.Id));
@@ -176,8 +165,7 @@ namespace Integration
 		private void Check_ON_flags_for_BuyingMatrix_and_MNN(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1183");
@@ -196,8 +184,7 @@ namespace Integration
 		private void Check_OFF_flags_for_BuyingMatrix_and_MNN(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1269");
@@ -209,8 +196,7 @@ namespace Integration
 		private void Check_ON_flags_for_NewClients(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1271");
@@ -221,8 +207,7 @@ namespace Integration
 		private void Check_OFF_flags_for_NewClients(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1279");
@@ -236,17 +221,14 @@ namespace Integration
 			var login = _user.Login;
 
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				updateData.KnownBuildNumber = 1279;
-				try
-				{
+				try {
 					updateData.ParseBuildNumber("6.0.0.1261");
 					Assert.Fail("Не сработало исключение об актуальности версии");
 				}
-				catch (UpdateException updateException)
-				{
+				catch (UpdateException updateException) {
 					Assert.That(updateException.Addition, Is.StringStarting("Попытка обновить устаревшую версию").IgnoreCase);
 					Assert.That(updateException.Message, Is.StringStarting("Доступ закрыт").IgnoreCase);
 					Assert.That(updateException.Error, Is.StringStarting("Используемая версия программы не актуальна, необходимо обновление до версии №1279").IgnoreCase);
@@ -260,8 +242,7 @@ namespace Integration
 			var login = _user.Login;
 
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				//Устанавливаем любой прайс-лист, в данном случае это прайс поставщика Инфорум
 				updateData.NetworkPriceId = 2647;
@@ -274,18 +255,15 @@ namespace Integration
 
 		private void DeleteAllLogs(uint userId)
 		{
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				TestAnalitFUpdateLog.DeleteAll("UserId = {0}".Format(userId));
 			}
 		}
 
 		private void CheckPreviousRequestOnFirst(string userName, uint userId)
 		{
-			try
-			{
-				using (var connection = new MySqlConnection(Settings.ConnectionString()))
-				{
+			try {
+				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 					connection.Open();
 
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -294,8 +272,7 @@ namespace Integration
 					Assert.That(updateData.PreviousRequest.UpdateId, Is.Null);
 				}
 			}
-			finally
-			{
+			finally {
 				DeleteAllLogs(userId);
 			}
 		}
@@ -309,26 +286,22 @@ namespace Integration
 		private void CheckPreviousRequestWithOldRequest(string userName, uint userId)
 		{
 			TestAnalitFUpdateLog log;
-			using (var transaction = new TransactionScope())
-			{
-				log = new TestAnalitFUpdateLog
-				{
+			using (var transaction = new TransactionScope()) {
+				log = new TestAnalitFUpdateLog {
 					UserId = userId,
-				    RequestTime = DateTime.Now.AddDays(-2),
-				    UpdateType = (uint) RequestType.GetData,
-				    Commit = false
+					RequestTime = DateTime.Now.AddDays(-2),
+					UpdateType = (uint)RequestType.GetData,
+					Commit = false
 				};
 				log.Save();
-				log = new TestAnalitFUpdateLog
-				{
+				log = new TestAnalitFUpdateLog {
 					UserId = userId,
 					RequestTime = DateTime.Now.AddDays(-2),
 					UpdateType = (uint)RequestType.GetCumulative,
 					Commit = true
 				};
 				log.Save();
-				log = new TestAnalitFUpdateLog
-				{
+				log = new TestAnalitFUpdateLog {
 					UserId = userId,
 					RequestTime = DateTime.Now,
 					UpdateType = (uint)RequestType.SendWaybills,
@@ -337,10 +310,8 @@ namespace Integration
 				log.Save();
 			}
 
-			try
-			{
-				using (var connection = new MySqlConnection(Settings.ConnectionString()))
-				{
+			try {
+				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 					connection.Open();
 
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -349,8 +320,7 @@ namespace Integration
 					Assert.That(updateData.PreviousRequest.UpdateId, Is.Null);
 				}
 			}
-			finally
-			{
+			finally {
 				DeleteAllLogs(userId);
 			}
 		}
@@ -364,34 +334,29 @@ namespace Integration
 		private void CheckPreviousRequestWithOldRequestExists(string userName, uint userId)
 		{
 			TestAnalitFUpdateLog log;
-			using (var transaction = new TransactionScope())
-			{
-				log = new TestAnalitFUpdateLog
-				{
+			using (var transaction = new TransactionScope()) {
+				log = new TestAnalitFUpdateLog {
 					UserId = userId,
 					RequestTime = DateTime.Now.AddDays(-2),
 					UpdateType = (uint)RequestType.GetData,
 					Commit = false
 				};
 				log.Save();
-				log = new TestAnalitFUpdateLog
-				{
+				log = new TestAnalitFUpdateLog {
 					UserId = userId,
 					RequestTime = DateTime.Now.AddDays(-2),
 					UpdateType = (uint)RequestType.GetCumulative,
 					Commit = true
 				};
 				log.Save();
-				log = new TestAnalitFUpdateLog
-				{
+				log = new TestAnalitFUpdateLog {
 					UserId = userId,
 					RequestTime = DateTime.Now,
 					UpdateType = (uint)RequestType.GetCumulative,
 					Commit = true
 				};
 				log.Save();
-				var last = new TestAnalitFUpdateLog
-				{
+				var last = new TestAnalitFUpdateLog {
 					UserId = userId,
 					RequestTime = DateTime.Now,
 					UpdateType = (uint)RequestType.GetDocs,
@@ -400,10 +365,8 @@ namespace Integration
 				last.Save();
 			}
 
-			try
-			{
-				using (var connection = new MySqlConnection(Settings.ConnectionString()))
-				{
+			try {
+				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 					connection.Open();
 
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -416,8 +379,7 @@ namespace Integration
 					Assert.That(updateData.PreviousRequest.Commit, Is.EqualTo(log.Commit));
 				}
 			}
-			finally
-			{
+			finally {
 				DeleteAllLogs(userId);
 			}
 		}
@@ -431,8 +393,7 @@ namespace Integration
 		[Test(Description = "проверяем методы для работы с именами подготовленными файлами")]
 		public void CheckResultPaths()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -483,8 +444,7 @@ namespace Integration
 		{
 			var login = _user.Login;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 
 				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(false), "Для неопределенной версии доступен механизм");
@@ -511,8 +471,7 @@ namespace Integration
 		[Test(Description = "проверяем корректное чтение TargetVersion")]
 		public void CheckReadTargetVersion()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				MySqlHelper.ExecuteNonQuery(
@@ -539,8 +498,7 @@ namespace Integration
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -575,8 +533,7 @@ namespace Integration
 		public void CheckNeedUpdateForRetailVitallyImportant()
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1183");
@@ -623,8 +580,7 @@ namespace Integration
 		{
 			var login = _user.Login;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -640,13 +596,12 @@ namespace Integration
 				Assert.That(updateData.SupportAnalitFSchedule, Is.EqualTo(true), "Должен быть доступен механизм");
 
 				MySqlHelper.ExecuteNonQuery(
-					connection, 
+					connection,
 					"update UserSettings.RetClientsSet set AllowAnalitFSchedule = 1 where ClientCode = ?clientId",
 					new MySqlParameter("?clientId", _user.Client.Id));
 				updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData.AllowAnalitFSchedule, Is.EqualTo(true), "Флаг должен быть поднят");
 			}
 		}
-
 	}
 }

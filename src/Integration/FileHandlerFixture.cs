@@ -35,12 +35,10 @@ namespace Integration
 
 			client = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				user = client.Users[0];
 
-				client.Users.Each(u =>
-				{
+				client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -83,8 +81,7 @@ protected string RawRequest(string fileName, string queryString)
 			var fileName = "GetFileHandler.asxh";
 
 			var output = new StringBuilder();
-			using (var sw = new StringWriter(output))
-			{
+			using (var sw = new StringWriter(output)) {
 				var response = new HttpResponse(sw);
 				var request = new HttpRequest(fileName, "http://127.0.0.1/" + fileName, String.Empty);
 				var context = new HttpContext(request, response);
@@ -111,6 +108,5 @@ protected string RawRequest(string fileName, string queryString)
 		{
 			CheckProcessRequest(user.Login, "При вызове GetFileHandler не найден файл с подготовленными данными:");
 		}
-
 	}
 }

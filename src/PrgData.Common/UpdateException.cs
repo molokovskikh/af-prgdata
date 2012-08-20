@@ -14,7 +14,8 @@ namespace PrgData.Common
 
 		public UpdateException(string description, string error, RequestType requestType)
 			: this(description, error, description, requestType)
-		{}
+		{
+		}
 
 		public RequestType UpdateType { get; private set; }
 		public string Error { get; private set; }
@@ -27,7 +28,7 @@ namespace PrgData.Common
 
 		public override string ToString()
 		{
-			return 
+			return
 				String.Format(
 					"Error = {0}\r\nUpdateType = {1}\r\nAddition = {2}\r\n{3}",
 					Error,

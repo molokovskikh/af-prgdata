@@ -55,8 +55,7 @@ namespace Integration
 		{
 			_client = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_officeUser = _client.Users[0];
 				_officeUser.AllowDownloadUnconfirmedOrders = true;
 
@@ -67,8 +66,7 @@ namespace Integration
 				_drugstoreUser.JoinAddress(_drugstoreAddress);
 				_officeUser.JoinAddress(_drugstoreAddress);
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -87,8 +85,7 @@ namespace Integration
 			SessionHelper.WithSession(s => {
 				var prices = _officeUser.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
 				var newPrices = new List<uint>();
-				foreach (var testActivePrice in prices)
-				{
+				foreach (var testActivePrice in prices) {
 					if (testActivePrice.CoreCount() > 0)
 						newPrices.Add(testActivePrice.Id.PriceId);
 					if (newPrices.Count == 4)
@@ -136,14 +133,11 @@ namespace Integration
 		[Test(Description = "Проверяем, что использование NHibernate-сессии от текущего подключение не закрывает подключение и транзакцию")]
 		public void TestNHibernateSession()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
-				using (var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted))
-				{
-					using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(connection))
-					{
+				using (var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted)) {
+					using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(connection)) {
 						var tmpClientId = session
 							.CreateSQLQuery("select ClientCode from UserSettings.RetClientsSet where ClientCode = :clientId")
 							.SetParameter("clientId", _client.Id)
@@ -187,7 +181,7 @@ namespace Integration
 
 			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, price.Id.PriceId);
 
-			var converter = new Orders2StringConverter(new List<Order> {order}, 1, 1, false);
+			var converter = new Orders2StringConverter(new List<Order> { order }, 1, 1, false);
 
 			Assert.That(converter.OrderHead, Is.Not.Null);
 			Assert.That(converter.OrderItems, Is.Not.Null);
@@ -218,11 +212,10 @@ namespace Integration
 			var orderSecond = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
 			TestAnalitFUpdateLog updateLog;
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				updateLog = new TestAnalitFUpdateLog();
 				updateLog.RequestTime = DateTime.Now;
-				updateLog.UpdateType = (uint) RequestType.GetData;
+				updateLog.UpdateType = (uint)RequestType.GetData;
 				updateLog.UserId = _officeUser.Id;
 				updateLog.Create();
 
@@ -240,8 +233,7 @@ namespace Integration
 			}
 
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 
@@ -268,27 +260,24 @@ namespace Integration
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
 			var orders = new List<Order>();
-			for (int i = 0; i < 3; i++)
-			{
+			for (int i = 0; i < 3; i++) {
 				var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[i].Id.PriceId);
 				orders.Add(order);
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 				var helper = new UpdateHelper(updateData, connection);
 
 				var fileForArchives = new Queue<FileForArchive>();
 				var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
-				
+
 				exporter.LoadOrders();
 
 				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(3));
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
-				foreach (var order in orders)
-				{
+				foreach (var order in orders) {
 					Assert.That(exporter.LoadedOrders.Any(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 					Assert.That(updateData.UnconfirmedOrders.Any(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 				}
@@ -313,8 +302,7 @@ namespace Integration
 			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
 			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId));
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -326,8 +314,7 @@ namespace Integration
 
 				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(4));
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
-				foreach (var order in orders)
-				{
+				foreach (var order in orders) {
 					Assert.That(exporter.LoadedOrders.Any(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 					Assert.That(updateData.UnconfirmedOrders.Any(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 				}
@@ -420,15 +407,13 @@ namespace Integration
 			submitedOrder.Submited = true;
 
 			With.Transaction(
-				s => 
-				{ 
+				s => {
 					s.SaveOrUpdate(processedOrder);
 					s.SaveOrUpdate(deletedOrder);
 					s.SaveOrUpdate(submitedOrder);
 				});
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -467,7 +452,7 @@ namespace Integration
 
 			var service = new PrgDataEx();
 			var updateTime = service.CommitExchange(simpleUpdateId, false);
-					
+
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
 
@@ -484,8 +469,7 @@ namespace Integration
 			var firstOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 			var secondOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var log = new TestUnconfirmedOrdersSendLog();
 				log.User = _officeUser;
 				log.OrderId = secondOrder.RowId;
@@ -513,8 +497,7 @@ namespace Integration
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
 				Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
 
@@ -558,8 +541,7 @@ namespace Integration
 			TestWaybill document;
 			TestCertificateFile certificateFile;
 			TestProduct product;
-			using(new SessionScope())
-			{
+			using (new SessionScope()) {
 				var builder = new DocumentBuilder(_client);
 				document = builder.Build();
 				product = builder.Product;
@@ -580,7 +562,7 @@ namespace Integration
 
 			File.WriteAllBytes(Path.Combine(certificatePath, String.Format("{0}.tif", certificateFile.Id)), new byte[0]);
 
-			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] {document.Lines[0].Id});
+			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] { document.Lines[0].Id });
 			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
@@ -603,8 +585,7 @@ namespace Integration
 ",
 				document.Log.Id, product.CatalogProduct.Name, certificateFile.Id);
 
-			using(new SessionScope())
-			{
+			using (new SessionScope()) {
 				var logs = TestCertificateRequestLog.Queryable.Where(l => l.Update.Id == simpleUpdateId).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 			}
@@ -616,17 +597,15 @@ namespace Integration
 		public void Log_fail_secrificate_request()
 		{
 			TestWaybill document;
-			using(new SessionScope())
-			{
+			using (new SessionScope()) {
 				var builder = new DocumentBuilder(_client);
 				document = builder.Build();
 			}
 
-			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] {document.Lines[0].Id});
+			var responce = LoadDataAsyncDocs(false, _lastUpdateTime.ToUniversalTime(), "1.1.1.1571", new[] { document.Lines[0].Id });
 			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
-			using(new SessionScope())
-			{
+			using (new SessionScope()) {
 				var logs = TestCertificateRequestLog.Queryable.Where(l => l.Update.Id == simpleUpdateId).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Filename, Is.Null);
@@ -639,8 +618,7 @@ namespace Integration
 			var firstOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 			var secondOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var log = new TestUnconfirmedOrdersSendLog();
 				log.User = _officeUser;
 				log.OrderId = secondOrder.RowId;
@@ -668,8 +646,7 @@ namespace Integration
 			//Нужно поспать, т.к. не успевает отрабатывать нитка подтверждения обновления
 			Thread.Sleep(3000);
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var thirdOrderSendLogs = TestUnconfirmedOrdersSendLog.Queryable.Where(l => l.UpdateId == firstUpdateId && l.OrderId == thirdOrder.RowId).ToList();
 				Assert.That(thirdOrderSendLogs.Count, Is.EqualTo(0), "Неэкспортированный заказ {0} был добавлен в таблицы логов", thirdOrder.RowId);
 
@@ -712,7 +689,6 @@ namespace Integration
 				Assert.That(sendLogsAfterCumulative.All(l => !l.Committed), Is.True, "Есть подтвержденные заказы");
 			}
 		}
-
 	}
 
 	public class DocumentBuilder

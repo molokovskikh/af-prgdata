@@ -11,7 +11,8 @@ namespace PrgData.Common.Models
 	{
 		public NewsExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
 			: base(updateData, connection, files)
-		{}
+		{
+		}
 
 		public override int RequiredVersion
 		{
@@ -20,11 +21,12 @@ namespace PrgData.Common.Models
 
 		public override RequestType[] AllowedArchiveRequests
 		{
-			get { 
-				return new [] {
+			get
+			{
+				return new[] {
 					RequestType.GetData, RequestType.GetCumulative, RequestType.PostOrderBatch, RequestType.GetDataAsync,
 					RequestType.GetCumulativeAsync, RequestType.GetLimitedCumulative, RequestType.GetLimitedCumulativeAsync
-				}; 
+				};
 			}
 		}
 

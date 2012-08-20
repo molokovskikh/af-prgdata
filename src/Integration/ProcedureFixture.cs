@@ -62,38 +62,36 @@ namespace Integration
 
 			testClient = new TestClient() { Id = 10005 };
 
-			testClient.Users = new List<TestUser>() { new TestUser() { Id = 10081, Login = "10081"} };
+			testClient.Users = new List<TestUser>() { new TestUser() { Id = 10081, Login = "10081" } };
 			testClient.Addresses = new List<TestAddress>() { new TestAddress() { Id = 10068 } };
 
-			futureUser = new User
-							{
-								Id = testClient.Users[0].Id,
-								Login = testClient.Users[0].Login,
-								Client = new FutureClient {Id = testClient.Id}
-							};
+			futureUser = new User {
+				Id = testClient.Users[0].Id,
+				Login = testClient.Users[0].Login,
+				Client = new FutureClient { Id = testClient.Id }
+			};
 			futureAddress = new Address { Id = testClient.Addresses[0].Id };
-			futureUser.AvaliableAddresses = new List<Address> {futureAddress};
+			futureUser.AvaliableAddresses = new List<Address> { futureAddress };
 		}
 
 		public static void Execute(string commnad)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
-
+				try {
 					var command = new MySqlCommand(commnad, connection);
 					command.ExecuteNonQuery();
 
 					transaction.Commit();
 				}
-				catch (Exception)
-				{
+				catch (Exception) {
 					if (transaction != null)
-						try { transaction.Rollback(); }
-						catch { }
+						try {
+							transaction.Rollback();
+						}
+						catch {
+						}
 					throw;
 				}
 			}
@@ -151,8 +149,7 @@ call usersettings.GetOffers(1349, 2);");
 		[Test, Ignore("Используется для получения ситуации с lock wait")]
 		public void Get_deadlock()
 		{
-			for (int i = 0; i < 10; i++)
-			{
+			for (int i = 0; i < 10; i++) {
 				CallGetOffers();
 			}
 		}
@@ -171,8 +168,7 @@ call usersettings.GetOffers(1349, 2);");
 		[Test, Ignore("Используется для получения ситуации с lock wait")]
 		public void Get_deadlock_with_offersrepository()
 		{
-			for (int i = 0; i < 10; i++)
-			{
+			for (int i = 0; i < 10; i++) {
 				FutureFindAllReducedForSmartOrder();
 			}
 		}
@@ -181,10 +177,8 @@ call usersettings.GetOffers(1349, 2);");
 		{
 			Console.WriteLine("Запущена нитка: {0}", clientId);
 
-			try
-			{
-				while (!StopThreads)
-				{
+			try {
+				while (!StopThreads) {
 					Execute(string.Format(@"
 DROP TEMPORARY TABLE IF EXISTS usersettings.Core;
 DROP TEMPORARY TABLE IF EXISTS usersettings.MinCosts;
@@ -197,10 +191,8 @@ call usersettings.GetOffers({0}, 0);", clientId));
 
 					Thread.Sleep(5 * 1000);
 				}
-
 			}
-			catch (Exception exception)
-			{
+			catch (Exception exception) {
 				Console.WriteLine("Error for client {0} : {1}", clientId, exception);
 			}
 
@@ -214,14 +206,12 @@ call usersettings.GetOffers({0}, 0);", clientId));
 			long elapsedMili = 0;
 			long count = 0;
 
-			try
-			{
-				while (!StopThreads)
-				{
+			try {
+				while (!StopThreads) {
 					var loadWithHiber = Stopwatch.StartNew();
 					User user;
 					Address address;
-					using(var unit = new UnitOfWork()) {
+					using (var unit = new UnitOfWork()) {
 						user = unit.CurrentSession.Get<User>(userId);
 						if (user.AvaliableAddresses.Count == 0)
 							return;
@@ -234,10 +224,8 @@ call usersettings.GetOffers({0}, 0);", clientId));
 
 					Thread.Sleep(5 * 1000);
 				}
-
 			}
-			catch (Exception exception)
-			{
+			catch (Exception exception) {
 				Console.WriteLine("Error for client {0} с factory: {1}", userId, exception);
 				if (count > 0)
 					Console.WriteLine("Статистика для клиента {0} : {1}", userId, elapsedMili / count);
@@ -250,16 +238,12 @@ call usersettings.GetOffers({0}, 0);", clientId));
 
 		public static void DoWorkLogLockWaits()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
-				try
-				{
-					while (!StopThreads)
-					{
-						var lockCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(connection, "select count(*) from information_schema.INNODB_LOCK_WAITS"));
-						if (lockCount > 0)
-						{
+				try {
+					while (!StopThreads) {
+						var lockCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(connection, "select count(*) from information_schema.INNODB_LOCK_WAITS"));
+						if (lockCount > 0) {
 							var dataDump = MySqlHelper.ExecuteDataset(connection, @"
 SELECT * FROM information_schema.INNODB_TRX;
 SELECT * FROM information_schema.INNODB_LOCKS;
@@ -273,10 +257,8 @@ show full processlist;
 
 						Thread.Sleep(5 * 1000);
 					}
-
 				}
-				catch (Exception exception)
-				{
+				catch (Exception exception) {
 					Console.WriteLine("Error on log thread", exception);
 				}
 			}
@@ -289,7 +271,7 @@ show full processlist;
 			Console.WriteLine("Запуск теста");
 
 			uint[] userIds;
-			using(new SessionScope()) {
+			using (new SessionScope()) {
 				userIds = TestUser.Queryable.Where(u => u.Enabled && !u.RootService.Disabled
 					&& u.RootService.Type == ServiceType.Drugstore
 					&& u.Client.Settings.ServiceClient
@@ -300,13 +282,11 @@ show full processlist;
 
 			var threadList = new List<Thread>();
 
-			foreach (var id in userIds)
-			{
+			foreach (var id in userIds) {
 				threadList.Add(new Thread(DoWork));
-				threadList[threadList.Count-1].Start(id);
+				threadList[threadList.Count - 1].Start(id);
 			}
-			foreach (var id in userIds)
-			{
+			foreach (var id in userIds) {
 				threadList.Add(new Thread(DoWorkFactory));
 				threadList[threadList.Count - 1].Start(id);
 			}
@@ -329,8 +309,7 @@ show full processlist;
 		{
 			var createSimple = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				var user = createSimple.Users[0];
 
 				createSimple.Users.Each(u => {
@@ -355,15 +334,13 @@ show full processlist;
 
 			SetCurrentUser(_user.Login);
 
-			try
-			{
+			try {
 				var memoryAppender = new MemoryAppender();
 				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
 
 
-				try
-				{
+				try {
 					var cumulativeResponse = LoadData(true, DateTime.Now, appVersion);
 					var cumulativeUpdateId = ParseUpdateId(cumulativeResponse);
 					ProcessFileHandler(cumulativeUpdateId);
@@ -374,16 +351,14 @@ show full processlist;
 					ProcessFileHandler(simpleUpdateId);
 					var simpleTime = CommitExchange(simpleUpdateId, RequestType.GetData);
 				}
-				catch
-				{
+				catch {
 					var logEvents = memoryAppender.GetEvents();
-					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item =>
-																								{
-																									if (string.IsNullOrEmpty(item.GetExceptionString()))
-																										return item.RenderedMessage;
-																									else
-																										return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
-																								}).Implode("\r\n"));
+					Console.WriteLine("Ошибки при подготовке данных:\r\n{0}", logEvents.Select(item => {
+						if (string.IsNullOrEmpty(item.GetExceptionString()))
+							return item.RenderedMessage;
+						else
+							return item.RenderedMessage + Environment.NewLine + item.GetExceptionString();
+					}).Implode("\r\n"));
 					throw;
 				}
 
@@ -391,8 +366,7 @@ show full processlist;
 				var errors = events.Where(item => item.Level >= Level.Warn);
 				Assert.That(errors.Count(), Is.EqualTo(0), "При подготовке данных возникли ошибки:\r\n{0}", errors.Select(item => item.RenderedMessage).Implode("\r\n"));
 			}
-			finally
-			{
+			finally {
 				LogManager.ResetConfiguration();
 			}
 		}
@@ -430,8 +404,7 @@ show full processlist;
 			var fileName = "GetFileHandler.asxh";
 
 			var output = new StringBuilder();
-			using (var sw = new StringWriter(output))
-			{
+			using (var sw = new StringWriter(output)) {
 				var response = new HttpResponse(sw);
 				var request = new HttpRequest(fileName, UpdateHelper.GetDownloadUrl() + fileName, "Id=" + updateId);
 				var context = new HttpContext(request, response);
@@ -462,8 +435,7 @@ show full processlist;
 				Settings.ConnectionString(),
 				"select count(*) from logs.AnalitFUpdates where UserId = ?UserId and UpdateId > ?MaxUpdateId",
 				new MySqlParameter("?UserId", userId),
-				new MySqlParameter("?MaxUpdateId", maxUpdateId))
-				);
+				new MySqlParameter("?MaxUpdateId", maxUpdateId)));
 			Assert.That(logsAfterConfirm, Is.EqualTo(1), "Должно быть одно логирующее сообщение с подтверждением");
 
 			var confirmLog = MySqlHelper.ExecuteDataRow(
@@ -477,15 +449,13 @@ show full processlist;
 		private TestUser CreateUserForAnalitF()
 		{
 			var client = TestClient.Create();
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				var user = client.Users[0];
 
-				client.Users.Each(u =>
-									{
-										u.SendRejects = true;
-										u.SendWaybills = true;
-									});
+				client.Users.Each(u => {
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
 				user.Update();
 
 				return user;
@@ -497,8 +467,7 @@ show full processlist;
 		{
 			var testUser = CreateUserForAnalitF();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
@@ -506,14 +475,12 @@ show full processlist;
 
 				helper.Cleanup();
 
-				try
-				{
+				try {
 					helper.SelectActivePrices();
 
 					Assert.Fail("В предыдущем операторе должно быть вызвано исключение, т.к. таблицы CurrentReplicationInfo не существует");
 				}
-				catch (MySqlException mySqlException)
-				{
+				catch (MySqlException mySqlException) {
 					Assert.That(mySqlException.Number, Is.EqualTo(1146), "Неожидаемое исключение: {0}", mySqlException);
 					Assert.That(mySqlException.Message, Is.EqualTo("Table 'usersettings.currentreplicationinfo' doesn't exist").IgnoreCase, "Неожидаемое исключение: {0}", mySqlException);
 				}
@@ -525,8 +492,7 @@ show full processlist;
 		{
 			var testUser = CreateUserForAnalitF();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
@@ -558,7 +524,7 @@ show full processlist;
 		[Test(Description = "Производим запрос данных кумулятивного обновления после неподтвержденного накопительного")]
 		public void GetCumulativeAfterSimple()
 		{
-			var appVersion = "1.1.1.1299"; 
+			var appVersion = "1.1.1.1299";
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
@@ -582,7 +548,7 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(false, simpleUpdateTime.ToUniversalTime(), appVersion);
 				var simpleUpdateId = ParseUpdateId(responce);
 
@@ -634,7 +600,7 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(true, simpleUpdateTime.ToUniversalTime(), appVersion);
 				var firstCumulativeId = ParseUpdateId(responce);
 
@@ -678,7 +644,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(false, DateTime.Now, appVersion);
 				var updateId = ParseUpdateId(responce);
 
@@ -689,7 +655,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				var realMessage = responce.Substring(index + messageStart.Length);
 				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
-				var messageShowCount = Convert.ToInt32( MySqlHelper.ExecuteScalar(
+				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
@@ -724,7 +690,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(false, DateTime.Now, appVersion);
 				var updateId = ParseUpdateId(responce);
 
@@ -778,7 +744,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(false, DateTime.Now, appVersion);
 				var updateId = ParseUpdateId(responce);
 
@@ -840,7 +806,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(false, DateTime.Now, appVersion);
 				var updateId = ParseUpdateId(responce);
 
@@ -897,8 +863,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				MySqlHelper.ExecuteScalar(
 					connection,
 					@"
-select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
-					,
+select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", userId)));
 			Assert.That(messageShowCount, Is.EqualTo(0), "Неподтвердились сообщения\r\nв базе:{0}\r\nот пользователя:{1}", dbMessage, fromUserMessage);
 		}
@@ -909,8 +874,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				CheckConfirmUserMessage(connection, _user.Id, _user.Login, "aaa", "aaa");
@@ -943,7 +907,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(memoryAppender => { 
+			ProcessWithLog(memoryAppender => {
 				Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id)).ToList().ForEach(File.Delete);
 
 				CreateTestFile("{0}3_dsds.zip".Format(_user.Id));
@@ -960,11 +924,11 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 				var service = new PrgDataEx();
 
 				service.SendClientLog(1, null);
-					
-				var methodDeletePreviousFiles = service.GetType().GetMethod("DeletePreviousFiles",
-																			BindingFlags.NonPublic | BindingFlags.Instance);
 
-				methodDeletePreviousFiles.Invoke(service, new object[] {});
+				var methodDeletePreviousFiles = service.GetType().GetMethod("DeletePreviousFiles",
+					BindingFlags.NonPublic | BindingFlags.Instance);
+
+				methodDeletePreviousFiles.Invoke(service, new object[] { });
 
 				Assert.That(File.Exists(GetTestFileName("{0}3_dsds.zip".Format(_user.Id))));
 				Assert.That(File.Exists(GetTestFileName("{0}6.zip".Format(_user.Id))));
@@ -990,8 +954,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -1007,7 +970,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				var responce = LoadData(false, DateTime.Now, appVersion);
 				var updateId = ParseUpdateId(responce);
 
@@ -1062,15 +1025,14 @@ update usersettings.UserUpdateInfo, logs.AnalitFUpdates
 set 
   UserUpdateInfo.UncommitedUpdateDate = AnalitFUpdates.RequestTime
 where AnalitFUpdates.UpdateId = @postBatchId and UserUpdateInfo.UserId = ?UserId;
-select @postBatchId;"
-					,
+select @postBatchId;",
 					new MySqlParameter("?UpdateType", (int)RequestType.PostOrderBatch),
 					new MySqlParameter("?UserId", _user.Id),
 					new MySqlParameter("?AppVersion", appVersion)));
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				//Создаем файл с подготовленными данными
 				File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
 
@@ -1129,15 +1091,14 @@ update usersettings.UserUpdateInfo, logs.AnalitFUpdates
 set 
   UserUpdateInfo.UncommitedUpdateDate = AnalitFUpdates.RequestTime
 where AnalitFUpdates.UpdateId = @postBatchId and UserUpdateInfo.UserId = ?UserId;
-select @postBatchId;"
-					,
+select @postBatchId;",
 					new MySqlParameter("?UpdateType", (int)RequestType.PostOrderBatch),
 					new MySqlParameter("?UserId", _user.Id),
 					new MySqlParameter("?AppVersion", appVersion)));
 
 			SetCurrentUser(_user.Login);
 
-			ProcessWithLog(() => { 
+			ProcessWithLog(() => {
 				//Создаем файл с подготовленными данными
 				File.WriteAllText(Path.Combine(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, postBatchId)), "Это файл с данными автозаказа");
 
@@ -1164,8 +1125,7 @@ select @postBatchId;"
 			var appVersion = "1.1.1.1299";
 			var _client = CreateClient();
 			var _user = _client.Users[0];
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user.Enabled = false;
 				_user.Update();
 			}
@@ -1185,8 +1145,7 @@ select @postBatchId;"
 			var appVersion = "1.1.1.1299";
 			var _client = CreateClient();
 			var _user = _client.Users[0];
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_client.Status = ClientStatus.Off;
 				_client.Update();
 			}
@@ -1208,7 +1167,7 @@ select @postBatchId;"
 
 			SetCurrentUser(unknownUser);
 
-			ProcessWithLog(memoryAppender => { 
+			ProcessWithLog(memoryAppender => {
 				var service = new PrgDataEx();
 				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
 
@@ -1225,7 +1184,7 @@ select @postBatchId;"
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + unknownUser + " услуга не предоставляется;"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
 			},
-			false);
+				false);
 		}
 
 		[Test(Description = "попытка получить данные для пользователя, который привязан к поставщику")]
@@ -1259,19 +1218,17 @@ select @postBatchId;"
 				Assert.That(updateException.Addition, Is.StringStarting("Для логина " + supplierUser.Login + " услуга не предоставляется;"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Forbidden));
 			},
-			false);
+				false);
 		}
 
 		private bool GetForceReplication(uint firmCode, uint userId)
 		{
 			var forceReplication = SessionHelper.WithSession<byte>(
-				s =>
-				{
+				s => {
 					return s.CreateSQLQuery(
 						@"
 select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode = :firmCode and UserId = :parentUserId
-"
-						)
+")
 						.SetParameter("firmCode", firmCode)
 						.SetParameter("parentUserId", userId)
 						.UniqueResult<byte>();
@@ -1286,8 +1243,7 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 			var parentUser = client.Users[0];
 			TestUser childUser;
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				childUser = client.CreateUser();
 
 				childUser.SendRejects = true;
@@ -1296,8 +1252,7 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 				childUser.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var parentUpdateData = UpdateHelper.GetUpdateData(connection, parentUser.Login);
@@ -1314,21 +1269,19 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 
 			//Отключаем прайс-лист
 			SessionHelper.WithSession(
-				s =>
-					{
-						s.CreateSQLQuery(
-							@"
+				s => {
+					s.CreateSQLQuery(
+						@"
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :parentUserId;
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :childUserId;
 delete from Customers.UserPrices where UserId = :parentUserId and PriceId = :priceId;
-"
-							)
-							.SetParameter("firmCode", deletedPrice.Supplier.Id)
-							.SetParameter("priceId", deletedPrice.Id)
-							.SetParameter("parentUserId", parentUser.Id)
-							.SetParameter("childUserId", childUser.Id)
-							.ExecuteUpdate();
-					});
+")
+						.SetParameter("firmCode", deletedPrice.Supplier.Id)
+						.SetParameter("priceId", deletedPrice.Id)
+						.SetParameter("parentUserId", parentUser.Id)
+						.SetParameter("childUserId", childUser.Id)
+						.ExecuteUpdate();
+				});
 
 			Assert.That(parentUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.False, "У родительского клиента найден отключенный прайс-лист: {0}", deletedPrice);
 			Assert.That(childUser.GetActivePrices().Any(item => item.Id == deletedPrice.Id), Is.False, "У подчиненного клиента найден отключенный прайс-лист: {0}", deletedPrice);
@@ -1341,15 +1294,13 @@ delete from Customers.UserPrices where UserId = :parentUserId and PriceId = :pri
 
 			//Включаем прайс-лист
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					s.CreateSQLQuery(
 						@"
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :parentUserId;
 update usersettings.AnalitFReplicationInfo set ForceReplication = 0 where FirmCode = :firmCode and UserId = :childUserId;
 insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUserId, :priceId, :regionId);
-"
-						)
+")
 						.SetParameter("firmCode", deletedPrice.Supplier.Id)
 						.SetParameter("priceId", deletedPrice.Id)
 						.SetParameter("parentUserId", parentUser.Id)
@@ -1378,7 +1329,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 
 			SetCurrentUser(testUser.Login);
 
-			ProcessWithLog(memoryAppender => { 
+			ProcessWithLog(memoryAppender => {
 				var service = new PrgDataEx();
 				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
 
@@ -1395,10 +1346,9 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				Assert.That(updateException.Addition, Is.StringStarting("Ошибка при разборе номера версии '';"));
 				Assert.That(updateException.UpdateType, Is.EqualTo(RequestType.Error));
 			},
-			false);
+				false);
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == testUser.Id).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1), "Не найдена запись в логах для пользователя {0}", testUser.Id);
 				var log = logs[0];
@@ -1406,6 +1356,5 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				Assert.That(log.Addition, Is.StringContaining("Ошибка при разборе номера версии '';"));
 			}
 		}
-
 	}
 }

@@ -47,8 +47,7 @@ namespace PrgData.Common.Orders
 		public void Export()
 		{
 			LoadOrders();
-			if (LoadedOrders.Count > 0)
-			{
+			if (LoadedOrders.Count > 0) {
 				UnionOrders();
 				ExportOrders();
 			}
@@ -64,8 +63,7 @@ namespace PrgData.Common.Orders
 			File.WriteAllText(OrdersHeadFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(OrdersListFileName, converter.OrderItems.ToString(), Encoding.GetEncoding(1251));
 
-			lock (_filesForArchive)
-			{
+			lock (_filesForArchive) {
 				_filesForArchive.Enqueue(new FileForArchive(OrdersHeadFileName, true));
 				_filesForArchive.Enqueue(new FileForArchive(OrdersListFileName, true));
 			}
@@ -76,33 +74,29 @@ namespace PrgData.Common.Orders
 			ExportedOrders = LoadedOrders
 				.GroupBy(o => new { o.AddressId, o.PriceList.PriceCode, o.RegionCode })
 				.Select(
-					g => {
-							var firstOrder = g.OrderBy(o => o.WriteTime).First();
-							if (g.Count() > 1)
-							{
-								foreach (var order in g)
-								{
-									if (order != firstOrder)
-										for (int i = order.OrderItems.Count - 1; i >= 0; i--)
-										{
-											var item = order.OrderItems[i];
-											order.RemoveItem(item);
-											item.Order = firstOrder;
-											firstOrder.OrderItems.Add(item);
-										}
+				g => {
+					var firstOrder = g.OrderBy(o => o.WriteTime).First();
+					if (g.Count() > 1) {
+						foreach (var order in g) {
+							if (order != firstOrder)
+								for (int i = order.OrderItems.Count - 1; i >= 0; i--) {
+									var item = order.OrderItems[i];
+									order.RemoveItem(item);
+									item.Order = firstOrder;
+									firstOrder.OrderItems.Add(item);
 								}
+						}
 
-								firstOrder.RowCount = (uint)firstOrder.OrderItems.Count;
-							}
+						firstOrder.RowCount = (uint)firstOrder.OrderItems.Count;
+					}
 
-							return firstOrder;
-					}).ToList();
+					return firstOrder;
+				}).ToList();
 		}
 
 		public void LoadOrders()
 		{
-			using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(Helper.ReadWriteConnection))
-			{
+			using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(Helper.ReadWriteConnection)) {
 				var addressList = session
 					.CreateSQLQuery("select AddressId from Customers.UserAddresses where UserId = :userId")
 					.SetParameter("userId", Data.UserId)
@@ -124,11 +118,9 @@ namespace PrgData.Common.Orders
 			var list = new List<string>();
 
 			if (updateData.AllowDeleteUnconfirmedOrders)
-				With.DeadlockWraper(() =>
-				{
+				With.DeadlockWraper(() => {
 					var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
-					try
-					{
+					try {
 						var orders = MySql.Data.MySqlClient.MySqlHelper.ExecuteDataset(
 							connection,
 							@"
@@ -140,16 +132,13 @@ where
 	UserId = ?UserId
 and UpdateId = ?UpdateId
 and Committed = 0
-order by OrderId"
-							,
+order by OrderId",
 							new MySqlParameter("?UserId", updateData.UserId),
 							new MySqlParameter("?UpdateId", updateId));
 
-						if (orders.Tables.Count == 1)
-						{
-							var logger = LogManager.GetLogger(typeof (UnconfirmedOrdersExporter));
-							foreach (DataRow row in orders.Tables[0].Rows)
-							{
+						if (orders.Tables.Count == 1) {
+							var logger = LogManager.GetLogger(typeof(UnconfirmedOrdersExporter));
+							foreach (DataRow row in orders.Tables[0].Rows) {
 								var orderId = row["RowId"];
 								logger.DebugFormat("Удаляем неподтвержденный заказ: {0}", orderId);
 								MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
@@ -173,8 +162,7 @@ and UpdateId = ?UpdateId;
 
 						transaction.Commit();
 					}
-					catch
-					{
+					catch {
 						ConnectionHelper.SafeRollback(transaction);
 						throw;
 					}
@@ -185,13 +173,10 @@ and UpdateId = ?UpdateId;
 
 		public static void InsertUnconfirmedOrdersLogs(UpdateData updateData, MySqlConnection connection, uint? updateId)
 		{
-			if (updateData.AllowDeleteUnconfirmedOrders && updateId.HasValue && updateData.UnconfirmedOrders.Count > 0)
-			{
+			if (updateData.AllowDeleteUnconfirmedOrders && updateId.HasValue && updateData.UnconfirmedOrders.Count > 0) {
 				var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
-				try
-				{
-					foreach (var unconfirmedOrder in updateData.UnconfirmedOrders)
-					{
+				try {
+					foreach (var unconfirmedOrder in updateData.UnconfirmedOrders) {
 						MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
 							connection,
 							@"
@@ -212,8 +197,7 @@ set
 where
   UserId = ?UserId 
 and OrderId = ?OrderId;
-"
-							,
+",
 							new MySqlParameter("?UserId", updateData.UserId),
 							new MySqlParameter("?OrderId", unconfirmedOrder),
 							new MySqlParameter("?UpdateId", updateId));
@@ -221,8 +205,7 @@ and OrderId = ?OrderId;
 
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}

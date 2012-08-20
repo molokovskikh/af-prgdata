@@ -53,17 +53,15 @@ namespace PrgData.Common.Orders
 				postResult = 2;
 			var result = String.Format(
 				"ClientOrderID={0};PostResult={1};ServerOrderId={2};ErrorReason={3};ServerMinReq={4}{5}",
-				Order.ClientOrderId, 
+				Order.ClientOrderId,
 				postResult,
 				ServerOrderId,
 				ErrorReason,
 				MinReq,
 				updateData.BuildNumber > 1271 ? ";SendDate=" + Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss") : "");
 
-			if (SendResult == OrderSendResult.NeedCorrect || updateData.BuildNumber > 1833)
-			{
-				foreach (var position in Positions)
-				{
+			if (SendResult == OrderSendResult.NeedCorrect || updateData.BuildNumber > 1833) {
+				foreach (var position in Positions) {
 					if (!position.Duplicated && (position.SendResult != PositionSendResult.Success || updateData.BuildNumber > 1833))
 						result += ";" + position.GetResultToClient(updateData.BuildNumber);
 				}
@@ -106,7 +104,7 @@ namespace PrgData.Common.Orders
 
 		public uint GetSavedRowCount()
 		{
-			return Convert.ToUInt32( Positions.Count(item => !item.Duplicated));
+			return Convert.ToUInt32(Positions.Count(item => !item.Duplicated));
 		}
 	}
 }

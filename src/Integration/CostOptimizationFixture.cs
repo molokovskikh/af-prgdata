@@ -25,27 +25,24 @@ namespace Integration
 		private uint _concurentSupplierId = 14;
 		private uint _optimizationPriceId;
 
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
 		[SetUp]
 		public void SetUp()
 		{
 			_client = TestClient.Create();
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
 				_user.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				MySqlHelper.ExecuteNonQuery(
@@ -65,7 +62,7 @@ where
 	Prices.FirmCode = ?OptimizationSupplierId
 group by Prices.PriceCode
 order by 2 desc",
-				new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId)));
+					new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId)));
 
 				var ruleId = Convert.ToUInt64(
 					MySqlHelper.ExecuteScalar(
@@ -77,8 +74,7 @@ insert into usersettings.costoptimizationconcurrents (RuleId, SupplierId) values
 #insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?OldClientId);
 insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?NewClientId);
 select @LastRuleId;
-"
-						,
+",
 						new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId),
 						new MySqlParameter("?ConcurentSupplierId", _concurentSupplierId),
 						new MySqlParameter("?NewClientId", _client.Id)));
@@ -87,14 +83,13 @@ select @LastRuleId;
 
 		private void CostOptimizerShouldCreateLogsWithSupplier(uint clientId, Action<MySqlCommand> getOffers)
 		{
-			using (var conn = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var conn = new MySqlConnection(Settings.ConnectionString())) {
 				conn.Open();
 				var command = new MySqlCommand("select Now()", conn);
 				var startTime = Convert.ToDateTime(command.ExecuteScalar());
 
 				command = new MySqlCommand(
-@"select cs.Id, min(ccc.Cost) Cost
+					@"select cs.Id, min(ccc.Cost) Cost
   from farm.Core0 cs
 	   join farm.Core0 cc on cc.ProductId = cs.ProductId and cs.Id <> cc.Id and cs.ProductId = cc.ProductId
 	   join farm.CoreCosts ccc on ccc.Core_Id = cc.Id
@@ -130,8 +125,7 @@ limit 0, 50", conn);
 				command.Parameters.AddWithValue("?clientId", clientId);
 				var reader = command.ExecuteReader();
 
-				foreach (var row in reader.Cast<DbDataRecord>())
-				{
+				foreach (var row in reader.Cast<DbDataRecord>()) {
 					Assert.AreEqual(5, row["SupplierId"]);
 				}
 			}
@@ -142,8 +136,7 @@ limit 0, 50", conn);
 		{
 			CostOptimizerShouldCreateLogsWithSupplier(
 				_client.Id,
-				command =>
-				{
+				command => {
 					command.CommandText = "call Customers.GetOffers(?UserId);";
 					command.Parameters.AddWithValue("?UserId", _user.Id);
 					command.ExecuteNonQuery();
@@ -167,7 +160,7 @@ limit 0, 50", conn);
 
 			public CostLogInsert(uint clientId)
 			{
-				_log = LogManager.GetLogger(typeof (CostLogInsert));
+				_log = LogManager.GetLogger(typeof(CostLogInsert));
 				Thread = new Thread(ThreadMethod);
 				Thread.Start();
 				ClientId = clientId;
@@ -182,31 +175,26 @@ limit 0, 50", conn);
 
 			public void ThreadMethod()
 			{
-				try
-				{
-					using (var connection = new MySqlConnection(Settings.ConnectionString()))
-					{
+				try {
+					using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 						connection.Open();
 						var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
-						try
-						{
+						try {
 							var header = "insert into logs.CostOptimizationLogs(ClientId, SupplierId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost) values";
 							var logCommand = new MySqlCommand(header, connection);
 
 							var begin = 0;
 
-							while (begin < _insertCount)
-							{
+							while (begin < _insertCount) {
 								var commandText = new StringBuilder();
 								commandText.Append(header);
 
-								for (var i = 0; i < _packCount; i++)
-								{
+								for (var i = 0; i < _packCount; i++) {
 									if (begin + i >= _insertCount)
 										break;
 
 									commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", 1, 1, ForMySql(1.1m), ForMySql(1.2m), ForMySql(1.3m), ForMySql(1.0m), ClientId, 2));
-									if (i < (_packCount-1) && begin + i < _insertCount - 1)
+									if (i < (_packCount - 1) && begin + i < _insertCount - 1)
 										commandText.AppendLine(", ");
 								}
 								logCommand.CommandText = commandText.ToString();
@@ -216,42 +204,36 @@ limit 0, 50", conn);
 
 							transaction.Commit();
 						}
-						catch
-						{
+						catch {
 							ConnectionHelper.SafeRollback(transaction);
 							throw;
 						}
 					}
 				}
-				catch (Exception exception)
-				{
+				catch (Exception exception) {
 					Error = true;
 					_log.ErrorFormat("Ошибка для клиента {0}: {1}", ClientId, exception);
 				}
 			}
-
 		}
 
-		[Test(Description = "Проверка множественных вставок в CostOptimizationLogs для воспроизведения ошибки Duplicate entry"), 
+		[Test(Description = "Проверка множественных вставок в CostOptimizationLogs для воспроизведения ошибки Duplicate entry"),
 		 Ignore("Отключаю, т.к. ошибку тест не воспроизводит")]
 		public void TestMultiInsertWithSomeThreads()
 		{
 			BasicConfigurator.Configure();
-			try
-			{
+			try {
 				var log = LogManager.GetLogger(typeof(CostOptimizationFixture));
 
 				log.Debug("Начали работу теста");
 
 				var list = new List<CostLogInsert>();
 				var clientCount = 10;
-				for (int i = 0; i < clientCount; i++)
-				{
-					list.Add(new CostLogInsert((uint)i+1));
+				for (int i = 0; i < clientCount; i++) {
+					list.Add(new CostLogInsert((uint)i + 1));
 				}
 
-				do
-				{
+				do {
 					Thread.Sleep(500);
 				} while (!list.TrueForAll(item => item.Thread.ThreadState == ThreadState.Stopped));
 
@@ -259,11 +241,9 @@ limit 0, 50", conn);
 
 				log.Debug("Закончили работу теста");
 			}
-			finally
-			{
+			finally {
 				LogManager.ResetConfiguration();
 			}
 		}
-
 	}
 }

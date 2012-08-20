@@ -13,7 +13,8 @@ namespace PrgData.Common.Models
 	{
 		public MailsExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
 			: base(updateData, connection, files)
-		{}
+		{
+		}
 
 		public override int RequiredVersion
 		{
@@ -24,11 +25,11 @@ namespace PrgData.Common.Models
 		{
 			get
 			{
-				return new [] {
+				return new[] {
 					RequestType.GetData, RequestType.GetCumulative, RequestType.PostOrderBatch, RequestType.GetDataAsync,
 					RequestType.GetCumulativeAsync, RequestType.GetLimitedCumulative, RequestType.GetLimitedCumulativeAsync,
 					RequestType.RequestAttachments
-				}; 
+				};
 			}
 		}
 
@@ -71,7 +72,6 @@ namespace PrgData.Common.Models
 					//здесь экспортируются вложения
 					ArchiveAttachments(tempPath, docsPath, archiveFile);
 				}
-
 			}
 			finally {
 				try {
@@ -86,8 +86,8 @@ namespace PrgData.Common.Models
 		public void FillExportMails(MySqlCommand selectCommand)
 		{
 			updateData.ExportMails.Clear();
-				//начинаем отдавать документы с самых новых что бы 
-				//отдать наиболее актуальные
+			//начинаем отдавать документы с самых новых что бы 
+			//отдать наиболее актуальные
 			var sql = @"
 select 
 	Mails.Id,
@@ -104,8 +104,7 @@ order by Mails.LogTime desc
 limit 200;
 ";
 			selectCommand.CommandText = sql;
-			using (var reader = selectCommand.ExecuteReader())
-			{
+			using (var reader = selectCommand.ExecuteReader()) {
 				while (reader.Read())
 					updateData.ExportMails.Add(
 						new ExportedMiniMail {
@@ -124,8 +123,7 @@ from
 	inner join Documents.Attachments on Attachments.MailId = Mails.Id
 where
   Mails.Id in (" + forceAttachments.Implode() + ")";
-				using (var reader = selectCommand.ExecuteReader())
-				{
+				using (var reader = selectCommand.ExecuteReader()) {
 					while (reader.Read()) {
 						var attachmentId = reader.GetUInt32(0);
 
@@ -181,12 +179,10 @@ where
 			ShareFileHelper.WaitFile(fullPathFile);
 #endif
 
-			try
-			{
+			try {
 				SevenZipHelper.ArchiveFiles(archiveFileName, fullPathFile);
 			}
-			catch
-			{
+			catch {
 				ShareFileHelper.MySQLFileDelete(archiveFileName);
 				throw;
 			}
@@ -210,8 +206,7 @@ where
 		{
 			var log = LogManager.GetLogger(typeof(MailsExport));
 
-			try
-			{
+			try {
 				log.Debug("Будем выгружать вложения");
 
 				var command = new MySqlCommand();
@@ -228,8 +223,7 @@ where
 					ProcessArchiveFile(attachmentRequestsFile, archiveFileName);
 				}
 			}
-			catch (Exception exception)
-			{
+			catch (Exception exception) {
 				log.Error("Ошибка при архивировании почтовых вложений", exception);
 				throw;
 			}
@@ -255,7 +249,7 @@ and AttachmentSendLogs.AttachmentId = ?AttachmentId";
 				var extension = command.ExecuteScalar();
 				if (extension != null && !String.IsNullOrEmpty((string)extension)) {
 					File.Copy(
-						Path.Combine(attachmentsPath, request.AttachmentId + (string)extension), 
+						Path.Combine(attachmentsPath, request.AttachmentId + (string)extension),
 						Path.Combine(docsPath, request.AttachmentId + (string)extension));
 					request.Success = true;
 				}
@@ -267,6 +261,5 @@ and AttachmentSendLogs.AttachmentId = ?AttachmentId";
 					Path.Combine("Docs", "*.*"),
 					tempPath);
 		}
-
 	}
 }
