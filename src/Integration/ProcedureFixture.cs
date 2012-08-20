@@ -695,7 +695,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-				CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
@@ -741,7 +741,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-				CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
@@ -795,7 +795,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-				CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
@@ -860,7 +860,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
-				CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
 					Settings.ConnectionString(),
@@ -1011,7 +1011,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 				var responce = LoadData(false, DateTime.Now, appVersion);
 				var updateId = ParseUpdateId(responce);
 
-				var previosUpdateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				var previosUpdateTime = CommitExchange(updateId, RequestType.GetCumulative);
 
 				var batchFileBytes = File.ReadAllBytes("TestData\\TestOrderSmall.7z");
 				Assert.That(batchFileBytes.Length, Is.GreaterThan(0), "Файл с дефектурой оказался пуст, возможно, его нет в папке");
@@ -1405,6 +1405,92 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				Assert.That(log.UpdateType, Is.EqualTo((uint)RequestType.Error));
 				Assert.That(log.Addition, Is.StringContaining("Ошибка при разборе номера версии '';"));
 			}
+		}
+
+		[Test(Description = "Производим запрос данных накопительного обновления с датой клиента больше, чем на сервере, при этом клиент должен получить КО")]
+		public void GetDataWithBiggerUpdateDate()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			ProcessWithLog(() => {
+				var responce = LoadData(false, simpleUpdateTime.AddMinutes(2).ToUniversalTime(), appVersion);
+				var cumulativeId = ParseUpdateId(responce);
+
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", cumulativeId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
+
+				var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+				Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeId)));
+			});
+		}
+
+		[Test(Description = "Производим запрос данных накопительного обновления с датой клиента меньше, чем на сервере, при этом клиент должен получить частичное КО")]
+		public void GetDataWithLesserUpdateDate()
+		{
+			var appVersion = "1.1.1.1299";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			MySqlHelper.ExecuteNonQuery(
+				Settings.ConnectionString(),
+				@"
+update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
+update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
+",
+				new MySqlParameter("?ClientCode", _client.Id),
+				new MySqlParameter("?UpdateDate", simpleUpdateTime),
+				new MySqlParameter("?UserId", _user.Id));
+
+			SetCurrentUser(_user.Login);
+
+			ProcessWithLog(() => {
+				var responce = LoadData(false, simpleUpdateTime.AddMinutes(-2).ToUniversalTime(), appVersion);
+				var cumulativeId = ParseUpdateId(responce);
+
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", cumulativeId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetLimitedCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
+
+				var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
+				Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
+				Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeId)));
+			});
 		}
 
 	}

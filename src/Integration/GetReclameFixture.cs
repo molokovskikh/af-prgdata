@@ -320,7 +320,7 @@ namespace Integration
 
 				CheckOldReclameArchive(_user, updateId, reclame.Region);
 
-				var updateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				var updateTime = CommitExchange(updateId, RequestType.GetCumulative);
 
 				var date = MySqlHelper.ExecuteScalar(
 					connection,
@@ -395,7 +395,7 @@ namespace Integration
 				Assert.IsTrue(files.Any(f => f.EndsWith("\\main.htm")));
 				Assert.IsTrue(files.Any(f => f.EndsWith("\\main.gif")));
 
-				var updateTime = CommitExchange(updateId, RequestType.GetLimitedCumulative);
+				var updateTime = CommitExchange(updateId, RequestType.GetCumulative);
 
 				var date = MySqlHelper.ExecuteScalar(
 					connection,

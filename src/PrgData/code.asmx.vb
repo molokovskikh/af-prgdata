@@ -638,7 +638,7 @@ Public Class PrgDataEx
 
 				'Если несовпадает время последнего обновления на клиете и сервере
 				If Not UpdateData.Cumulative AndAlso (UpdateData.OldUpdateTime <> AccessTime.ToLocalTime) Then
-					If (UpdateData.BuildNumber > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) Then
+					If (UpdateData.BuildNumber > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) And (AccessTime.ToLocalTime < UpdateData.OldUpdateTime) Then
 						Try
 							Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", UpdateData.OldUpdateTime, AccessTime.ToLocalTime)
 							LimitedCumulative = True
