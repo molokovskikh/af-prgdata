@@ -21,6 +21,8 @@ namespace PrgData.Common
 #endif
 		public static Func<String> MySqlLocalImportPath = () => ConfigurationManager.AppSettings["MySqlLocalFilePath"];
 
+		public static Func<String> DistributionPath = () => ConfigurationManager.AppSettings["DistributionPath"];
+
 		public static string GetShortUserName()
 		{
 			var userName = GetUserName();
@@ -46,8 +48,10 @@ namespace PrgData.Common
 		{
 			var sharedExportPath = ExpandExportPath(MySqlSharedExportPath());
 			var localImportPath = ExpandExportPath(MySqlLocalImportPath());
+			var distributionPath = ExpandExportPath(DistributionPath());
 			MySqlSharedExportPath = () => sharedExportPath;
 			MySqlLocalImportPath = () => localImportPath;
+			DistributionPath = () => distributionPath;
 		}
 
 		/// <summary>

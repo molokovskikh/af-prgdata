@@ -198,6 +198,7 @@
     <Content Include="GetFileReclameHandler.ashx" />
     <Content Include="Global.asax" />
     <Content Include="GetFileHistoryHandler.ashx" />
+    <Content Include="GetDistributionFileHandler.ashx" />
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
       <LastGenOutput>Application.Designer.vb</LastGenOutput>

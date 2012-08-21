@@ -98,8 +98,10 @@
     <Compile Include="BaseTests\UserFixture.cs" />
     <Compile Include="CostOptimizationFixture.cs" />
     <Compile Include="DelayOfPaymentsFixture.cs" />
+    <Compile Include="FileHandlers\BaseFileHandlerFixture.cs" />
+    <Compile Include="FileHandlers\DistributionFileHandlerFixture.cs" />
     <Compile Include="DownloadUnconfirmedOrdersFixture.cs" />
-    <Compile Include="FileHandlerFixture.cs" />
+    <Compile Include="FileHandlers\FileHandlerFixture.cs" />
     <Compile Include="FixtureSetup.cs" />
     <Compile Include="FoldersHelper.cs" />
     <Compile Include="GenerateDocsHelperFixture.cs" />

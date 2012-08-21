@@ -21,83 +21,39 @@ using System.Web;
 namespace Integration
 {
 	[TestFixture]
-	public class FileHandlerFixture
+	public class FileHandlerFixture : BaseFileHandlerFixture
 	{
-		private TestClient client;
 		private TestUser user;
 
 		[SetUp]
 		public void Setup()
 		{
+			FileHanderAshxName = "GetFileHandler.asxh";
+
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";
 
-			client = TestClient.Create();
+			user = CreateUser();
 
-			using (var transaction = new TransactionScope())
-			{
-				user = client.Users[0];
-
-				client.Users.Each(u =>
-				{
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
-			}
 		}
 
-		private void SetCurrentUser(string login)
-		{
-			ServiceContext.GetUserName = () => login;
-		}
-
-		/*
-		 * Пример отладки IHttpHandler:
-		 * Заголовок: HttpHandler Unit Testing
-		 * источник: http://codebetter.com/blogs/karlseguin/archive/2007/01/25/HttpHandler-Unit-Testing.aspx
-protected string RawRequest(string fileName, string queryString)
-{
-   StringBuilder output = new StringBuilder();
-   using (StringWriter sw = new StringWriter(output))
-   {
-	  HttpResponse response = new HttpResponse(sw);
-	  HttpRequest request = new HttpRequest(fileName, "http://fueltest.net/" + fileName, queryString);
-	  HttpContext context = new HttpContext(request, response);
-	  new RequestHandler().ProcessRequest(context);
-   }
-   return output.ToString();
-}		 
-		 *  
-		 * 
-		 * Еще один способ отладки:
-		 * Заголовок: Как тестировать логику модулей и хендлеров ASP.NET?
-		 * источник: http://www.codehelper.ru/questions/251/new/как-тестировать-логику-модулей-и-хендлеров-aspnet
-		 */
 
 		private void CheckProcessRequest(string login, string errorMessage)
 		{
 			SetCurrentUser(login);
 
-			var fileName = "GetFileHandler.asxh";
-
-			var output = new StringBuilder();
-			using (var sw = new StringWriter(output))
-			{
-				var response = new HttpResponse(sw);
-				var request = new HttpRequest(fileName, "http://127.0.0.1/" + fileName, String.Empty);
-				var context = new HttpContext(request, response);
+			WithHttpContext(context => {
 
 				var fileHandler = new GetFileHandler();
 				fileHandler.ProcessRequest(context);
 
-				Assert.That(response.StatusCode, Is.EqualTo(500), "Не верный код ошибки от сервера");
+				Assert.That(context.Response.StatusCode, Is.EqualTo(500), "Не верный код ошибки от сервера");
 
 				Assert.That(context.Error, Is.Not.Null);
 				Assert.That(context.Error.GetType(), Is.EqualTo(typeof(Exception)));
 				Assert.That(context.Error.Message, Is.StringStarting(errorMessage).IgnoreCase);
-			}
+			});
 		}
 
 		[Test(Description = "Пытаемся вызвать GetFileHandler для несуществующего клиента, должны получить исключение")]

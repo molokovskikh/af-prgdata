@@ -86,7 +86,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					if (_fromByte > 0 && _fromByte < stmFileStream.Length)
 						stmFileStream.Position = _fromByte;
 					context.Response.AppendHeader("INFileSize", stmFileStream.Length.ToString());
-					CopyStreams(stmFileStream, context.Response.OutputStream);
+					CopyStreams(stmFileStream, context.Response.OutputStream, context);
 				}
 
 				Log.DebugFormat("Производим вызов Flush() для пользователя: {0}", UserId);

@@ -33,7 +33,7 @@ namespace PrgData.FileHandlers
 									stmFileStream.Position = rs;
 							}
 							context.Response.AppendHeader("INFileSize", stmFileStream.Length.ToString());
-							CopyStreams(stmFileStream, context.Response.OutputStream);
+							CopyStreams(stmFileStream, context.Response.OutputStream, context);
 							context.Response.Flush();
 						}
 					}

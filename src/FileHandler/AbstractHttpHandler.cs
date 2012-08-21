@@ -22,12 +22,12 @@ namespace PrgData.FileHandlers
 
 		protected uint LastLockId;
 
-		protected void CopyStreams(Stream input, Stream output)
+		protected void CopyStreams(Stream input, Stream output, HttpContext context)
 		{
 			var bytes = new byte[BufferSize];
 			int numBytes;
 			while ((numBytes = input.Read(bytes, 0, BufferSize)) > 0
-				   && HttpContext.Current.Response.IsClientConnected)
+				   && context.Response.IsClientConnected)
 			{
 				output.Write(bytes, 0, numBytes);
 				ByteSent += numBytes;
