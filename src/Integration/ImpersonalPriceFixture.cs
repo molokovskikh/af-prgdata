@@ -110,13 +110,20 @@ namespace Integration
 			CheckUpdateHelper(user.Login, offersFutureUser.Id, offersFutureClient.RegionCode);
 		}
 
-		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId)
+		[Test(Description = "проверяем работу по генерации SQL для обезличенного прайс-листа после версии 1883")]
+		public void CheckUpdateHelperAfter1883()
+		{
+			CheckUpdateHelper(user.Login, offersFutureUser.Id, offersFutureClient.RegionCode, 1885);
+		}
+
+		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId, uint? buildNumber = null)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString()))
 			{
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				updateData.BuildNumber = buildNumber;
 				var helper = new UpdateHelper(updateData, connection);
 
 				Assert.That(updateData.EnableImpersonalPrice, Is.True, "Не включен механизм 'Обезличенный прайс'");

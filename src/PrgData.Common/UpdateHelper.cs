@@ -2836,33 +2836,41 @@ FROM   Prices";
 		public string GetRegionalDataCommand()
 		{
 			if (_updateData.EnableImpersonalPrice)
-				return @"
+				return String.Format(@"
 SELECT 
-	   PricesData.FirmCode            ,
-	   ?OffersRegionCode as RegionCode,
-	   '4732-606000' as supportphone  ,
-	   null as ContactInfo            ,
-	   null as OperativeInfo          
+	PricesData.FirmCode            ,
+	?OffersRegionCode as RegionCode,
+	'4732-606000' as supportphone  ,
+	null as ContactInfo            ,
+	null as OperativeInfo
+	{0}
 FROM   
    UserSettings.PricesData
 where
   PricesData.PriceCode = ?ImpersonalPriceId
-limit 1";
+limit 1"
+					,
+					_updateData.AllowAfter1883() ? ", null as Address " : string.Empty);
 			else
-				return @"
+				return String.Format(@"
 SELECT DISTINCT 
-				regionaldata.FirmCode  ,
-				regionaldata.RegionCode,
-				supportphone           ,
-				concat(if(Suppliers.Address is not null and Length(Suppliers.Address) > 0, concat(Suppliers.Address, '\r\n'), ''), ContactInfo) as ContactInfo,
-				OperativeInfo
+	regionaldata.FirmCode  ,
+	regionaldata.RegionCode,
+	supportphone           ,
+	{0},
+	OperativeInfo
+	{1}
 FROM            
 				regionaldata,
 				Prices,
 				customers.Suppliers
 WHERE           regionaldata.firmcode  = Prices.firmcode
 AND             regionaldata.regioncode= Prices.regioncode
-and				Suppliers.Id = regionaldata.firmcode";
+and				Suppliers.Id = regionaldata.firmcode"
+					,
+					_updateData.AllowAfter1883() ? " ContactInfo " : "concat(if(Suppliers.Address is not null and Length(Suppliers.Address) > 0, concat(Suppliers.Address, '\r\n'), ''), ContactInfo) as ContactInfo",
+					_updateData.AllowAfter1883() ? ", Suppliers.Address " : string.Empty
+					);
 		}
 
 		public void PrepareProviderContacts(MySqlCommand selectCommand)

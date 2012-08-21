@@ -75,6 +75,8 @@ namespace PrgData.Common
 		private static int _versionBeforeCorrectTechContact = 1869;
 		//версия AnalitF до экспорта новых полей в core: EAN13, CodeOKP, Series (от 1877)
 		private static int _versionBeforeEAN13 = 1877;
+		//версия AnalitF до экспорта поле Адрес отдельным столбцом (от 1883)
+		private static int _version1883 = 1883;
 
 		public string ShortName;
 		public uint ClientId;
@@ -575,6 +577,12 @@ namespace PrgData.Common
 		{
 			return (BuildNumber <= _versionBeforeEAN13)
 				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeEAN13);
+		}
+
+		public bool AllowAfter1883()
+		{
+			return BuildNumberGreaterThen(_version1883)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _version1883);
 		}
 
 		public bool NeedUpdateForRetailMargins()

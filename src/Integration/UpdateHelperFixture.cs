@@ -1640,7 +1640,7 @@ limit 1;
 			Assert.That(row["ExcessAvgOrderTimes"], Is.EqualTo(5), "Неожидаемое значение по умолчанию для столбца ExcessAvgOrderTimes");
 		}
 
-		private void CheckContactInfo(MySqlDataAdapter adapter, string sql, TestSupplier supplier, TestSupplierRegionalData supplierRegionalData, string address, string contactInfo, object expectedValue)
+		private DataTable SetContactInfoAndAddressAndGetTable(MySqlDataAdapter adapter, string sql, TestSupplier supplier, TestSupplierRegionalData supplierRegionalData, string address, string contactInfo)
 		{
 			using (new TransactionScope()) {
 				supplierRegionalData.ContactInfo = contactInfo;
@@ -1652,12 +1652,31 @@ limit 1;
 			var regionalData = new DataTable();
 			adapter.Fill(regionalData);
 
+			return regionalData;
+		}
+
+		private void CheckContactInfoBefore1883(MySqlDataAdapter adapter, string sql, TestSupplier supplier, TestSupplierRegionalData supplierRegionalData, string address, string contactInfo, object expectedValue)
+		{
+			var regionalData = SetContactInfoAndAddressAndGetTable(adapter, sql, supplier, supplierRegionalData, address, contactInfo);
+
 			var infos = regionalData.Select("FirmCode = " + supplier.Id + " and RegionCode = " + supplier.HomeRegion.Id);
 			Assert.That(infos.Length, Is.EqualTo(1), "Должна быть одна запись для поставщика {0}", supplier.Id);
+			Assert.That(regionalData.Columns.Contains("Address"), Is.False, "Поле адрес должно существовать после версии 1883");
 			Assert.That(infos[0]["ContactInfo"], Is.EqualTo(expectedValue), "Неожидаемое значение поля ContactInfo для поставщика {0}", supplier.Id);
 		}
 
-		[Test(Description = "проверяем работу метода GetRegionalDataCommand")]
+		private void CheckContactInfoAfter1883(MySqlDataAdapter adapter, string sql, TestSupplier supplier, TestSupplierRegionalData supplierRegionalData, string address, string contactInfo, object expectedAddressValue)
+		{
+			var regionalData = SetContactInfoAndAddressAndGetTable(adapter, sql, supplier, supplierRegionalData, address, contactInfo);
+
+			var infos = regionalData.Select("FirmCode = " + supplier.Id + " and RegionCode = " + supplier.HomeRegion.Id);
+			Assert.That(infos.Length, Is.EqualTo(1), "Должна быть одна запись для поставщика {0}", supplier.Id);
+			Assert.That(regionalData.Columns.Contains("Address"), Is.True, "Поле адрес должно существовать после версии 1883");
+			Assert.That(infos[0]["ContactInfo"], Is.EqualTo(contactInfo), "Неожидаемое значение поля ContactInfo для поставщика {0}", supplier.Id);
+			Assert.That(infos[0]["Address"], Is.EqualTo(expectedAddressValue), "Неожидаемое значение поля Address для поставщика {0}", supplier.Id);
+		}
+
+		[Test(Description = "проверяем работу метода GetRegionalDataCommand до версии 1883")]
 		public void CheckGetRegionDataCommand()
 		{
 			var supplier = TestSupplier.Create();
@@ -1680,17 +1699,54 @@ limit 1;
 			helper.SelectActivePrices();
 
 
-			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, string.Empty, string.Empty);
+			CheckContactInfoBefore1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, string.Empty, string.Empty);
 
-			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, string.Empty, string.Empty);
+			CheckContactInfoBefore1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, string.Empty, string.Empty);
 
-			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", string.Empty, "test\r\n");
+			CheckContactInfoBefore1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", string.Empty, "test\r\n");
 
-			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", "contact test info", "test\r\ncontact test info");
+			CheckContactInfoBefore1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", "contact test info", "test\r\ncontact test info");
 
-			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, "contact test info", "contact test info");
+			CheckContactInfoBefore1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, "contact test info", "contact test info");
 
-			CheckContactInfo(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, "contact test info", "contact test info");
+			CheckContactInfoBefore1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, "contact test info", "contact test info");
+		}
+
+		[Test(Description = "проверяем работу метода GetRegionalDataCommand с отдельным столбцом адреса после версии 1883")]
+		public void CheckGetRegionDataCommandAfterExportAddress()
+		{
+			updateData.BuildNumber = 1885;
+			var supplier = TestSupplier.Create();
+
+			var regionalData = supplier.RegionalData[0];
+
+			helper.MaintainReplicationInfo();
+
+			var dataAdapter = new MySqlDataAdapter("select now()", connection);
+
+			var command = dataAdapter.SelectCommand;
+
+			helper.SetUpdateParameters(command, DateTime.Now);
+
+			helper.Cleanup();
+
+			helper.SelectPrices();
+			helper.PreparePricesData(command);
+			helper.SelectReplicationInfo();
+			helper.SelectActivePrices();
+
+
+			CheckContactInfoAfter1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, string.Empty, DBNull.Value);
+
+			CheckContactInfoAfter1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, string.Empty, string.Empty);
+
+			CheckContactInfoAfter1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", string.Empty, "test");
+
+			CheckContactInfoAfter1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, "test", "contact test info", "test");
+
+			CheckContactInfoAfter1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, null, "contact test info", DBNull.Value);
+
+			CheckContactInfoAfter1883(dataAdapter, helper.GetRegionalDataCommand(), supplier, regionalData, string.Empty, "contact test info", string.Empty);
 		}
 
 		[Test(Description = "проверка выгрузки контактной региональной информации относительно клиента")]
