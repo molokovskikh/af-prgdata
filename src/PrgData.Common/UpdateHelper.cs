@@ -1038,7 +1038,7 @@ select
 from
   catalogs.Mnn
 where
-  if(not ?Cumulative, Mnn.UpdateTime > ?UpdateTime, 1)";
+  if(not ?Cumulative, Mnn.UpdateTime > ?CatalogUpdateTime, 1)";
 			}
 			else
 				if (after1263)
@@ -1060,7 +1060,7 @@ select
 from
   catalogs.Mnn
 where
-  Mnn.UpdateTime > ?UpdateTime
+  Mnn.UpdateTime > ?CatalogUpdateTime
 union
 select
   MnnLogs.MnnId,
@@ -1069,7 +1069,7 @@ select
 from
   logs.MnnLogs
 where
-	(MnnLogs.LogTime >= ?UpdateTime) 
+	(MnnLogs.LogTime >= ?CatalogUpdateTime)
 and (MnnLogs.Operation = 2)
 ";
 				}
@@ -1094,7 +1094,7 @@ select
 from
   catalogs.Mnn
 where
-  Mnn.UpdateTime > ?UpdateTime
+  Mnn.UpdateTime > ?CatalogUpdateTime
 union
 select
   MnnLogs.MnnId,
@@ -1104,7 +1104,7 @@ select
 from
   logs.MnnLogs
 where
-	(MnnLogs.LogTime >= ?UpdateTime) 
+	(MnnLogs.LogTime >= ?CatalogUpdateTime)
 and (MnnLogs.Operation = 2)
 ";
 				}
@@ -1133,7 +1133,7 @@ select
 from
   catalogs.Descriptions
 where
-  if(not ?Cumulative, Descriptions.UpdateTime > ?UpdateTime, 1)
+  if(not ?Cumulative, Descriptions.UpdateTime > ?CatalogUpdateTime, 1)
 and Descriptions.NeedCorrect = 0";
 			}
 			else
@@ -1180,7 +1180,7 @@ select
 from
   catalogs.Descriptions
 where
-  Descriptions.UpdateTime > ?UpdateTime
+  Descriptions.UpdateTime > ?CatalogUpdateTime
 and Descriptions.NeedCorrect = 0
 union
 select
@@ -1202,7 +1202,7 @@ select
 from
   logs.DescriptionLogs
 where
-	(DescriptionLogs.LogTime >= ?UpdateTime) 
+	(DescriptionLogs.LogTime >= ?CatalogUpdateTime)
 and (DescriptionLogs.Operation = 2)
 ";
 		}
@@ -1859,9 +1859,9 @@ WHERE
 AND C.FormId =CF.Id
 AND
 	(
-			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
+			IF(NOT ?Cumulative, C.UpdateTime  > ?CatalogUpdateTime, 1)
+		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?CatalogUpdateTime, 1)
+		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?CatalogUpdateTime, ?Cumulative)
 	)
 AND C.hidden = 0";
 			}
@@ -1926,9 +1926,9 @@ WHERE
 AND C.FormId = CF.Id
 AND
 	(
-			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
+			IF(NOT ?Cumulative, C.UpdateTime  > ?CatalogUpdateTime, 1)
+		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?CatalogUpdateTime, 1)
+		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?CatalogUpdateTime, ?Cumulative)
 		OR	IF(NOT ?Cumulative and rm.Id is not null, {0}, ?Cumulative)
 	)"
 						,
@@ -1987,11 +1987,24 @@ WHERE
 AND C.FormId =CF.Id
 AND
 	(
-			IF(NOT ?Cumulative, C.UpdateTime  > ?UpdateTime, 1)
-		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?UpdateTime, 1)
-		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?UpdateTime, ?Cumulative)
+			IF(NOT ?Cumulative, C.UpdateTime  > ?CatalogUpdateTime, 1)
+		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?CatalogUpdateTime, 1)
+		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?CatalogUpdateTime, ?Cumulative)
 	)
 ";
+		}
+
+		public string GetProductsCommand()
+		{
+			return @"
+SELECT
+	P.Id,
+	P.CatalogId
+FROM
+	Catalogs.Products P
+WHERE
+	(If(Not ?Cumulative, (P.UpdateTime > ?CatalogUpdateTime), 1))
+AND hidden = 0";
 		}
 
 		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool cryptCost)
@@ -2761,6 +2774,27 @@ WHERE
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceId", _updateData.ImpersonalPriceId);
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceDate", DateTime.Now);
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceFresh", 0);
+
+			if (_updateData.MissingProductIds.Count > 0) {
+				selectComand.CommandText = String.Format(@"
+select
+	cast(min(least(p.UpdateTime, c.UpdateTime, CN.UpdateTime)) as datetime)
+from
+	catalogs.Products p
+	inner join catalogs.Catalog c on c.Id = p.CatalogId
+	inner join Catalogs.CatalogNames CN on CN.Id = c.NameId
+where
+	p.Id in ({0})
+and p.Hidden = 0"
+					,
+					_updateData.MissingProductIds.Implode());
+				var catalogUpdateTime = selectComand.ExecuteScalar();
+				if (catalogUpdateTime != null && catalogUpdateTime is DateTime)
+					selectComand.Parameters.AddWithValue("?CatalogUpdateTime", Convert.ToDateTime(catalogUpdateTime).AddDays(-7));
+			}
+
+			if (!selectComand.Parameters.Contains("?CatalogUpdateTime"))
+				selectComand.Parameters.AddWithValue("?CatalogUpdateTime", _updateData.OldUpdateTime);
 		}
 
 		public void PrepareImpersonalOffres(MySqlCommand selectCommand)

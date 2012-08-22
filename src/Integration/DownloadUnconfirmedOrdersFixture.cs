@@ -104,7 +104,7 @@ namespace Integration
 					.ExecuteUpdate();
 			});
 
-			_lastUpdateTime = GetLastUpdateTime();
+			_lastUpdateTime = GetLastUpdateTime(_officeUser);
 			SetCurrentUser(_officeUser.Login);
 			TestDataManager.DeleteAllOrdersForClient(_client.Id);
 
@@ -115,22 +115,6 @@ namespace Integration
 		public void TearDown()
 		{
 			CheckForErrors();
-		}
-
-		private DateTime GetLastUpdateTime()
-		{
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			_officeUser.UpdateInfo.UpdateDate = simpleUpdateTime;
-			_officeUser.Update();
-
-			return simpleUpdateTime;
 		}
 
 		[Test(Description = "Проверяем, что использование NHibernate-сессии от текущего подключение не закрывает подключение и транзакцию")]

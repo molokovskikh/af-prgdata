@@ -107,6 +107,14 @@ namespace Integration.BaseTests
 			return responce;
 		}
 
+		protected string LoadDataWithMissingProductsAsync(bool getEtalonData, DateTime accessTime, string appVersion, uint[] attachmentIds, uint[] productIds)
+		{
+			var service = new PrgDataEx();
+			var responce = service.GetUserDataWithMissingProductsAsync(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false, null, 1, 1, null, null, attachmentIds, productIds);
+
+			return responce;
+		}
+
 		protected uint ShouldBeSuccessfull(string responce)
 		{
 			Assert.That(responce, Is.StringStarting("URL=http://localhost/GetFileHandler.ashx?Id"));
@@ -305,6 +313,23 @@ where
 			return doc;
 		}
 
+		protected DateTime GetLastUpdateTime(TestUser user)
+		{
+			var simpleUpdateTime = DateTime.Now;
+			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
+			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
+			simpleUpdateTime = simpleUpdateTime.Date
+				.AddHours(simpleUpdateTime.Hour)
+				.AddMinutes(simpleUpdateTime.Minute)
+				.AddSeconds(simpleUpdateTime.Second);
+
+			using (new TransactionScope()) {
+				user.UpdateInfo.UpdateDate = simpleUpdateTime;
+				user.Save();
+			}
+
+			return simpleUpdateTime;
+		}
 
 	}
 }

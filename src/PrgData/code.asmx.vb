@@ -358,7 +358,8 @@ Public Class PrgDataEx
           False, _
           Nothing, _
           Nothing, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrders( _
@@ -392,7 +393,8 @@ Public Class PrgDataEx
           False, _
           Nothing, _
           Nothing, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrdersAsync( _
@@ -426,7 +428,8 @@ Public Class PrgDataEx
           True AndAlso Not WayBillsOnly, _
           Nothing, _
           Nothing, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithOrdersAsyncCert( _
@@ -461,7 +464,8 @@ Public Class PrgDataEx
           True AndAlso Not WayBillsOnly, _
           DocumentBodyIds, _
           Nothing, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithAttachments( _
@@ -497,7 +501,8 @@ Public Class PrgDataEx
           False, _
           DocumentBodyIds, _
           AttachmentIds, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithAttachmentsAsync( _
@@ -533,7 +538,8 @@ Public Class PrgDataEx
           True, _
           DocumentBodyIds, _
           AttachmentIds, _
-          False)
+          False, _
+          Nothing)
     End Function
 
     <WebMethod()> Public Function GetUserDataWithRequestAttachments( _
@@ -569,9 +575,47 @@ Public Class PrgDataEx
           False, _
           DocumentBodyIds, _
           AttachmentIds, _
-          True)
+          True, _
+          Nothing)
     End Function
 
+    <WebMethod()> Public Function GetUserDataWithMissingProductsAsync( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String, _
+ ByVal MaxOrderId As UInt32, _
+ ByVal MaxOrderListId As UInt32, _
+ ByVal PriceCodes As UInt32(), _
+ ByVal DocumentBodyIds As UInt32(), _
+ ByVal AttachmentIds As UInt32(), _
+ ByVal MissingProductIds As UInt32()) As String
+
+        Return InternalGetUserData( _
+          AccessTime, _
+          GetEtalonData, _
+          EXEVersion, _
+          MDBVersion, _
+          UniqueID, _
+          WINVersion, _
+          WINDesc, _
+          WayBillsOnly, _
+          ClientHFile, _
+          PriceCodes, _
+          False, _
+          MaxOrderId, _
+          MaxOrderListId, _
+          True, _
+          DocumentBodyIds, _
+          AttachmentIds, _
+          False, _
+          MissingProductIds)
+    End Function
 
     Private Function InternalGetUserData( _
      ByVal AccessTime As Date, _
@@ -590,7 +634,8 @@ Public Class PrgDataEx
      ByVal Async As Boolean, _
      ByVal DocumentBodyIds As UInt32(), _
 	 ByVal AttachmentIds As UInt32(), _
-	 ByVal RequestAttachments As Boolean) As String
+	 ByVal RequestAttachments As Boolean,
+     ByVal MissingProductIds As UInt32()) As String
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
@@ -629,6 +674,7 @@ Public Class PrgDataEx
 					UpdateData.MaxOrderId = MaxOrderId
 					UpdateData.MaxOrderListId = MaxOrderListId
 				End If
+				UpdateData.ParseMissingProductIds(MissingProductIds)
 			End If
 
 			Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
@@ -2871,7 +2917,7 @@ StartZipping:
 					AddFileToQueue(helper.BatchReportServiceFieldsFileName)
 				End If
 
-				ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing, False)
+				ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing, False, Nothing)
 
 				currentUpdateId = GUpdateId
 
@@ -3832,13 +3878,7 @@ RestartTrans2:
 					GetMySQLFileWithDefault("Schedules", SelProc, helper.GetSchedulesCommand())
 				End If
 
-				GetMySQLFileWithDefault("Products", SelProc, _
-				 "SELECT P.Id       ," & _
-				" P.CatalogId" & _
-				" FROM   Catalogs.Products P" & _
-				" WHERE(If(Not ?Cumulative, (P.UpdateTime > ?UpdateTime), 1))" & _
-				" AND hidden                                = 0")
-
+				GetMySQLFileWithDefault("Products", SelProc, helper.GetProductsCommand())
 
 
 				ThreadZipStream = New Thread(AddressOf ZipStream)

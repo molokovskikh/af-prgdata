@@ -1844,5 +1844,47 @@ limit 1;
 			Assert.That(indexRetail, Is.EqualTo(indexBuying-1));
 		}
 
+		[Test(Description = "проверяем заполнение для списка отсутствующих продуктов")]
+		public void CheckMissingProductIds()
+		{
+			updateData.ParseMissingProductIds(null);
+			Assert.That(updateData.MissingProductIds.Count, Is.EqualTo(0));
+
+			updateData.ParseMissingProductIds(new uint[]{});
+			Assert.That(updateData.MissingProductIds.Count, Is.EqualTo(0));
+
+			updateData.ParseMissingProductIds(new uint[]{0});
+			Assert.That(updateData.MissingProductIds.Count, Is.EqualTo(0));
+
+			updateData.ParseMissingProductIds(new uint[]{3});
+			Assert.That(updateData.MissingProductIds.Count, Is.EqualTo(1));
+			Assert.That(updateData.MissingProductIds[0], Is.EqualTo(3));
+		}
+
+		[Test(Description = "проверяем заполнение поля CatalogUpdateTime")]
+		public void CheckSetParametersWithMissingProductIds()
+		{
+			var SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
+
+			updateData.ParseMissingProductIds(null);
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
+			var updateTime = SelProc.Parameters["?UpdateTime"].Value;
+			var catalogUpdateTime = SelProc.Parameters["?CatalogUpdateTime"].Value;
+
+			Assert.That(catalogUpdateTime, Is.EqualTo(updateTime), "Время обновления клиента и время обновления каталога должны совпадать при пустом списке отсутствующий продуктов");
+
+			var productId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(connection, "select Id from catalogs.Products where Hidden = 0 order by UpdateTime limit 1"));
+
+			SelProc = new MySqlCommand();
+			SelProc.Connection = connection;
+			updateData.ParseMissingProductIds(new uint[]{productId});
+			helper.SetUpdateParameters(SelProc, DateTime.Now);
+			updateTime = SelProc.Parameters["?UpdateTime"].Value;
+			catalogUpdateTime = SelProc.Parameters["?CatalogUpdateTime"].Value;
+
+			Assert.That(catalogUpdateTime, Is.LessThan(updateTime), "Время обновления клиента должно быть больше времени обновления каталога, т.к. список отсутствующих продуктов не пуст");
+		}
+
 	}
 }

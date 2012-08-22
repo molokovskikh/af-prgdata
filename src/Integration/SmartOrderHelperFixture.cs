@@ -455,7 +455,7 @@ namespace Integration
 		{
 			var appVersion = "1.1.1.1300";
 
-			var updateTime = GetLastUpdateTime();
+			var updateTime = GetLastUpdateTime(_user);
 
 			using (new TransactionScope())
 			{
@@ -519,24 +519,6 @@ namespace Integration
 			Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
 
 			return responce;
-		}
-
-		private DateTime GetLastUpdateTime()
-		{
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			using (new TransactionScope()) {
-				_user.UpdateInfo.UpdateDate = simpleUpdateTime;
-				_user.Save();
-			}
-
-			return simpleUpdateTime;
 		}
 
 		[Test(Description = "попытка сформировать автозаказ по пользователю без адресов")]

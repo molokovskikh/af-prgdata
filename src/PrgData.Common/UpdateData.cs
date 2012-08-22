@@ -164,6 +164,8 @@ namespace PrgData.Common
 		public List<AttachmentRequest> AttachmentRequests = new List<AttachmentRequest>();
 		public List<ExportedMiniMail> ExportMails = new List<ExportedMiniMail>();
 
+		public List<uint> MissingProductIds = new List<uint>();
+
 		public UpdateData(DataSet data)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
@@ -628,6 +630,15 @@ namespace PrgData.Common
 		public string GetAttachmentsResult()
 		{
 			return SuccesAttachmentIds().Implode("\n");
+		}
+
+		public void ParseMissingProductIds(uint[] missingProductIds)
+		{
+			MissingProductIds.Clear();
+			if (missingProductIds != null && missingProductIds.Length > 0 && missingProductIds[0] != 0)
+				foreach (var missingProductId in missingProductIds)
+					if (!MissingProductIds.Contains(missingProductId))
+						MissingProductIds.Add(missingProductId);
 		}
 
 	}

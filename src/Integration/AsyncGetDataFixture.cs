@@ -37,7 +37,7 @@ namespace Integration
 		{
 			_user = CreateUser();
 
-			_lastUpdateTime = GetLastUpdateTime();
+			_lastUpdateTime = GetLastUpdateTime(_user);
 
 			SetCurrentUser(_user.Login);
 
@@ -48,22 +48,6 @@ namespace Integration
 		public void TearDown()
 		{
 			CheckForErrors();
-		}
-
-		private DateTime GetLastUpdateTime()
-		{
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			_user.UpdateInfo.UpdateDate = simpleUpdateTime;
-			_user.Update();
-
-			return simpleUpdateTime;
 		}
 
 		[Test(Description = "Простой асинхронный запрос данных")]

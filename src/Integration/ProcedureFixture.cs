@@ -348,11 +348,6 @@ show full processlist;
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				"update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode",
-				new MySqlParameter("?ClientCode", _client.Id));
-
 			SetCurrentUser(_user.Login);
 
 			try
@@ -562,23 +557,7 @@ show full processlist;
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				@"
-update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
-update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId
-",
-				new MySqlParameter("?ClientCode", _client.Id),
-				new MySqlParameter("?UpdateDate", simpleUpdateTime),
-				new MySqlParameter("?UserId", _user.Id));
+			var simpleUpdateTime = GetLastUpdateTime(_user);
 
 			SetCurrentUser(_user.Login);
 
@@ -614,23 +593,7 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				@"
-update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
-update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId
-",
-				new MySqlParameter("?ClientCode", _client.Id),
-				new MySqlParameter("?UpdateDate", simpleUpdateTime),
-				new MySqlParameter("?UserId", _user.Id));
+			var simpleUpdateTime = GetLastUpdateTime(_user);
 
 			SetCurrentUser(_user.Login);
 
@@ -1031,23 +994,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				@"
-update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
-update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
-",
-				new MySqlParameter("?ClientCode", _client.Id),
-				new MySqlParameter("?UpdateDate", simpleUpdateTime),
-				new MySqlParameter("?UserId", _user.Id));
+			var simpleUpdateTime = GetLastUpdateTime(_user);
 
 			var postBatchId = Convert.ToUInt32(
 				MySqlHelper.ExecuteScalar(
@@ -1098,23 +1045,7 @@ select @postBatchId;"
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				@"
-update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
-update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
-",
-				new MySqlParameter("?ClientCode", _client.Id),
-				new MySqlParameter("?UpdateDate", simpleUpdateTime),
-				new MySqlParameter("?UserId", _user.Id));
+			var simpleUpdateTime = GetLastUpdateTime(_user);
 
 			var postBatchId = Convert.ToUInt32(
 				MySqlHelper.ExecuteScalar(
@@ -1414,23 +1345,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				@"
-update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
-update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
-",
-				new MySqlParameter("?ClientCode", _client.Id),
-				new MySqlParameter("?UpdateDate", simpleUpdateTime),
-				new MySqlParameter("?UserId", _user.Id));
+			var simpleUpdateTime = GetLastUpdateTime(_user);
 
 			SetCurrentUser(_user.Login);
 
@@ -1457,23 +1372,7 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			var simpleUpdateTime = DateTime.Now;
-			//Такое извращение используется, чтобы исключить из даты мусор в виде учтенного времени меньше секунды,
-			//чтобы сравнение при проверке сохраненного времени обновления отрабатывало
-			simpleUpdateTime = simpleUpdateTime.Date
-				.AddHours(simpleUpdateTime.Hour)
-				.AddMinutes(simpleUpdateTime.Minute)
-				.AddSeconds(simpleUpdateTime.Second);
-
-			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
-				@"
-update usersettings.RetClientsSet set EnableUpdate = 0 where ClientCode = ?ClientCode;
-update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?UserId;
-",
-				new MySqlParameter("?ClientCode", _client.Id),
-				new MySqlParameter("?UpdateDate", simpleUpdateTime),
-				new MySqlParameter("?UserId", _user.Id));
+			var simpleUpdateTime = GetLastUpdateTime(_user);
 
 			SetCurrentUser(_user.Login);
 
@@ -1490,6 +1389,92 @@ update usersettings.UserUpdateInfo set UpdateDate = ?UpdateDate where UserId = ?
 				var afterFirstFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_*.zip".Format(_user.Id));
 				Assert.That(afterFirstFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterFirstFiles.Implode());
 				Assert.That(afterFirstFiles[0], Is.StringEnding("{0}_{1}.zip".Format(_user.Id, cumulativeId)));
+			});
+		}
+
+		[Test(Description = "производим запрос каталога при отсутствующих продуктах")]
+		public void GetCatalogsOnRequest()
+		{
+			var appVersion = "1.1.1.1835";
+			var _client = CreateClient();
+			var _user = _client.Users[0];
+
+			var simpleUpdateTime = GetLastUpdateTime(_user);
+
+			SetCurrentUser(_user.Login);
+
+			var productId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select Id from catalogs.Products where Hidden = 0 and UpdateTime < ?simpleUpdateTime order by UpdateTime desc limit 1",
+				new MySqlParameter("?simpleUpdateTime", simpleUpdateTime)));
+			Assert.That(productId, Is.GreaterThan(0), "Не смогли найти продукт с датой обновления меньше даты обновления клиента");
+			var catalogId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
+				Settings.ConnectionString(),
+				"select CatalogId from catalogs.Products where Id = ?id",
+				new MySqlParameter("?id", productId)));
+
+			var productsFileName = "Products" + _user.Id + ".txt";
+			var catalogsFileName = "Catalogs" + _user.Id + ".txt";
+
+			ProcessWithLog(() => {
+
+				//Делаем обновление без продуктов - в списке продуктов не должно быть выбранного продукта
+				var responce = LoadDataWithMissingProductsAsync(false, simpleUpdateTime.ToUniversalTime(), appVersion, null, null);
+
+				var simpleUpdateId = ShouldBeSuccessfull(responce);
+
+				WaitAsyncResponse(simpleUpdateId);
+
+				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", simpleUpdateId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
+
+				var archiveFileName = CheckArchive(_user, simpleUpdateId);
+
+				var extractFolder = ExtractArchive(archiveFileName);
+
+				Assert.That(File.Exists(Path.Combine(extractFolder, productsFileName)), Is.True);
+
+				var productsContent = File.ReadAllText(Path.Combine(extractFolder, productsFileName));
+				Assert.That(productsContent, Is.Not.StringContaining(productId + "\t"));
+
+				Assert.That(File.Exists(Path.Combine(extractFolder, catalogsFileName)), Is.True);
+
+				var catalogsContent = File.ReadAllText(Path.Combine(extractFolder, catalogsFileName));
+				Assert.That(catalogsContent, Is.Not.StringContaining(catalogId + "\t"));
+
+				simpleUpdateTime = CommitExchange(simpleUpdateId, RequestType.GetData);
+
+				//Делаем обновление с запросом продуктов - в списке продуктов должен быть выбранный продукт
+				responce = LoadDataWithMissingProductsAsync(false, simpleUpdateTime, appVersion, null, new uint[]{productId});
+
+				simpleUpdateId = ShouldBeSuccessfull(responce);
+
+				WaitAsyncResponse(simpleUpdateId);
+
+				requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
+					Settings.ConnectionString(),
+					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
+					new MySqlParameter("?UpdateId", simpleUpdateId)));
+				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
+
+				archiveFileName = CheckArchive(_user, simpleUpdateId);
+
+				extractFolder = ExtractArchive(archiveFileName);
+
+				Assert.That(File.Exists(Path.Combine(extractFolder, productsFileName)), Is.True);
+
+				productsContent = File.ReadAllText(Path.Combine(extractFolder, productsFileName));
+				Assert.That(productsContent, Is.StringContaining(productId + "\t"));
+
+				Assert.That(File.Exists(Path.Combine(extractFolder, catalogsFileName)), Is.True);
+
+				catalogsContent = File.ReadAllText(Path.Combine(extractFolder, catalogsFileName));
+				Assert.That(catalogsContent, Is.StringContaining(catalogId + "\t"));
+
+				simpleUpdateTime = CommitExchange(simpleUpdateId, RequestType.GetData);
 			});
 		}
 
