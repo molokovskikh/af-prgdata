@@ -969,7 +969,7 @@ endprocNew:
 				connection.Open()
 
 
-				Dim Pr As Process
+				Dim Pr As Process = Nothing
 				Dim startInfo As ProcessStartInfo
 
 
@@ -3035,6 +3035,9 @@ StartZipping:
 			End If
 		End Using
 
+		Log.ErrorFormat("Неожидаемый тип обновления при получении UpdateId: {0}", UpdateType)
+		Return 0
+
 	End Function
 
 	Private Sub PackProtocols()
@@ -3078,7 +3081,7 @@ StartZipping:
 	End Sub
 
 	Private Sub ProtocolUpdates()
-		Dim transaction As MySqlTransaction
+		Dim transaction As MySqlTransaction = Nothing
 		Dim LogCb As New MySqlCommandBuilder
 		Dim LogDA As New MySqlDataAdapter
 		Dim LogCm As New MySqlCommand
@@ -3388,7 +3391,7 @@ PostLog:
 
 		Try
 			ThreadContext.Properties("user") = UpdateData.UserName
-			Dim transaction As MySqlTransaction
+			Dim transaction As MySqlTransaction = Nothing
 			Dim helper As UpdateHelper = New UpdateHelper(UpdateData, readWriteConnection)
 			Try
 RestartTrans2:
@@ -3781,7 +3784,7 @@ RestartTrans2:
 		Dim StartTime As DateTime = Now()
 		Dim TS As TimeSpan
 
-		Dim transaction As MySqlTransaction
+		Dim transaction As MySqlTransaction = Nothing
 		Try
 			ThreadContext.Properties("user") = UpdateData.UserName
 			If UpdateData.AsyncRequest Then AsyncPrgDatas.AddToList(Me)
@@ -4525,7 +4528,7 @@ RestartTrans2:
 	End Function
 
 	<WebMethod()> Public Function ReclameComplete() As Boolean
-		Dim transaction As MySqlTransaction
+		Dim transaction As MySqlTransaction = Nothing
 		If Log.IsDebugEnabled Then Log.Debug("Вызвали ReclameComplete")
 		Try
 			DBConnect()
@@ -4997,7 +5000,7 @@ endproc:
     Public Function CommitHistoryOrders( _
         ByVal UpdateId As UInt64) As Boolean
 
-        Dim transaction As MySqlTransaction
+        Dim transaction As MySqlTransaction = Nothing
         If Log.IsDebugEnabled Then Log.Debug("Вызвали CommitHistoryOrders")
         Try
             DBConnect()

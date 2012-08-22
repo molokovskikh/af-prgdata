@@ -31,12 +31,8 @@ namespace Integration
 		private DataRow fourOffer;
 
 		[SetUp]
-		public override void Setup()
+		public void Setup()
 		{
-			FixtureSetup();
-
-			base.Setup();
-
 			InitClient();
 
 			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"

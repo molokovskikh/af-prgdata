@@ -27,7 +27,8 @@ namespace Integration.BaseTests
 		protected string UniqueId;
 		protected MemoryAppender MemoryAppender;
 
-		public virtual void FixtureSetup()
+		[TestFixtureSetUp]
+		public void PrepareDataFixtureSetup()
 		{
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 			ServiceContext.GetUserHost = () => "127.0.0.1";
@@ -36,7 +37,8 @@ namespace Integration.BaseTests
 			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 		}
 
-		public virtual void Setup()
+		[SetUp]
+		public void PrepareDataSetup()
 		{
 			UniqueId = "123";
 			if (Directory.Exists("FtpRoot"))

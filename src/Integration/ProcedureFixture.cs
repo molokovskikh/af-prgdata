@@ -47,17 +47,9 @@ namespace Integration
 
 		private static bool StopThreads;
 
-		[TestFixtureSetUp]
-		public override void FixtureSetup()
-		{
-			base.FixtureSetup();
-		}
-
 		[SetUp]
-		public override void Setup()
+		public void Setup()
 		{
-			base.Setup();
-
 			repository = IoC.Resolve<ISmartOfferRepository>();
 
 			testClient = new TestClient() { Id = 10005 };

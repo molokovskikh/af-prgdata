@@ -849,7 +849,6 @@ limit 1";
 
 		public string GetClientsCommand(bool isFirebird)
 		{
-			uint? networkPriceId = null;
 			var networkSelfAddressIdColumn = " , null as SelfAddressId ";
 			var networkSelfAddressIdJoin = String.Empty; 
 			if (_updateData.NetworkPriceId.HasValue)

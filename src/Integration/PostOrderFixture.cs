@@ -33,11 +33,8 @@ namespace Integration
 		private DataTable offers;
 
 		[SetUp]
-		public override void Setup()
+		public void Setup()
 		{
-			base.FixtureSetup();
-			base.Setup();
-
 			_user = CreateUser();
 			_client = _user.Client;
 			_address = _client.Addresses[0];

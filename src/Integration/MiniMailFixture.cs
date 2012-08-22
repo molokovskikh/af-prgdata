@@ -25,19 +25,15 @@ namespace Integration
 		private string attachmentsFolder = "results\\Attachments";
 
 		[TestFixtureSetUp]
-		public override void FixtureSetup()
+		public void FixtureSetup()
 		{
-			base.FixtureSetup();
-
 			if (!Directory.Exists(attachmentsFolder))
 				Directory.CreateDirectory(attachmentsFolder);
 		}
 
 		[SetUp]
-		public override void Setup()
+		public void Setup()
 		{
-			base.Setup();
-
 			_user = CreateUserWithMinimumPrices();
 
 			SetCurrentUser(_user.Login);

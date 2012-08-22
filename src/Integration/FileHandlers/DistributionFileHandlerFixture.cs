@@ -23,10 +23,8 @@ namespace Integration
 		private string bigRackCardFrfFileName;
 
 		[TestFixtureSetUp]
-		public override void FixtureSetup()
+		public void FixtureSetup()
 		{
-			base.FixtureSetup();
-
 			FileHanderAshxName = "GetDistributionFileHandler.asxh";
 
 			requestVersion = "7.1.1.1553";
@@ -47,7 +45,7 @@ namespace Integration
 		}
 
 		[SetUp]
-		public override void Setup()
+		public void Setup()
 		{
 			user = CreateUser();
 

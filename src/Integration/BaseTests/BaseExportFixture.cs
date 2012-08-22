@@ -18,7 +18,7 @@ namespace Integration.BaseTests
 		protected string archivefile;
 
 		[SetUp]
-		public void Setup()
+		public void BaseExportSetup()
 		{
 			archivefile = "temp.7z";
 			files = new Queue<FileForArchive>();

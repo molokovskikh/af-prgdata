@@ -34,10 +34,8 @@ namespace Integration
 		private TestUser _disabledUser;
 
 		[TestFixtureSetUp]
-		public override void FixtureSetup()
+		public void FixtureSetup()
 		{
-			base.FixtureSetup();
-
 			_client = TestClient.Create();
 			_disabledClient = TestClient.Create();
 
@@ -60,12 +58,6 @@ namespace Integration
 					_disabledUser.Update();
 				}
 			}
-		}
-
-		[SetUp]
-		public override void Setup()
-		{
-			base.Setup();
 		}
 
 		private string GetReclame()

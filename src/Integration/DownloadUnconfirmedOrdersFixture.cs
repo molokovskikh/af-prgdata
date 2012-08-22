@@ -46,8 +46,6 @@ namespace Integration
 		public void FixtureSetUp()
 		{
 			_afAppVersion = "1.1.1.1413";
-
-			FixtureSetup();
 		}
 
 		[SetUp]

@@ -28,12 +28,8 @@ namespace Integration
 		private string _responce;
 
 		[SetUp]
-		public override void Setup()
+		public void Setup()
 		{
-			FixtureSetup();
-
-			base.Setup();
-
 			_user = CreateUser();
 
 			RegisterLogger();
