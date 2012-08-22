@@ -29,35 +29,65 @@ Task @deployTest, [@buildWebService, @Production, @Migrate]:
 	Engine.Execute("DeployWebService")
 	Engine.Execute("SendDeployNotification")
 
+desc """
+Формируем файлы миграций для удаления неиспользуемых правил автообновления AnalitF
+"""
 Task @DeleteOldVersionsMigration:
-	usedVersions = Db.Read("SELECT AFAPPVERSION FROM usersettings.userupdateinfo WHERE UpdateDate > curdate() - INTERVAL 6 MONTH GROUP BY AFAPPVERSION").Select({r| r.AFAPPVERSION.ToString()}).ToList()
-	print "usedVersions.Count = ${usedVersions.Count}"
-	print "usedVersions = ${join(usedVersions)}"
+	#выбираем список используемых версий
+	usedVersions = Db.Read("""
+SELECT uuu.AFAPPVERSION
+FROM
+	usersettings.userupdateinfo  uuu
+	inner join customers.Users u on U.Id = uuu.UserId
+	inner join usersettings.RetClientsSet r on r.ClientCode = u.ClientId and r.ServiceClient = 0
+WHERE uuu.UpdateDate > curdate() - INTERVAL 3 MONTH GROUP BY uuu.AFAPPVERSION order by AFAPPVERSION""").Select({r| r.AFAPPVERSION.ToString()}).ToList()
+	print "кол-во используемых версий = ${usedVersions.Count}"
+	print "список используемых версий = ${join(usedVersions)}"
+	#выбираем список правил обновления
 	versions = Db.Read("select * from usersettings.AnalitFVersionRules order by SourceVersion, DestinationVersion").ToList()
-	print "versions.Count = ${versions.Count}"
+	print "кол-во существующих правил = ${versions.Count}"
 	#printVersions = versions.Select({r| "(${r.Id}, ${r.SourceVersion}, ${r.DestinationVersion})"}).ToArray()
 	#print "versions = ${join(printVersions)}"
+	#значение максимальной версии в правилах обновления
+	lastVersion = versions.OrderByDescending({v|v.DestinationVersion}).FirstOrDefault().DestinationVersion
+	print "максимальная версия в правилах обновления: ${lastVersion}"
+	#создаем список правил обновления с записями, которые будут использоваться
 	versionForUpdate = List[of DuckRecord]()
 	for version as string in usedVersions:
-		maxVersion = versions.Where({v| v.SourceVersion.ToString() == version}).OrderByDescending({v|v.DestinationVersion}).FirstOrDefault()
-		if (maxVersion):
-			print "for ${version} is (${maxVersion.Id}, ${maxVersion.SourceVersion}, ${maxVersion.DestinationVersion})"
-			if (not versionForUpdate.Contains(maxVersion)):
-				versionForUpdate.Add(maxVersion)
-		else:
-			print "for ${version} is null"
+		#для каждой версии из списка используемых версий определяем цепочку правил обновления на максимально доступную версию
+		#print "create list for ${version}"
+		checkVersion = version
+		maxVersion = versions[0]
+		while (maxVersion):
+			maxVersion = versions.Where({v| v.SourceVersion.ToString() == checkVersion}).OrderByDescending({v|v.DestinationVersion}).FirstOrDefault()
+			if (maxVersion):
+				if (not versionForUpdate.Contains(maxVersion)):
+					print "для версии ${checkVersion} есть правило (${maxVersion.Id}, ${maxVersion.SourceVersion}, ${maxVersion.DestinationVersion})"
+					versionForUpdate.Add(maxVersion)
+				checkVersion = maxVersion.DestinationVersion.ToString()
+			else:
+				if (lastVersion.ToString() != checkVersion):
+					print "для версии ${checkVersion} правил не найдено"
+	nonUsedVersion = List[of string]()
 	builderDelete = StringBuilder()
 	builderRollback = StringBuilder()
 	deletedCount = 0
 	for deleteVersion as DuckRecord in versions:
-		if (deleteVersion.Id > 17):
+		if (deleteVersion.Id > 0):
 			if (not versionForUpdate.Contains(deleteVersion)):
+				if (not usedVersions.Contains(deleteVersion.SourceVersion.ToString()) and not nonUsedVersion.Contains(deleteVersion.SourceVersion.ToString())):
+					nonUsedVersion.Add(deleteVersion.SourceVersion.ToString())
+				if (not usedVersions.Contains(deleteVersion.DestinationVersion.ToString()) and not nonUsedVersion.Contains(deleteVersion.DestinationVersion.ToString()) and not versionForUpdate.Any({v| v.SourceVersion == deleteVersion.DestinationVersion or v.DestinationVersion == deleteVersion.DestinationVersion})):
+					nonUsedVersion.Add(deleteVersion.DestinationVersion.ToString())
+				#если правило не попало в список
 				deletedCount++
 				#print "version for delete (${deleteVersion.Id}, ${deleteVersion.SourceVersion}, ${deleteVersion.DestinationVersion})"
 				builderDelete.AppendLine("#delete (${deleteVersion.Id}, ${deleteVersion.SourceVersion}, ${deleteVersion.DestinationVersion})")
 				builderDelete.AppendLine("delete from usersettings.analitfversionrules where Id = ${deleteVersion.Id};")
 				builderRollback.AppendLine("insert into usersettings.analitfversionrules (Id, SourceVersion, DestinationVersion) values (${deleteVersion.Id}, ${deleteVersion.SourceVersion}, ${deleteVersion.DestinationVersion});")
-	print "кол-во удаляемых версий: ${deletedCount}"
+	print "кол-во удаляемых правил автообновления: ${deletedCount}"
 	File.WriteAllText("migrationDelete.sql", builderDelete.ToString())
 	File.WriteAllText("migrationRollback.sql", builderRollback.ToString())
+	print "кол-во версий, которые не используются в правилах = ${nonUsedVersion.Count}"
+	print "список версий, которые не используются в правилах = ${join(nonUsedVersion)}"
 	
