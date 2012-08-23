@@ -28,6 +28,9 @@ namespace Integration.BaseTests
 			With.Connection(c => {
 				updateData = UpdateHelper.GetUpdateData(c, user.Login);
 			});
+
+			if (File.Exists(Path.GetFullPath(archivefile)))
+				File.Delete(Path.GetFullPath(archivefile));
 		}
 
 		protected string ReadExportContent(string prefix)
