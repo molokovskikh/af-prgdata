@@ -65,7 +65,7 @@ namespace PrgData.Common.Orders
 			OrderPosition = null;
 		}
 
-		public string GetFilterForDuplicatedOrder(bool postOldOrder)
+		public string GetFilterForDuplicatedOrder()
 		{
 			return String.Format(@"
 (ProductId = {0})

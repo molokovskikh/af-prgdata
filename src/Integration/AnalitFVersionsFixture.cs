@@ -229,7 +229,7 @@ where
 				SetCurrentUser(_user.Login);
 
 				var service = new PrgDataEx();
-				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				Assert.That(responce, Is.StringStarting("URL=").IgnoreCase);
 				var updateId = ParseUpdateId(responce);
@@ -303,7 +303,7 @@ where
 				SetCurrentUser(_user.Login);
 
 				var service = new PrgDataEx();
-				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				var updateId = ShouldBeSuccessfull(responce);
 

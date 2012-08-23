@@ -59,7 +59,7 @@ update Customers.Users set OrderRegionMask = 3 where Id = ?userId ;", connection
 
 					var clients = MySqlHelper.ExecuteDataset(
 						connection,
-						updateHelper.GetClientsCommand(false),
+						updateHelper.GetClientsCommand(),
 						new MySqlParameter("?OffersRegionCode", updateData.OffersRegionCode),
 						new MySqlParameter("?UserId", updateData.UserId));
 

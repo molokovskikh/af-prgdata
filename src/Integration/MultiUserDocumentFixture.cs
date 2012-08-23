@@ -1114,7 +1114,7 @@ and afu.UpdateType = ?UpdateType"
 		private string LoadDocuments(string appversion = "1065")
 		{
 			var service = new PrgDataEx();
-			responce = service.GetUserData(DateTime.Now, false, appversion, 50, "123", "", "", true);
+			responce = service.GetUserDataWithPriceCodes(DateTime.Now, false, appversion, 50, "123", "", "", true, null, null);
 
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)
@@ -1125,7 +1125,7 @@ and afu.UpdateType = ?UpdateType"
 		private string GetUserData(DateTime updateTime, bool cumulative = false)
 		{
 			var service = new PrgDataEx();
-			responce = service.GetUserData(updateTime, cumulative, "5.3.16.1101", 50, "123", "", "", false);
+			responce = service.GetUserDataWithPriceCodes(updateTime, cumulative, "5.3.16.1101", 50, "123", "", "", false, null, null);
 
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)

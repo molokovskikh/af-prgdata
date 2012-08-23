@@ -349,7 +349,7 @@ and afi.ForceReplication > 0",
 		private string LoadData(bool getEtalonData, DateTime accessTime, string appVersion)
 		{
 			var service = new PrgDataEx();
-			responce = service.GetUserData(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false);
+			responce = service.GetUserDataWithPriceCodes(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false, null, null);
 
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)

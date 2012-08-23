@@ -30,8 +30,6 @@ namespace PrgData.Common.Orders
 		private Address _address;
 		private OrderRules _orderRule;
 
-		private bool _postOldOrder;
-
 		public ReorderHelper(
 			UpdateData data, 
 			MySqlConnection readWriteConnection, 
@@ -157,19 +155,6 @@ namespace PrgData.Common.Orders
 					});
 		}
 
-		public string PostOldOrder()
-		{
-			_postOldOrder = true;
-
-			if (_orders.Count > 1)
-				throw new Exception("При отправке заказа из старых версий программ была попытка отправки более одного заказа.");
-
-			ProcessDeadlock();
-
-			return GetOldOrderResult();
-		}
-
-
 		private void InternalSendOrders(ISession session)
 		{
 			CreateOrders(session);
@@ -180,7 +165,7 @@ namespace PrgData.Common.Orders
 			//делаем проверку на дублирующиеся заказы
 			CheckDuplicatedOrders();
 
-			if (((_useCorrectOrders && !_forceSend) || _postOldOrder) && AllOrdersIsSuccess())
+			if (((_useCorrectOrders && !_forceSend)) && AllOrdersIsSuccess())
 				//делаем сравнение с существующим прайсом
 				CheckWithExistsPrices();
 
@@ -189,36 +174,19 @@ namespace PrgData.Common.Orders
 				//сохраняем сами заявки в базу
 				SaveOrders(session);
 
-				if (!_postOldOrder)
-				{
-					session.CreateSQLQuery(@"
+				session.CreateSQLQuery(@"
 insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost, Addition) 
+(RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost, Addition)
 values 
-  (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost, :Addition);
+(now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost, :Addition);
 "
-						)
-						.SetParameter("UpdateType", (int)RequestType.SendOrders)
-						.SetParameter("UserId", _data.UserId)
-						.SetParameter("AppVersion", _data.BuildNumber)
-						.SetParameter("ClientHost", _data.ClientHost)
-						.SetParameter("Addition", GetOrdersResultToAddition())
-						.ExecuteUpdate();
-				}
-				else
-					if (AllOrdersIsSuccess())
-						session.CreateSQLQuery(@"
-insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, Commit, AppVersion, ClientHost) 
-values 
-  (now(), :UpdateType, :UserId, 1, :AppVersion, :ClientHost);
-"
-							)
-							.SetParameter("UpdateType", (int)RequestType.SendOrder)
-							.SetParameter("UserId", _data.UserId)
-							.SetParameter("AppVersion", _data.BuildNumber)
-							.SetParameter("ClientHost", _data.ClientHost)
-							.ExecuteUpdate();
+					)
+					.SetParameter("UpdateType", (int)RequestType.SendOrders)
+					.SetParameter("UserId", _data.UserId)
+					.SetParameter("AppVersion", _data.BuildNumber)
+					.SetParameter("ClientHost", _data.ClientHost)
+					.SetParameter("Addition", GetOrdersResultToAddition())
+					.ExecuteUpdate();
 			}
 		}
 
@@ -283,29 +251,26 @@ values
 						});
 
 					//Опеределяем дублирующиеся по ClientServerCoreId и помечаем их как дублирующиеся
-					if (!_postOldOrder)
-					{
-						//Группируем элементы по ClientServerCoreId
-						var groupedItems = clientOrder.Positions.GroupBy(position => new { position.ClientServerCoreID })
-							//Формируем новый элемент со значением CoreId, кол-вом и самим списком элементов
-							.Select(g => new { g.Key, ItemCount = g.Count(), GroupedElems = g.ToList() }).ToList();
+					//Группируем элементы по ClientServerCoreId
+					var groupedItems = clientOrder.Positions.GroupBy(position => new { position.ClientServerCoreID })
+						//Формируем новый элемент со значением CoreId, кол-вом и самим списком элементов
+						.Select(g => new { g.Key, ItemCount = g.Count(), GroupedElems = g.ToList() }).ToList();
 
-						groupedItems
-							//Выбираем только тех, у которых кол-во элементов больше одного
-							.Where(g => g.Key.ClientServerCoreID > 0 && g.ItemCount > 1)
-							.Each(
-								g =>
+					groupedItems
+						//Выбираем только тех, у которых кол-во элементов больше одного
+						.Where(g => g.Key.ClientServerCoreID > 0 && g.ItemCount > 1)
+						.Each(
+							g =>
+							{
+								//Сортируем по заказанному количеству по убыванию
+								var orderByQuantity = g.GroupedElems.OrderByDescending(item => item.OrderedQuantity).ToList();
+								//Первый элемент с наибольшим количеством оставляем, а остальные помечаем как дублирующиеся
+								for (int i = 1; i < orderByQuantity.Count(); i++)
 								{
-									//Сортируем по заказанному количеству по убыванию
-									var orderByQuantity = g.GroupedElems.OrderByDescending(item => item.OrderedQuantity).ToList();
-									//Первый элемент с наибольшим количеством оставляем, а остальные помечаем как дублирующиеся
-									for (int i = 1; i < orderByQuantity.Count(); i++)
-									{
-										orderByQuantity[i].Duplicated = true;
-										orderByQuantity[i].OrderPosition.Order.RemoveItem(orderByQuantity[i].OrderPosition);
-									}
-								});
-					}
+									orderByQuantity[i].Duplicated = true;
+									orderByQuantity[i].OrderPosition.Order.RemoveItem(orderByQuantity[i].OrderPosition);
+								}
+							});
 
 					clientOrder.Positions.ForEach(position => { if(!position.Duplicated) position.PrepareBeforPost(session);});
 
@@ -349,25 +314,15 @@ values
 						if (!position.Duplicated)
 						{
 							var offer = GetDataRowByPosition(offers, order, position);
-							if (_postOldOrder)
-							{
-								if (offer != null)
-									position.OrderPosition.OfferInfo.AssignCompletedOffer(offer);
-								position.CheckOfferInfo();
-							}
+							if (offer == null)
+								position.SendResult = PositionSendResult.NotExists;
 							else
-							{
-								if (offer == null)
-									position.SendResult = PositionSendResult.NotExists;
-								else
-									CheckExistsCorePosition(offer, position);
-							}
+								CheckExistsCorePosition(offer, position);
 						}
 					}
 
-					if (!_postOldOrder)
-						if (order.Positions.Any(item => item.SendResult != PositionSendResult.Success))
-							order.SendResult = OrderSendResult.NeedCorrect;
+					if (order.Positions.Any(item => item.SendResult != PositionSendResult.Success))
+						order.SendResult = OrderSendResult.NeedCorrect;
 				}
 			}
 		}
@@ -507,15 +462,6 @@ values
 		private bool AllOrdersIsSuccess()
 		{
 			return _orders.All(item => item.SendResult == OrderSendResult.Success);
-		}
-
-		private string GetOldOrderResult()
-		{
-			if (_orders[0].SendResult == OrderSendResult.Success)
-				return "OrderID=" + _orders[0].ServerOrderId;
-
-			//Если заказ не успешен, то значит нарушение минимальной суммы заказа
-			throw new UpdateException("Сумма заказа меньше минимально допустимой.", "Поставщик отказал в приеме заказа.", RequestType.Forbidden);
 		}
 
 		private string GetOrdersResult()
@@ -859,147 +805,6 @@ AND    RCS.clientcode          = ?ClientCode"
 			return results;
 		}
 
-		public void ParseOldOrder(
-			uint priceCode,
-			ulong regionCode,
-			DateTime priceDate,
-			string clientAddition,
-			ushort rowCount,
-			uint[] productID,
-			uint clientOrderId,
-			string[] codeFirmCr,
-			uint[] synonymCode,
-			string[] synonymFirmCrCode,
-			string[] code,
-			string[] codeCr,
-			ushort[] quantity,
-			bool[] junk,
-			bool[] await,
-			decimal[] cost,
-			string[] minCost,
-			string[] minPriceCode,
-			string[] leaderMinCost,
-			string[] requestRatio,
-			string[] orderCost,
-			string[] minOrderCount,
-			string[] leaderMinPriceCode
-			)
-		{
-			int allPositionCount = rowCount;
-
-			CheckArrayCount(allPositionCount, productID.Length, "productID");
-			CheckArrayCount(allPositionCount, codeFirmCr.Length, "codeFirmCr");
-			CheckArrayCount(allPositionCount, synonymCode.Length, "synonymCode");
-			CheckArrayCount(allPositionCount, synonymFirmCrCode.Length, "synonymFirmCrCode");
-			CheckArrayCount(allPositionCount, code.Length, "code");
-			CheckArrayCount(allPositionCount, codeCr.Length, "codeCr");
-			CheckArrayCount(allPositionCount, junk.Length, "junk");
-			CheckArrayCount(allPositionCount, await.Length, "await");
-			CheckArrayCount(allPositionCount, requestRatio.Length, "requestRatio");
-			CheckArrayCount(allPositionCount, orderCost.Length, "orderCost");
-			CheckArrayCount(allPositionCount, minOrderCount.Length, "minOrderCount");
-			CheckArrayCount(allPositionCount, quantity.Length, "quantity");
-
-			CheckArrayCount(allPositionCount, cost.Length, "cost");
-			CheckArrayCount(allPositionCount, minCost.Length, "minCost");
-			CheckArrayCount(allPositionCount, minPriceCode.Length, "minPriceCode");
-			CheckArrayCount(allPositionCount, leaderMinCost.Length, "leaderMinCost");
-			CheckArrayCount(allPositionCount, leaderMinPriceCode.Length, "leaderMinPriceCode");
-
-			using (var unitOfWork = new UnitOfWork())
-			{
-				var priceList = IoC.Resolve<IRepository<PriceList>>().Load(Convert.ToUInt32(priceCode));
-				var activePrice = new ActivePrice
-				{
-					Id = new PriceKey(priceList) { RegionCode = regionCode },
-					PriceDate = priceDate.ToLocalTime(),
-				};
-
-				var clientOrder =
-					new ClientOrderHeader
-					{
-						ActivePrice = activePrice,
-						ClientAddition = DecodedDelphiString(clientAddition),
-						ClientOrderId = clientOrderId,
-					};
-
-				var currentRowCount = rowCount;
-				_orders.Add(clientOrder);
-
-				for (uint detailIndex = 0; detailIndex < (currentRowCount); detailIndex++)
-				{
-					var offer = new Offer()
-					{
-						Id = new OfferKey(0, regionCode),
-						ProductId = Convert.ToUInt32(productID[detailIndex]),
-						CodeFirmCr =
-							String.IsNullOrEmpty(codeFirmCr[detailIndex]) ? null : (uint?)uint.Parse(codeFirmCr[detailIndex]),
-						SynonymCode = Convert.ToUInt32(synonymCode[detailIndex]),
-						SynonymFirmCrCode =
-							String.IsNullOrEmpty(synonymFirmCrCode[detailIndex])
-								? null
-								: (uint?)uint.Parse(synonymFirmCrCode[detailIndex]),
-						Code = code[detailIndex],
-						CodeCr = codeCr[detailIndex],
-						Junk = junk[detailIndex],
-						Await = await[detailIndex],
-						RequestRatio =
-							String.IsNullOrEmpty(requestRatio[detailIndex]) ? null : (ushort?)ushort.Parse(requestRatio[detailIndex]),
-						OrderCost =
-							String.IsNullOrEmpty(orderCost[detailIndex]) ? null : (float?)float
-								.Parse(
-									orderCost[detailIndex],
-									System.Globalization.NumberStyles.Currency,
-									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
-						MinOrderCount =
-							String.IsNullOrEmpty(minOrderCount[detailIndex]) ? null : (uint?)uint.Parse(minOrderCount[detailIndex]),
-
-						Cost = Convert.ToSingle(cost[detailIndex]),
-					};
-
-					OrderItemLeadersInfo leaderInfo = null;
-					if (_orderRule.CalculateLeader)
-					{
-						leaderInfo =
-							new OrderItemLeadersInfo
-							{
-								MinCost =
-									String.IsNullOrEmpty(minCost[detailIndex]) ? null : (float?)float
-										.Parse(
-											minCost[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
-								PriceCode =
-									String.IsNullOrEmpty(minPriceCode[detailIndex]) ? null : (uint?)uint.Parse(minPriceCode[detailIndex]),
-								LeaderMinCost =
-									String.IsNullOrEmpty(leaderMinCost[detailIndex]) ? null : (float?)float
-										.Parse(
-											leaderMinCost[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
-								LeaderPriceCode =
-									String.IsNullOrEmpty(leaderMinPriceCode[detailIndex]) ? null : (uint?)uint.Parse(leaderMinPriceCode[detailIndex]),
-							};
-
-						if ((!leaderInfo.MinCost.HasValue && !leaderInfo.LeaderMinCost.HasValue) ||
-							(!leaderInfo.PriceCode.HasValue && !leaderInfo.LeaderPriceCode.HasValue))
-							leaderInfo = null;
-					}
-
-					var position =
-						new ClientOrderPosition
-						{
-							OrderedQuantity = quantity[detailIndex],
-							Offer = offer,
-							LeaderInfo = leaderInfo,
-						};
-
-					clientOrder.Positions.Add(position);
-				}
-
-			}
-		}
-
 		void CheckArrayCount(int expectedCount, int count, string arrayName)
 		{
 			if (count != expectedCount)
@@ -1134,7 +939,7 @@ order by ol.RowId
 					//позиция может быть дублированной из-за ClientServerCoreId
 					if (!position.Duplicated)
 					{
-						var existsOrderList = existsOrders.Select(position.GetFilterForDuplicatedOrder(_postOldOrder));
+						var existsOrderList = existsOrders.Select(position.GetFilterForDuplicatedOrder());
 						if (existsOrderList.Length == 1)
 						{
 							var serverQuantity = Convert.ToUInt32(existsOrderList[0]["Quantity"]);

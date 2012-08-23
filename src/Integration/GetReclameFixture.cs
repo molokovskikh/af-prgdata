@@ -242,7 +242,7 @@ namespace Integration
 		private void ProcessGetUserData(bool cumulative, DateTime updateTime)
 		{
 			var service = new PrgDataEx();
-			var responce = service.GetUserData(updateTime, cumulative, "6.0.0.1183", 50, "123", "", "", false);
+			var responce = service.GetUserDataWithPriceCodes(updateTime, cumulative, "6.0.0.1183", 50, "123", "", "", false, null, null);
 
 			var match = Regex.Match(responce, @"\d+").Value;
 			if (match.Length > 0)

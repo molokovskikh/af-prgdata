@@ -113,20 +113,12 @@ namespace Integration
 						});
 			CheckFieldLength(
 				connection,
-				helper.GetClientsCommand(false),
+				helper.GetClientsCommand(),
 				updateData,
 				new KeyValuePair<string, int>[]
 						{
 							new KeyValuePair<string, int>("ShortName", 50),
 							new KeyValuePair<string, int>("FullName", 255)
-						});
-			CheckFieldLength(
-				connection,
-				helper.GetClientsCommand(true),
-				updateData,
-				new KeyValuePair<string, int>[]
-						{
-							new KeyValuePair<string, int>("ShortName", 50)
 						});
 			CheckFieldLength(
 				connection,
@@ -159,8 +151,8 @@ namespace Integration
 
 			updateData.BuildNumber = 1272;
 
-			var firebirdSQL = helper.GetClientsCommand(true);
-			var nonFirebirdSQL = helper.GetClientsCommand(false);
+			var firebirdSQL = helper.GetClientsCommand();
+			var nonFirebirdSQL = helper.GetClientsCommand();
 
 			Assert.That(firebirdSQL, Is.EqualTo(nonFirebirdSQL), "Два SQL-запроса по содержанию не равны");
 
@@ -189,7 +181,7 @@ namespace Integration
 				.SetValue(updateData, true, null);
 			Assert.IsTrue(updateData.NeedUpdateToNewClientsWithLegalEntity, "Не получилось установить значение свойства NeedUpdateToNewClientsWithLegalEntity");
 
-			var updateToNewClientsSQL = helper.GetClientsCommand(false);
+			var updateToNewClientsSQL = helper.GetClientsCommand();
 			Assert.That(firebirdSQL, Is.EqualTo(updateToNewClientsSQL), "Два SQL-запроса по содержанию не равны");
 			CheckFieldLength(
 				connection,
@@ -459,7 +451,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		{
 			updateData.BuildNumber = 1272;
 
-			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
@@ -494,7 +486,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			updateData.BuildNumber = 1272;
 
-			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
@@ -515,7 +507,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
 			//Установили прайс поставщика Инфорум
 			updateData.NetworkPriceId = 2647;
-			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand();
 			clients = new DataTable();
 			dataAdapter.Fill(clients);
 			DataRow row = clients.Rows[0];
@@ -543,7 +535,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			updateData.BuildNumber = 1272;
 
-			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
@@ -564,7 +556,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			//проверка выгрузки поля, необходимого в "сетевой" версии AnalitF для разбора внешних заказов
 			//Установили прайс поставщика Инфорум
 			updateData.NetworkPriceId = 2647;
-			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand();
 			clients = new DataTable();
 			dataAdapter.Fill(clients);
 			DataRow row = clients.Rows[0];
@@ -578,7 +570,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			//Установили прайс поставщика Инфорум
 			updateData.NetworkPriceId = 2647;
 
-			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
@@ -591,7 +583,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			//Установили параметр в null
 			updateData.NetworkPriceId = null;
-			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand();
 			clients = new DataTable();
 			dataAdapter.Fill(clients);
 			Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
@@ -624,7 +616,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			//Установили прайс поставщика Инфорум
 			updateData.NetworkPriceId = 2647;
 
-			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
@@ -637,7 +629,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 
 			//Установили параметр в null
 			updateData.NetworkPriceId = null;
-			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand();
 			clients = new DataTable();
 			dataAdapter.Fill(clients);
 			Assert.That(clients.Columns.Contains("SelfAddressId"), Is.True);
@@ -648,7 +640,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 		[Test(Description = "Это тест для проверки чтение с помощью коннектора, надо перенести в другое место")]
 		public void TestCallCount()
 		{
-			var fillSql = helper.GetClientsCommand(true);
+			var fillSql = helper.GetClientsCommand();
 
 			var dataAdapter = CreateAdapter(connection, fillSql, updateData);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
@@ -1430,9 +1422,11 @@ limit 3;
 			updateData.ParseBuildNumber("1.1.1.1755");
 			Assert.That(updateData.NeedUpdateForRetailMargins(), Is.False);
 			var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(false), connection);
-			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", DateTime.Now);
+			var beforeUpdateTime = DateTime.Now;
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", beforeUpdateTime);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?CatalogUpdateTime", beforeUpdateTime);
 
 			var dataTable = new DataTable();
 			dataAdapter.Fill(dataTable);
@@ -1456,6 +1450,7 @@ limit 3;
 
 			var updateTime = DateTime.Now;
 			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			dataAdapter.SelectCommand.Parameters["?CatalogUpdateTime"].Value = updateTime;
 
 			updateData.ParseBuildNumber("1.1.1.1766");
 			updateData.UpdateExeVersionInfo = null;
@@ -1486,6 +1481,7 @@ limit 1;
 				"select max(UpdateTime) from UserSettings.RetailMargins where ClientId = ?ClientId",
 				new MySqlParameter("?clientId", _user.Client.Id))).AddSeconds(-1);
 			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			dataAdapter.SelectCommand.Parameters["?CatalogUpdateTime"].Value = updateTime;
 			updateData.Cumulative = false;
 			dataAdapter.SelectCommand.CommandText = helper.GetCatalogCommand(false);
 
@@ -1513,8 +1509,6 @@ limit 1;
 
 		private void ExportDescriptionIdBy(bool before1150, string version)
 		{
-			var updateTime = DateTime.Now.AddSeconds(-1);
-
 			TestCatalogProduct catalogProduct;
 			TestDescription description;
 
@@ -1531,11 +1525,16 @@ limit 1;
 			if (!string.IsNullOrEmpty(version))
 				updateData.ParseBuildNumber(version);
 
+			var updateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
+				connection,
+				"select UpdateTime from catalogs.Catalog where Id = ?Id",
+				new MySqlParameter("?Id", catalogProduct.Id))).AddSeconds(-1);
 			//Проверяем обычный запрос данных при неустановленном описании
 			var dataAdapter = new MySqlDataAdapter(helper.GetCatalogCommand(before1150), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UpdateTime", updateTime);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?ClientCode", _user.Client.Id);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?CatalogUpdateTime", updateTime);
 
 			CheckDescriptionIdColumn(dataAdapter, catalogProduct.Id, null);
 				
@@ -1557,6 +1556,7 @@ limit 1;
 				"select UpdateTime from catalogs.CatalogNames where Id = ?Id",
 				new MySqlParameter("?Id", catalogProduct.CatalogName.Id))).AddSeconds(-1);
 			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			dataAdapter.SelectCommand.Parameters["?CatalogUpdateTime"].Value = updateTime;
 
 			//Проверяем обычный запрос данных при установленном неопубликованном описании
 			updateData.Cumulative = false;
@@ -1582,6 +1582,7 @@ limit 1;
 				"select UpdateTime from catalogs.Descriptions where Id = ?Id",
 				new MySqlParameter("?Id", description.Id))).AddSeconds(-1);
 			dataAdapter.SelectCommand.Parameters["?UpdateTime"].Value = updateTime;
+			dataAdapter.SelectCommand.Parameters["?CatalogUpdateTime"].Value = updateTime;
 
 			//Проверяем обычный запрос данных при установленном опубликованном описании
 			updateData.Cumulative = false;
@@ -1619,7 +1620,7 @@ limit 1;
 		{
 			updateData.BuildNumber = 1272;
 
-			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(false), connection);
+			var dataAdapter = new MySqlDataAdapter(helper.GetClientsCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?OffersRegionCode", updateData.OffersRegionCode);
 
@@ -1631,7 +1632,7 @@ limit 1;
 			//установили версию больше, чем 1800
 			updateData.BuildNumber = 1801;
 
-			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand(false);
+			dataAdapter.SelectCommand.CommandText = helper.GetClientsCommand();
 			clients = new DataTable();
 			dataAdapter.Fill(clients);
 			Assert.That(clients.Columns.Contains("ExcessAvgOrderTimes"), Is.True, "Отсутствует столбец ExcessAvgOrderTimes");

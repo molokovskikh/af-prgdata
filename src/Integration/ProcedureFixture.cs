@@ -384,12 +384,6 @@ show full processlist;
 			}
 		}
 
-		[Test(Description = "Производим запрос данных для версии 705")]
-		public void TestGetUserDataFor705()
-		{
-			TestGetUserData("1.1.1.705");
-		}
-
 		[Test(Description = "Производим запрос данных для версии 1299")]
 		public void TestGetUserDataFor1299()
 		{
@@ -1096,7 +1090,7 @@ select @postBatchId;"
 			SetCurrentUser(_user.Login);
 
 			var service = new PrgDataEx();
-			var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+			var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
 			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
@@ -1117,7 +1111,7 @@ select @postBatchId;"
 			SetCurrentUser(_user.Login);
 
 			var service = new PrgDataEx();
-			var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+			var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
 			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
@@ -1133,7 +1127,7 @@ select @postBatchId;"
 
 			ProcessWithLog(memoryAppender => { 
 				var service = new PrgDataEx();
-				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				Assert.That(responce, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
 				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АК \"Инфорум\".[1]").IgnoreCase);
@@ -1166,7 +1160,7 @@ select @postBatchId;"
 
 			ProcessWithLog(memoryAppender => {
 				var service = new PrgDataEx();
-				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				Assert.That(responce, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
 				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АК \"Инфорум\".[1]").IgnoreCase);
@@ -1303,7 +1297,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 
 			ProcessWithLog(memoryAppender => { 
 				var service = new PrgDataEx();
-				var responce = service.GetUserData(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false);
+				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				Assert.That(responce, Is.StringContaining("Desc=Пожалуйста, повторите попытку через несколько минут.").IgnoreCase);
 				Assert.That(responce, Is.StringContaining("Error=При выполнении Вашего запроса произошла ошибка.").IgnoreCase);

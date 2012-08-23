@@ -847,7 +847,7 @@ WHERE u.Id = " + _updateData.UserId +
 limit 1";
 		}
 
-		public string GetClientsCommand(bool isFirebird)
+		public string GetClientsCommand()
 		{
 			var networkSelfAddressIdColumn = " , null as SelfAddressId ";
 			var networkSelfAddressIdJoin = String.Empty; 
@@ -918,23 +918,21 @@ limit 1";
 		 rcs.DifferenceCalculation,
 		 rcs.MultiUserLevel,
 		 (rcs.OrderRegionMask & u.OrderRegionMask) OrderRegionMask,
+		 rcs.CalculateLeader,
+		 rcs.AllowDelayOfPayment,
+		 c.FullName
 		 {0}
-		 rcs.CalculateLeader
-		 {1}
-		 {2}
 	FROM Customers.Users u
 	  join Customers.Clients c on u.ClientId = c.Id
 	  join usersettings.RetClientsSet rcs on c.Id = rcs.ClientCode
 	  join Customers.UserAddresses ua on ua.UserId = u.Id
 	  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
-	  {3}
+	  {1}
 	WHERE 
 		u.Id = ?UserId
 	and a.Enabled = 1",
-				isFirebird ? "'', " : "",
-				isFirebird ? "" : ", rcs.AllowDelayOfPayment, c.FullName ",
-				isFirebird ? "" : networkSelfAddressIdColumn,
-				isFirebird ? "" : networkSelfAddressIdJoin);
+				networkSelfAddressIdColumn,
+				networkSelfAddressIdJoin);
 		}
 
 		public string GetClientCommand()
