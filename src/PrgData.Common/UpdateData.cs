@@ -46,7 +46,7 @@ namespace PrgData.Common
 	public class UpdateData
 	{
 		private static int _versionBeforeConfirmUserMessage = 1299;
-		private static int _versionBeforeSupplierPromotions = 1363;
+		public static int _versionBeforeSupplierPromotions = 1363;
 		//версия AnalitF до поддержки отсрочек платежа с разделением на ЖНВЛС и прочий ассортимент
 		private static int _versionBeforeDelayWithVitallyImportant = 1385;
 		//версия AnalitF до поддержки отсрочек платежа по прайс-листам
@@ -133,6 +133,8 @@ namespace PrgData.Common
 
 		public bool ShowAdvertising;
 
+		public ulong RegionMask;
+
 		public UncommittedRequest PreviousRequest;
 
 		public bool AllowDownloadUnconfirmedOrders;
@@ -179,6 +181,7 @@ namespace PrgData.Common
 			}
 
 			var row = data.Tables[0].Rows[0];
+			RegionMask = Convert.ToUInt64(row["RegionMask"]);
 			ClientId = Convert.ToUInt32(row["ClientId"]);
 			UserId = Convert.ToUInt32(row["UserId"]);
 			Message = Convert.ToString(row["Message"]).Trim();
@@ -309,11 +312,6 @@ namespace PrgData.Common
 				return UpdateExeVersionInfo.VersionNumber > 1263;
 
 			return false;
-		}
-
-		private bool CheckNeedUpdateToCryptCost()
-		{
-			throw new NotImplementedException();
 		}
 
 		private bool CheckNeedUpdateToNewClientsWithLegalEntity()

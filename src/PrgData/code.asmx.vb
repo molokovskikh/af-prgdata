@@ -1240,7 +1240,6 @@ endprocNew:
 						'если версия с поддержкой AllowHistoryDocs() и пользователю отдается реклама, то архивируем рекламу
 						If UpdateData.ShowAdvertising AndAlso UpdateData.AllowHistoryDocs() Then
 							Dim MaxReclameFileDate As Date
-							Dim NewZip As Boolean = True
 							Dim CurrentFilesSize As Long = 0
 							Dim MaxFilesSize As Long = 1024 * 1024
 							Dim FileCount = 0
@@ -1347,19 +1346,6 @@ endprocNew:
 
 							reclameData.SetUncommitedReclameDate(connection, MaxReclameFileDate)
 
-							If FileCount > 0 Then
-
-								'AddEndOfFiles()
-
-								'ZipStream()
-
-								'If Log.IsDebugEnabled Then Log.Debug("Успешно завершили архивирование")
-
-								'FileInfo = New FileInfo(UpdateData.GetReclameFile())
-								'FileInfo.CreationTime = MaxReclameFileDate
-
-								'If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
-							End If
 						End If
 
 
@@ -1372,15 +1358,6 @@ endprocNew:
 						ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
 					End Try
-
-					Log.DebugFormat("Not Documents: {0}", Not Documents)
-					Log.DebugFormat("UpdateData.SupplierPromotions.Count > 0: {0}", UpdateData.SupplierPromotions.Count > 0)
-					Log.DebugFormat("UpdateData.AllowSupplierPromotions(): {0}", UpdateData.AllowSupplierPromotions())
-					Log.DebugFormat("UpdateData.NeedUpdateToSupplierPromotions(): {0}", UpdateData.NeedUpdateToSupplierPromotions())
-					Log.DebugFormat("All djskdjskd : {0}", Not Documents AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions()))
-					If Not Documents AndAlso Not Me.RequestAttachments AndAlso UpdateData.ShowAdvertising AndAlso (UpdateData.SupplierPromotions.Count > 0) AndAlso (UpdateData.AllowSupplierPromotions() Or UpdateData.NeedUpdateToSupplierPromotions) Then
-						helper.ArchivePromotions(connection, SevenZipTmpArchive, CurUpdTime, Addition, FilesForArchive)
-					End If
 
 					'здесь будем выгружать сертификаты
 					If Documents AndAlso UpdateData.NeedExportCertificates Then
@@ -3806,9 +3783,6 @@ RestartTrans2:
 				 "  date_sub(?LastUpdateTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)," & _
 				 "  ?Cumulative " & _
 				 "from UserUpdateInfo where UserId=" & UserId)
-
-				UpdateData.SupplierPromotions = helper.GetPromotionsList(SelProc)
-				Log.DebugFormat("PromotionsList: {0}", UpdateData.SupplierPromotions.Implode())
 
 				If UpdateType <> RequestType.PostOrderBatch Then
 					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath(), FilesForArchive)

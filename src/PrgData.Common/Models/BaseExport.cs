@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using MySql.Data.MySqlClient;
@@ -13,6 +14,9 @@ namespace PrgData.Common.Models
 		protected MySqlConnection connection;
 		protected UpdateData updateData;
 
+		public bool UnderTest;
+		public Dictionary<string, DataTable> data = new Dictionary<string, DataTable>();
+
 		protected BaseExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
 		{
 			log = LogManager.GetLogger(GetType());
@@ -23,7 +27,16 @@ namespace PrgData.Common.Models
 
 		public abstract int RequiredVersion { get; }
 
-		public abstract RequestType[] AllowedArchiveRequests { get; }
+		public virtual RequestType[] AllowedArchiveRequests
+		{
+			get
+			{
+				return new[] {
+					RequestType.GetData, RequestType.GetCumulative, RequestType.PostOrderBatch, RequestType.GetDataAsync,
+					RequestType.GetCumulativeAsync, RequestType.GetLimitedCumulative, RequestType.GetLimitedCumulativeAsync
+				};
+			}
+		}
 
 		public abstract void Export();
 
@@ -33,6 +46,11 @@ namespace PrgData.Common.Models
 
 		protected string Process(string name, string sql, bool addToQueue = true)
 		{
+			if (UnderTest) {
+				FakeProcess(name, sql);
+				return null;
+			}
+
 			var file = name + updateData.UserId + ".txt";
 			var importFile = ServiceContext.GetFileByLocal(file);
 			//удаляем файл из папки перед экспортом
@@ -45,7 +63,7 @@ namespace PrgData.Common.Models
 
 			sql += " INTO OUTFILE '" + exportFile + "' ";
 			var command = new MySqlCommand(sql, connection);
-			command.Parameters.AddWithValue("?UpdateTime", updateData.OldUpdateTime);
+			SetParameters(command);
 			command.ExecuteNonQuery();
 
 			if (addToQueue)
@@ -59,9 +77,24 @@ namespace PrgData.Common.Models
 			return importFile;
 		}
 
+		protected void SetParameters(MySqlCommand command)
+		{
+			command.Parameters.AddWithValue("?UpdateTime", updateData.OldUpdateTime);
+			command.Parameters.AddWithValue("?RegionMask", updateData.RegionMask);
+		}
+
+		private void FakeProcess(string name, string sql)
+		{
+			var adapter = new MySqlDataAdapter(sql, connection);
+			SetParameters(adapter.SelectCommand);
+			var result = new DataTable();
+			adapter.Fill(result);
+			data.Add(name, result);
+		}
+
 		public bool AllowArchiveFiles(RequestType request)
 		{
-			return AllowedArchiveRequests.Any(r => r == request);
+			return AllowedArchiveRequests.Contains(request);
 		}
 	}
 }

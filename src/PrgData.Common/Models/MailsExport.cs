@@ -25,11 +25,7 @@ namespace PrgData.Common.Models
 		{
 			get
 			{
-				return new[] {
-					RequestType.GetData, RequestType.GetCumulative, RequestType.PostOrderBatch, RequestType.GetDataAsync,
-					RequestType.GetCumulativeAsync, RequestType.GetLimitedCumulative, RequestType.GetLimitedCumulativeAsync,
-					RequestType.RequestAttachments
-				};
+				return AllowedArchiveRequests.Concat(new[] { RequestType.RequestAttachments }).ToArray();
 			}
 		}
 

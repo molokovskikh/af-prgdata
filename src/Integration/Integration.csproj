@@ -1,14 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\ProjectLib.properties" Condition="Exists('..\ProjectLib.properties')" />
-	<ItemGroup>
-		<StyleCopAdditionalAddinPaths Include="..\..\lib\StyleCop">
-			<InProject>false</InProject>
-		</StyleCopAdditionalAddinPaths>
-	</ItemGroup>
-	<PropertyGroup>
-		<StyleCopTreatErrorsAsWarnings>False</StyleCopTreatErrorsAsWarnings>
-		<StyleCopOverrideSettingsFile>..\..\lib\StyleCop\Settings.StyleCop</StyleCopOverrideSettingsFile>
+  <ItemGroup>
+    <StyleCopAdditionalAddinPaths Include="..\..\lib\StyleCop">
+      <InProject>false</InProject>
+    </StyleCopAdditionalAddinPaths>
+  </ItemGroup>
+  <PropertyGroup>
+    <StyleCopTreatErrorsAsWarnings>False</StyleCopTreatErrorsAsWarnings>
+    <StyleCopOverrideSettingsFile>..\..\lib\StyleCop\Settings.StyleCop</StyleCopOverrideSettingsFile>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>9.0.30729</ProductVersion>
@@ -119,6 +119,7 @@
     <Compile Include="MiniMailFixture.cs" />
     <Compile Include="Models\MailsExportFixture.cs" />
     <Compile Include="Models\NewsExportFixture.cs" />
+    <Compile Include="Models\PromotionsExportFixture.cs" />
     <Compile Include="Models\RejectsExportFixture.cs" />
     <Compile Include="MultiUserDocumentFixture.cs" />
     <Compile Include="OrderHelperFixture.cs" />
@@ -126,7 +127,6 @@
     <Compile Include="PostPriceSettingsFixture.cs" />
     <Compile Include="PostSomeOrdersFixture.cs" />
     <Compile Include="ProcedureFixture.cs" />
-    <Compile Include="PromotionsFixture.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
@@ -212,7 +212,7 @@
     </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-	<Import Project="..\..\packages\StyleCop.MSBuild.4.7.35.0\tools\StyleCop.Targets" />
+  <Import Project="..\..\packages\StyleCop.MSBuild.4.7.35.0\tools\StyleCop.Targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

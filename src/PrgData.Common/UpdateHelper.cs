@@ -280,6 +280,7 @@ SELECT
 	u.AllowDownloadUnconfirmedOrders,
 	u.SendWaybills,
 	u.SendRejects,
+	u.WorkRegionMask as RegionMask,
 	ap.UserId is not null as AFPermissionExists
 FROM  
   Customers.users u
@@ -1183,197 +1184,6 @@ and (DescriptionLogs.Operation = 2)
 ";
 		}
 
-		public string GetProducerCommand(bool Cumulative)
-		{
-			if (Cumulative)
-				return @"
-	select
-	  Producers.Id,
-	  Producers.Name,
-	  0 as Hidden
-	from
-	  catalogs.Producers
-	where
-		(Producers.Id > 1)";
-			else
-				return @"
-	select
-	  Producers.Id,
-	  Producers.Name,
-	  0 as Hidden
-	from
-	  catalogs.Producers
-	where
-		(Producers.Id > 1)
-	and Producers.UpdateTime > ?UpdateTime
-	union
-	select
-	  ProducerLogs.ProducerId,
-	  ProducerLogs.Name,
-	  1 as Hidden
-	from
-	  logs.ProducerLogs
-	where
-		(ProducerLogs.LogTime >= ?UpdateTime) 
-	and (ProducerLogs.Operation = 2)        
-	  ";
-		}
-
-		private string GetAbstractPromotionsCommand()
-		{
-			return
-				@"
-select
-	log.PromotionId as Id,
-	0 as Status,
-	log.SupplierId,
-	log.Name,
-	log.Annotation,
-	log.PromoFile,
-	log.Begin,
-	log.End
-from
-	logs.SupplierPromotionLogs log
-where
-	log.LogTime > '2011-03-01'
-and log.Operation = 2
-and not ?Cumulative
-union
-select
-	SupplierPromotions.Id,
-	SupplierPromotions.Status,
-	SupplierPromotions.SupplierId,
-	SupplierPromotions.Name,
-	SupplierPromotions.Annotation,
-	SupplierPromotions.PromoFile,
-	SupplierPromotions.Begin,
-	SupplierPromotions.End
-from
-	usersettings.SupplierPromotions	
-where";
-		}
-
-		public string GetPromotionsCommand()
-		{
-			return GetAbstractPromotionsCommand() +
-				@"
-	if(not ?Cumulative, 1, SupplierPromotions.Status)
-	";
-		}
-
-		public string GetPromotionsCommandById(List<uint> promotionIds)
-		{
-			return
-				GetAbstractPromotionsCommand() +
-					string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
-		}
-
-		public string GetPromotionCatalogsCommandById(List<uint> promotionIds)
-		{
-			return
-				String.Format(
-					@"
-select 
-  CatalogId,
-  PromotionId,
-  1 as Hidden
-from
-  logs.PromotionCatalogLogs
-where
-	LogTime > ?UpdateTime
-and Operation = 2
-and not ?Cumulative
-union
-select 
-  CatalogId,
-  PromotionId,
-  0 as Hidden
-from
-  usersettings.PromotionCatalogs
-where
-  PromotionId in ({0})
-", promotionIds.Implode());
-		}
-
-		public List<SupplierPromotion> GetPromotionsList(MySqlCommand sqlCommand)
-		{
-			var list = new List<SupplierPromotion>();
-
-			if (!_updateData.ShowAdvertising)
-				return list;
-
-			var dataAdapter = new MySqlDataAdapter(sqlCommand);
-			var dataTable = new DataTable();
-			bool oldCumulative = false;
-
-			try {
-				if (sqlCommand.Parameters.Contains("?Cumulative")) {
-					oldCumulative = Convert.ToBoolean(sqlCommand.Parameters["?Cumulative"].Value);
-					if (_updateData.NeedUpdateToSupplierPromotions)
-						sqlCommand.Parameters["?Cumulative"].Value = true;
-				}
-				sqlCommand.CommandText = GetPromotionsCommand();
-				dataAdapter.Fill(dataTable);
-			}
-			finally {
-				if (sqlCommand.Parameters.Contains("?Cumulative"))
-					sqlCommand.Parameters["?Cumulative"].Value = oldCumulative;
-			}
-
-			foreach (DataRow row in dataTable.Rows) {
-				list.Add(
-					new SupplierPromotion {
-						Id = Convert.ToUInt32(row["Id"]),
-						Status = Convert.ToBoolean(row["Status"])
-					});
-			}
-			return list;
-		}
-
-		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
-		{
-			var log = LogManager.GetLogger(typeof(UpdateHelper));
-
-			try {
-				log.Debug("Будем выгружать акции");
-
-				var command = new MySqlCommand();
-				command.Connection = connection;
-				SetUpdateParameters(command, currentUpdateTime);
-
-				ExportSupplierPromotions(archiveFileName, command, filesForArchive);
-
-				ArchivePromoFiles(archiveFileName);
-			}
-			catch (Exception exception) {
-				log.Error("Ошибка при архивировании акций поставщиков", exception);
-				addition += "Архивирование акций поставщиков: " + exception.Message + "; ";
-
-				ShareFileHelper.MySQLFileDelete(archiveFileName);
-			}
-		}
-
-		private void ArchivePromoFiles(string archiveFileName)
-		{
-			var promotionsFolder = "Promotions";
-			var promotionsPath = Path.Combine(_updateData.ResultPath, promotionsFolder);
-			if (!Directory.Exists(promotionsPath))
-				Directory.CreateDirectory(promotionsPath);
-
-			foreach (var supplierPromotion in _updateData.SupplierPromotions) {
-				if (supplierPromotion.Status) {
-					var files = Directory.GetFiles(promotionsPath, supplierPromotion.Id + "*");
-					if (files.Length > 0) {
-						SevenZipHelper.ArchiveFilesWithNames(
-							archiveFileName,
-							Path.Combine(promotionsFolder, supplierPromotion.Id + "*"),
-							_updateData.ResultPath);
-					}
-				}
-			}
-		}
-
-
 		public void ArchiveCertificates(MySqlConnection connection,
 			string archiveFileName,
 			DateTime currentUpdateTime,
@@ -1729,54 +1539,6 @@ where db.Id in ({0})
 			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(deletedFile));
 
 			return deletedFile;
-		}
-
-		private void ExportSupplierPromotions(string archiveFileName, MySqlCommand command, Queue<FileForArchive> filesForArchive)
-		{
-			var supplierFile = DeleteFileByPrefix("SupplierPromotions");
-			var catalogFile = DeleteFileByPrefix("PromotionCatalogs");
-
-			var ids = _updateData.SupplierPromotions.Select(promotion => promotion.Id).ToList();
-
-			GetMySQLFileWithDefaultEx("SupplierPromotions", command, GetPromotionsCommandById(ids), false, false, filesForArchive);
-
-#if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.GetFileByLocal(supplierFile));
-#endif
-
-			try {
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.GetFileByLocal(supplierFile));
-				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.GetFileByLocal(supplierFile));
-			}
-			catch {
-				ShareFileHelper.MySQLFileDelete(archiveFileName);
-				throw;
-			}
-
-			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(supplierFile));
-
-			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(supplierFile));
-
-
-			GetMySQLFileWithDefaultEx("PromotionCatalogs", command, GetPromotionCatalogsCommandById(ids), false, false, filesForArchive);
-
-#if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.GetFileByLocal(catalogFile));
-#endif
-			try {
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.GetFileByLocal(catalogFile));
-				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.GetFileByLocal(catalogFile));
-			}
-			catch {
-				ShareFileHelper.MySQLFileDelete(archiveFileName);
-				throw;
-			}
-
-			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(catalogFile));
-
-			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(catalogFile));
 		}
 
 		public string GetCatalogCommand(bool before1150)
@@ -3225,6 +2987,41 @@ group by afu.UserId",
 					new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills));
 				waitCount = realWaitCount != null ? (int?)Convert.ToInt32(realWaitCount) : null;
 			} while (waitCount > 0 && DateTime.Now.Subtract(startTime).TotalSeconds < 60);
+		}
+
+		public string GetProducerCommand(bool Cumulative)
+		{
+			if (Cumulative)
+				return @"
+select
+	Producers.Id,
+	Producers.Name,
+	0 as Hidden
+from
+	catalogs.Producers
+where
+	(Producers.Id > 1)";
+
+			return @"
+select
+	Producers.Id,
+	Producers.Name,
+	0 as Hidden
+from
+	catalogs.Producers
+where
+	(Producers.Id > 1)
+	and Producers.UpdateTime > ?UpdateTime
+union
+select
+	ProducerLogs.ProducerId,
+	ProducerLogs.Name,
+	1 as Hidden
+from
+	logs.ProducerLogs
+where
+	(ProducerLogs.LogTime >= ?UpdateTime)
+	and (ProducerLogs.Operation = 2)";
 		}
 	}
 }
