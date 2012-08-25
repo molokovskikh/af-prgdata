@@ -25,7 +25,7 @@ namespace PrgData.Common.Models
 		{
 			get
 			{
-				return AllowedArchiveRequests.Concat(new[] { RequestType.RequestAttachments }).ToArray();
+				return base.AllowedArchiveRequests.Concat(new[] { RequestType.RequestAttachments }).ToArray();
 			}
 		}
 

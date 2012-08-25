@@ -48,8 +48,11 @@ namespace Integration.Models
 
 			var dataTable = Export<PromotionsExport>("SupplierPromotions");
 			//При КО должны получить все промо-акции, которые на данный момент включены
-			Assert.That(dataTable.Rows.Count, Is.EqualTo(promotionCount));
+			Assert.That(dataTable.Rows.Count, Is.GreaterThan(0));
+			Assert.That(dataTable.Rows.Count, Is.LessThanOrEqualTo(promotionCount));
 
+			updateData.OldUpdateTime = DateTime.Now;
+			updateData.Cumulative = false;
 			dataTable = Export<PromotionsExport>("SupplierPromotions");
 			//При обычном обновлении должны получить акции, которые были обновлены с даты updateDate
 			Assert.That(dataTable.Rows.Count, Is.GreaterThanOrEqualTo(0));
