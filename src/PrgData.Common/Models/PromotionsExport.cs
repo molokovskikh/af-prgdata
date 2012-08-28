@@ -138,6 +138,8 @@ where
 				return;
 
 			updateData.SupplierPromotions = GetPromotionsList();
+			if (updateData.SupplierPromotions.Count == 0)
+				return;
 
 			var ids = updateData.SupplierPromotions.Select(promotion => promotion.Id).ToList();
 			Process("SupplierPromotions", GetPromotionsCommandById(ids));

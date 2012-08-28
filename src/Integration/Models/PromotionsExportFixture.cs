@@ -109,6 +109,12 @@ namespace Integration.Models
 			Assert.That(promo["Status"], Is.EqualTo(0));
 		}
 
+		[Test]
+		public void Export()
+		{
+			Export<PromotionsExport>();
+		}
+
 		private uint CreatePromo()
 		{
 			var priceWithPromo = user.GetActivePricesList()[0];

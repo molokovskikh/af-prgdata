@@ -67,7 +67,7 @@ namespace Integration
 					connection,
 					"select count(*) from farm.Core0"));
 
-				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake PrepareLocalForPrgData");
+//				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake PrepareLocalForPrgData");
 			}
 		}
 
