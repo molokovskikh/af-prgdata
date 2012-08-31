@@ -362,14 +362,12 @@ select last_insert_id()
 			var factory = new ChannelFactory<IWaybillService>(binding, ConfigurationManager.AppSettings["WaybillServiceUri"]);
 			var channel = factory.CreateChannel();
 			var communicationObject = (ICommunicationObject)channel;
-			try
-			{
+			try {
 				var parsedIds = channel.ParseWaybill(ids.ToArray());
 				communicationObject.Close();
 				return parsedIds.Length > 0;
 			}
-			catch(Exception)
-			{
+			catch(Exception) {
 				if (communicationObject.State != CommunicationState.Closed)
 					communicationObject.Abort();
 				throw;
