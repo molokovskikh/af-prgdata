@@ -352,7 +352,8 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом с сопосталением заказов")]
+		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом с сопосталением заказов"),
+		Ignore("Данный тест надо восстановить, когда будет восстановлена передача разобранных накладных в копии AnalitF")]
 		public void Get_parsed_fake_docs_with_match_orders()
 		{
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
