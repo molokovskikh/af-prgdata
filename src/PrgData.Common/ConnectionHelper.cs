@@ -7,23 +7,21 @@ namespace PrgData.Common
 {
 	public class ConnectionHelper
 	{
-		private static ILog log = LogManager.GetLogger(typeof (ConnectionHelper));
+		private static ILog log = LogManager.GetLogger(typeof(ConnectionHelper));
 
 		public static void SafeRollback(MySqlTransaction transaction)
 		{
 			if (transaction == null)
 				return;
-			
-			if (transaction.Connection.State == ConnectionState.Closed 
+
+			if (transaction.Connection.State == ConnectionState.Closed
 				|| transaction.Connection.State == ConnectionState.Broken)
 				return;
 
-			try
-			{
+			try {
 				transaction.Rollback();
 			}
-			catch (Exception e)
-			{
+			catch (Exception e) {
 				log.Error("Ошибка при откате транзакции", e);
 			}
 		}

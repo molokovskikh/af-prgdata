@@ -38,6 +38,5 @@ namespace Integration.Models
 				Assert.That(mailsExport.AllowArchiveFiles(RequestType.SendUserActions), Is.False);
 			});
 		}
-		 
 	}
 }

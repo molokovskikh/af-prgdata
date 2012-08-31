@@ -8,7 +8,6 @@ namespace PrgData.Common
 {
 	public class SendClientLogHandler
 	{
-		 
 		private UpdateData _updateData;
 		private uint _updateId;
 
@@ -31,14 +30,12 @@ namespace PrgData.Common
 		}
 
 		public void DeleteTemporaryFiles()
-		{ 
+		{
 			if (Directory.Exists(_tmpLogsFolder))
-				try
-				{
+				try {
 					Directory.Delete(_tmpLogsFolder, true);
 				}
-				catch (Exception exception)
-				{
+				catch (Exception exception) {
 					_log.Error("Ошибка при удалении временнной директории при обработке файла протоколирования пользователя", exception);
 				}
 		}
@@ -58,8 +55,7 @@ namespace PrgData.Common
 
 			ArchiveHelper.Extract(_tmpLogArchive, "*.*", extractDir);
 			var files = Directory.GetFiles(extractDir);
-			if (files.Length == 0)
-			{
+			if (files.Length == 0) {
 				_log.DebugFormat("Содержимое полученного архива с протоколированием: {0}", logFile);
 				throw new Exception("Полученный архив не содержит файлов.");
 			}
@@ -73,7 +69,5 @@ namespace PrgData.Common
 		{
 			return File.ReadAllText(_tmpExtractLogFileName, Encoding.GetEncoding(1251));
 		}
-
 	}
-
 }

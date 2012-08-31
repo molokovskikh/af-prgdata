@@ -30,9 +30,9 @@ namespace Integration
 	[TestFixture]
 	public class SmartOrderHelperFixture : PrepareDataFixture
 	{
-		TestClient _client;
-		TestUser _user;
-		TestAddress _address;
+		private TestClient _client;
+		private TestUser _user;
+		private TestAddress _address;
 
 		[SetUp]
 		public void SetUp()
@@ -45,11 +45,9 @@ namespace Integration
 		[Test]
 		public void Lazy_read()
 		{
-
 			User orderable;
 			Address realAddress;
-			using (var unitOfWork = new UnitOfWork())
-			{
+			using (var unitOfWork = new UnitOfWork()) {
 				orderable = IoC.Resolve<IRepository<User>>().Load(_user.Id);
 				NHibernateUtil.Initialize(orderable.AvaliableAddresses);
 
@@ -71,8 +69,7 @@ namespace Integration
 		[ExpectedException(typeof(UpdateException), ExpectedMessage = "Услуга 'АвтоЗаказ' не предоставляется")]
 		public void Get_UpdateException_on_disabled_EnableSmartOrder()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -85,15 +82,13 @@ namespace Integration
 		[ExpectedException(typeof(UpdateException), ExpectedMessage = "Не настроены правила для автоматического формирования заказа")]
 		public void Get_UpdateException_on_null_SmartOrderRuleId()
 		{
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var orderRule = TestDrugstoreSettings.Find(_client.Id);
 				orderRule.EnableSmartOrder = true;
 				orderRule.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -105,8 +100,7 @@ namespace Integration
 		[Test]
 		public void SimpleSmartOrder()
 		{
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -120,8 +114,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -133,8 +126,7 @@ namespace Integration
 
 				var batchFile = Convert.ToBase64String(batchFileBytes);
 
-				try
-				{
+				try {
 					smartHelper.PrepareBatchFile(batchFile);
 
 					smartHelper.ProcessBatchFile();
@@ -146,8 +138,7 @@ namespace Integration
 					fileInfo = new FileInfo(smartHelper.BatchOrderItemsFileName);
 					Assert.That(fileInfo.Length, Is.GreaterThanOrEqualTo(0), "Файл с содержимым заказов не существует");
 				}
-				finally
-				{
+				finally {
 					smartHelper.DeleteTemporaryFiles();
 				}
 			}
@@ -158,8 +149,7 @@ namespace Integration
 		{
 			TestAddress newAddress;
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				newAddress = _client.CreateAddress();
 				newAddress.LegalEntity = _address.LegalEntity;
 				_user.JoinAddress(newAddress);
@@ -183,8 +173,7 @@ namespace Integration
 			Address firstAddress;
 			Address secondAddress;
 
-			using (var unitOfWork = new UnitOfWork())
-			{
+			using (var unitOfWork = new UnitOfWork()) {
 				realUser = IoC.Resolve<IRepository<User>>().Load(_user.Id);
 				NHibernateUtil.Initialize(realUser.AvaliableAddresses);
 
@@ -195,8 +184,7 @@ namespace Integration
 				NHibernateUtil.Initialize(secondAddress.Users);
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -205,50 +193,43 @@ namespace Integration
 
 				var methodSaveToFile = smartHelper.GetType().GetMethod("SaveToFile", BindingFlags.NonPublic | BindingFlags.Instance);
 
-				try
-				{
-					var activePrice = new ActivePrice {Id = new PriceKey(new PriceList())};
-					var orders = new List<Order>
-					             	{
-					             		new Order(activePrice, realUser, firstAddress, new OrderRules()),
-										new Order(activePrice, realUser, secondAddress, new OrderRules())
-					             	};
+				try {
+					var activePrice = new ActivePrice { Id = new PriceKey(new PriceList()) };
+					var orders = new List<Order> {
+						new Order(activePrice, realUser, firstAddress, new OrderRules()),
+						new Order(activePrice, realUser, secondAddress, new OrderRules())
+					};
 
-					var firstOffer = new Offer {ProductId = 1, Id = new OfferKey(1, 1)};
+					var firstOffer = new Offer { ProductId = 1, Id = new OfferKey(1, 1) };
 					var firstOrderItem = orders[0].AddOrderItem(firstOffer, 1);
 					var secondOffer = new Offer { ProductId = 2, Id = new OfferKey(2, 1) };
 					var secondOrderItem = orders[1].AddOrderItem(secondOffer, 1);
 
-					var firstReducedOffer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = firstOffer.ProductId};
-					var secondReducedOffer = new ReducedOffer{Id = new OfferKey(1, 1), ProductId = secondOffer.ProductId};
-					var items = new List<OrderBatchItem>
-					            	{
-					            		new OrderBatchItem(null){Code = "123", ProductName = "test0"},
-										new OrderBatchItem(null)
-											{
-												Code = "456", 
-												ProductName = "test1", 
-												Item = new ItemToOrder(1, 1, null, 1)
-												       	{
-															Offer = firstReducedOffer,
-															MinimalCostOffer = firstReducedOffer,
-												       		OrderItem = firstOrderItem, 
-															Status = ItemToOrderStatus.Ordered,
-												       	}
-											},
-										new OrderBatchItem(null)
-											{
-												Code = "789", 
-												ProductName = "test2", 
-												Item = new ItemToOrder(2, 1, null, 1)
-												       	{
-															Offer = secondReducedOffer,
-															MinimalCostOffer = secondReducedOffer,
-												       		OrderItem = secondOrderItem, 
-															Status = ItemToOrderStatus.Ordered,
-												       	}
-											},
-					            	};
+					var firstReducedOffer = new ReducedOffer { Id = new OfferKey(1, 1), ProductId = firstOffer.ProductId };
+					var secondReducedOffer = new ReducedOffer { Id = new OfferKey(1, 1), ProductId = secondOffer.ProductId };
+					var items = new List<OrderBatchItem> {
+						new OrderBatchItem(null) { Code = "123", ProductName = "test0" },
+						new OrderBatchItem(null) {
+							Code = "456",
+							ProductName = "test1",
+							Item = new ItemToOrder(1, 1, null, 1) {
+								Offer = firstReducedOffer,
+								MinimalCostOffer = firstReducedOffer,
+								OrderItem = firstOrderItem,
+								Status = ItemToOrderStatus.Ordered,
+							}
+						},
+						new OrderBatchItem(null) {
+							Code = "789",
+							ProductName = "test2",
+							Item = new ItemToOrder(2, 1, null, 1) {
+								Offer = secondReducedOffer,
+								MinimalCostOffer = secondReducedOffer,
+								OrderItem = secondOrderItem,
+								Status = ItemToOrderStatus.Ordered,
+							}
+						},
+					};
 
 					methodSaveToFile.Invoke(smartHelper, new object[] { items, orders });
 
@@ -277,8 +258,7 @@ namespace Integration
 					Assert.That(reportContent[1], Is.StringStarting("8\t{0}".Format(firstAddress.Id)));
 					Assert.That(reportContent[2], Is.StringStarting("9\t{0}".Format(secondAddress.Id)));
 				}
-				finally
-				{
+				finally {
 					smartHelper.DeleteTemporaryFiles();
 				}
 			}
@@ -289,8 +269,7 @@ namespace Integration
 		public void CheckBatchSave()
 		{
 			var appVersion = "1.1.1.1300";
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -304,8 +283,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -325,9 +303,7 @@ namespace Integration
 				var batchFile = Convert.ToBase64String(batchFileBytes);
 
 				var postBatchResponce = String.Empty;
-				FoldersHelper.CheckTempFolders(() => {
-					postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, _user.AvaliableAddresses[0].Id, batchFile);
-				});
+				FoldersHelper.CheckTempFolders(() => { postBatchResponce = PostOrderBatch(false, DateTime.Now, appVersion, _user.AvaliableAddresses[0].Id, batchFile); });
 
 				var postBatchUpdateId = ParseUpdateId(postBatchResponce);
 				Assert.That(File.Exists(Path.Combine("results", "Archive", _user.Id.ToString(), postBatchUpdateId + "_Batch.7z")), Is.True);
@@ -339,8 +315,7 @@ namespace Integration
 		{
 			var appVersion = "1.1.1.1300";
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -354,8 +329,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -377,9 +351,8 @@ namespace Integration
 
 					Assert.That(postBatchResponce, Is.EqualTo("Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."));
 				});
-
 			}
-		
+
 			using (new SessionScope()) {
 				var exception = new IndexOutOfRangeException();
 				var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
@@ -393,8 +366,7 @@ namespace Integration
 		{
 			var appVersion = "1.1.1.1300";
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -408,8 +380,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -437,7 +408,6 @@ namespace Integration
 				finally {
 					SmartOrderHelper.raiseException = false;
 				}
-
 			}
 
 			using (new SessionScope()) {
@@ -454,8 +424,7 @@ namespace Integration
 
 			var updateTime = GetLastUpdateTime(_user);
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -469,8 +438,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -499,7 +467,6 @@ namespace Integration
 				finally {
 					SmartOrderHelper.raiseExceptionOnEmpty = false;
 				}
-
 			}
 
 			using (new SessionScope()) {
@@ -521,8 +488,7 @@ namespace Integration
 		[Test(Description = "попытка сформировать автозаказ по пользователю без адресов")]
 		public void UserDoesNotHaveAddresses()
 		{
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -539,8 +505,7 @@ namespace Integration
 				_user.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -563,8 +528,7 @@ namespace Integration
 		public void UserDoesNotAllowAddress()
 		{
 			TestAddress notAllowAddress;
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
 				smartRule.AssortimentPriceCode = 4662;
@@ -581,8 +545,7 @@ namespace Integration
 				notAllowAddress.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -600,6 +563,5 @@ namespace Integration
 				Assert.That(exception.Addition, Is.StringContaining("Пользователю не доступен адрес с кодом"));
 			}
 		}
-
 	}
 }

@@ -15,8 +15,8 @@ namespace Integration
 	[TestFixture]
 	public class DelayOfPaymentsFixture
 	{
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
 		[SetUp]
 		public void SetUp()
@@ -27,18 +27,15 @@ namespace Integration
 
 			_client = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
 				_user.Update();
 			}
-
 		}
 
 		[Test(Description = "Получаем значения DayOfWeek")]
@@ -57,8 +54,7 @@ namespace Integration
 		public void TestActiveRecordDelayOfPayment()
 		{
 			TestDelayOfPayment delay;
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				delay = TestDelayOfPayment.Queryable.First();
 			}
 			Assert.That(delay, Is.Not.Null);
@@ -87,8 +83,7 @@ namespace Integration
 		[Test]
 		public void GetOldDelayOfPayments()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1385;
@@ -106,8 +101,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsWithVitallyImportantForUpdate()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1385;
@@ -128,8 +122,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsWithVitallyImportant()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1386;
@@ -149,8 +142,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsByPrice()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1405;
@@ -170,8 +162,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsByPriceForUpdateFrom1385()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1385;
@@ -192,8 +183,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsByPriceForUpdateFrom1403()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1403;
@@ -230,19 +220,19 @@ namespace Integration
 				Assert.That(firstDelayRule, Is.Not.Null, "Не найдена какая-либо запись в отсрочках платежа по клиенту: {0}", newClient.Id);
 
 				var rulesBySupplier =
-					TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id).
-						ToList();
+					TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == firstIntersection.PriceIntersections[0].Id)
+						.ToList();
 				Assert.That(
-					rulesBySupplier.Count, 
-					Is.EqualTo(7), 
-					"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}", 
-					newClient.Id, 
+					rulesBySupplier.Count,
+					Is.EqualTo(7),
+					"Записи в отсрочках платежей созданы не по всем дням недели для клиента {0} и поставщика {1}",
+					newClient.Id,
 					firstIntersection.Supplier.Id);
 				Assert.That(
-					rulesBySupplier.Select(r => r.DayOfWeek), 
-					Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))), 
-					"Записи в отсрочках платежей дублируются по некоторым дням недели для клиента {0} и поставщика {1}", 
-					newClient.Id, 
+					rulesBySupplier.Select(r => r.DayOfWeek),
+					Is.EquivalentTo(Enum.GetValues(typeof(DayOfWeek))),
+					"Записи в отсрочках платежей дублируются по некоторым дням недели для клиента {0} и поставщика {1}",
+					newClient.Id,
 					firstIntersection.Supplier.Id);
 
 				var afterNewSupplierCount = TestDelayOfPayment.Queryable.Count();
@@ -254,8 +244,8 @@ namespace Integration
 				Assert.That(intersectionByNewSupplier.PriceIntersections.Count, Is.GreaterThan(0), "Не найдены записи в PriceIntersections по SupplierIntersectionId: {0}", intersectionByNewSupplier.Id);
 
 				var rulesByNewSupplier =
-					TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == intersectionByNewSupplier.PriceIntersections[0].Id).
-						ToList();
+					TestDelayOfPayment.Queryable.Where(r => r.PriceIntersectionId == intersectionByNewSupplier.PriceIntersections[0].Id)
+						.ToList();
 				Assert.That(
 					rulesByNewSupplier.Count,
 					Is.EqualTo(7),
@@ -264,6 +254,5 @@ namespace Integration
 					newSupplier.Id);
 			}
 		}
-
 	}
 }

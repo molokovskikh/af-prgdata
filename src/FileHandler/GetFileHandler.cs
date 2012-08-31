@@ -10,7 +10,7 @@ using PrgData.Common.Counters;
 
 namespace PrgData.FileHandlers
 {
-	public class GetFileHandler : AbstractHttpHandler,  IHttpHandler
+	public class GetFileHandler : AbstractHttpHandler, IHttpHandler
 	{
 		private string _userHost;
 		private long _totalBytes;
@@ -19,10 +19,8 @@ namespace PrgData.FileHandlers
 
 		private void LogSend(Exception ex)
 		{
-			try
-			{
-				using (var connection = new MySqlConnection(Settings.ConnectionString()))
-				{
+			try {
+				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 					connection.Open();
 					var command = connection.CreateCommand();
 					command.CommandText =
@@ -38,8 +36,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					command.ExecuteNonQuery();
 				}
 			}
-			catch(Exception exception)
-			{
+			catch (Exception exception) {
 				Log.Error("Ошибка логирования загрузки файла обновлений", exception);
 			}
 		}
@@ -52,8 +49,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 		public void ProcessRequest(HttpContext context)
 		{
-			try
-			{
+			try {
 				SUserId = GetUserId(context);
 				UInt32 UserId;
 
@@ -69,8 +65,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					Int64.TryParse(context.Request.QueryString["RangeStart"], out _fromByte);
 
 				var fn = ServiceContext.GetResultPath() + UserId + "_" + _updateId + ".zip";
-				if (!File.Exists(fn))
-				{
+				if (!File.Exists(fn)) {
 					Log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
 					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
 				}
@@ -80,8 +75,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 				context.Response.ContentType = "application/octet-stream";
 				Log.DebugFormat("Начали передачу файла для пользователя: {0}", UserId);
-				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read))
-				{
+				using (var stmFileStream = new FileStream(fn, FileMode.Open, FileAccess.Read, FileShare.Read)) {
 					_totalBytes = stmFileStream.Length;
 					if (_fromByte > 0 && _fromByte < stmFileStream.Length)
 						stmFileStream.Position = _fromByte;
@@ -94,48 +88,37 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 				Log.DebugFormat("Производим протоколирование после передачи файла для пользователя: {0}", UserId);
 				LogSend();
 			}
-			catch (COMException comex)
-			{
+			catch (COMException comex) {
 				//-2147024832 - (0x80070040): Указанное сетевое имя более недоступно. (Исключение из HRESULT: 0x80070040)
 				//-2147024775 - (0x80070079): Превышен таймаут семафора. (Исключение из HRESULT: 0x80070079)
 				if (comex.ErrorCode != -2147023901
 					&& comex.ErrorCode != -2147024775
-					&& comex.ErrorCode != -2147024832)
-				{
+					&& comex.ErrorCode != -2147024832) {
 					LogSend(comex);
 					Log.Error(String.Format("COMException при запросе получения файла с данными, пользователь: {0}", SUserId), comex);
 				}
 			}
-			catch (HttpException wex)
-			{
-
+			catch (HttpException wex) {
 				// 0x800703E3 -2147023901 Удаленный хост разорвал соединение.
 
 				LogSend(wex);
-				if (	wex.ErrorCode != -2147014842
-					//
+				if (wex.ErrorCode != -2147014842
 					&& wex.ErrorCode != -2147023901
 					&& wex.ErrorCode != -2147467259
 					&& wex.ErrorCode != -2147024832
-					&& wex.ErrorCode != -2147024775
-	)
-					//
+					&& wex.ErrorCode != -2147024775)
 					Log.Error(String.Format("HttpException " + wex.ErrorCode + "  при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
 			}
-
-			catch (Exception ex)
-			{
+			catch (Exception ex) {
 				LogSend(ex);
 
-				if (!(ex is ThreadAbortException))
-				{
+				if (!(ex is ThreadAbortException)) {
 					context.AddError(ex);
 					Log.Error(String.Format("Exception при запросе получения файла с данными, пользователь: {0}", SUserId), ex);
 					context.Response.StatusCode = 500;
 				}
 			}
-			finally
-			{
+			finally {
 				Log.DebugFormat("Пытаемся снять блокировку FileHandler для пользователя: {0}", SUserId);
 				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler", LastLockId);
 				Log.DebugFormat("Успешно снята блокировка FileHandler для пользователя: {0}", SUserId);
@@ -144,10 +127,7 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 		public bool IsReusable
 		{
-			get
-			{
-				return false;
-			}
+			get { return false; }
 		}
 	}
 }

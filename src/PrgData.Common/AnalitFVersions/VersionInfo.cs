@@ -20,7 +20,7 @@ namespace PrgData.Common.AnalitFVersions
 
 		public VersionInfo(string folder)
 		{
-			if(!Directory.Exists(folder))
+			if (!Directory.Exists(folder))
 				throw new ArgumentException(String.Format("Указанная директория не существует: {0}", folder), "folder");
 
 			var dirInfo = new DirectoryInfo(folder);
@@ -51,12 +51,10 @@ namespace PrgData.Common.AnalitFVersions
 			if (exeFile.Length > 1)
 				throw new Exception(String.Format("Во вложенной директории Exe найдено более одного файла с расширением .exe: {0}", folder));
 
-			try
-			{
+			try {
 				ExeVersionInfo = FileVersionInfo.GetVersionInfo(exeFile[0].FullName);
 			}
-			catch(Exception exception)
-			{
+			catch (Exception exception) {
 				throw new Exception(String.Format("Невозможно получить информацию о версии для файла: {0}", exeFile[0].FullName), exception);
 			}
 
@@ -75,6 +73,5 @@ namespace PrgData.Common.AnalitFVersions
 		{
 			return Path.Combine(Folder, "Exe");
 		}
-
 	}
 }

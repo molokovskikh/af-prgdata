@@ -27,8 +27,7 @@ namespace PrgData.FileHandlers
 			var bytes = new byte[BufferSize];
 			int numBytes;
 			while ((numBytes = input.Read(bytes, 0, BufferSize)) > 0
-				   && context.Response.IsClientConnected)
-			{
+				&& context.Response.IsClientConnected) {
 				output.Write(bytes, 0, numBytes);
 				ByteSent += numBytes;
 			}
@@ -40,10 +39,8 @@ namespace PrgData.FileHandlers
 		{
 			var userName = ServiceContext.GetShortUserName();
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
-			try
-			{
-				using (var connection = Settings.GetConnection())
-				{
+			try {
+				using (var connection = Settings.GetConnection()) {
 					connection.Open();
 					var command = new MySqlCommand(@"
 SELECT u.Id
@@ -55,19 +52,16 @@ where c.Status = 1
 	  and up.Shortcut = 'AF'
 	  and u.Login = ?Username", connection);
 					command.Parameters.AddWithValue("?Username", userName);
-					using (var sqlr = command.ExecuteReader())
-					{
+					using (var sqlr = command.ExecuteReader()) {
 						if (sqlr.Read())
 							return sqlr["Id"].ToString();
 					}
 				}
 			}
-			catch (Exception e)
-			{
+			catch (Exception e) {
 				Log.Error("Ошибка при авторизации клиента", e);
 			}
 			return null;
 		}
-
 	}
 }

@@ -11,7 +11,6 @@ using Test.Support.Helpers;
 
 namespace Integration
 {
-
 	public enum BuyinMatrixStatus
 	{
 		Allow = 0,
@@ -22,9 +21,8 @@ namespace Integration
 	[TestFixture(Description = "Тесты для матрицы закупок и матрицы предложений")]
 	public class MatrixFixture
 	{
-
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
 		private TestActivePrice _buyingPrice;
 		private TestActivePrice _offerPrice;
@@ -43,12 +41,10 @@ namespace Integration
 		{
 			_client = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
 
-				_client.Users.Each(u =>
-				{
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -69,23 +65,21 @@ namespace Integration
 			_offerCoreCount = _offerPrice.CoreCount();
 
 			SessionHelper.WithSession(
-				s =>
-					{
-						s.CreateSQLQuery(
-							"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
-							.SetParameter("userId", _user.Id)
-							.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
-							.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
-							.ExecuteUpdate();
-					});
+				s => {
+					s.CreateSQLQuery(
+						"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
+						.SetParameter("userId", _user.Id)
+						.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
+						.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
+						.ExecuteUpdate();
+				});
 		}
 
 		private TestActivePrice GetOfferPrice(IOrderedEnumerable<TestActivePrice> otherList)
 		{
 			TestActivePrice result = null;
 
-			foreach (var testActivePrice in otherList)
-			{
+			foreach (var testActivePrice in otherList) {
 				_intersectionProductId = SessionHelper.WithSession<uint>(
 					s => s.CreateSQLQuery(@"
 select 
@@ -98,13 +92,12 @@ from
 where
   c.PriceCode = :priceId
 limit 1
-"
-							)
-							.SetParameter("priceId", _buyingPrice.Id.PriceId)
-							.SetParameter("costId", _buyingPrice.CostId)
-							.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-							.SetParameter("otherCostId", testActivePrice.CostId)
-							.UniqueResult<uint>());
+")
+						.SetParameter("priceId", _buyingPrice.Id.PriceId)
+						.SetParameter("costId", _buyingPrice.CostId)
+						.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+						.SetParameter("otherCostId", testActivePrice.CostId)
+						.UniqueResult<uint>());
 
 				_buyingProductId = SessionHelper.WithSession<uint>(
 					s => s.CreateSQLQuery(@"
@@ -119,13 +112,12 @@ where
   c.PriceCode = :priceId
 and nc.Core_Id is null
 limit 1
-"
-							)
-							.SetParameter("priceId", _buyingPrice.Id.PriceId)
-							.SetParameter("costId", _buyingPrice.CostId)
-							.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-							.SetParameter("otherCostId", testActivePrice.CostId)
-							.UniqueResult<uint>());
+")
+						.SetParameter("priceId", _buyingPrice.Id.PriceId)
+						.SetParameter("costId", _buyingPrice.CostId)
+						.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+						.SetParameter("otherCostId", testActivePrice.CostId)
+						.UniqueResult<uint>());
 
 				_offerProductId = SessionHelper.WithSession<uint>(
 					s => s.CreateSQLQuery(@"
@@ -140,13 +132,12 @@ where
   c.PriceCode = :priceId
 and n.Id is null
 limit 1
-"
-							)
-							.SetParameter("priceId", testActivePrice.Id.PriceId)
-							.SetParameter("costId", testActivePrice.CostId)
-							.SetParameter("otherPriceId", _buyingPrice.Id.PriceId)
-							.SetParameter("otherCostId", _buyingPrice.CostId)
-							.UniqueResult<uint>());
+")
+						.SetParameter("priceId", testActivePrice.Id.PriceId)
+						.SetParameter("costId", testActivePrice.CostId)
+						.SetParameter("otherPriceId", _buyingPrice.Id.PriceId)
+						.SetParameter("otherCostId", _buyingPrice.CostId)
+						.UniqueResult<uint>());
 
 				_intersectionProductIdWithProducerId = SessionHelper.WithSession<uint>(
 					s => s.CreateSQLQuery(@"
@@ -162,14 +153,13 @@ where
 and c.CodeFirmCr is null
 and c.ProductId <> :intersectionProductId
 limit 1
-"
-							)
-							.SetParameter("priceId", _buyingPrice.Id.PriceId)
-							.SetParameter("costId", _buyingPrice.CostId)
-							.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-							.SetParameter("otherCostId", testActivePrice.CostId)
-							.SetParameter("intersectionProductId", _intersectionProductId)
-							.UniqueResult<uint>());
+")
+						.SetParameter("priceId", _buyingPrice.Id.PriceId)
+						.SetParameter("costId", _buyingPrice.CostId)
+						.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+						.SetParameter("otherCostId", testActivePrice.CostId)
+						.SetParameter("intersectionProductId", _intersectionProductId)
+						.UniqueResult<uint>());
 
 				_intersectionProductIdWithDistinctProducerId = SessionHelper.WithSession<uint>(
 					s => s.CreateSQLQuery(@"
@@ -186,18 +176,16 @@ and c.CodeFirmCr is not null
 and c.ProductId <> :intersectionProductId
 and c.ProductId <> :intersectionProductIdWithProducerId
 limit 1
-"
-							)
-							.SetParameter("priceId", _buyingPrice.Id.PriceId)
-							.SetParameter("costId", _buyingPrice.CostId)
-							.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-							.SetParameter("otherCostId", testActivePrice.CostId)
-							.SetParameter("intersectionProductId", _intersectionProductId)
-							.SetParameter("intersectionProductIdWithProducerId", _intersectionProductIdWithProducerId)
-							.UniqueResult<uint>());
+")
+						.SetParameter("priceId", _buyingPrice.Id.PriceId)
+						.SetParameter("costId", _buyingPrice.CostId)
+						.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+						.SetParameter("otherCostId", testActivePrice.CostId)
+						.SetParameter("intersectionProductId", _intersectionProductId)
+						.SetParameter("intersectionProductIdWithProducerId", _intersectionProductIdWithProducerId)
+						.UniqueResult<uint>());
 
-				if (_intersectionProductId > 0 && _buyingProductId > 0 && _offerProductId > 0 && _intersectionProductIdWithProducerId > 0 && _intersectionProductIdWithDistinctProducerId > 0)
-				{
+				if (_intersectionProductId > 0 && _buyingProductId > 0 && _offerProductId > 0 && _intersectionProductIdWithProducerId > 0 && _intersectionProductIdWithDistinctProducerId > 0) {
 					result = testActivePrice;
 					break;
 				}
@@ -223,8 +211,7 @@ limit 1
 		private void ClearMatrix(TestActivePrice price)
 		{
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					s.CreateSQLQuery(
 						"delete from farm.BuyingMatrix where PriceId = :priceId;")
 						.SetParameter("priceId", price.Id.PriceId)
@@ -235,8 +222,7 @@ limit 1
 		private void InsertMatrix(TestActivePrice price)
 		{
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					//здесь сделано без учета производителей
 					s.CreateSQLQuery(
 						@"
@@ -253,8 +239,7 @@ group by c0.ProductId;")
 		private void InsertMatrixByProductWithProducer(TestActivePrice price, uint productId)
 		{
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					//Вставка записи с учетом производителя
 					s.CreateSQLQuery(
 						@"
@@ -276,8 +261,7 @@ limit 1;")
 		private void ClearOfferMatrixSuppliers()
 		{
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					s.CreateSQLQuery(
 						"delete from UserSettings.OfferMatrixSuppliers where ClientId = :clientId;")
 						.SetParameter("clientId", _client.Id)
@@ -288,8 +272,7 @@ limit 1;")
 		private void InserOfferMatrixSuppliers(TestActivePrice price)
 		{
 			SessionHelper.WithSession(
-				s =>
-				{
+				s => {
 					s.CreateSQLQuery(
 						"insert into UserSettings.OfferMatrixSuppliers (ClientId, SupplierId) values (:clientId, :supplierId);")
 						.SetParameter("clientId", _client.Id)
@@ -298,10 +281,9 @@ limit 1;")
 				});
 		}
 
-		private void CheckOffers(Action<UpdateHelper, DataTable>  action)
+		private void CheckOffers(Action<UpdateHelper, DataTable> action)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -336,16 +318,15 @@ limit 1;")
 		public void AllOffers()
 		{
 			CheckOffers(
-				(helper, coreTable) =>
-					{
-						Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений не равно кол-ву предложений в обоих прайс-листах");
+				(helper, coreTable) => {
+					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений не равно кол-ву предложений в обоих прайс-листах");
 
-						var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
-						Assert.That(_buyingOffers.Length, Is.EqualTo(_buyingCoreCount), "Для прайс-листа {0} не все предложения", _buyingPrice.Id.PriceId);
+					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
+					Assert.That(_buyingOffers.Length, Is.EqualTo(_buyingCoreCount), "Для прайс-листа {0} не все предложения", _buyingPrice.Id.PriceId);
 
-						var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
-						Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Для прайс-листа {0} не все предложения", _offerPrice.Id.PriceId);
-					});
+					var _offerOffers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
+					Assert.That(_offerOffers.Length, Is.EqualTo(_offerCoreCount), "Для прайс-листа {0} не все предложения", _offerPrice.Id.PriceId);
+				});
 		}
 
 		private void CheckBuyingMatrixType(DataTable core, TestActivePrice price, uint productId, BuyinMatrixStatus status)
@@ -372,8 +353,7 @@ limit 1;")
 			InsertMatrix(_buyingPrice);
 
 			CheckOffers(
-				(helper, coreTable) =>
-				{
+				(helper, coreTable) => {
 					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений не равно кол-ву предложений в обоих прайс-листах");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
@@ -403,8 +383,7 @@ limit 1;")
 			InsertMatrix(_buyingPrice);
 
 			CheckOffers(
-				(helper, coreTable) =>
-				{
+				(helper, coreTable) => {
 					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений не равно кол-ву предложений в обоих прайс-листах");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
@@ -427,11 +406,10 @@ limit 1;")
 			DataRow[] offers;
 			if (producerId.HasValue)
 				offers = core.Select("PriceCode = {0} and ProductId = {1} and ProducerId = {2}".Format(price.Id.PriceId, productId, producerId));
+			else if (checkProducerIsNull)
+				offers = core.Select("PriceCode = {0} and ProductId = {1} and ProducerId is Null".Format(price.Id.PriceId, productId));
 			else
-				if (checkProducerIsNull)
-					offers = core.Select("PriceCode = {0} and ProductId = {1} and ProducerId is Null".Format(price.Id.PriceId, productId));
-				else
-					offers = core.Select("PriceCode = {0} and ProductId = {1}".Format(price.Id.PriceId, productId));
+				offers = core.Select("PriceCode = {0} and ProductId = {1}".Format(price.Id.PriceId, productId));
 			if (exists)
 				Assert.That(offers.Length, Is.GreaterThan(0), "Не найдено предложение {0} в прайс-листе {1}", productId, price.Id.PriceId);
 			else
@@ -450,8 +428,7 @@ limit 1;")
 			InsertMatrix(_offerPrice);
 
 			CheckOffers(
-				(helper, coreTable) =>
-				{
+				(helper, coreTable) => {
 					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
@@ -485,8 +462,7 @@ limit 1;")
 			InsertMatrix(_offerPrice);
 
 			CheckOffers(
-				(helper, coreTable) =>
-				{
+				(helper, coreTable) => {
 					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
@@ -521,8 +497,7 @@ limit 1;")
 			InserOfferMatrixSuppliers(_offerPrice);
 
 			CheckOffers(
-				(helper, coreTable) =>
-				{
+				(helper, coreTable) => {
 					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
@@ -559,8 +534,7 @@ limit 1;")
 			InserOfferMatrixSuppliers(_offerPrice);
 
 			CheckOffers(
-				(helper, coreTable) =>
-				{
+				(helper, coreTable) => {
 					Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
 
 					var _buyingOffers = coreTable.Select("PriceCode = " + _buyingPrice.Id.PriceId);
@@ -591,16 +565,13 @@ limit 1;")
 						if (Convert.IsDBNull(dataRow["ProducerId"]))
 							CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
 						else {
-
 							var producerId = Convert.ToUInt32(dataRow["ProducerId"]);
-							if (producerId == 0) 
+							if (producerId == 0)
 								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
-							else 
-								if (producerId == Convert.ToUInt32(intersectionOffers[0]["ProducerId"])) 
-									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
-								else 
-									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Allow);
-
+							else if (producerId == Convert.ToUInt32(intersectionOffers[0]["ProducerId"]))
+								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+							else
+								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Allow);
 						}
 					}
 
@@ -614,21 +585,16 @@ limit 1;")
 						if (Convert.IsDBNull(dataRow["ProducerId"]))
 							CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
 						else {
-
 							var producerId = Convert.ToUInt32(dataRow["ProducerId"]);
-							if (producerId == 0) 
+							if (producerId == 0)
 								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
-							else 
-								if (producerId == Convert.ToUInt32(intersectionDistinctOffers[0]["ProducerId"])) 
-									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
-								else 
-									CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Allow);
-
+							else if (producerId == Convert.ToUInt32(intersectionDistinctOffers[0]["ProducerId"]))
+								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Denied);
+							else
+								CheckBuyingMatrixTypeByOffer(dataRow, BuyinMatrixStatus.Allow);
 						}
 					}
-
 				});
 		}
-
 	}
 }

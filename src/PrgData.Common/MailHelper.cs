@@ -13,8 +13,7 @@ namespace PrgData.Common
 
 		public static void Mail(string messageText, string subject, string attachment, string attachmentName, string toEmail)
 		{
-			try
-			{
+			try {
 				var MailAddress = new MailAddress("service@analit.net", "Сервис AF", Encoding.UTF8);
 				var message = new MailMessage("service@analit.net", toEmail);
 				var SC = new SmtpClient("box.analit.net");
@@ -27,8 +26,7 @@ namespace PrgData.Common
 				message.BodyEncoding = Encoding.UTF8;
 				message.Body = messageText;
 
-				if (!String.IsNullOrEmpty(attachment))
-				{
+				if (!String.IsNullOrEmpty(attachment)) {
 					var stream = new MemoryStream();
 					var writer = new StreamWriter(stream);
 					writer.Write(attachment);
@@ -40,14 +38,13 @@ namespace PrgData.Common
 				}
 				SC.Send(message);
 			}
-			catch (Exception exception)
-			{
+			catch (Exception exception) {
 				logger
 					.ErrorFormat(
-						"Ошибка при отправке письма:{0}\r\nТема:{1}\r\nТело письма:{2}",
-						exception,
-						subject,
-						messageText);
+					"Ошибка при отправке письма:{0}\r\nТема:{1}\r\nТело письма:{2}",
+					exception,
+					subject,
+					messageText);
 			}
 		}
 
@@ -60,6 +57,5 @@ namespace PrgData.Common
 		{
 			Mail(messageText, subject, null, null);
 		}
-
 	}
 }

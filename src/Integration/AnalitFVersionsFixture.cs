@@ -88,8 +88,8 @@ values
 		{
 			var realVersionCount = Convert.ToInt32(
 				MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
-				"select count(*) from UserSettings.AnalitFVersionRules"));
+					Settings.ConnectionString(),
+					"select count(*) from UserSettings.AnalitFVersionRules"));
 
 			var rulesRepository = IoC.Resolve<IVersionRuleRepository>();
 
@@ -108,8 +108,7 @@ values
 			Assert.That(releaseInfos.Length, Is.EqualTo(8));
 			var infos = new List<VersionInfo>();
 
-			foreach (var releaseInfo in releaseInfos)
-			{
+			foreach (var releaseInfo in releaseInfos) {
 				var info = new VersionInfo(releaseInfo.FullName);
 
 				Assert.That(info.VersionNumber, Is.GreaterThan(0));
@@ -184,19 +183,18 @@ values
 			files.Each(file => File.Delete(file));
 
 			var dirs = Directory.GetDirectories(ServiceContext.GetResultPath());
-			dirs.Each(dir =>
-						{
-							var info = new DirectoryInfo(dir);
-							if (!info.Name.Equals("Updates", StringComparison.OrdinalIgnoreCase))
-								Directory.Delete(dir, true);
-						});
+			dirs.Each(dir => {
+				var info = new DirectoryInfo(dir);
+				if (!info.Name.Equals("Updates", StringComparison.OrdinalIgnoreCase))
+					Directory.Delete(dir, true);
+			});
 		}
 
 		[Test(Description = "Проверка подготовки данных с обновлением exe для сетевых версий")]
 		public void CheckGetUserDataWithExeUpdateOnNetworkVersion()
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\NetworkUpdates\\";
-			
+
 			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
 			if (Directory.Exists(extractFolder))
 				Directory.Delete(extractFolder, true);
@@ -220,12 +218,10 @@ set
   TargetVersion = null
 where
   Id = ?UserId;
-"
-				,
+",
 				new MySqlParameter("?UserId", _user.Id));
 
-			try
-			{
+			try {
 				SetCurrentUser(_user.Login);
 
 				var service = new PrgDataEx();
@@ -266,10 +262,8 @@ where
 					analitFFiles.Any(file => file.EndsWith("testSub.txt", StringComparison.OrdinalIgnoreCase)),
 					Is.True,
 					"Не найден текстовый файл");
-
 			}
-			finally
-			{
+			finally {
 				ResetUpdatesFolder();
 			}
 		}
@@ -277,7 +271,7 @@ where
 		private void InternalUpdateOnVersion(uint fromVersion, uint toVersion)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			
+
 			var extractFolder = Path.Combine(Path.GetFullPath(ServiceContext.GetResultPath()), "ExtractZip");
 			if (Directory.Exists(extractFolder))
 				Directory.Delete(extractFolder, true);
@@ -293,13 +287,11 @@ set
   TargetVersion = ?toVersion
 where
   Id = ?UserId;
-"
-				,
+",
 				new MySqlParameter("?UserId", _user.Id),
 				new MySqlParameter("?toVersion", toVersion));
 
-			try
-			{
+			try {
 				SetCurrentUser(_user.Login);
 
 				var service = new PrgDataEx();
@@ -322,8 +314,7 @@ where
 					Is.True,
 					"Не найден файл с обновлением программы");
 			}
-			finally
-			{
+			finally {
 				ResetUpdatesFolder();
 			}
 		}
@@ -349,10 +340,8 @@ where
 				Directory.CreateDirectory(testFolder);
 
 			try {
-
-				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				var exception = Assert.Throws<Exception>(() => { var info = new VersionInfo(testFolder); });
 				Assert.That(exception.Message, Is.StringStarting("Не найдена вложенная директория Exe"));
-
 			}
 			finally {
 				if (Directory.Exists(testFolder))
@@ -372,22 +361,19 @@ where
 				Directory.CreateDirectory(exeFolder);
 
 			try {
-
 				action(testFolder, exeFolder);
-
 			}
 			finally {
 				if (Directory.Exists(testFolder))
 					Directory.Delete(testFolder, true);
 			}
-			
 		}
 
 		[Test(Description = "получаем ошибку при несуществовании файла с exe в папке Exe")]
 		public void GetErrorOnNonExistsExeFile()
 		{
 			CheckExeFolder((testFolder, exeFolder) => {
-				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				var exception = Assert.Throws<Exception>(() => { var info = new VersionInfo(testFolder); });
 				Assert.That(exception.Message, Is.StringStarting("Во вложенной директории Exe не найден файл с расширением"));
 			});
 		}
@@ -399,7 +385,7 @@ where
 				File.WriteAllText(Path.Combine(exeFolder, "1.exe"), "1.exe");
 				File.WriteAllText(Path.Combine(exeFolder, "2.exe"), "2.exe");
 
-				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				var exception = Assert.Throws<Exception>(() => { var info = new VersionInfo(testFolder); });
 				Assert.That(exception.Message, Is.StringStarting("Во вложенной директории Exe найдено более одного файла с расширением .exe"));
 			});
 		}
@@ -410,12 +396,11 @@ where
 			CheckExeFolder((testFolder, exeFolder) => {
 				File.WriteAllText(Path.Combine(exeFolder, "1.exe"), "1.exe");
 
-				var exception = Assert.Throws<Exception>(() => {var info = new VersionInfo(testFolder);});
+				var exception = Assert.Throws<Exception>(() => { var info = new VersionInfo(testFolder); });
 				//исключение при чтении версии файла происходит, только если файла не существует
 				//Если в файле нет информации о версии, то вернется структура с версией = 0
 				Assert.That(exception.Message, Is.StringStarting("Не совпадают номера версий в названии папки"));
 			});
 		}
-
 	}
 }

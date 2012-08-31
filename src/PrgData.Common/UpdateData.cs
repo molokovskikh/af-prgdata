@@ -46,7 +46,7 @@ namespace PrgData.Common
 	public class UpdateData
 	{
 		private static int _versionBeforeConfirmUserMessage = 1299;
-		private static int _versionBeforeSupplierPromotions = 1363;
+		public static int _versionBeforeSupplierPromotions = 1363;
 		//версия AnalitF до поддержки отсрочек платежа с разделением на ЖНВЛС и прочий ассортимент
 		private static int _versionBeforeDelayWithVitallyImportant = 1385;
 		//версия AnalitF до поддержки отсрочек платежа по прайс-листам
@@ -107,7 +107,7 @@ namespace PrgData.Common
 		public int OfferMatrixType;
 
 		public bool SaveAFDataFiles;
- 
+
 		public uint? BuildNumber;
 		public uint? KnownBuildNumber;
 		public uint? TargetVersion;
@@ -135,6 +135,8 @@ namespace PrgData.Common
 
 		public bool ShowAdvertising;
 
+		public ulong RegionMask;
+
 		public UncommittedRequest PreviousRequest;
 
 		public bool AllowDownloadUnconfirmedOrders;
@@ -153,7 +155,7 @@ namespace PrgData.Common
 
 		public bool AsyncRequest;
 		public bool Cumulative;
-		
+
 		public List<CertificateRequest> CertificateRequests = new List<CertificateRequest>();
 
 		public bool SendWaybills;
@@ -173,8 +175,7 @@ namespace PrgData.Common
 			PreviousRequest = new UncommittedRequest();
 			if (data.Tables.Count < 2)
 				throw new Exception("Не выбрана таблица с предыдущими обновлениями");
-			if (data.Tables[1].Rows.Count > 0)
-			{
+			if (data.Tables[1].Rows.Count > 0) {
 				var previousRequest = data.Tables[1].Rows[0];
 				PreviousRequest.UpdateId = Convert.ToUInt32(previousRequest["UpdateId"]);
 				PreviousRequest.RequestTime = Convert.ToDateTime(previousRequest["RequestTime"]);
@@ -184,6 +185,7 @@ namespace PrgData.Common
 			}
 
 			var row = data.Tables[0].Rows[0];
+			RegionMask = Convert.ToUInt64(row["RegionMask"]);
 			ClientId = Convert.ToUInt32(row["ClientId"]);
 			UserId = Convert.ToUInt32(row["UserId"]);
 			Message = Convert.ToString(row["Message"]).Trim();
@@ -199,8 +201,8 @@ namespace PrgData.Common
 			UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
 			AFPermissionExists = Convert.ToBoolean(row["AFPermissionExists"]);
 			BuyingMatrixPriceId = Convert.IsDBNull(row["BuyingMatrixPriceId"])
-									? null
-									: (uint?)Convert.ToUInt32(row["BuyingMatrixPriceId"]);
+				? null
+				: (uint?)Convert.ToUInt32(row["BuyingMatrixPriceId"]);
 			BuyingMatrixType = Convert.ToInt32(row["BuyingMatrixType"]);
 			WarningOnBuyingMatrix = Convert.ToBoolean(row["WarningOnBuyingMatrix"]);
 			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
@@ -208,13 +210,13 @@ namespace PrgData.Common
 			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (uint?)Convert.ToUInt32(row["KnownBuildNumber"]);
 			TargetVersion = Convert.IsDBNull(row["TargetVersion"]) ? null : (uint?)Convert.ToUInt32(row["TargetVersion"]);
 			NetworkPriceId = Convert.IsDBNull(row["NetworkPriceId"])
-			                    	? null
-			                    	: (uint?) Convert.ToUInt32(row["NetworkPriceId"]);
+				? null
+				: (uint?)Convert.ToUInt32(row["NetworkPriceId"]);
 			SaveAFDataFiles = Convert.ToBoolean(row["SaveAFDataFiles"]);
 			ShowAdvertising = Convert.ToBoolean(row["ShowAdvertising"]);
 			OfferMatrixPriceId = Convert.IsDBNull(row["OfferMatrixPriceId"])
-									? null
-									: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
+				? null
+				: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
 			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
 			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["AllowDownloadUnconfirmedOrders"]);
 			AllowAnalitFSchedule = Convert.ToBoolean(row["AllowAnalitFSchedule"]);
@@ -249,7 +251,7 @@ namespace PrgData.Common
 			if (EnableUpdate())
 				return GetUpdateFiles(UpdateExeVersionInfo.ExeFolder(), String.Empty);
 
-			return new string[]{};
+			return new string[] { };
 		}
 
 		private string[] GetUpdateFiles(string path, string sufix)
@@ -263,11 +265,9 @@ namespace PrgData.Common
 		public void ParseBuildNumber(string exeVersion)
 		{
 			var numbers = exeVersion.Split('.');
-			if (numbers.Length > 0 && !String.IsNullOrEmpty(numbers[numbers.Length-1]))
-			{
+			if (numbers.Length > 0 && !String.IsNullOrEmpty(numbers[numbers.Length - 1])) {
 				uint buildNumber;
-				if (uint.TryParse(numbers[numbers.Length - 1], out buildNumber))
-				{
+				if (uint.TryParse(numbers[numbers.Length - 1], out buildNumber)) {
 					BuildNumber = buildNumber;
 					if (!NetworkPriceId.HasValue)
 						CheckBuildNumber();
@@ -292,9 +292,9 @@ namespace PrgData.Common
 		{
 			if (KnownBuildNumber.HasValue && BuildNumber < KnownBuildNumber)
 				throw new UpdateException("Доступ закрыт.",
-										  "Используемая версия программы не актуальна, необходимо обновление до версии №" + KnownBuildNumber + ".[5]",
-										  "Попытка обновить устаревшую версию; ",
-										  RequestType.Forbidden);
+					"Используемая версия программы не актуальна, необходимо обновление до версии №" + KnownBuildNumber + ".[5]",
+					"Попытка обновить устаревшую версию; ",
+					RequestType.Forbidden);
 		}
 
 		public bool NeedUpdateTo945()
@@ -316,11 +316,6 @@ namespace PrgData.Common
 				return UpdateExeVersionInfo.VersionNumber > 1263;
 
 			return false;
-		}
-
-		private bool CheckNeedUpdateToCryptCost()
-		{
-			throw new NotImplementedException();
 		}
 
 		private bool CheckNeedUpdateToNewClientsWithLegalEntity()
@@ -358,10 +353,10 @@ namespace PrgData.Common
 
 		public bool AllowDelayWithVitallyImportant()
 		{
-			return BuildNumberGreaterThen(_versionBeforeDelayWithVitallyImportant) 
-				|| (UpdateExeVersionInfo != null 
-						&& UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayWithVitallyImportant
-						&& UpdateExeVersionInfo.VersionNumber <= _versionBeforeDelayByPrice);
+			return BuildNumberGreaterThen(_versionBeforeDelayWithVitallyImportant)
+				|| (UpdateExeVersionInfo != null
+					&& UpdateExeVersionInfo.VersionNumber > _versionBeforeDelayWithVitallyImportant
+					&& UpdateExeVersionInfo.VersionNumber <= _versionBeforeDelayByPrice);
 		}
 
 		public bool AllowDelayByPrice()
@@ -439,26 +434,17 @@ namespace PrgData.Common
 
 		public bool SupportDownloadUnconfirmedOrders
 		{
-			get
-			{
-				return BuildNumberGreaterThen(_versionBeforeDownloadUnconfirmedOrders);
-			}
+			get { return BuildNumberGreaterThen(_versionBeforeDownloadUnconfirmedOrders); }
 		}
 
 		public bool AllowDeleteUnconfirmedOrders
 		{
-			get
-			{
-				return AllowDownloadUnconfirmedOrders && SupportDownloadUnconfirmedOrders;
-			}
+			get { return AllowDownloadUnconfirmedOrders && SupportDownloadUnconfirmedOrders; }
 		}
 
 		public bool NeedDownloadUnconfirmedOrders
 		{
-			get
-			{
-				return AllowDeleteUnconfirmedOrders && MaxOrderId > 0 && MaxOrderListId > 0;
-			}
+			get { return AllowDeleteUnconfirmedOrders && MaxOrderId > 0 && MaxOrderListId > 0; }
 		}
 
 		public void FillDocumentBodyIds(uint[] documentBodyIds)
@@ -466,7 +452,7 @@ namespace PrgData.Common
 			if (documentBodyIds.Length > 50)
 				throw new UpdateException(
 					"Количество запрашиваемых сертификатов превышает 50 штук.",
-					"Пожалуйста, измените список запрашиваемых сертификатов.", 
+					"Пожалуйста, измените список запрашиваемых сертификатов.",
 					"Количество запрашиваемых сертификатов превышает 50 штук; ", RequestType.Forbidden);
 
 			foreach (var documentBodyId in documentBodyIds) {
@@ -477,7 +463,8 @@ namespace PrgData.Common
 			}
 		}
 
-		public bool NeedExportCertificates{ 
+		public bool NeedExportCertificates
+		{
 			get { return CertificateRequests.Count > 0; }
 		}
 
@@ -596,9 +583,9 @@ namespace PrgData.Common
 		public bool AllowDocumentType(int documentType)
 		{
 			if ((GenerateDocsHelper.DocumentType)documentType == GenerateDocsHelper.DocumentType.Waybills && !SendWaybills)
-			    return false;
+				return false;
 			if ((GenerateDocsHelper.DocumentType)documentType == GenerateDocsHelper.DocumentType.Rejects && !SendRejects)
-			    return false;			
+				return false;
 			return true;
 		}
 
@@ -640,6 +627,5 @@ namespace PrgData.Common
 					if (!MissingProductIds.Contains(missingProductId))
 						MissingProductIds.Add(missingProductId);
 		}
-
 	}
 }

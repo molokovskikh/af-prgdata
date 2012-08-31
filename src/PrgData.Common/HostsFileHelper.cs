@@ -12,18 +12,14 @@ namespace PrgData.Common
 			var result = String.Empty;
 			var i = 0;
 
-			while (i < decodedContent.Length-2)
-			{
+			while (i < decodedContent.Length - 2) {
 				result += Convert.ToChar(
 					Convert.ToByte(
 						String.Format(
 							"{0}{1}{2}",
 							decodedContent[i],
-							decodedContent[i+1],
-							decodedContent[i+2]
-						)
-					)
-				);
+							decodedContent[i + 1],
+							decodedContent[i + 2])));
 				i += 3;
 			}
 
@@ -72,21 +68,19 @@ namespace PrgData.Common
 
 		private static string addHost(string fileContent, string host, string ip)
 		{
-			return 
-				deleteHost(fileContent, host) 
-				+ Environment.NewLine 
-				+ String.Format("{0}       {1}", ip, host);
+			return
+				deleteHost(fileContent, host)
+					+ Environment.NewLine
+					+ String.Format("{0}       {1}", ip, host);
 		}
 
 		private static string deleteHost(string fileContent, string host)
 		{
 			var stringBuilder = new StringBuilder();
 
-			using (var stringReader = new StringReader(fileContent))
-			{
+			using (var stringReader = new StringReader(fileContent)) {
 				var currentLine = stringReader.ReadLine();
-				while (currentLine != null)
-				{
+				while (currentLine != null) {
 					if (currentLine.IndexOf(host, StringComparison.OrdinalIgnoreCase) <= 0)
 						stringBuilder.AppendLine(currentLine);
 					currentLine = stringReader.ReadLine();

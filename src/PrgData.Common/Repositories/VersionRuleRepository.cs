@@ -7,7 +7,6 @@ namespace PrgData.Common.Repositories
 {
 	public class VersionRuleRepository : BaseRepository, IVersionRuleRepository
 	{
-
 		public const string SelectAllRules = @"
 SELECT
 	r.Id as {AnalitFVersionRule.Id}, 

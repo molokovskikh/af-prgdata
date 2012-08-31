@@ -37,7 +37,6 @@ namespace PrgData
 		private static void InternalMailWithRequest(string MessageText, Exception exception)
 		{
 			try {
-
 				var tmpRequestFileName = Path.GetTempFileName();
 				HttpContext.Current.Request.SaveAs(tmpRequestFileName, true);
 
@@ -48,8 +47,8 @@ namespace PrgData
 						MessageText = String.Format("{0} " + Environment.NewLine + "{1}", MessageText, exception);
 					MessageText = String.Format(
 						"Date: {0}" + Environment.NewLine +
-						"User: {1}" + Environment.NewLine +
-						"{2}",
+							"User: {1}" + Environment.NewLine +
+							"{2}",
 						DateTime.Now,
 						ServiceContext.GetUserName(),
 						MessageText);
@@ -72,5 +71,4 @@ namespace PrgData
 			}
 		}
 	}
-
 }

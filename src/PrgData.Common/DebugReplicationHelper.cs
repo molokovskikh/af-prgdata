@@ -18,7 +18,7 @@ namespace PrgData.Common
 		private UpdateData _updateData;
 		private List<string> _reasons;
 
-		public ILog Logger = LogManager.GetLogger(typeof (DebugReplicationHelper));
+		public ILog Logger = LogManager.GetLogger(typeof(DebugReplicationHelper));
 
 		public int ExportCoreCount;
 
@@ -35,8 +35,7 @@ namespace PrgData.Common
 
 		public void CopyActivePrices()
 		{
-			if (!_updateData.EnableImpersonalPrice)
-			{
+			if (!_updateData.EnableImpersonalPrice) {
 				_command.CommandText =
 					@"
 drop temporary table if exists CopyActivePrices;
@@ -50,8 +49,7 @@ select * from ActivePrices;
 
 		public void FillTable(string tableName, string sql)
 		{
-			if (!_updateData.EnableImpersonalPrice)
-			{
+			if (!_updateData.EnableImpersonalPrice) {
 				var dataAdapter = new MySqlDataAdapter(_command);
 				_command.CommandText = sql;
 				var table = new DataTable(tableName);
@@ -74,8 +72,7 @@ and CopyActivePrices.RegionCode = ActivePrices.RegionCode
 and CopyActivePrices.Fresh != ActivePrices.Fresh
 ";
 			var countDistictActivePrices = Convert.ToInt32(_command.ExecuteScalar());
-			if (countDistictActivePrices > 0)
-			{
+			if (countDistictActivePrices > 0) {
 				_reasons.Add("ActivePrices после получения предложений была изменена");
 				FillTable(
 					"DistictActivePrices",
@@ -101,8 +98,7 @@ from
 ");
 			}
 
-			if (ExportCoreCount > 0)
-			{
+			if (ExportCoreCount > 0) {
 				_command.CommandText = @"
 select
   count(*)
@@ -113,8 +109,7 @@ where
   c0.Id is null
 ";
 				var countNotExistsCore = Convert.ToInt32(_command.ExecuteScalar());
-				if (countNotExistsCore > 0)
-				{
+				if (countNotExistsCore > 0) {
 					_reasons.Add("во временной таблице Core существуют позиции, которых нет в Core0");
 					FillTable(
 						"NotExistsCore",
@@ -144,13 +139,11 @@ AND IF(?Cumulative, 1, fresh)
 				var expectedCoreCount = Convert.ToInt32(_command.ExecuteScalar());
 				if (_updateData.OfferMatrixPriceId.HasValue && ExportCoreCount < expectedCoreCount)
 					Logger.DebugFormat("Не совпадает кол-во выгруженных предложений в Core для копии, работающей с матрицей предложений: ожидаемое = {0} реальное = {1}", expectedCoreCount, ExportCoreCount);
-				else
-					if (expectedCoreCount != ExportCoreCount)
-					{
-						_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
-						FillTable(
-							"ActivePricesSizes",
-							@"
+				else if (expectedCoreCount != ExportCoreCount) {
+					_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
+					FillTable(
+						"ActivePricesSizes",
+						@"
 select 
   at.PriceCode, 
   at.regioncode, 
@@ -164,7 +157,7 @@ WHERE
    IF(?Cumulative, 1, fresh) 
 group by at.PriceCode, at.regioncode
 ");
-					}
+				}
 			}
 
 			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
@@ -172,12 +165,11 @@ group by at.PriceCode, at.regioncode
 			return _reasons.Count > 0;
 		}
 
-		
+
 		private string DumpTables()
 		{
 			var result = String.Empty;
-			using (var writer = new StringWriter())
-			{
+			using (var writer = new StringWriter()) {
 				foreach (DataTable table in _dataSet.Tables)
 					DumpTable(writer, table);
 
@@ -191,9 +183,10 @@ group by at.PriceCode, at.regioncode
 		{
 			writer.WriteLine(table.TableName + ":");
 			writer.WriteLine();
-			var columnNames = table.Columns.Cast<DataColumn>().Implode(item => item.ColumnName, "\t"); ;
+			var columnNames = table.Columns.Cast<DataColumn>().Implode(item => item.ColumnName, "\t");
+
 			writer.WriteLine(columnNames);
-			writer.WriteLine("-".PadRight(columnNames.Length-1, '-'));
+			writer.WriteLine("-".PadRight(columnNames.Length - 1, '-'));
 
 			foreach (DataRow row in table.Rows)
 				writer.WriteLine(row.ItemArray.Implode("\t"));
@@ -204,10 +197,8 @@ group by at.PriceCode, at.regioncode
 
 		public static string TableToString(DataSet dataSet, string tableName)
 		{
-			using (var writer = new StringWriter())
-			{
-				if (dataSet.Tables.Contains(tableName))
-				{
+			using (var writer = new StringWriter()) {
+				if (dataSet.Tables.Contains(tableName)) {
 					DumpTable(writer, dataSet.Tables[tableName]);
 					return writer.ToString();
 				}
@@ -225,10 +216,10 @@ group by at.PriceCode, at.regioncode
 		{
 			var body = String
 				.Format(
-					"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}\r\nПричины:\r\n{2}", 
-					_updateData.UserName,
-					_updateData.OldUpdateTime,
-					_reasons.Implode("\r\n"));
+				"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}\r\nПричины:\r\n{2}",
+				_updateData.UserName,
+				_updateData.OldUpdateTime,
+				_reasons.Implode("\r\n"));
 			var attachment = DumpTables();
 
 			MailHelper.Mail(body, "при подготовке данных возникли различия во Fresh между PricesData и Core", attachment, null);

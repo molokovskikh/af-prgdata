@@ -15,16 +15,15 @@ namespace Integration
 	[TestFixture]
 	public class OrderHelperFixture
 	{
-		TestClient _client;
-		TestUser _user;
+		private TestClient _client;
+		private TestUser _user;
 
 		[SetUp]
 		public void SetUp()
 		{
 			_client = TestClient.Create();
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				_user = _client.Users[0];
 
 				_client.Users.Each(u => {
@@ -40,12 +39,10 @@ namespace Integration
 		{
 			var userName = _user.Login;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var trans = connection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
 
 					var command = new MySqlCommand(@"
@@ -53,7 +50,7 @@ update usersettings.RetClientsSet set OrderRegionMask = 2 where ClientCode = ?cl
 update Customers.Users set OrderRegionMask = 3 where Id = ?userId ;", connection, trans);
 					command.Parameters.AddWithValue("?userId", updateData.UserId);
 					command.Parameters.AddWithValue("?clientId", updateData.ClientId);
-					command.ExecuteNonQuery();					
+					command.ExecuteNonQuery();
 
 					var updateHelper = new UpdateHelper(updateData, connection);
 
@@ -65,8 +62,7 @@ update Customers.Users set OrderRegionMask = 3 where Id = ?userId ;", connection
 
 					Assert.AreEqual(2, clients.Tables[0].Rows[0]["OrderRegionMask"], "Не выбрали регион из Users");
 				}
-				finally
-				{
+				finally {
 					trans.Rollback();
 				}
 			}

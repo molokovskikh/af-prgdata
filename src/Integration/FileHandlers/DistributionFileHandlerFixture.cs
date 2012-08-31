@@ -56,7 +56,6 @@ namespace Integration
 		public void CheckNonExistsFile()
 		{
 			WithHttpContext(context => {
-
 				var fileHandler = new GetDistributionFileHandler();
 				fileHandler.ProcessRequest(context);
 
@@ -77,7 +76,6 @@ namespace Integration
 				version,
 				fileName,
 				context => {
-
 					var fileHandler = new GetDistributionFileHandler();
 
 					var requestedFileName = fileHandler.GetDistributionFileName(context);
@@ -106,7 +104,6 @@ namespace Integration
 				version,
 				fileName,
 				context => {
-
 					var fileHandler = new GetDistributionFileHandler();
 					fileHandler.outputStream = new MemoryStream();
 
@@ -129,6 +126,5 @@ namespace Integration
 
 			ProcessFileRequest(requestVersion, "Frf\\BigRackCard.Frf", bigRackCardFrfFileName);
 		}
-
 	}
 }

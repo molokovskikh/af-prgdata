@@ -39,8 +39,7 @@ protected string RawRequest(string fileName, string queryString)
 			Assert.IsNotNullOrEmpty(FileHanderAshxName, "Для теста не установлено свойство FileHanderAshxName");
 
 			var output = new StringBuilder();
-			using (var sw = new StringWriter(output))
-			{
+			using (var sw = new StringWriter(output)) {
 				var response = new HttpResponse(sw);
 				var request = new HttpRequest(FileHanderAshxName, "http://127.0.0.1/" + FileHanderAshxName, queryParams);
 				var context = new HttpContext(request, response);
@@ -48,6 +47,5 @@ protected string RawRequest(string fileName, string queryString)
 				action(context);
 			}
 		}
-
 	}
 }

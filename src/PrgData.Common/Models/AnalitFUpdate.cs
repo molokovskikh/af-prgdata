@@ -54,8 +54,7 @@ select last_insert_id()",
 				new MySqlParameter("?ClientHost", updateData.ClientHost),
 				new MySqlParameter("?ResultSize", resultSize),
 				new MySqlParameter("?Commit", commit),
-				new MySqlParameter("?Log", log)
-			));
+				new MySqlParameter("?Log", log)));
 			return uid;
 		}
 
@@ -67,8 +66,7 @@ select last_insert_id()",
 
 		public static void ProcessExportMails(UpdateData updateData, MySqlConnection connection, uint? updateId)
 		{
-			if (updateData.ExportMails.Count > 0 || updateData.SuccesAttachmentsExists())
-			{
+			if (updateData.ExportMails.Count > 0 || updateData.SuccesAttachmentsExists()) {
 				var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
 				try {
 					String sql = String.Empty;
@@ -77,7 +75,7 @@ select last_insert_id()",
 						sql += "update Logs.MailSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and MailId in (" + updateData.ExportMails.Select(e => e.MiniMailId).Implode() + ");";
 
 					if (updateData.SuccesAttachmentsExists())
-						sql += "update Logs.AttachmentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and AttachmentId in ("+ updateData.SuccesAttachmentIds().Implode() + ");";
+						sql += "update Logs.AttachmentSendLogs set UpdateId = ?UpdateId where UserId = ?UserId and AttachmentId in (" + updateData.SuccesAttachmentIds().Implode() + ");";
 
 					if (!String.IsNullOrEmpty(sql))
 						MySqlHelper.ExecuteNonQuery(
@@ -88,8 +86,7 @@ select last_insert_id()",
 
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
@@ -109,10 +106,9 @@ values (?UpdateId, ?DocumentBodyId, ?CertificateId, ?Filename)";
 				var files = request.SendedFiles;
 				//нам нужно запротоколировать то что файл мы не нашли
 				if (files.Count == 0) {
-					files = new List<string>{ null };
+					files = new List<string> { null };
 				}
-				foreach (var file in files)
-				{
+				foreach (var file in files) {
 					command.Parameters["UpdateId"].Value = updateId;
 					command.Parameters["DocumentBodyId"].Value = request.DocumentBodyId;
 					command.Parameters["CertificateId"].Value = request.CertificateId;

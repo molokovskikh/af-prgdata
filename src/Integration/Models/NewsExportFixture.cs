@@ -68,6 +68,5 @@ namespace Integration.Models
 				Assert.That(newsExport.AllowArchiveFiles(RequestType.RequestAttachments), Is.False);
 			});
 		}
-
 	}
 }

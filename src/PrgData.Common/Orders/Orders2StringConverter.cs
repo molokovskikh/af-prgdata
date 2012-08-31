@@ -15,8 +15,7 @@ namespace PrgData.Common.Orders
 			OrderHead = new StringBuilder();
 			OrderItems = new StringBuilder();
 
-			foreach (var order in orders)
-			{
+			foreach (var order in orders) {
 				order.RowId = maxOrderId;
 				maxOrderId++;
 				OrderHead.AppendFormat(
@@ -26,8 +25,7 @@ namespace PrgData.Common.Orders
 					order.PriceList.PriceCode,
 					order.RegionCode,
 					exportSendDate ? string.Format("\t{0}", order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")) : "");
-				foreach (var item in order.OrderItems)
-				{
+				foreach (var item in order.OrderItems) {
 					item.RowId = maxOrderListId;
 					maxOrderListId++;
 

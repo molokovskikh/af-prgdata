@@ -22,7 +22,7 @@ namespace PrgData.Common
 	public class Reclame
 	{
 		public string Region { get; set; }
-		public DateTime ReclameDate { get; set;}
+		public DateTime ReclameDate { get; set; }
 		public bool ShowAdvertising { get; set; }
 		public UpdateData UpdateData { get; set; }
 
@@ -36,12 +36,12 @@ namespace PrgData.Common
 			if (UpdateData == null)
 				throw new Exception("Не установлено свойство UpdateData");
 
-			var excludeList = UpdateData.AllowMatchWaybillsToOrders() ? new string[] {"01.htm", "02.htm", "2b.gif", "Inforrom-logo.gif"} : new string[] {"index.htm", "2block.gif"};
+			var excludeList = UpdateData.AllowMatchWaybillsToOrders() ? new string[] { "01.htm", "02.htm", "2b.gif", "Inforrom-logo.gif" } : new string[] { "index.htm", "2block.gif" };
 
-			return (from file in fileNames 
-					let extractFileName = Path.GetFileName(file) 
-					where !excludeList.Any(f => f.Equals(extractFileName, StringComparison.OrdinalIgnoreCase)) 
-					select file).ToArray();
+			return (from file in fileNames
+				let extractFileName = Path.GetFileName(file)
+				where !excludeList.Any(f => f.Equals(extractFileName, StringComparison.OrdinalIgnoreCase))
+				select file).ToArray();
 		}
 
 		public string[] GetReclameFiles(string reclamePath)
@@ -49,7 +49,7 @@ namespace PrgData.Common
 			if (Directory.Exists(reclamePath))
 				return ExcludeFileNames(Directory.GetFiles(reclamePath));
 
-			return new string[] {};
+			return new string[] { };
 		}
 
 		public void SetUncommitedReclameDate(MySqlConnection connection, DateTime uncommitedReclameDate)
@@ -93,7 +93,7 @@ namespace PrgData.Common
 		{
 			var downloadUrl = GetDownloadUrl();
 			if (downloadUrl.EndsWith("/"))
-				downloadUrl = downloadUrl.Slice(downloadUrl.Length-1);
+				downloadUrl = downloadUrl.Slice(downloadUrl.Length - 1);
 			return downloadUrl + "/" + handlerName;
 		}
 
@@ -116,8 +116,7 @@ where
 	(PricesCosts.PriceCode = ?PriceCode)
 and (PriceItems.Id = PricesCosts.PriceItemId)
 and (PricesCosts.CostCode = ?CostCode)
-"
-				,
+",
 				new MySqlParameter("?PriceCode", MaxProducerCostsPriceId),
 				new MySqlParameter("?CostCode", maxProducerCostsCostId));
 			return (costId != null);
@@ -134,8 +133,7 @@ where
 	(PricesCosts.CostCode = ?CostCode)
 and (PriceItems.Id = PricesCosts.PriceItemId)
 and (PriceItems.LastFormalization > ?UpdateTime)
-"
-				,
+",
 				new MySqlParameter("?CostCode", maxProducerCostsCostId),
 				new MySqlParameter("?UpdateTime", _updateData.OldUpdateTime));
 			return (fresh != null);
@@ -167,8 +165,7 @@ and (cc.Core_Id = c.Id)
 and (cc.PC_CostCode = {1})
 and (p.Id = c.ProductId)
 and (s.SynonymCode = c.SynonymCode)
-"
-				,
+",
 				MaxProducerCostsPriceId,
 				maxProducerCostsCostId);
 		}
@@ -179,8 +176,7 @@ and (s.SynonymCode = c.SynonymCode)
 
 			command.Connection = _readWriteConnection;
 
-			if (_updateData.EnableImpersonalPrice)
-			{
+			if (_updateData.EnableImpersonalPrice) {
 				command.CommandText = @"
 INSERT
 INTO   Usersettings.AnalitFReplicationInfo 
@@ -284,6 +280,7 @@ SELECT
 	u.AllowDownloadUnconfirmedOrders,
 	u.SendWaybills,
 	u.SendRejects,
+	u.WorkRegionMask as RegionMask,
 	ap.UserId is not null as AFPermissionExists
 FROM  
   Customers.users u
@@ -309,8 +306,7 @@ and AnalitFUpdates.UserId = u.Id
 and AnalitFUpdates.RequestTime > curdate() - interval 1 day
 and AnalitFUpdates.UpdateType IN (1, 2, 10, 16, 17, 18, 19) 
 order by AnalitFUpdates.UpdateId desc
-limit 1;"
-				, 
+limit 1;",
 				connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?user", userName);
 
@@ -341,8 +337,7 @@ WHERE r.clientcode = ?ClientCode
 			var smartOrderData = new DataSet();
 			dataAdapter.Fill(smartOrderData);
 
-			if (smartOrderData.Tables[0].Rows.Count > 0)
-			{
+			if (smartOrderData.Tables[0].Rows.Count > 0) {
 				var row = smartOrderData.Tables[0].Rows[0];
 				updateData.OffersClientCode = Convert.ToUInt32(row["OffersClientCode"]);
 				if (!(row["OfferRegionCode"] is DBNull))
@@ -404,8 +399,7 @@ FROM Customers.Clients c
 WHERE u.Id = ?UserId", _readWriteConnection);
 
 			command.Parameters.AddWithValue("?UserId", _updateData.UserId);
-			using (var reader = command.ExecuteReader())
-			{
+			using (var reader = command.ExecuteReader()) {
 				reader.Read();
 				var reclame = new Reclame {
 					Region = reader.GetString("region"),
@@ -452,8 +446,7 @@ GROUP BY 1;";
 
 		public void FillParentCodes()
 		{
-			if (!_updateData.EnableImpersonalPrice)
-			{
+			if (!_updateData.EnableImpersonalPrice) {
 				var commandText = @"
 CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
 		SELECT   PriceSynonymCode PriceCode,
@@ -472,7 +465,7 @@ CREATE TEMPORARY TABLE ParentCodes ENGINE=memory
 		{
 			//Cleanup();
 			var commandclear = new MySqlCommand("drop temporary table IF EXISTS MaxCodesSynFirmCr, MaxCodesSyn;",
-												_readWriteConnection);
+				_readWriteConnection);
 			commandclear.ExecuteNonQuery();
 
 			var commandText = String.Empty;
@@ -517,7 +510,7 @@ WHERE  AFRI.UserId                =  ?UserId;";
 
 			if (!_updateData.EnableImpersonalPrice)
 				commandText +=
-				@"
+					@"
 UPDATE AnalitFReplicationInfo AFRI, 
 	   MaxCodesSynFirmCr            
 SET    UncMaxSynonymFirmCrCode    = MaxCodesSynFirmCr.synonymcode 
@@ -745,11 +738,10 @@ from
 where
 	DocumentHeaders.DownloadId in ({0})
 and DocumentBodies.DocumentId = DocumentHeaders.Id
-"
-				,
+",
 				downloadIds,
-				!_updateData.AllowDelayWithVitallyImportant() 
-					? String.Empty 
+				!_updateData.AllowDelayWithVitallyImportant()
+					? String.Empty
 					: @"
   ,
   DocumentBodies.Amount,
@@ -783,8 +775,7 @@ from
 where
 	DocumentHeaders.DownloadId in ({0})
 and DocumentBodies.DocumentId = DocumentHeaders.Id
-and WaybillOrders.DocumentLineId = DocumentBodies.Id"
-				, 
+and WaybillOrders.DocumentLineId = DocumentBodies.Id",
 				downloadIds);
 		}
 
@@ -821,8 +812,7 @@ from
 	inner join documents.InvoiceHeaders on InvoiceHeaders.Id = DocumentHeaders.Id
 where
 	DocumentHeaders.DownloadId in ({0})
-"
-				,
+",
 				downloadIds);
 		}
 
@@ -843,16 +833,15 @@ FROM
   left join Customers.UserAddresses ua on ua.UserId = u.Id
   left join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
 WHERE u.Id = " + _updateData.UserId +
-@"
+				@"
 limit 1";
 		}
 
 		public string GetClientsCommand()
 		{
 			var networkSelfAddressIdColumn = " , null as SelfAddressId ";
-			var networkSelfAddressIdJoin = String.Empty; 
-			if (_updateData.NetworkPriceId.HasValue)
-			{
+			var networkSelfAddressIdJoin = String.Empty;
+			if (_updateData.NetworkPriceId.HasValue) {
 				networkSelfAddressIdColumn = _updateData.NetworkPriceId.HasValue ? ", ai.SupplierDeliveryId as SelfAddressId " : ", a.Id as SelfAddressId";
 				networkSelfAddressIdJoin =
 					_updateData.NetworkPriceId.HasValue
@@ -862,8 +851,7 @@ limit 1";
 						: "";
 			}
 
-			if (_updateData.BuildNumber > 1271 || _updateData.NeedUpdateToNewClientsWithLegalEntity)
-			{
+			if (_updateData.BuildNumber > 1271 || _updateData.NeedUpdateToNewClientsWithLegalEntity) {
 				var clientShortNameField = "right(a.Address, 255)";
 				var orgCount = MySqlHelper.ExecuteScalar(_readWriteConnection, @"
 	SELECT 
@@ -878,10 +866,10 @@ limit 1";
 	and a.Enabled = 1
 ", new MySqlParameter("?UserId", _updateData.UserId));
 				if (Convert.ToInt32(orgCount) > 1)
-						clientShortNameField = "concat(left(le.Name, 100), ', ', right(a.Address, 153))";
+					clientShortNameField = "concat(left(le.Name, 100), ', ', right(a.Address, 153))";
 
-					return String.Format(
-						@"
+				return String.Format(
+					@"
 	SELECT a.Id as FirmCode,
 		 {0} as ShortName,
 		 ifnull(?OffersRegionCode, c.RegionCode) as RegionCode,
@@ -905,10 +893,10 @@ limit 1";
 		u.Id = ?UserId
 	and a.Enabled = 1
 ",
-				clientShortNameField,
-				networkSelfAddressIdColumn,
-				networkSelfAddressIdJoin,
-				_updateData.AllowExcessAvgOrderTimes ? " , rcs.ExcessAvgOrderTimes " : "");
+					clientShortNameField,
+					networkSelfAddressIdColumn,
+					networkSelfAddressIdJoin,
+					_updateData.AllowExcessAvgOrderTimes ? " , rcs.ExcessAvgOrderTimes " : "");
 			}
 			return String.Format(@"
 	SELECT a.Id as FirmCode,
@@ -939,9 +927,9 @@ limit 1";
 		{
 			var techInfo = String.Empty;
 			if (_updateData.AllowMatchWaybillsToOrders())
-				techInfo = 
-					_updateData.AllowCorrectTechContact() ? 
-						", c.RegionCode as HomeRegion, regions.TechContact, regions.TechOperatingMode " 
+				techInfo =
+					_updateData.AllowCorrectTechContact() ?
+						", c.RegionCode as HomeRegion, regions.TechContact, regions.TechOperatingMode "
 						: ", c.RegionCode as HomeRegion, concat('<tr> <td class=\"contactText\">', regions.TechContact, '</td> </tr>') as TechContact, concat('<tr> <td class=\"contactText\">', regions.TechOperatingMode, '</td> </tr>') as TechOperatingMode ";
 
 			return String.Format(@"
@@ -973,8 +961,7 @@ WHERE u.Id = ?UserId
 		{
 			if (_updateData.EnableImpersonalPrice)
 				return "select null from Customers.Clients limit 0";
-			else if (_updateData.AllowDelayByPrice())
-			{
+			else if (_updateData.AllowDelayByPrice()) {
 				return @"
 select
 	pi.PriceId,
@@ -990,8 +977,7 @@ from
 where
 	   u.Id = ?UserId";
 			}
-			else if (_updateData.AllowDelayWithVitallyImportant())
-			{
+			else if (_updateData.AllowDelayWithVitallyImportant()) {
 				return @"
 select
 	si.SupplierId,
@@ -1008,8 +994,7 @@ where
 	   u.Id = ?UserId
 group by si.SupplierId, d.DayOfWeek";
 			}
-			else
-			{
+			else {
 				return @"
 select
 	   si.SupplierId   ,
@@ -1025,8 +1010,7 @@ where
 
 		public string GetMNNCommand(bool before1150, bool after1263)
 		{
-			if (before1150)
-			{
+			if (before1150) {
 				return @"
 select
   Mnn.Id,
@@ -1037,19 +1021,17 @@ from
 where
   if(not ?Cumulative, Mnn.UpdateTime > ?CatalogUpdateTime, 1)";
 			}
-			else
-				if (after1263)
-				{
-					if (_updateData.Cumulative)
-						return @"
+			else if (after1263) {
+				if (_updateData.Cumulative)
+					return @"
 select
   Mnn.Id,
   Mnn.Mnn,
   0 as Hidden
 from
   catalogs.Mnn";
-					else
-						return @"
+				else
+					return @"
 select
   Mnn.Id,
   Mnn.Mnn,
@@ -1069,11 +1051,9 @@ where
 	(MnnLogs.LogTime >= ?CatalogUpdateTime)
 and (MnnLogs.Operation = 2)
 ";
-				}
-				else
-				{
-					if (_updateData.Cumulative)
-						return @"
+			}
+			else if (_updateData.Cumulative)
+				return @"
 select
   Mnn.Id,
   Mnn.Mnn,
@@ -1081,8 +1061,8 @@ select
   0 as Hidden
 from
   catalogs.Mnn";
-					else
-						return @"
+			else
+				return @"
 select
   Mnn.Id,
   Mnn.Mnn,
@@ -1104,13 +1084,11 @@ where
 	(MnnLogs.LogTime >= ?CatalogUpdateTime)
 and (MnnLogs.Operation = 2)
 ";
-				}
 		}
 
 		public string GetDescriptionCommand(bool before1150)
 		{
-			if (before1150)
-			{
+			if (before1150) {
 				return @"
 select
   Descriptions.Id,
@@ -1133,8 +1111,7 @@ where
   if(not ?Cumulative, Descriptions.UpdateTime > ?CatalogUpdateTime, 1)
 and Descriptions.NeedCorrect = 0";
 			}
-			else
-				if (_updateData.Cumulative)
+			else if (_updateData.Cumulative)
 				return @"
 select
   Descriptions.Id,
@@ -1204,207 +1181,6 @@ and (DescriptionLogs.Operation = 2)
 ";
 		}
 
-		public string GetProducerCommand(bool Cumulative)
-		{
-			if (Cumulative)
-				return @"
-	select
-	  Producers.Id,
-	  Producers.Name,
-	  0 as Hidden
-	from
-	  catalogs.Producers
-	where
-		(Producers.Id > 1)";
-			else
-				return @"
-	select
-	  Producers.Id,
-	  Producers.Name,
-	  0 as Hidden
-	from
-	  catalogs.Producers
-	where
-		(Producers.Id > 1)
-	and Producers.UpdateTime > ?UpdateTime
-	union
-	select
-	  ProducerLogs.ProducerId,
-	  ProducerLogs.Name,
-	  1 as Hidden
-	from
-	  logs.ProducerLogs
-	where
-		(ProducerLogs.LogTime >= ?UpdateTime) 
-	and (ProducerLogs.Operation = 2)        
-	  ";
-		}
-
-		private string GetAbstractPromotionsCommand()
-		{
-			return
-				@"
-select
-	log.PromotionId as Id,
-	0 as Status,
-	log.SupplierId,
-	log.Name,
-	log.Annotation,
-	log.PromoFile,
-	log.Begin,
-	log.End
-from
-	logs.SupplierPromotionLogs log
-where
-	log.LogTime > '2011-03-01'
-and log.Operation = 2
-and not ?Cumulative
-union
-select
-	SupplierPromotions.Id,
-	SupplierPromotions.Status,
-	SupplierPromotions.SupplierId,
-	SupplierPromotions.Name,
-	SupplierPromotions.Annotation,
-	SupplierPromotions.PromoFile,
-	SupplierPromotions.Begin,
-	SupplierPromotions.End
-from
-	usersettings.SupplierPromotions	
-where";
-		}
-
-		public string GetPromotionsCommand()
-		{
-			return GetAbstractPromotionsCommand() +
-@"
-	if(not ?Cumulative, 1, SupplierPromotions.Status)
-	";
-		}
-
-		public string GetPromotionsCommandById(List<uint> promotionIds)
-		{
-			return
-				GetAbstractPromotionsCommand() +
-				string.Format("  SupplierPromotions.Id in ({0})", promotionIds.Implode());
-		}
-
-		public string GetPromotionCatalogsCommandById(List<uint> promotionIds)
-		{
-			return
-				String.Format(
-				@"
-select 
-  CatalogId,
-  PromotionId,
-  1 as Hidden
-from
-  logs.PromotionCatalogLogs
-where
-	LogTime > ?UpdateTime
-and Operation = 2
-and not ?Cumulative
-union
-select 
-  CatalogId,
-  PromotionId,
-  0 as Hidden
-from
-  usersettings.PromotionCatalogs
-where
-  PromotionId in ({0})
-", promotionIds.Implode());
-		}
-
-		public List<SupplierPromotion> GetPromotionsList(MySqlCommand sqlCommand)
-		{
-			var list = new List<SupplierPromotion>();
-
-			if (!_updateData.ShowAdvertising)
-				return list;
-
-			var dataAdapter = new MySqlDataAdapter(sqlCommand);
-			var dataTable = new DataTable();
-			bool oldCumulative = false;
-
-			try
-			{
-				if (sqlCommand.Parameters.Contains("?Cumulative"))
-				{
-					oldCumulative = Convert.ToBoolean(sqlCommand.Parameters["?Cumulative"].Value);
-					if (_updateData.NeedUpdateToSupplierPromotions)
-						sqlCommand.Parameters["?Cumulative"].Value = true;
-				}
-				sqlCommand.CommandText = GetPromotionsCommand();
-				dataAdapter.Fill(dataTable);
-			}
-			finally
-			{
-				if (sqlCommand.Parameters.Contains("?Cumulative"))
-					sqlCommand.Parameters["?Cumulative"].Value = oldCumulative;
-			}
-
-			foreach (DataRow row in dataTable.Rows)
-			{
-				list.Add(
-					new SupplierPromotion 
-					{ 
-						Id = Convert.ToUInt32(row["Id"]),
-						Status = Convert.ToBoolean(row["Status"])
-					});
-			}
-			return list;
-		}
-
-		public void ArchivePromotions(MySqlConnection connection, string archiveFileName, DateTime currentUpdateTime, ref string addition, Queue<FileForArchive> filesForArchive)
-		{
-			var log = LogManager.GetLogger(typeof(UpdateHelper));
-
-			try
-			{
-				log.Debug("Будем выгружать акции");
-
-				var command = new MySqlCommand();
-				command.Connection = connection;
-				SetUpdateParameters(command, currentUpdateTime);
-
-				ExportSupplierPromotions(archiveFileName, command, filesForArchive);
-
-				ArchivePromoFiles(archiveFileName);
-			}
-			catch (Exception exception)
-			{
-				log.Error("Ошибка при архивировании акций поставщиков", exception);
-				addition += "Архивирование акций поставщиков: " + exception.Message + "; ";
-
-				ShareFileHelper.MySQLFileDelete(archiveFileName);
-			}
-		}
-
-		private void ArchivePromoFiles(string archiveFileName)
-		{
-			var promotionsFolder = "Promotions";
-			var promotionsPath = Path.Combine(_updateData.ResultPath, promotionsFolder);
-			if (!Directory.Exists(promotionsPath))
-				Directory.CreateDirectory(promotionsPath);
-
-			foreach (var supplierPromotion in _updateData.SupplierPromotions)
-			{
-				if (supplierPromotion.Status)
-				{
-					var files = Directory.GetFiles(promotionsPath, supplierPromotion.Id + "*");
-					if (files.Length > 0)
-					{
-						SevenZipHelper.ArchiveFilesWithNames(
-							archiveFileName,
-							Path.Combine(promotionsFolder, supplierPromotion.Id + "*"),
-							_updateData.ResultPath);
-					}
-				}
-			}
-		}
-
-
 		public void ArchiveCertificates(MySqlConnection connection,
 			string archiveFileName,
 			DateTime currentUpdateTime,
@@ -1415,8 +1191,7 @@ where
 		{
 			var log = LogManager.GetLogger(typeof(UpdateHelper));
 
-			try
-			{
+			try {
 				log.Debug("Будем выгружать сертификаты");
 
 				var command = new MySqlCommand();
@@ -1427,8 +1202,7 @@ where
 
 				updateLog = ArchiveCertificatesFiles(archiveFileName, command);
 			}
-			catch (Exception exception)
-			{
+			catch (Exception exception) {
 				log.Error("Ошибка при архивировании сертификатов", exception);
 				addition += "Архивирование сертификатов: " + exception.Message + "; ";
 
@@ -1585,9 +1359,9 @@ where
 		{
 			var showWithoutSuppliers = Convert.ToBoolean(
 				MySqlHelper.ExecuteScalar(
-				command.Connection, 
-				"select ShowCertificatesWithoutRefSupplier from UserSettings.RetClientsSet where ClientCode = ?clientId", 
-				new MySqlParameter("?clientId", _updateData.ClientId)));
+					command.Connection,
+					"select ShowCertificatesWithoutRefSupplier from UserSettings.RetClientsSet where ClientCode = ?clientId",
+					new MySqlParameter("?clientId", _updateData.ClientId)));
 
 			if (showWithoutSuppliers)
 				command.CommandText = @"
@@ -1603,7 +1377,7 @@ where
 	where
 		db.Id = ?bodyId
 ";
-			else 
+			else
 				command.CommandText = @"
 	select
 		c.Id as CertificateId,
@@ -1646,14 +1420,12 @@ where
 			ShareFileHelper.WaitFile(fullPathFile);
 #endif
 
-			try
-			{
+			try {
 				SevenZipHelper.ArchiveFiles(archiveFileName, fullPathFile);
 				var log = LogManager.GetLogger(typeof(UpdateHelper));
 				log.DebugFormat("файл для архивации: {0}", fullPathFile);
 			}
-			catch
-			{
+			catch {
 				ShareFileHelper.MySQLFileDelete(archiveFileName);
 				throw;
 			}
@@ -1671,8 +1443,7 @@ where
 			foreach (var request in _updateData.CertificateRequests) {
 				foreach (var fileId in request.CertificateFiles) {
 					var files = Directory.GetFiles(certificatesPath, fileId + ".*");
-					if (files.Length > 0)
-					{
+					if (files.Length > 0) {
 						SevenZipHelper.ArchiveFilesWithNames(
 							archiveFileName,
 							Path.Combine(certificatesFolder, fileId + ".*"),
@@ -1709,12 +1480,10 @@ where db.Id in ({0})
 			var writer = new StringWriter();
 			writer.WriteLine("Отправлены сертификаты:");
 
-			foreach (var row in table.AsEnumerable())
-			{
+			foreach (var row in table.AsEnumerable()) {
 				var id = Convert.ToUInt32(row["id"]);
 				var files = sended.Where(s => s.DocumentBodyId == id).SelectMany(s => s.SendedFiles);
-				foreach (var file in files)
-				{
+				foreach (var file in files) {
 					writer.WriteLine("Номер документа = {0}, Сопоставленный продукт = {1}, Файл = {2}",
 						row["DownloadId"],
 						row["Name"],
@@ -1731,10 +1500,8 @@ where db.Id in ({0})
 			var SQL = SQLText;
 			bool oldCumulative = false;
 
-			try
-			{
-				if(SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
-				{
+			try {
+				if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative")) {
 					oldCumulative = Convert.ToBoolean(MyCommand.Parameters["?Cumulative"].Value);
 					MyCommand.Parameters["?Cumulative"].Value = true;
 				}
@@ -1749,22 +1516,18 @@ where db.Id in ({0})
 				MyCommand.CommandText = SQL;
 				MyCommand.ExecuteNonQuery();
 			}
-			finally
-			{
+			finally {
 				if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
 					MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
-			
 			}
 
-			if (AddToQueue)
-			{
-				lock (filesForArchive)
-				{
+			if (AddToQueue) {
+				lock (filesForArchive) {
 					filesForArchive.Enqueue(new FileForArchive(FileName, false));
 				}
 			}
 		}
-		
+
 		private string DeleteFileByPrefix(string prefix)
 		{
 			var deletedFile = prefix + _updateData.UserId + ".txt";
@@ -1775,63 +1538,9 @@ where db.Id in ({0})
 			return deletedFile;
 		}
 
-		private void ExportSupplierPromotions(string archiveFileName, MySqlCommand command, Queue<FileForArchive> filesForArchive)
-		{
-			var supplierFile = DeleteFileByPrefix("SupplierPromotions");
-			var catalogFile = DeleteFileByPrefix("PromotionCatalogs");
-
-			var ids = _updateData.SupplierPromotions.Select(promotion => promotion.Id).ToList();
-
-			GetMySQLFileWithDefaultEx("SupplierPromotions", command, GetPromotionsCommandById(ids), false, false, filesForArchive);
-
-#if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.GetFileByLocal(supplierFile));
-#endif
-
-			try
-			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.GetFileByLocal(supplierFile));
-				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.GetFileByLocal(supplierFile));
-			}
-			catch
-			{
-				ShareFileHelper.MySQLFileDelete(archiveFileName);
-				throw;
-			}
-
-			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(supplierFile));
-
-			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(supplierFile));
-
-
-
-			GetMySQLFileWithDefaultEx("PromotionCatalogs", command, GetPromotionCatalogsCommandById(ids), false, false, filesForArchive);
-
-#if DEBUG
-			ShareFileHelper.WaitFile(ServiceContext.GetFileByLocal(catalogFile));
-#endif
-			try
-			{
-				SevenZipHelper.ArchiveFiles(archiveFileName, ServiceContext.GetFileByLocal(catalogFile));
-				var log = LogManager.GetLogger(typeof(UpdateHelper));
-				log.DebugFormat("файл для архивации: {0}", ServiceContext.GetFileByLocal(catalogFile));
-			}
-			catch
-			{
-				ShareFileHelper.MySQLFileDelete(archiveFileName);
-				throw;
-			}
-
-			ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal(catalogFile));
-
-			ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal(catalogFile));
-		}
-
 		public string GetCatalogCommand(bool before1150)
 		{
-			if (before1150)
-			{
+			if (before1150) {
 				return @"
 SELECT 
 	C.Id               ,
@@ -1927,8 +1636,7 @@ AND
 		OR	IF(NOT ?Cumulative, CN.UpdateTime > ?CatalogUpdateTime, 1)
 		OR	IF(NOT ?Cumulative and d.Id is not null, d.UpdateTime > ?CatalogUpdateTime, ?Cumulative)
 		OR	IF(NOT ?Cumulative and rm.Id is not null, {0}, ?Cumulative)
-	)"
-						,
+	)",
 						_updateData.NeedUpdateForRetailMargins() ? "1" : "rm.UpdateTime > ?UpdateTime");
 				}
 			}
@@ -1958,8 +1666,8 @@ WHERE
 AND C.FormId =CF.Id
 AND C.hidden =0
 ";
-		else
-			return @"
+			else
+				return @"
 SELECT 
 	C.Id               ,
 	CN.Id              ,
@@ -2011,16 +1719,13 @@ AND hidden = 0";
 			string offerMatrixProducerNullCondition = " 0 ";
 
 			if (exportInforoomPrice) {
-				if (_updateData.BuyingMatrixPriceId.HasValue)
-				{
-					if (_updateData.BuyingMatrixType == 0)
-					{
+				if (_updateData.BuyingMatrixPriceId.HasValue) {
+					if (_updateData.BuyingMatrixType == 0) {
 						//белый список
 						buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
 						buyingMatrixProducerNullCondition = " 0 ";
 					}
-					else
-					{
+					else {
 						//черный список
 						buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
 						buyingMatrixProducerNullCondition = " 1 ";
@@ -2030,64 +1735,51 @@ AND hidden = 0";
 					//разрешено все
 					buyingMatrixCondition = ", 0 as BuyingMatrixType";
 			}
-			else {
+			else if (_updateData.OfferMatrixPriceId.HasValue) {
 				//Включена матрица предложений
-				if (_updateData.OfferMatrixPriceId.HasValue) {
-
-					if (_updateData.BuyingMatrixPriceId.HasValue) {
-						if (_updateData.BuyingMatrixType == 0)
-						{
-							//белый список
-							buyingMatrixCondition = " if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
-							buyingMatrixProducerNullCondition = " 0 ";
-						}
-						else
-						{
-							//черный список
-							buyingMatrixCondition = " if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
-							buyingMatrixProducerNullCondition = " 1 ";
-						}
+				if (_updateData.BuyingMatrixPriceId.HasValue) {
+					if (_updateData.BuyingMatrixType == 0) {
+						//белый список
+						buyingMatrixCondition = " if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
+						buyingMatrixProducerNullCondition = " 0 ";
 					}
 					else {
-						//разрешено все
-						buyingMatrixCondition = " 0 ";
+						//черный список
+						buyingMatrixCondition = " if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
+						buyingMatrixProducerNullCondition = " 1 ";
 					}
-
-					if (_updateData.OfferMatrixType == 0)
-					{
-						//белый список - попал в список => попал в предложения
-						buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is not null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
-						offerMatrixProducerNullCondition = " 0 ";
-					}
-					else
-					{
-						//черный список - не попал в список => попал в предложения
-						buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
-						offerMatrixProducerNullCondition = " 1 ";
-					}
-
 				}
-				else 
-					//включена матрица закупок
-					if (_updateData.BuyingMatrixPriceId.HasValue) {
-						if (_updateData.BuyingMatrixType == 0)
-						{
-							//белый список
-							buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-							buyingMatrixProducerNullCondition = " 0 ";
-						}
-						else
-						{
-							//черный список
-							buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-							buyingMatrixProducerNullCondition = " 1 ";
-						}
-					}
-					//ничего не включено
-					else {
-						//разрешено все
-						buyingMatrixCondition = ", 0 as BuyingMatrixType";
-					}
+				else {
+					//разрешено все
+					buyingMatrixCondition = " 0 ";
+				}
+				if (_updateData.OfferMatrixType == 0) {
+				//белый список - попал в список => попал в предложения
+					buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is not null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
+					offerMatrixProducerNullCondition = " 0 ";
+				}
+				else {
+					//черный список - не попал в список => попал в предложения
+					buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
+					offerMatrixProducerNullCondition = " 1 ";
+				}
+			}
+			else if (_updateData.BuyingMatrixPriceId.HasValue) {
+				//включена матрица закупок
+				if (_updateData.BuyingMatrixType == 0) {
+					//белый список
+					buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+					buyingMatrixProducerNullCondition = " 0 ";
+				}
+				else {
+					//черный список
+					buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
+					buyingMatrixProducerNullCondition = " 1 ";
+				}
+			}
+			else { //ничего не включено
+				//разрешено все
+				buyingMatrixCondition = ", 0 as BuyingMatrixType";
 			}
 
 			if (exportInforoomPrice)
@@ -2152,9 +1844,9 @@ FROM
 	   CoreProducts A
 ";
 				else
-					return 
+					return
 						String.Format(
-@"
+							@"
 SELECT 
 	   ?ImpersonalPriceId               ,
 	   ?OffersRegionCode                ,
@@ -2223,19 +1915,17 @@ FROM
 	   CoreProducts A
 	   {2}
 
-"
-	,
-		exportBuyingMatrix ? buyingMatrixCondition : "",
-		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
+",
+							exportBuyingMatrix ? buyingMatrixCondition : "",
+							exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @"
   left join catalogs.Products on Products.Id = A.ProductId
   left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(a.CodeFirmCr is null, " + buyingMatrixProducerNullCondition + ", list.ProducerId = a.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
-		exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
+							exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @"
   left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1,  " + buyingMatrixProducerNullCondition + ") and list.PriceId = " + _updateData.BuyingMatrixPriceId : ""
-	 );
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1,  " + buyingMatrixProducerNullCondition + ") and list.PriceId = " + _updateData.BuyingMatrixPriceId : "");
 			else
-				return 
-				String.Format(@"
+				return
+					String.Format(@"
 SELECT CT.PriceCode               ,
 	   CT.regioncode              ,
 	   CT.ProductId               ,
@@ -2275,9 +1965,8 @@ WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
 AND    IF(?Cumulative, 1, fresh)
-group by CT.id, CT.regioncode "
-				,
-				exportSupplierPriceMarkup ? @"
+group by CT.id, CT.regioncode ",
+						exportSupplierPriceMarkup ? @"
 , 
 if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
    null, 
@@ -2291,24 +1980,22 @@ if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
 ) as SupplierPriceMarkup,
 Core.ProducerCost,
 Core.NDS " : "",
-				exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
-				exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @" 
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + buyingMatrixProducerNullCondition +", list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
-				cryptCost ? "CT.CryptCost" : "CT.Cost",
-				exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
-				_updateData.OfferMatrixPriceId.HasValue ? @" 
+						exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
+						exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @"
+  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + buyingMatrixProducerNullCondition + ", list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+						cryptCost ? "CT.CryptCost" : "CT.Cost",
+						exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
+						_updateData.OfferMatrixPriceId.HasValue ? @"
   left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + offerMatrixProducerNullCondition + ", offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
   left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode " : "",
-				_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : ""
-				);
+						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "");
 		}
 
 		public string GetSynonymFirmCrCommand(bool cumulative)
-		{ 
+		{
 			var sql = String.Empty;
 
-			if (_updateData.EnableImpersonalPrice)
-			{
+			if (_updateData.EnableImpersonalPrice) {
 				sql = @"
 select
 	Producers.Id as synonymfirmcrcode,
@@ -2320,8 +2007,7 @@ where
 				if (!cumulative)
 					sql += " and Producers.UpdateTime > ?UpdateTime ";
 			}
-			else
-			{
+			else {
 				sql = @"
 SELECT synonymfirmcr.synonymfirmcrcode,
 	   LEFT(SYNONYM, 250)
@@ -2346,8 +2032,7 @@ SELECT 1,
 		{
 			var sql = String.Empty;
 
-			if (_updateData.EnableImpersonalPrice)
-			{
+			if (_updateData.EnableImpersonalPrice) {
 				sql = @"
 
 select 
@@ -2369,8 +2054,7 @@ where
 
 				sql += "group by p.id";
 			}
-			else
-			{
+			else {
 				sql = @"
 SELECT 
   synonym.synonymcode, 
@@ -2390,13 +2074,11 @@ WHERE
 
 		private void InternalUpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
-			With.DeadlockWraper(() =>
-			{
+			With.DeadlockWraper(() => {
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.RepeatableRead);
-				try
-				{
+				try {
 					MySqlHelper.ExecuteNonQuery(
-						_readWriteConnection, 
+						_readWriteConnection,
 						"set @INHost = ?INHost;set @INUser = ?INUser;",
 						new MySqlParameter("?INHost", ServiceContext.GetUserHost()),
 						new MySqlParameter("?INUser", _updateData.UserName));
@@ -2432,8 +2114,7 @@ where not exists (
 					insertCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 					insertCommand.Parameters.Add("?PriceId", MySqlDbType.UInt32);
 					insertCommand.Parameters.Add("?RegionId", MySqlDbType.UInt64);
-					for (var i = 0; i < injobs.Length; i++)
-					{
+					for (var i = 0; i < injobs.Length; i++) {
 						var row = prices.Select("PriceCode = " + priceIds[i] + " and RegionCode = " + regionIds[i]);
 						if (row.Length > 0)
 							addition.Add(String.Format("{0} - {1}", row[0]["FirmName"], injobs[i] ? "вкл" : "выкл"));
@@ -2453,19 +2134,16 @@ where not exists (
 
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
 			});
-
 		}
 
 		public void UpdatePriceSettings(int[] priceIds, long[] regionIds, bool[] injobs)
 		{
-			if (priceIds.Length > 0 && priceIds.Length == regionIds.Length && regionIds.Length == injobs.Length)
-			{
+			if (priceIds.Length > 0 && priceIds.Length == regionIds.Length && regionIds.Length == injobs.Length) {
 				InternalUpdatePriceSettings(priceIds, regionIds, injobs);
 			}
 			else
@@ -2481,8 +2159,7 @@ from
 where
 	(UserId = ?UserId)
 limit 1
-"
-				,
+",
 				new MySqlParameter("?UserId", _updateData.UserId));
 			return (userId != null);
 		}
@@ -2510,7 +2187,7 @@ select
 from
 	UserSettings.RetClientsSet
 where
-	ClientCode = "+ _updateData.ClientId;
+	ClientCode = " + _updateData.ClientId;
 		}
 
 		public string GetMinReqRuleCommand()
@@ -2554,7 +2231,7 @@ where
 		{
 			var commitCommand =
 				String.Format(
-@"
+					@"
 UPDATE AnalitFReplicationInfo
 SET    ForceReplication =0
 WHERE  UserId           = {0}
@@ -2565,12 +2242,11 @@ SET    UpdateDate      =UncommitedUpdateDate,
 #CostSessionKey = null,
 	   MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0)
 WHERE  UserId          = {0};
-"
-					,
+",
 					_updateData.UserId);
 
 			if (String.IsNullOrEmpty(absentPriceCodes))
-				commitCommand += 
+				commitCommand +=
 					String.Format(@"
 UPDATE AnalitFReplicationInfo
 SET    MaxSynonymFirmCrCode    =UncMaxSynonymFirmCrCode
@@ -2581,13 +2257,11 @@ UPDATE AnalitFReplicationInfo
 SET    MaxSynonymCode    =UncMaxSynonymCode
 WHERE  UncMaxSynonymCode!=0
 AND    UserId            = {0};
-"
-						,
+",
 						_updateData.UserId);
-			else
-			{
+			else {
 				commitCommand +=
-				String.Format(@"
+					String.Format(@"
 UPDATE AnalitFReplicationInfo ARI,
 	   PricesData Pd
 SET    MaxSynonymFirmCrCode   =0,
@@ -2613,10 +2287,9 @@ WHERE  ARI.UncMaxSynonymCode!=0
 AND    ARI.UserId            = {0}
 AND    Pd.FirmCode            =ARI.FirmCode
 AND    not (Pd.PriceCode IN ( {1} ));
-"
-					,
-					_updateData.UserId,
-					absentPriceCodes);
+",
+						_updateData.UserId,
+						absentPriceCodes);
 			}
 
 			ProcessCommitCommand(commitCommand);
@@ -2624,7 +2297,7 @@ AND    not (Pd.PriceCode IN ( {1} ));
 
 		public void ResetAbsentPriceCodes(string absentPriceCodes)
 		{
-			var commitCommand = 
+			var commitCommand =
 				String.Format(@"
 UPDATE AnalitFReplicationInfo ARI,
 	   PricesData Pd
@@ -2634,8 +2307,7 @@ SET    MaxSynonymFirmCrCode   =0,
 	   UncMaxSynonymFirmCrCode=0
 WHERE  UserId                 = {0}
 AND    Pd.FirmCode            =ARI.FirmCode
-AND    Pd.PriceCode IN ( {1} );"
-					,
+AND    Pd.PriceCode IN ( {1} );",
 					_updateData.UserId,
 					absentPriceCodes);
 
@@ -2644,9 +2316,9 @@ AND    Pd.PriceCode IN ( {1} );"
 
 		public void CommitExchange()
 		{
-			var commitCommand = 
+			var commitCommand =
 				String.Format(
-@"
+					@"
 UPDATE AnalitFReplicationInfo
 SET    ForceReplication =0
 WHERE  UserId           = {0}
@@ -2667,8 +2339,7 @@ UPDATE AnalitFReplicationInfo
 SET    MaxSynonymCode    =UncMaxSynonymCode
 WHERE  UncMaxSynonymCode!=0
 AND    UserId            = {0};
-"
-					,
+",
 					_updateData.UserId,
 					_updateData.IsConfirmUserMessage() ? "" : ", MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) ");
 
@@ -2679,8 +2350,7 @@ AND    UserId            = {0};
 		{
 			return With.DeadlockWraper(() => {
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					var command = new MySqlCommand("", _readWriteConnection);
 
 					if (updateType != RequestType.ResumeData)
@@ -2692,8 +2362,7 @@ AND    UserId            = {0};
 					transaction.Commit();
 					return updateTime;
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
@@ -2704,8 +2373,7 @@ AND    UserId            = {0};
 		{
 			With.DeadlockWraper(() => {
 				var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					updateData.CostSessionKey = Convert.ToString(MySqlHelper.ExecuteScalar(
 						readWriteConnection,
 						@"
@@ -2716,8 +2384,7 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
@@ -2729,13 +2396,11 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 		{
 			With.DeadlockWraper(() => {
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					MySqlHelper.ExecuteNonQuery(_readWriteConnection, commitCommand);
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
@@ -2744,8 +2409,7 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 
 		public void SetForceReplication()
 		{
-			With.DeadlockWraper(() =>
-			{
+			With.DeadlockWraper(() => {
 				var commandText = @"
 
 UPDATE AnalitFReplicationInfo AFRI 
@@ -2782,8 +2446,7 @@ from
 	inner join Catalogs.CatalogNames CN on CN.Id = c.NameId
 where
 	p.Id in ({0})
-and p.Hidden = 0"
-					,
+and p.Hidden = 0",
 					_updateData.MissingProductIds.Implode());
 				var catalogUpdateTime = selectComand.ExecuteScalar();
 				if (catalogUpdateTime != null && catalogUpdateTime is DateTime)
@@ -2879,8 +2542,7 @@ FROM
    UserSettings.PricesData
 where
   PricesData.PriceCode = ?ImpersonalPriceId
-limit 1"
-					,
+limit 1",
 					_updateData.AllowAfter1883() ? ", null as Address " : string.Empty);
 			else
 				return String.Format(@"
@@ -2897,17 +2559,14 @@ FROM
 				customers.Suppliers
 WHERE           regionaldata.firmcode  = Prices.firmcode
 AND             regionaldata.regioncode= Prices.regioncode
-and				Suppliers.Id = regionaldata.firmcode"
-					,
+and				Suppliers.Id = regionaldata.firmcode",
 					_updateData.AllowAfter1883() ? " ContactInfo " : "concat(if(Suppliers.Address is not null and Length(Suppliers.Address) > 0, concat(Suppliers.Address, '\r\n'), ''), ContactInfo) as ContactInfo",
-					_updateData.AllowAfter1883() ? ", Suppliers.Address " : string.Empty
-					);
+					_updateData.AllowAfter1883() ? ", Suppliers.Address " : string.Empty);
 		}
 
 		public void PrepareProviderContacts(MySqlCommand selectCommand)
 		{
-			if (!_updateData.EnableImpersonalPrice)
-			{
+			if (!_updateData.EnableImpersonalPrice) {
 				selectCommand.CommandText = @"
 DROP TEMPORARY TABLE IF EXISTS ProviderContacts;
 
@@ -3011,7 +2670,7 @@ FROM
 WHERE    
    pd.PriceCode = ?ImpersonalPriceId
 ";
-			else 
+			else
 				return String.Format(@"
 SELECT   
 		 Prices.FirmCode ,
@@ -3034,13 +2693,12 @@ AND      ARI.FirmCode    = Prices.FirmCode
 AND      ARI.UserId      = ?UserId
 GROUP BY Prices.FirmCode,
 		 Prices.pricecode",
-						  _updateData.AllowHistoryDocs ? " Prices.pricename " : " concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), '')) ");
+					_updateData.AllowHistoryDocs ? " Prices.pricename " : " concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), '')) ");
 		}
 
 		public void PreparePricesData(MySqlCommand selectCommand)
 		{
-			if (_updateData.EnableImpersonalPrice)
-			{
+			if (_updateData.EnableImpersonalPrice) {
 				selectCommand.CommandText = "select max(PriceDate) from Prices";
 				var priceDate = Convert.ToDateTime(selectCommand.ExecuteScalar());
 				selectCommand.Parameters["?ImpersonalPriceDate"].Value = priceDate;
@@ -3059,8 +2717,7 @@ where
 				var priceFresh = Convert.ToInt32(selectCommand.ExecuteScalar());
 				selectCommand.Parameters["?ImpersonalPriceFresh"].Value = priceFresh > 0 ? 1 : 0;
 			}
-			else
-			{
+			else {
 				selectCommand.CommandText = @"
 CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY;
 		INSERT
@@ -3077,16 +2734,14 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 		public void ResetReclameDate()
 		{
 			var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-			try
-			{
+			try {
 				var resetCommand = new MySqlCommand("update usersettings.UserUpdateInfo set ReclameDate = NULL where UserId= ?UserId;", _readWriteConnection, transaction);
 				resetCommand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 				resetCommand.ExecuteNonQuery();
 
 				transaction.Commit();
 			}
-			catch
-			{
+			catch {
 				ConnectionHelper.SafeRollback(transaction);
 				throw;
 			}
@@ -3100,8 +2755,7 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 				resetDate = oneMonthOld;
 
 			var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-			try
-			{
+			try {
 				var resetCommand = new MySqlCommand(@"
 update
   logs.AnalitFUpdates afu,
@@ -3140,8 +2794,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 
 				transaction.Commit();
 			}
-			catch
-			{
+			catch {
 				ConnectionHelper.SafeRollback(transaction);
 				throw;
 			}
@@ -3150,21 +2803,18 @@ and OrdersHead.RowId = sendlogs.OrderId;
 		public static void UpdateBuildNumber(MySqlConnection readWriteConnection, UpdateData updateData)
 		{
 			if (!updateData.KnownBuildNumber.HasValue || updateData.KnownBuildNumber < updateData.BuildNumber)
-				With.DeadlockWraper(() =>
-				{
+				With.DeadlockWraper(() => {
 					var command = new MySqlCommand("update usersettings.UserUpdateInfo set AFAppVersion = ?BuildNumber where UserId = ?UserId", readWriteConnection);
 					command.Parameters.AddWithValue("?BuildNumber", updateData.BuildNumber);
 					command.Parameters.AddWithValue("?UserId", updateData.UserId);
 					var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-					try
-					{
+					try {
 						command.Transaction = transaction;
 						command.ExecuteNonQuery();
 
 						transaction.Commit();
 					}
-					catch
-					{
+					catch {
 						ConnectionHelper.SafeRollback(transaction);
 						throw;
 					}
@@ -3178,8 +2828,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 
 		public static void CheckUniqueId(MySqlConnection readWriteConnection, UpdateData updateData, string uniqueId, RequestType request)
 		{
-			With.DeadlockWraper(() =>
-			{
+			With.DeadlockWraper(() => {
 				updateData.UniqueID = uniqueId;
 
 				var command = new MySqlCommand("update UserUpdateInfo set AFCopyId= ?UniqueId where UserId = ?UserId", readWriteConnection);
@@ -3187,48 +2836,43 @@ and OrdersHead.RowId = sendlogs.OrderId;
 				command.Parameters.AddWithValue("?UserId", updateData.UserId);
 
 				var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					command.Transaction = transaction;
 					if (String.IsNullOrEmpty(updateData.KnownUniqueID))
 						command.ExecuteNonQuery();
-					else
-						if (updateData.KnownUniqueID != uniqueId)
-						{
-							string description;
-							switch (request)
-							{
-								case RequestType.SendWaybills:
-									description = "Отправка накладных на данном компьютере запрещена.";
-									break;
-								case RequestType.PostOrderBatch:
-									description = "Отправка дефектуры на данном компьютере запрещена.";
-									break;
-								case RequestType.SendOrder:
-								case RequestType.SendOrders:
-									description = "Отправка заказов на данном компьютере запрещена.";
-									break;
-								case RequestType.PostPriceDataSettings:
-									description = "Изменение настроек прайс-листов на данном компьютере запрещено.";
-									break;
-								case RequestType.GetHistoryOrders:
-									description = "Запрос истории заказов на данном компьютере запрещен.";
-									break;
-								default:
-									description = "Обновление программы на данном компьютере запрещено.";
-									break;
-							}
-
-							throw new UpdateException(description,
-							   "Пожалуйста, обратитесь в АК \"Инфорум\".[2]",
-							   "Несоответствие UIN.",
-							   RequestType.Forbidden);
+					else if (updateData.KnownUniqueID != uniqueId) {
+						string description;
+						switch (request) {
+							case RequestType.SendWaybills:
+								description = "Отправка накладных на данном компьютере запрещена.";
+								break;
+							case RequestType.PostOrderBatch:
+								description = "Отправка дефектуры на данном компьютере запрещена.";
+								break;
+							case RequestType.SendOrder:
+							case RequestType.SendOrders:
+								description = "Отправка заказов на данном компьютере запрещена.";
+								break;
+							case RequestType.PostPriceDataSettings:
+								description = "Изменение настроек прайс-листов на данном компьютере запрещено.";
+								break;
+							case RequestType.GetHistoryOrders:
+								description = "Запрос истории заказов на данном компьютере запрещен.";
+								break;
+							default:
+								description = "Обновление программы на данном компьютере запрещено.";
+								break;
 						}
+
+						throw new UpdateException(description,
+							"Пожалуйста, обратитесь в АК \"Инфорум\".[2]",
+							"Несоответствие UIN.",
+							RequestType.Forbidden);
+					}
 
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
@@ -3237,11 +2881,9 @@ and OrdersHead.RowId = sendlogs.OrderId;
 
 		public void ConfirmUserMessage(string confirmedMessage)
 		{
-			With.DeadlockWraper(() =>
-			{
+			With.DeadlockWraper(() => {
 				var transaction = _readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					if (_updateData.Message.Slice(255).Equals(confirmedMessage.Trim().Slice(255), StringComparison.OrdinalIgnoreCase))
 						MySqlHelper.ExecuteNonQuery(
 							_readWriteConnection,
@@ -3252,25 +2894,22 @@ and OrdersHead.RowId = sendlogs.OrderId;
 	  MessageShowCount = if(MessageShowCount > 0, MessageShowCount - 1, 0) 
 	where
 		UserId = ?UserId",
-						   new MySqlParameter("?UserId", _updateData.UserId));
+							new MySqlParameter("?UserId", _updateData.UserId));
 
 					AnalitFUpdate.InsertAnalitFUpdatesLog(transaction.Connection, _updateData, RequestType.ConfirmUserMessage, confirmedMessage);
 
 					transaction.Commit();
 				}
-				catch
-				{
+				catch {
 					ConnectionHelper.SafeRollback(transaction);
 					throw;
 				}
 			});
-
 		}
 
 		public void UnconfirmedOrdersExport(string exportFolder, Queue<FileForArchive> filesForArchive)
 		{
-			if (_updateData.NeedDownloadUnconfirmedOrders)
-			{
+			if (_updateData.NeedDownloadUnconfirmedOrders) {
 				var exporter = new UnconfirmedOrdersExporter(_updateData, this, exportFolder, filesForArchive);
 				exporter.Export();
 			}
@@ -3290,7 +2929,7 @@ WHERE
 	s.ClientId = ?ClientCode
 and s.Enable = 1
 order by s.Hour, s.Minute";
-				
+
 			return "select null from Customers.Clients limit 0";
 		}
 
@@ -3314,19 +2953,16 @@ order by s.Hour, s.Minute";
 				throw new Exception("Значение updateId при обновлении типа запроса меньше или равно 0: {0}".Format(updateId));
 
 			With.DeadlockWraper(() => {
-										
 				var realUpdateType = MySqlHelper.ExecuteScalar(
 					readWriteConnection,
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", updateId));
 
-				var allowedTypes = new int[] {Convert.ToInt32(RequestType.GetCumulativeAsync), Convert.ToInt32(RequestType.GetLimitedCumulativeAsync), Convert.ToInt32(RequestType.GetDataAsync)};
+				var allowedTypes = new int[] { Convert.ToInt32(RequestType.GetCumulativeAsync), Convert.ToInt32(RequestType.GetLimitedCumulativeAsync), Convert.ToInt32(RequestType.GetDataAsync) };
 
-				if (realUpdateType != null && Convert.ToInt32(realUpdateType) > 0 && allowedTypes.Any(i => i == Convert.ToInt32(realUpdateType)))
-				{
+				if (realUpdateType != null && Convert.ToInt32(realUpdateType) > 0 && allowedTypes.Any(i => i == Convert.ToInt32(realUpdateType))) {
 					var transaction = readWriteConnection.BeginTransaction(IsolationLevel.ReadCommitted);
-					try
-					{
+					try {
 						var newUpdateType = RequestType.GetData;
 						if (Convert.ToInt32(realUpdateType) == Convert.ToInt32(RequestType.GetCumulativeAsync))
 							newUpdateType = RequestType.GetCumulative;
@@ -3343,27 +2979,26 @@ order by s.Hour, s.Minute";
 
 						transaction.Commit();
 					}
-					catch
-					{
+					catch {
 						ConnectionHelper.SafeRollback(transaction);
 						throw;
 					}
 				}
-				else 
+				else
 					throw new Exception("Неожидаемый тип {0} у запроса c updateId {1}".Format(realUpdateType, updateId));
 			});
 		}
 
 		public string GetConfirmMailsCommnad(uint? updateId)
 		{
-				return @"
+			return @"
 update Logs.MailSendLogs ms
 set ms.Committed = 1
 where ms.updateid = {0};
 update Logs.AttachmentSendLogs ms
 set ms.Committed = 1
 where ms.updateid = {0};"
-					.Format(updateId);
+				.Format(updateId);
 		}
 
 		public void WaitParsedDocs()
@@ -3382,12 +3017,46 @@ where
 	afu.RequestTime > curdate() - interval 1 day
 and afu.UserId = ?UserId
 and afu.UpdateType = ?UpdateType
-group by afu.UserId"
-					,
+group by afu.UserId",
 					new MySqlParameter("?UserId", _updateData.UserId),
 					new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills));
-				waitCount = realWaitCount != null ? (int?) Convert.ToInt32(realWaitCount) : null;
+				waitCount = realWaitCount != null ? (int?)Convert.ToInt32(realWaitCount) : null;
 			} while (waitCount > 0 && DateTime.Now.Subtract(startTime).TotalSeconds < 60);
+		}
+
+		public string GetProducerCommand(bool Cumulative)
+		{
+			if (Cumulative)
+				return @"
+select
+	Producers.Id,
+	Producers.Name,
+	0 as Hidden
+from
+	catalogs.Producers
+where
+	(Producers.Id > 1)";
+
+			return @"
+select
+	Producers.Id,
+	Producers.Name,
+	0 as Hidden
+from
+	catalogs.Producers
+where
+	(Producers.Id > 1)
+	and Producers.UpdateTime > ?UpdateTime
+union
+select
+	ProducerLogs.ProducerId,
+	ProducerLogs.Name,
+	1 as Hidden
+from
+	logs.ProducerLogs
+where
+	(ProducerLogs.LogTime >= ?UpdateTime)
+	and (ProducerLogs.Operation = 2)";
 		}
 	}
 }

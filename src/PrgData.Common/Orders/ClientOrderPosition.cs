@@ -48,7 +48,7 @@ namespace PrgData.Common.Orders
 		public string GetResultToClient(uint? buildNumber)
 		{
 			return String.Format(
-				"ClientPositionID={0};DropReason={1};ServerCost={2};ServerQuantity={3}{4}", 
+				"ClientPositionID={0};DropReason={1};ServerCost={2};ServerQuantity={3}{4}",
 				ClientPositionID,
 				Convert.ToInt32(SendResult),
 				ServerCost.ToString(CultureInfo.InvariantCulture.NumberFormat),
@@ -75,22 +75,19 @@ and (Code = '{3}')
 and (CodeCr = '{4}')
 and (Junk = {5})
 and (Await = {6})",
-				  OrderPosition.ProductId,
-				  OrderPosition.SynonymCode.HasValue ? " = " + OrderPosition.SynonymCode.ToString() : "is Null",
-				  OrderPosition.SynonymFirmCrCode.HasValue ? " = " + OrderPosition.SynonymFirmCrCode.ToString() : "is Null",
-				  OrderPosition.Code,
-				  OrderPosition.CodeCr,
-				  OrderPosition.Junk ? "True" : "False",
-				  OrderPosition.Await ? "True" : "False"
-				  );
+				OrderPosition.ProductId,
+				OrderPosition.SynonymCode.HasValue ? " = " + OrderPosition.SynonymCode.ToString() : "is Null",
+				OrderPosition.SynonymFirmCrCode.HasValue ? " = " + OrderPosition.SynonymFirmCrCode.ToString() : "is Null",
+				OrderPosition.Code,
+				OrderPosition.CodeCr,
+				OrderPosition.Junk ? "True" : "False",
+				OrderPosition.Await ? "True" : "False");
 		}
 
 		internal void PrepareBeforPost(ISession session)
 		{
-			if (!Duplicated)
-			{
-				if (OrderPosition.SynonymCode.HasValue)
-				{
+			if (!Duplicated) {
+				if (OrderPosition.SynonymCode.HasValue) {
 					var synonymCodeFromDb = session
 						.CreateSQLQuery(
 							@"
@@ -104,8 +101,7 @@ and (Await = {6})",
 					OrderPosition.SynonymCode = synonymCodeFromDb;
 				}
 
-				if (OrderPosition.SynonymFirmCrCode.HasValue)
-				{
+				if (OrderPosition.SynonymFirmCrCode.HasValue) {
 					var synonymFirmCrCodeFromDb = session
 						.CreateSQLQuery(
 							@"
@@ -119,8 +115,7 @@ and (Await = {6})",
 					OrderPosition.SynonymFirmCrCode = synonymFirmCrCodeFromDb;
 				}
 
-				if (OrderPosition.CodeFirmCr.HasValue)
-				{
+				if (OrderPosition.CodeFirmCr.HasValue) {
 					var codeFirmCrFromDb = session
 						.CreateSQLQuery(
 							@"
@@ -147,23 +142,22 @@ and (Await = {6})",
 			var info = OrderPosition.OfferInfo;
 			return
 				String.IsNullOrEmpty(info.Unit) &&
-				String.IsNullOrEmpty(info.Volume) &&
-				String.IsNullOrEmpty(info.Note) &&
-				String.IsNullOrEmpty(info.Period) &&
-				String.IsNullOrEmpty(info.Doc) &&
-				!info.MinBoundCost.HasValue &&
-				!info.RegistryCost.HasValue &&
-				!info.MaxBoundCost.HasValue &&
-				!info.ProducerCost.HasValue &&
-				!info.NDS.HasValue &&
-				!info.Quantity.HasValue &&
-				!info.VitallyImportant;
+					String.IsNullOrEmpty(info.Volume) &&
+					String.IsNullOrEmpty(info.Note) &&
+					String.IsNullOrEmpty(info.Period) &&
+					String.IsNullOrEmpty(info.Doc) &&
+					!info.MinBoundCost.HasValue &&
+					!info.RegistryCost.HasValue &&
+					!info.MaxBoundCost.HasValue &&
+					!info.ProducerCost.HasValue &&
+					!info.NDS.HasValue &&
+					!info.Quantity.HasValue &&
+					!info.VitallyImportant;
 		}
 
 		public void CheckOfferInfo()
 		{
-			if (OrderPosition.OfferInfo != null && OfferInfoIsEmpty())
-			{
+			if (OrderPosition.OfferInfo != null && OfferInfoIsEmpty()) {
 				var info = OrderPosition.OfferInfo;
 				info.OrderItem = null;
 				OrderPosition.OfferInfo = null;
@@ -181,6 +175,5 @@ and (Await = {6})",
 					Duplicated,
 					OrderPosition);
 		}
-
 	}
 }

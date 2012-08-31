@@ -24,10 +24,7 @@ namespace PrgData.Common
 					_connectionStringName = InitConnectionStringName();
 				return _connectionStringName;
 			}
-			set
-			{
-				_connectionStringName = value;
-			}
+			set { _connectionStringName = value; }
 		}
 
 		private static string InitConnectionStringName()

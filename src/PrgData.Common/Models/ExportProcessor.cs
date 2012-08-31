@@ -12,12 +12,12 @@ namespace PrgData.Common.Models
 
 		public ExportProcessor(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
 		{
-			var rootType = typeof (BaseExport);
+			var rootType = typeof(BaseExport);
 			var types = rootType.Assembly.GetTypes().Where(t =>
 				t.Namespace == rootType.Namespace
-				&& t.IsClass
-				&& !t.IsAbstract
-				&& rootType.IsAssignableFrom(t));
+					&& t.IsClass
+					&& !t.IsAbstract
+					&& rootType.IsAssignableFrom(t));
 			exporters = types
 				.Select(t => Activator.CreateInstance(t, updateData, connection, files))
 				.Cast<BaseExport>()

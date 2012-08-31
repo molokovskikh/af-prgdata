@@ -13,7 +13,7 @@ namespace PrgData.Common
 		public static Func<String> GetResultPath = () => HttpContext.Current.Server.MapPath(@"/Results") + @"\";
 		public static Func<String> GetDocumentsPath = () => ConfigurationManager.AppSettings["DocumentsPath"];
 
-		public static Func<String> MySqlSharedExportPath = () => 
+		public static Func<String> MySqlSharedExportPath = () =>
 #if DEBUG 
 			ConfigurationManager.AppSettings["MySqlFilePath"];
 #else
@@ -70,7 +70,7 @@ namespace PrgData.Common
 				if (colonIndex > 0)
 					userName = decodedAuthentification.Substring(0, colonIndex);
 			}
-			
+
 			return userName;
 		}
 

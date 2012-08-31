@@ -26,13 +26,13 @@ namespace Integration
 	[TestFixture]
 	public class MultiUserDocumentFixture
 	{
-		uint lastUpdateId;
-		string responce;
-		TestDocumentLog document;
-		TestDocumentLog fakeDocument;
+		private uint lastUpdateId;
+		private string responce;
+		private TestDocumentLog document;
+		private TestDocumentLog fakeDocument;
 
-		TestClient client;
-		string waybills;
+		private TestClient client;
+		private string waybills;
 
 		[SetUp]
 		public void Setup()
@@ -44,8 +44,7 @@ namespace Integration
 
 			client = TestClient.Create();
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var user = client.Users[0];
 				client.Users.Each(u => {
 					u.SendRejects = true;
@@ -71,8 +70,7 @@ namespace Integration
 		private TestDocumentLog CreateDocument(TestUser user)
 		{
 			TestDocumentLog doc;
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				var supplier = user.GetActivePrices()[0].Supplier;
 				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
@@ -100,8 +98,7 @@ namespace Integration
 		private TestDocumentLog CreateFakeDocument(TestUser user)
 		{
 			TestDocumentLog doc;
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				var supplier = user.GetActivePrices()[0].Supplier;
 				doc = new TestDocumentLog {
 					LogTime = DateTime.Now,
@@ -113,8 +110,7 @@ namespace Integration
 					IsFake = true
 				};
 				doc.Save();
-				new TestDocumentSendLog
-				{
+				new TestDocumentSendLog {
 					ForUser = user,
 					Document = doc
 				}.Save();
@@ -147,8 +143,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Assert.That(File.Exists(document.LocalFile), Is.True, "удалил файл с накладной чего не нужно было делать");
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id || updateLog.UserId == client.Users[1].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
 				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
 				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
@@ -163,8 +158,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			TestDocumentSendLog log;
 			TestDocumentSendLog fakelog;
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(log.Committed, Is.False);
 				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
@@ -175,8 +169,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				CheckDelivered(log, true, false);
@@ -198,8 +191,7 @@ namespace Integration
 			var brokenDoc = CreateDocument(client.Users[0]);
 			File.Delete(brokenDoc.LocalFile);
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				//Документ должен быть старше часа, чтобы сформировалось уведомление
 				brokenDoc.LogTime = DateTime.Now.AddHours(-1).AddMinutes(-1);
 				brokenDoc.Update();
@@ -215,8 +207,7 @@ namespace Integration
 			var url = LoadDocuments();
 			Assert.That(url, Is.StringContaining("Новых файлов документов нет"));
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => (updateLog.UserId == client.Users[0].Id) && updateLog.Addition.Contains("При подготовке документов в папке")).ToList();
 				var finded = logs.FindAll(l => l.Addition.Contains(String.Format("№ {0}", fakeDocument.Id)));
 				Assert.That(finded.Count, Is.EqualTo(0), "При подготовке данных попытались найти фиктивный документ, чтобы заархивировать его.");
@@ -235,8 +226,7 @@ namespace Integration
 			var responce = LoadDocuments();
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
 			}
@@ -263,13 +253,11 @@ namespace Integration
 		[Test]
 		public void Check_empty_UIN_on_send()
 		{
-
 			var response = SendWaybillEx(null);
 			Assert.That(response, Is.StringStarting("Status=0"));
 			Console.WriteLine(response);
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
 				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
@@ -286,8 +274,7 @@ namespace Integration
 			var response = SendWaybillEx(uin);
 			Assert.That(response, Is.StringStarting("Status=0"));
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
 				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
@@ -301,8 +288,7 @@ namespace Integration
 		{
 			var uin = "12345678";
 
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				var info = TestUserUpdateInfo.Find(client.Users[0].Id);
 				info.AFCopyId = "87654321";
 				info.Save();
@@ -312,8 +298,7 @@ namespace Integration
 			var response = SendWaybillEx(uin);
 			Assert.That(response, Is.StringStarting("Status=1"));
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.False);
 				Assert.That(log.Addition, Is.StringContaining("Несоответствие UIN").IgnoreCase);
@@ -329,8 +314,7 @@ namespace Integration
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 
 			TestWaybill waybill;
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				waybill = new TestWaybill(fakeDocument);
 				waybill.Lines = new List<TestWaybillLine> { new TestWaybillLine { Waybill = waybill } };
 				waybill.Save();
@@ -341,7 +325,7 @@ namespace Integration
 			LoadDocuments();
 			ShouldBeSuccessfull();
 
-			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId + ".zip";
 			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
 
 			var extractFolder = "ResultExtract";
@@ -361,8 +345,7 @@ namespace Integration
 
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
 				Assert.That(fakelog.Committed, Is.True);
 				CheckDelivered(fakelog, false, true);
@@ -375,8 +358,7 @@ namespace Integration
 			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 
 			TestWaybill waybill;
-			using (var transaction = new TransactionScope(OnDispose.Rollback))
-			{
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				waybill = new TestWaybill(fakeDocument);
 				waybill.Lines = new List<TestWaybillLine> { new TestWaybillLine { Waybill = waybill } };
 				waybill.Save();
@@ -387,7 +369,7 @@ namespace Integration
 			LoadDocuments("1.0.0.1840");
 			ShouldBeSuccessfull();
 
-			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId +".zip";
+			var resultFileName = ServiceContext.GetResultPath() + client.Users[0].Id + "_" + lastUpdateId + ".zip";
 			Assert.That(File.Exists(resultFileName), Is.True, "Не найден файл с подготовленными данными");
 
 			var extractFolder = "ResultExtract";
@@ -408,8 +390,7 @@ namespace Integration
 
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
 				Assert.That(fakelog.Committed, Is.True);
 				CheckDelivered(fakelog, false, true);
@@ -423,8 +404,7 @@ namespace Integration
 
 			TestDocumentSendLog log;
 			TestDocumentSendLog fakelog;
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(log.Committed, Is.False);
 				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
@@ -435,8 +415,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			ConfirmData();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				fakelog.Refresh();
@@ -446,8 +425,7 @@ namespace Integration
 			GetUserData(updateTime);
 			ShouldBeSuccessfull();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.False);
 				fakelog.Refresh();
@@ -456,8 +434,7 @@ namespace Integration
 
 			ConfirmData();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				CheckDelivered(log, true, false);
@@ -496,8 +473,7 @@ namespace Integration
 
 			Assert.That(files.Length, Is.EqualTo(2), "В полученном архиве переданы дополнительные файлы в корневую папку: {0}", files.Implode());
 
-			if (Directory.Exists(Path.Combine(extractFolder, "Waybills")))
-			{
+			if (Directory.Exists(Path.Combine(extractFolder, "Waybills"))) {
 				var waybillsFiles = Directory.GetFiles(Path.Combine(extractFolder, "Waybills"));
 				Assert.That(waybillsFiles.Length, Is.EqualTo(0), "В папке с накладными имеются файлы, хотя там не должно быть файлов, которые пользователь отправил для разбора: {0}", waybillsFiles.Implode());
 			}
@@ -516,8 +492,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var documentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(documentSendLog.Committed, Is.True);
 				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
@@ -533,8 +508,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
 				Assert.That(brokenDocumentSendLog.Committed, Is.True);
 				CheckDelivered(brokenDocumentSendLog, true, false);
@@ -555,8 +529,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var documentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(documentSendLog.Committed, Is.True);
 				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
@@ -566,8 +539,7 @@ namespace Integration
 			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
 			Assert.That(log.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
 
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				brokenDoc.LogTime = DateTime.Now.AddHours(-1).AddMinutes(-1);
 				brokenDoc.Update();
 			}
@@ -576,8 +548,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
 				Assert.That(brokenDocumentSendLog.Committed, Is.True);
 				CheckDelivered(brokenDocumentSendLog, false, false);
@@ -652,22 +623,20 @@ namespace Integration
 		[Test(Description = "После разбора накладных не должно быть новых файлов в папке с временными файлами даже если возникла ошибка")]
 		public void EmptyTempFoldersAfterErrorWork()
 		{
-			FoldersHelper.CheckTempFolders(() =>
-			{
+			FoldersHelper.CheckTempFolders(() => {
 				var service = new PrgDataEx();
 				uint supplierId;
-				using (new TransactionScope())
-				{
+				using (new TransactionScope()) {
 					supplierId = client.Users[0].GetActivePrices()[0].Supplier.Id;
 				}
 
 				var response = service.SendWaybillsEx(client.Addresses[0].Id,
 					new ulong[] { supplierId },
 					new[] { "3687747_Протек-21_3687688_Протек-21_8993929-001__.sst" },
-					new byte[]{}, 
+					new byte[] { },
 					"12345678",
 					"6.0.0.1183");
-				
+
 				Assert.That(response, Is.StringStarting("Status=1"));
 			});
 		}
@@ -681,8 +650,7 @@ namespace Integration
 			TestDocumentSendLog fakelog;
 
 			//Т.к. пользователь еще не обновлялся, то документы не должны быть подтверждены
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(log.Committed, Is.False);
 				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
@@ -695,8 +663,7 @@ namespace Integration
 			ConfirmData();
 
 			//Новые документы после первого КО должны быть подтверждены
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				CheckDelivered(log, true, false);
@@ -711,8 +678,7 @@ namespace Integration
 			ShouldBeSuccessfull();
 
 			//Для документов, отданых в прошлое обновление, должен быть сброшен статус доставки
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.False);
 				fakelog.Refresh();
@@ -722,8 +688,7 @@ namespace Integration
 			ConfirmData();
 
 			//После подтверждения КО для этих же документов статус доставки должен быть подтвержден
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				CheckDelivered(log, true, false);
@@ -745,8 +710,7 @@ namespace Integration
 			TestDocumentSendLog fakelog;
 
 			//Т.к. пользователь еще не обновлялся, то документы не должны быть подтверждены
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
 				Assert.That(log.Committed, Is.False);
 				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
@@ -768,8 +732,7 @@ namespace Integration
 			ConfirmData();
 
 			//Новые документы после первого КО должны быть подтверждены
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				CheckDelivered(log, true, false);
@@ -782,8 +745,7 @@ namespace Integration
 			//Создаем новый документ, который будет получен при следующем запросе документов
 			var newDocument = CreateDocument(user);
 			TestDocumentSendLog newDocumentLog;
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				newDocumentLog = TestDocumentSendLog.Queryable.First(t => t.Document == newDocument);
 				Assert.That(newDocumentLog.Committed, Is.False);
 			}
@@ -793,8 +755,7 @@ namespace Integration
 			Confirm();
 
 			//Новый документ должен быть подтвержден
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				newDocumentLog.Refresh();
 				Assert.That(newDocumentLog.Committed, Is.True);
 			}
@@ -809,14 +770,13 @@ namespace Integration
 
 				transaction.VoteCommit();
 			}
-	
+
 			//Будем запрашивать КО с датой обновления старше чем 2 месяца
 			updateTime = DateTime.Now.AddMonths(-2);
 			GetUserData(updateTime, true);
 			ShouldBeSuccessfull();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				//эти два документа не будут отдаваться, т.к. у них дата обновления больше чем 1 месяц
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
@@ -834,8 +794,7 @@ namespace Integration
 
 			ConfirmData();
 
-			using (new SessionScope())
-			{
+			using (new SessionScope()) {
 				log.Refresh();
 				Assert.That(log.Committed, Is.True);
 				CheckDelivered(log, true, false);
@@ -844,7 +803,7 @@ namespace Integration
 				Assert.That(fakelog.Committed, Is.True);
 				CheckDelivered(fakelog, false, false);
 
-			    //После подтверждения КО для этого документа статус доставки должен быть подтвержден
+				//После подтверждения КО для этого документа статус доставки должен быть подтвержден
 				newDocumentLog.Refresh();
 				Assert.That(newDocumentLog.Committed, Is.True);
 				CheckDelivered(newDocumentLog, true, false);
@@ -968,8 +927,7 @@ namespace Integration
 		{
 			var user = client.Users[0];
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -987,8 +945,7 @@ namespace Integration
 
 			SendWaybill();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -1006,8 +963,7 @@ namespace Integration
 
 			SendWaybill();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -1027,8 +983,7 @@ from
 	inner join logs.document_logs dl on dl.SendUpdateId = afu.UpdateId
 where
 	afu.UserId = ?UserId
-and afu.UpdateType = ?UpdateType"
-					,
+and afu.UpdateType = ?UpdateType",
 					new MySqlParameter("?UserId", user.Id),
 					new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills));
 
@@ -1047,14 +1002,13 @@ and afu.UpdateType = ?UpdateType"
 		{
 			var service = new PrgDataEx();
 			uint supplierId;
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				supplierId = client.Users[0].GetActivePrices()[0].Supplier.Id;
 			}
-			
+
 			service.SendWaybills(client.Addresses[0].Id,
-				new ulong[] {supplierId},
-				new [] {"3687747_Протек-21_3687688_Протек-21_8993929-001__.sst"},
+				new ulong[] { supplierId },
+				new[] { "3687747_Протек-21_3687688_Протек-21_8993929-001__.sst" },
 				File.ReadAllBytes(@"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.zip"));
 		}
 
@@ -1062,8 +1016,7 @@ and afu.UpdateType = ?UpdateType"
 		{
 			var service = new PrgDataEx();
 			uint supplierId;
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				supplierId = client.Users[0].GetActivePrices()[0].Supplier.Id;
 			}
 
@@ -1077,8 +1030,7 @@ and afu.UpdateType = ?UpdateType"
 
 		private void CreateUser()
 		{
-			using (new TransactionScope())
-			{
+			using (new TransactionScope()) {
 				var user = client.CreateUser();
 				user.SendWaybills = true;
 				user.SendRejects = true;
@@ -1089,8 +1041,7 @@ and afu.UpdateType = ?UpdateType"
 					ForUser = user,
 					Document = document
 				}.Save();
-				new TestDocumentSendLog
-				{
+				new TestDocumentSendLog {
 					ForUser = user,
 					Document = fakeDocument
 				}.Save();

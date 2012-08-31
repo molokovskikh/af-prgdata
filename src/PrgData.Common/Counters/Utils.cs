@@ -12,7 +12,6 @@ namespace PrgData.Common.Counters
 {
 	public class Utils
 	{
-
 		public static void Execute(string CommandText)
 		{
 			Execute(CommandText, null);
@@ -20,8 +19,7 @@ namespace PrgData.Common.Counters
 
 		public static int Execute(string CommandText, object ParametersAsAnonymousObject)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);
@@ -31,16 +29,13 @@ namespace PrgData.Common.Counters
 
 		public static IList<ClientStatus> Request(string CommandText, object ParametersAsAnonymousObject)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);
 				var statuses = new List<ClientStatus>();
-				using (var Reader = command.ExecuteReader())
-				{
-					while (Reader.Read())
-					{
+				using (var Reader = command.ExecuteReader()) {
+					while (Reader.Read()) {
 						statuses.Add(new ClientStatus(Reader.GetInt32("Id"), Reader.GetUInt32("UserId"), Reader.GetString("MethodName"), Reader.GetDateTime("StartTime")));
 					}
 				}
@@ -50,8 +45,7 @@ namespace PrgData.Common.Counters
 
 		public static T RequestScalar<T>(string CommandText)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 
@@ -62,8 +56,7 @@ namespace PrgData.Common.Counters
 
 		public static T RequestScalar<T>(string CommandText, object ParametersAsAnonymousObject)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);
@@ -80,10 +73,8 @@ namespace PrgData.Common.Counters
 
 		public static void BindParameters(MySqlCommand Command, object ParametersAsAnonymousObject)
 		{
-			if (ParametersAsAnonymousObject != null)
-			{
-				foreach (var PropertyInfo in ParametersAsAnonymousObject.GetType().GetProperties(BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance))
-				{
+			if (ParametersAsAnonymousObject != null) {
+				foreach (var PropertyInfo in ParametersAsAnonymousObject.GetType().GetProperties(BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.Instance)) {
 					var Value = PropertyInfo.GetValue(ParametersAsAnonymousObject, null);
 					Command.Parameters.AddWithValue("?" + PropertyInfo.Name, Value);
 				}

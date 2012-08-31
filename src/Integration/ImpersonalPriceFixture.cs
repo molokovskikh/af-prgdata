@@ -67,22 +67,19 @@ namespace Integration
 
 			client = TestClient.Create(offersRegion.Id, offersRegion.Id);
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				offersFutureUser = offersFutureClient.Users[0];
-				offersFutureClient.Users.Each(u =>
-				{
+				offersFutureClient.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
 				offersFutureUser.Update();
 
 				user = client.Users[0];
-				client.Users.Each(u =>
-									{
-										u.SendRejects = true;
-										u.SendWaybills = true;
-									});
+				client.Users.Each(u => {
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
 				user.Update();
 
 				smartRuleFuture = new TestSmartOrderRule();
@@ -90,8 +87,7 @@ namespace Integration
 				smartRuleFuture.SaveAndFlush();
 			}
 
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				orderRuleFuture = TestDrugstoreSettings.Find(client.Id);
 				orderRuleFuture.SmartOrderRule = smartRuleFuture;
 				orderRuleFuture.EnableImpersonalPrice = true;
@@ -118,8 +114,7 @@ namespace Integration
 
 		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId, uint? buildNumber = null)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -165,20 +160,17 @@ namespace Integration
 			dataAdapter.Fill(dataTable);
 			Assert.That(dataTable.Rows.Count, Is.GreaterThan(0), "Запрос не вернул данные: {0}", sqlCommand);
 
-			if (dataTable.Columns.Contains("RegionCode"))
-			{
+			if (dataTable.Columns.Contains("RegionCode")) {
 				var rows = dataTable.Select("RegionCode = " + updateData.OffersRegionCode);
-				Assert.That(rows.Length, Is.EqualTo(dataTable.Rows.Count), 
+				Assert.That(rows.Length, Is.EqualTo(dataTable.Rows.Count),
 					"Не все записи в таблице в столбце RegionCode имеют значение {0}: {1}", updateData.OffersRegionCode, sqlCommand);
 			}
 
-			if (dataTable.Columns.Contains("PriceCode"))
-			{
+			if (dataTable.Columns.Contains("PriceCode")) {
 				var rows = dataTable.Select("PriceCode = " + updateData.ImpersonalPriceId);
 				Assert.That(rows.Length, Is.EqualTo(dataTable.Rows.Count),
 					"Не все записи в таблице в столбце PriceCode имеют значение {0}: {1}", updateData.ImpersonalPriceId, sqlCommand);
 			}
-
 		}
 
 		[Test]
@@ -190,8 +182,7 @@ namespace Integration
 		[Test]
 		public void Check_AnalitFReplicationInfo_after_GetUserData()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var ExistsFirms = MySqlHelper.ExecuteScalar(
 					connection,
@@ -218,8 +209,7 @@ where
 
 			CheckGetUserData(user.Login);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -268,8 +258,7 @@ and afi.ForceReplication = 0",
 
 			CommitExchange();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 				var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
 					connection,
@@ -310,16 +299,13 @@ and afi.ForceReplication > 0",
 
 		private void CheckGetUserData(string login)
 		{
-			using (var writer = new StringWriter())
-			{
-				try
-				{
-					var textAppender = new TextWriterAppender()
-										{
-											Writer = writer,
-											Layout = new PatternLayout("%d{dd.MM.yyyy HH:mm:ss.fff} %property{user} [%t] %-5p %c - %m%n"),
-										};
-					textAppender.AddFilter(new LoggerMatchFilter{ AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter()});
+			using (var writer = new StringWriter()) {
+				try {
+					var textAppender = new TextWriterAppender() {
+						Writer = writer,
+						Layout = new PatternLayout("%d{dd.MM.yyyy HH:mm:ss.fff} %property{user} [%t] %-5p %c - %m%n"),
+					};
+					textAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 					BasicConfigurator.Configure(textAppender);
 
 					SetCurrentUser(login);
@@ -329,9 +315,8 @@ and afi.ForceReplication > 0",
 					Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка.\r\nLog:\r\n:{0}", writer);
 					Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен.\r\nLog:\r\n:{0}", writer);
 				}
-				finally
-				{
-					LogManager.ResetConfiguration();			
+				finally {
+					LogManager.ResetConfiguration();
 				}
 			}
 		}
@@ -375,8 +360,7 @@ from
   logs.AnalitFUpdates afu
   join usersettings.UserUpdateInfo uui on uui.UserId = afu.UserId
 where
-  afu.UpdateId = ?UpdateId"
-				,
+  afu.UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", lastUpdateId)));
 
 			Assert.That(updateTime, Is.EqualTo(dbUpdateTime.ToUniversalTime()), "Не совпадает дата обновления, выбранная из базы, для UpdateId: {0}", lastUpdateId);
@@ -387,18 +371,16 @@ where
 		[Test]
 		public void Check_send_letter()
 		{
-			using(var imapClient = new IMAP_Client())
-			{
+			using (var imapClient = new IMAP_Client()) {
 				imapClient.Connect("box.analit.net", 143);
-				try
-				{
+				try {
 					var allset = new IMAP_SequenceSet();
 					allset.Parse("1:*", long.MaxValue);
 
 					imapClient.Login("kvasovtest@analit.net", "12345678");
 					imapClient.SelectFolder("INBOX");
 
-					var fetchDataItems = new IMAP_Fetch_DataItem[]{new IMAP_Fetch_DataItem_Envelope()};
+					var fetchDataItems = new IMAP_Fetch_DataItem[] { new IMAP_Fetch_DataItem_Envelope() };
 					var handler = new IMAP_Client_FetchHandler();
 					var envelops = new List<IMAP_Envelope>();
 
@@ -446,8 +428,7 @@ where
 
 					imapClient.Expunge();
 				}
-				finally
-				{
+				finally {
 					imapClient.Disconnect();
 				}
 			}
@@ -456,8 +437,7 @@ where
 		[Test]
 		public void Check_send_letter_by_unknow_user()
 		{
-			try
-			{
+			try {
 				var memoryAppender = new MemoryAppender();
 				memoryAppender.AddFilter(new LoggerMatchFilter { AcceptOnMatch = true, LoggerToMatch = "PrgData", Next = new DenyAllFilter() });
 				BasicConfigurator.Configure(memoryAppender);
@@ -473,8 +453,7 @@ where
 				Assert.That(lastEvent.ExceptionObject, Is.TypeOf(typeof(Exception)));
 				Assert.That(((Exception)lastEvent.ExceptionObject).Message, Is.StringStarting("Не удалось найти клиента для указанных учетных данных:").IgnoreCase);
 			}
-			finally
-			{
+			finally {
 				LogManager.ResetConfiguration();
 			}
 		}
@@ -503,8 +482,7 @@ where
 		[Test(Description = "Отправляем письмо для отключенного пользователя")]
 		public void SendLetterOnDisabledUser()
 		{
-			using (var transaction = new TransactionScope())
-			{
+			using (var transaction = new TransactionScope()) {
 				user.Enabled = false;
 				user.Update();
 			}
@@ -522,6 +500,5 @@ where
 			Assert.That(historyResponse, Is.StringContaining("Error=Для копии с обезличенным прайс-листом недоступна загрузка истории заказов.").IgnoreCase);
 			Assert.That(historyResponse, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
 		}
-
 	}
 }

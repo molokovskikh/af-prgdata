@@ -38,10 +38,8 @@ namespace Integration
 			_client = TestClient.Create();
 			_user = _client.Users[0];
 
-			using (var transaction = new TransactionScope())
-			{
-				_client.Users.Each(u =>
-				{
+			using (var transaction = new TransactionScope()) {
+				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
@@ -89,20 +87,17 @@ namespace Integration
 		[Test(Description = "Попытка разбора полученного от пользователя 12061 архива"), Ignore("Разбор конкретной проблемы")]
 		public void ParseErrorArchive()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 
 				var helper = new SendUserActionsHandler(updateData, 1, connection);
 
-				try
-				{
+				try {
 					helper.PrepareLogFile("N3q8ryccAAKNm9UPAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 				}
-				finally
-				{
+				finally {
 					helper.DeleteTemporaryFiles();
 				}
 			}
@@ -112,14 +107,12 @@ namespace Integration
 		public void TestTempFileName()
 		{
 			var fullFileName = Path.GetTempFileName();
-			try
-			{
+			try {
 				Assert.That(File.Exists(fullFileName), Is.True, "после вызова функции GetTempFileName должен существовать временный файл");
 				var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fullFileName);
 				Assert.That(fileNameWithoutExtension, Is.Not.EqualTo(Path.GetFileName(fullFileName)), "Временный файл должен создаваться с расширением");
 			}
-			finally
-			{
+			finally {
 				if (File.Exists(fullFileName))
 					File.Delete(fullFileName);
 			}
@@ -133,8 +126,7 @@ namespace Integration
 		[Test(Description = "После работы Handler'а не должно быть новых файлов в папке с временными файлами")]
 		public void EmptyTempFoldersAfterWork()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString()))
-			{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -142,39 +134,28 @@ namespace Integration
 				FoldersHelper.CheckTempFolders(() => {
 					var helper = new SendUserActionsHandler(updateData, 1, connection);
 
-					try
-					{
+					try {
 						helper.PrepareLogFile("N3q8ryccAAKNm9UPAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 					}
-					catch (Exception e)
-					{
+					catch (Exception e) {
 						Assert.That(e.Message, Is.EqualTo("Полученный архив не содержит файлов."));
 					}
-					finally
-					{
+					finally {
 						helper.DeleteTemporaryFiles();
 					}
-
 				});
 
 				FoldersHelper.CheckTempFolders(() => {
 					var helper = new SendUserActionsHandler(updateData, 1, connection);
 
-					try
-					{
+					try {
 						helper.PrepareLogFile(GetLogContent());
 					}
-					finally
-					{
+					finally {
 						helper.DeleteTemporaryFiles();
 					}
-
 				});
-
-
 			}
 		}
-
-
 	}
 }

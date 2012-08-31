@@ -59,7 +59,7 @@ namespace Integration
 
 				mail.CreateAndFlush();
 
-				log = new TestMailSendLog{
+				log = new TestMailSendLog {
 					Mail = mail,
 					User = _user
 				};
@@ -168,8 +168,7 @@ namespace Integration
 			Assert.That(attachmentSendLog.UpdateLogEntry, Is.Null);
 
 			ProcessWithLog(() => {
-
-				var response = LoadDataAttachments(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
+				var response = LoadDataAttachments(true, DateTime.Now, "1.1.1.1413", new[] { attachmentSendLog.Attachment.Id });
 
 				var simpleUpdateId = ShouldBeSuccessfull(response);
 
@@ -189,7 +188,7 @@ namespace Integration
 
 				var extractFolder = ExtractArchive(archiveName);
 
-				var attachmentFileName = 
+				var attachmentFileName =
 					Path.Combine("Docs",
 						attachmentSendLog.Attachment.Id + attachmentSendLog.Attachment.Extension);
 				Assert.That(File.Exists(Path.Combine(extractFolder, attachmentFileName)), Is.True);
@@ -227,8 +226,7 @@ namespace Integration
 			Assert.That(attachmentSendLog.UpdateLogEntry, Is.Null);
 
 			ProcessWithLog(() => {
-
-				var response = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
+				var response = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", new[] { attachmentSendLog.Attachment.Id });
 
 				var simpleUpdateId = ShouldBeSuccessfull(response);
 
@@ -250,7 +248,7 @@ namespace Integration
 
 				var extractFolder = ExtractArchive(archiveName);
 
-				var attachmentFileName = 
+				var attachmentFileName =
 					Path.Combine("Docs",
 						attachmentSendLog.Attachment.Id + attachmentSendLog.Attachment.Extension);
 				Assert.That(File.Exists(Path.Combine(extractFolder, attachmentFileName)), Is.True);
@@ -320,7 +318,6 @@ namespace Integration
 и это новая строка
 "));
 				}
-
 			});
 		}
 
@@ -341,8 +338,7 @@ namespace Integration
 			Assert.That(attachmentSendLog.UpdateLogEntry, Is.Null);
 
 			ProcessWithLog(() => {
-
-				var response = LoadDataAttachmentsOnly(true, DateTime.Now, "1.1.1.1413", new[] {attachmentSendLog.Attachment.Id});
+				var response = LoadDataAttachmentsOnly(true, DateTime.Now, "1.1.1.1413", new[] { attachmentSendLog.Attachment.Id });
 
 				var simpleUpdateId = ShouldBeSuccessfull(response);
 
@@ -366,7 +362,7 @@ namespace Integration
 				var files = Directory.GetFiles(extractFolder, "*", SearchOption.AllDirectories);
 
 				Assert.That(files.Length, Is.EqualTo(4), "В архиве должны быть четыре файла: таблица писем, таблица вложений, вложение мини-почты и результат запроса вложений мини-почты (AttachmentRequests): {0}", files.Implode());
-				var attachmentFileName = 
+				var attachmentFileName =
 					Path.Combine("Docs",
 						attachmentSendLog.Attachment.Id + attachmentSendLog.Attachment.Extension);
 				Assert.That(files.Any(f => f.EndsWith(attachmentFileName, StringComparison.CurrentCultureIgnoreCase)), Is.True, "Не найден файл с вложением мини-почты: {0}", attachmentFileName);
@@ -394,7 +390,7 @@ namespace Integration
 		public void CheckAttachmentRequestsOnSimpleSupplier()
 		{
 			var log = CreateTestMail();
-			
+
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
@@ -427,7 +423,7 @@ namespace Integration
 				log.Mail.Supplier.Payer = payer;
 				log.Mail.Supplier.Save();
 			}
-			
+
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
 
@@ -449,6 +445,5 @@ namespace Integration
 				Assert.That(updateData.AttachmentRequests[0].AttachmentId, Is.EqualTo(log.Mail.Attachments[0].Id));
 			}
 		}
-
 	}
 }

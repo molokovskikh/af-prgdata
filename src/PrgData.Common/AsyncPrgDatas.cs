@@ -10,8 +10,7 @@ namespace PrgData.Common
 		public static void AddToList(WebService service)
 		{
 			if (!_services.Contains(service))
-				lock (_services)
-				{
+				lock (_services) {
 					_services.Add(service);
 				}
 		}
@@ -19,8 +18,7 @@ namespace PrgData.Common
 		public static void DeleteFromList(WebService service)
 		{
 			if (_services.Contains(service))
-				lock (_services)
-				{
+				lock (_services) {
 					_services.Remove(service);
 				}
 		}

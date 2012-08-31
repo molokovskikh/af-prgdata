@@ -10,7 +10,8 @@ namespace PrgData.Common.Models
 	public class AnalitFVersionRule
 	{
 		protected AnalitFVersionRule()
-		{}
+		{
+		}
 
 		[Id(0, Name = "Id", UnsavedValue = "0")]
 		[Generator(1, Class = "native")]

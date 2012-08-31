@@ -28,20 +28,16 @@ namespace PrgData.FileHandlers
 
 		public void ProcessRequest(HttpContext context)
 		{
-			try
-			{
+			try {
 				SUserId = GetUserId(context);
 
 				var distributionFileName = GetDistributionFileName(context);
-				if (!String.IsNullOrEmpty(distributionFileName) && File.Exists(distributionFileName))
-				{
+				if (!String.IsNullOrEmpty(distributionFileName) && File.Exists(distributionFileName)) {
 					context.Response.ContentType = "application/octet-stream";
-					using (var stmFileStream = new FileStream(distributionFileName, FileMode.Open, FileAccess.Read, FileShare.Read))
-					{
+					using (var stmFileStream = new FileStream(distributionFileName, FileMode.Open, FileAccess.Read, FileShare.Read)) {
 						long rs;
 						if (!string.IsNullOrEmpty(context.Request.QueryString["RangeStart"])
-							&& (Int64.TryParse(context.Request.QueryString["RangeStart"], out rs)))
-						{
+							&& (Int64.TryParse(context.Request.QueryString["RangeStart"], out rs))) {
 							if (rs < stmFileStream.Length)
 								stmFileStream.Position = rs;
 						}
@@ -63,15 +59,12 @@ namespace PrgData.FileHandlers
 					context.Response.StatusCode = 404;
 				}
 			}
-			catch (HttpException wex)
-			{
+			catch (HttpException wex) {
 				if (!wex.IsWellKnownException())
 					Log.ErrorFormat("Запрос на получение файла дистрибутива\r\nErrCode : {0}\r\n{1}", wex.ErrorCode, wex);
 			}
-			catch (Exception ex)
-			{
-				if  (!(ex is ThreadAbortException))
-				{
+			catch (Exception ex) {
+				if (!(ex is ThreadAbortException)) {
 					context.AddError(ex);
 					Log.Error("Запрос на получение файла дистрибутива", ex);
 					context.Response.StatusCode = 500;

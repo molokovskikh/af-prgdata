@@ -24,7 +24,7 @@ namespace PrgData.Common.Orders
 			Docs = 3
 		}
 
-		private static string[] fileNames = new string[] { "unknown", "waybill", "reject", "document"};
+		private static string[] fileNames = new string[] { "unknown", "waybill", "reject", "document" };
 		private static string[] russianNames = new string[] { "неизвестный", "накладная", "отказ", "документ" };
 
 		public static void GenerateDocs(MySqlConnection _readWriteConnection, UpdateData updateData, List<ClientOrderHeader> orders)
@@ -41,8 +41,7 @@ namespace PrgData.Common.Orders
 			headerCommand.Parameters.Add("?DocumentType", MySqlDbType.Int32);
 			headerCommand.Parameters.Add("?FileName", MySqlDbType.String);
 
-			orders.ForEach((item) =>
-			{
+			orders.ForEach((item) => {
 				headerCommand.CommandText = "select FirmCode from usersettings.pricesdata pd where pd.PriceCode = ?PriceCode";
 
 				headerCommand.Parameters["?PriceCode"].Value = item.Order.ActivePrice.Id.Price.PriceCode;
@@ -106,12 +105,11 @@ update logs.document_logs set Ready = 1 where RowId = @LastDownloadId and Ready 
 				GenerateInvoice(lastDocumentId, headerCommand, order);
 
 			var createdFileName =
-					ConfigurationManager.AppSettings["DocumentsPath"]
+				ConfigurationManager.AppSettings["DocumentsPath"]
 					+ addressId
 					+ "\\" + documentType.ToString() + "\\"
 					+ lastDownloadId + "_" + shortFirmName + "(" + fileNames[(int)documentType] + ").txt";
-			using (var stream = new StreamWriter(createdFileName, false, Encoding.GetEncoding(1251)))
-			{
+			using (var stream = new StreamWriter(createdFileName, false, Encoding.GetEncoding(1251))) {
 				stream.WriteLine("Это {0} №{1}", russianNames[(int)documentType], lastDocumentId);
 				stream.WriteLine("Ссылка на загруженный файл №{0}", lastDownloadId);
 				stream.WriteLine("Ссылка на заказ №{0}", order.ServerOrderId);
@@ -226,13 +224,12 @@ values
 set @LastDocumentLineId = last_insert_id();
 ";
 			else
-			  detailCommand.CommandText = @"
+				detailCommand.CommandText = @"
 insert into documents.DocumentBodies
   (DocumentId, Product, Code, Period, Producer, SupplierCost, Quantity)
 values
   (?DocumentId, ?Product, ?Code, ?Period, ?Producer, ?SupplierCost, ?Quantity);";
-			foreach (ClientOrderPosition position in order.Positions)
-			{
+			foreach (ClientOrderPosition position in order.Positions) {
 				var synonymName = Convert.ToString(MySqlHelper.ExecuteScalar(
 					connection,
 					"select Synonym from farm.Synonym where SynonymCode = ?SynonymCode",
@@ -249,16 +246,13 @@ values
 				detailCommand.Parameters["?SupplierCost"].Value = position.OrderPosition.Cost;
 				waybillOrdersCommand.Parameters["?OrderLineId"].Value = position.OrderPosition.RowId;
 
-				if (position.OrderPosition.OfferInfo != null)
-				{
+				if (position.OrderPosition.OfferInfo != null) {
 					detailCommand.Parameters["?RegistryCost"].Value = position.OrderPosition.OfferInfo.RegistryCost;
 					detailCommand.Parameters["?Period"].Value = position.OrderPosition.OfferInfo.Period;
 				}
 
-				if (documentType == DocumentType.Waybills)
-				{
-					if (random.Next(3) == 1)
-					{
+				if (documentType == DocumentType.Waybills) {
+					if (random.Next(3) == 1) {
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = null;
 						detailCommand.Parameters["?ProducerCost"].Value = null;
 
@@ -266,12 +260,9 @@ values
 						detailCommand.Parameters["?NDS"].Value = 18;
 						detailCommand.Parameters["?VitallyImportant"].Value = null;
 					}
-					else
-					if (position.SupplierPriceMarkup.HasValue)
-					{
+					else if (position.SupplierPriceMarkup.HasValue) {
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = position.SupplierPriceMarkup;
-						if (position.OrderPosition.OfferInfo != null)
-						{
+						if (position.OrderPosition.OfferInfo != null) {
 							detailCommand.Parameters["?ProducerCost"].Value = position.OrderPosition.OfferInfo.ProducerCost;
 							detailCommand.Parameters["?VitallyImportant"].Value = position.OrderPosition.OfferInfo.VitallyImportant ? 1 : 0;
 						}
@@ -281,16 +272,14 @@ values
 						else
 							detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.OrderPosition.Cost / 1.10;
 					}
-					else
-					{
+					else {
 						detailCommand.Parameters["?SupplierPriceMarkup"].Value = 10m;
 						detailCommand.Parameters["?ProducerCost"].Value = position.OrderPosition.Cost / 1.25;
 
 						detailCommand.Parameters["?SupplierCostWithoutNDS"].Value = position.OrderPosition.Cost / 1.18;
 						detailCommand.Parameters["?NDS"].Value = 18;
 
-						switch (random.Next(3))
-						{
+						switch (random.Next(3)) {
 							case 1:
 								detailCommand.Parameters["?VitallyImportant"].Value = 0;
 								break;
@@ -324,11 +313,9 @@ values
 
 			var ids = new List<uint>();
 
-			global::Common.MySql.With.DeadlockWraper(() =>
-			{
+			global::Common.MySql.With.DeadlockWraper(() => {
 				var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try
-				{
+				try {
 					var updateId = Convert.ToUInt64(MySqlHelper.ExecuteScalar(
 						connection,
 						@"
@@ -337,30 +324,25 @@ insert into logs.AnalitFUpdates
 values 
   (now(), ?UpdateType, ?UserId, ?Size, 1);
 select last_insert_id()
-"
-						,
+",
 						new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills),
 						new MySqlParameter("?UserId", updateData.UserId),
 						new MySqlParameter("?Size", fileLength)));
 
 					ids.Clear();
 
-					for (var i = 0; i < fileNames.Length; i++)
-					{
+					for (var i = 0; i < fileNames.Length; i++) {
 						if (File.Exists(extractDir + "\\" + fileNames[i]))
 							ids.Add(CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i], updateId));
 					}
 
 					transaction.Commit();
 				}
-				catch
-				{
-					try
-					{
+				catch {
+					try {
 						transaction.Rollback();
 					}
-					catch (Exception rollbackException)
-					{
+					catch (Exception rollbackException) {
 						ILog _logger = LogManager.GetLogger(typeof(GenerateDocsHelper));
 						_logger.Error("Ошибка при rollback'е транзакции сохранения заказов", rollbackException);
 					}
@@ -448,7 +430,7 @@ values (?UserId, @LastDownloadId);";
 			headerCommand.CommandText = "select Name from Customers.Suppliers where Id = ?FirmCode;";
 			var shortName = headerCommand.ExecuteScalar();
 
-			resultFileName = 
+			resultFileName =
 				String.Format("{0}_{1}({2}){3}",
 					lastDownloadId,
 					shortName,
@@ -461,9 +443,7 @@ values (?UserId, @LastDownloadId);";
 					ConfigurationManager.AppSettings["DocumentsPath"],
 					addressId.ToString().PadLeft(3, '0'),
 					DocumentType.Waybills.ToString(),
-					resultFileName
-				)
-			);
+					resultFileName));
 
 			return lastDownloadId;
 		}

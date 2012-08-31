@@ -35,7 +35,6 @@ namespace Integration
 			ServiceContext.GetResultPath = () => "results\\";
 
 			user = CreateUser();
-
 		}
 
 
@@ -44,7 +43,6 @@ namespace Integration
 			SetCurrentUser(login);
 
 			WithHttpContext(context => {
-
 				var fileHandler = new GetFileHandler();
 				fileHandler.ProcessRequest(context);
 
@@ -67,6 +65,5 @@ namespace Integration
 		{
 			CheckProcessRequest(user.Login, "При вызове GetFileHandler не найден файл с подготовленными данными:");
 		}
-
 	}
 }

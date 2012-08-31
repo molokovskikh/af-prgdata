@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Text;
 using Common.MySql;
+using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.Models;
@@ -25,9 +27,7 @@ namespace Integration.BaseTests
 
 			user = CreateUser();
 
-			With.Connection(c => {
-				updateData = UpdateHelper.GetUpdateData(c, user.Login);
-			});
+			With.Connection(c => { updateData = UpdateHelper.GetUpdateData(c, user.Login); });
 
 			if (File.Exists(Path.GetFullPath(archivefile)))
 				File.Delete(Path.GetFullPath(archivefile));
@@ -48,6 +48,17 @@ namespace Integration.BaseTests
 				Assert.IsTrue(updateData.CheckVersion(export.RequiredVersion), "Модель {0} не удовлетворяет требуемой версии {1}", typeof(T), export.RequiredVersion);
 				export.Export();
 				export.ArchiveFiles(Path.GetFullPath(archivefile));
+			});
+		}
+
+		protected DataTable Export<T>(string name)
+		{
+			return With.Connection(c => {
+				var export = (BaseExport)Activator.CreateInstance(typeof(T), updateData, c, files);
+				export.UnderTest = true;
+				Assert.IsTrue(updateData.CheckVersion(export.RequiredVersion), "Модель {0} не удовлетворяет требуемой версии {1}", typeof(T), export.RequiredVersion);
+				export.Export();
+				return export.data[name];
 			});
 		}
 	}
