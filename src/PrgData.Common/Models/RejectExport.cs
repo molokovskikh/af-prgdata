@@ -15,6 +15,11 @@ namespace PrgData.Common.Models
 			get { return -1; }
 		}
 
+		public override RequestType[] AllowedArchiveRequests
+		{
+			get { return new RequestType[] { }; }
+		}
+
 		public override void Export()
 		{
 			string sql;

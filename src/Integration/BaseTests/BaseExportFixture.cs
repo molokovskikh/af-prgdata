@@ -29,6 +29,8 @@ namespace Integration.BaseTests
 
 			With.Connection(c => { updateData = UpdateHelper.GetUpdateData(c, user.Login); });
 
+			updateData.ResultPath = ServiceContext.GetResultPath();
+
 			if (File.Exists(Path.GetFullPath(archivefile)))
 				File.Delete(Path.GetFullPath(archivefile));
 		}
