@@ -280,6 +280,30 @@ Public Class PrgDataEx
         Return ""
     End Function
 
+    <WebMethod()> Public Function GetUserDataEx( _
+ ByVal AccessTime As Date, _
+ ByVal GetEtalonData As Boolean, _
+ ByVal EXEVersion As String, _
+ ByVal MDBVersion As Int16, _
+ ByVal UniqueID As String, _
+ ByVal WINVersion As String, _
+ ByVal WINDesc As String, _
+ ByVal WayBillsOnly As Boolean, _
+ ByVal ClientHFile As String) As String
+
+        Return GetUserDataWithPriceCodes( _
+        AccessTime, _
+        GetEtalonData, _
+        EXEVersion, _
+        MDBVersion, _
+        UniqueID, _
+        WINVersion, _
+        WINDesc, _
+        WayBillsOnly, _
+        Nothing, _
+        Nothing)
+    End Function
+
     <WebMethod()> Public Function GetUserDataWithPriceCodes( _
  ByVal AccessTime As Date, _
  ByVal GetEtalonData As Boolean, _
@@ -1860,6 +1884,100 @@ StartZipping:
 	End Function
 
 	'Отправляем несколько заказов скопом и по ним все формируем ответ
+	<WebMethod()> _
+	Public Function PostSomeOrdersFull( _
+  ByVal UniqueID As String, _
+  ByVal ForceSend As Boolean, _
+  ByVal UseCorrectOrders As Boolean, _
+  ByVal ClientCode As UInt32, _
+  ByVal OrderCount As UInt16, _
+  ByVal ClientOrderID As UInt64(), _
+  ByVal PriceCode As UInt64(), _
+  ByVal RegionCode As UInt64(), _
+  ByVal PriceDate As Date(), _
+  ByVal ClientAddition As String(), _
+  ByVal RowCount As UInt16(), _
+  ByVal DelayOfPayment As String(), _
+  ByVal ClientPositionID As UInt64(), _
+  ByVal ClientServerCoreID As UInt64(), _
+  ByVal ProductID As UInt64(), _
+  ByVal CodeFirmCr As String(), _
+  ByVal SynonymCode As UInt64(), _
+  ByVal SynonymFirmCrCode As String(), _
+  ByVal Code As String(), _
+  ByVal CodeCr As String(), _
+  ByVal Junk As Boolean(), _
+  ByVal Await As Boolean(), _
+  ByVal RequestRatio As String(), _
+  ByVal OrderCost As String(), _
+  ByVal MinOrderCount As String(), _
+  ByVal Quantity As UInt16(), _
+  ByVal Cost As Decimal(), _
+  ByVal MinCost As String(), _
+  ByVal MinPriceCode As String(), _
+  ByVal LeaderMinCost As String(), _
+  ByVal LeaderMinPriceCode As String(), _
+  ByVal SupplierPriceMarkup As String(), _
+  ByVal CoreQuantity As String(), _
+  ByVal Unit As String(), _
+  ByVal Volume As String(), _
+  ByVal Note As String(), _
+  ByVal Period As String(), _
+  ByVal Doc As String(), _
+  ByVal RegistryCost As String(), _
+  ByVal VitallyImportant As Boolean(), _
+  ByVal RetailMarkup As String(), _
+  ByVal ProducerCost As String(), _
+  ByVal NDS As String()) As String
+		Return _
+		 PostSomeOrdersFullEx( _
+		  UniqueID, _
+		  Nothing, _
+		  ForceSend, _
+		  UseCorrectOrders, _
+		  ClientCode, _
+		  OrderCount, _
+		  ClientOrderID, _
+		  PriceCode, _
+		  RegionCode, _
+		  PriceDate, _
+		  ClientAddition, _
+		  RowCount, _
+		  DelayOfPayment, _
+		  ClientPositionID, _
+		  ClientServerCoreID, _
+		  ProductID, _
+		  CodeFirmCr, _
+		  SynonymCode, _
+		  SynonymFirmCrCode, _
+		  Code, _
+		  CodeCr, _
+		  Junk, _
+		  Await, _
+		  RequestRatio, _
+		  OrderCost, _
+		  MinOrderCount, _
+		  Quantity, _
+		  Cost, _
+		  MinCost, _
+		  MinPriceCode, _
+		  LeaderMinCost, _
+		  LeaderMinPriceCode, _
+		  SupplierPriceMarkup, _
+		  CoreQuantity, _
+		  Unit, _
+		  Volume, _
+		  Note, _
+		  Period, _
+		  Doc, _
+		  RegistryCost, _
+		  VitallyImportant, _
+		  RetailMarkup, _
+		  ProducerCost, _
+		  NDS _
+		  )
+	End Function
+
 	<WebMethod()> _
 	Public Function PostSomeOrdersFullEx( _
   ByVal UniqueID As String, _
