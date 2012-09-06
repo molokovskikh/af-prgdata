@@ -482,7 +482,7 @@ AND    RCS.clientcode          = ?ClientCode",
 			string[] code,
 			string[] codeCr,
 			bool[] junk,
-			bool[] await1,
+			bool[] awaitValues,
 			string[] requestRatio,
 			string[] orderCost,
 			string[] minOrderCount,
@@ -532,7 +532,7 @@ AND    RCS.clientcode          = ?ClientCode",
 			CheckArrayCount(allPositionCount, code.Length, "code");
 			CheckArrayCount(allPositionCount, codeCr.Length, "codeCr");
 			CheckArrayCount(allPositionCount, junk.Length, "junk");
-			CheckArrayCount(allPositionCount, await1.Length, "await");
+			CheckArrayCount(allPositionCount, awaitValues.Length, "await");
 			CheckArrayCount(allPositionCount, requestRatio.Length, "requestRatio");
 			CheckArrayCount(allPositionCount, orderCost.Length, "orderCost");
 			CheckArrayCount(allPositionCount, minOrderCount.Length, "minOrderCount");
@@ -611,7 +611,7 @@ AND    RCS.clientcode          = ?ClientCode",
 							Code = code[detailIndex],
 							CodeCr = codeCr[detailIndex],
 							Junk = junk[detailIndex],
-							Await = await1[detailIndex],
+							Await = awaitValues[detailIndex],
 							RequestRatio =
 								String.IsNullOrEmpty(requestRatio[detailIndex]) ? null : (ushort?)ushort.Parse(requestRatio[detailIndex]),
 							OrderCost =
