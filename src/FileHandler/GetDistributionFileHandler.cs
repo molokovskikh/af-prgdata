@@ -29,9 +29,11 @@ namespace PrgData.FileHandlers
 		public void ProcessRequest(HttpContext context)
 		{
 			try {
+				Log.DebugFormat("Начали обработку на запрос файла");
 				SUserId = GetUserId(context);
 
 				var distributionFileName = GetDistributionFileName(context);
+				Log.DebugFormat("Попытка запроса файла {1} для пользователя: {0}", SUserId, distributionFileName);
 				if (!String.IsNullOrEmpty(distributionFileName) && File.Exists(distributionFileName)) {
 					context.Response.ContentType = "application/octet-stream";
 					using (var stmFileStream = new FileStream(distributionFileName, FileMode.Open, FileAccess.Read, FileShare.Read)) {

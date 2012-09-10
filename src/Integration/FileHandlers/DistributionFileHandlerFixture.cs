@@ -25,7 +25,7 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetup()
 		{
-			FileHanderAshxName = "GetDistributionFileHandler.asxh";
+			FileHanderAshxName = "GetDistributionFileHandler.ashx";
 
 			requestVersion = "7.1.1.1553";
 			pathToDistrib = Path.Combine(ServiceContext.DistributionPath(), requestVersion, "Exe", "AnalitF");

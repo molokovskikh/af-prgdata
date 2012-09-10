@@ -28,7 +28,7 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			FileHanderAshxName = "GetFileHandler.asxh";
+			FileHanderAshxName = "GetFileHandler.ashx";
 
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";

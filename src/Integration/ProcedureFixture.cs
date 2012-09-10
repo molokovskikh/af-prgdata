@@ -382,7 +382,7 @@ show full processlist;
 
 		private void ProcessFileHandler(uint updateId)
 		{
-			var fileName = "GetFileHandler.asxh";
+			var fileName = "GetFileHandler.ashx";
 
 			var output = new StringBuilder();
 			using (var sw = new StringWriter(output)) {
