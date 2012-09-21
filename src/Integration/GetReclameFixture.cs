@@ -88,6 +88,12 @@ namespace Integration
 			File.WriteAllText(Path.Combine(regionReclameDir, "2b.gif"), "contents 2b.gif");
 			File.WriteAllText(Path.Combine(regionReclameDir, "any.jpg"), "contents any.jpg");
 			File.WriteAllText(Path.Combine(regionReclameDir, "main.htm"), "contents main.htm");
+
+			var hiddenFile = Path.Combine(regionReclameDir, "mainHidden.gif");
+			File.WriteAllText(hiddenFile, "contents mainHidden.gif");
+			var hiddenFileInfo = new FileInfo(hiddenFile);
+			hiddenFileInfo.Attributes = hiddenFileInfo.Attributes | FileAttributes.Hidden;
+
 			File.WriteAllText(Path.Combine(regionReclameDir, "main.gif"), "contents main.gif");
 			var info = new FileInfo(Path.Combine(regionReclameDir, "main.gif"));
 			return info.LastWriteTime;
@@ -431,9 +437,13 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 
-				var files = reclame.ExcludeFileNames(new string[] { "index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif" });
-				var resultFiles = new string[] { "01.htm", "02.htm", "2b.gif" };
-				Assert.That(files, Is.EquivalentTo(resultFiles));
+				SetReclameDir(reclame.Region);
+
+				var files = reclame.GetReclameFiles(Path.Combine(resultsDir + "Reclame", reclame.Region));
+
+				var onlyFileName = files.Select(Path.GetFileName).ToArray();
+				var resultFiles = new string[] { "01.htm", "02.htm", "2b.gif", "any.jpg", "main.gif", "main.htm" };
+				Assert.That(onlyFileName, Is.EquivalentTo(resultFiles));
 			}
 		}
 
@@ -448,9 +458,13 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 
-				var files = reclame.ExcludeFileNames(new string[] { "index.htm", "2block.gif", "01.htm", "02.htm", "2b.gif" });
-				var resultFiles = new string[] { "index.htm", "2block.gif" };
-				Assert.That(files, Is.EquivalentTo(resultFiles));
+				SetReclameDir(reclame.Region);
+
+				var files = reclame.GetReclameFiles(Path.Combine(resultsDir + "Reclame", reclame.Region));
+
+				var onlyFileName = files.Select(Path.GetFileName).ToArray();
+				var resultFiles = new string[] { "index.htm", "2block.gif", "any.jpg", "main.gif", "main.htm" };
+				Assert.That(onlyFileName, Is.EquivalentTo(resultFiles));
 			}
 		}
 

@@ -40,7 +40,8 @@ namespace PrgData.Common
 
 			return (from file in fileNames
 				let extractFileName = Path.GetFileName(file)
-				where !excludeList.Any(f => f.Equals(extractFileName, StringComparison.OrdinalIgnoreCase))
+				let fileInfo = new FileInfo(file)
+				where (fileInfo.Attributes & FileAttributes.Hidden) == 0 && !excludeList.Any(f => f.Equals(extractFileName, StringComparison.OrdinalIgnoreCase))
 				select file).ToArray();
 		}
 
