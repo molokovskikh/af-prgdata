@@ -26,6 +26,7 @@ select Id, PublicationDate, Header
 from Usersettings.News
 where PublicationDate < curdate() + interval 1 day
 and Deleted = 0
+and DestinationType in (1, 2)
 order by PublicationDate desc
 limit 30";
 			Process("News", sql);
@@ -55,6 +56,7 @@ limit 30";
 				var sql = @"select Id, Body
 from Usersettings.News
 where PublicationDate < curdate() + interval 1 day and Deleted = 0
+and DestinationType in (1, 2)
 order by PublicationDate desc
 limit 30";
 				var news = Db.Read(sql,

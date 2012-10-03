@@ -26,7 +26,10 @@ namespace Integration.Models
 				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate(), 'Тестовая Новость Текущая', '<p>Тестовая Новость Текущая</p>')", c).ExecuteNonQuery();
 				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate() + interval 1 day, 'Тестовая Новость Завтрашняя', '<p>Тестовая Новость Завтрашняя</p>')", c).ExecuteNonQuery();
 				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body) values(curdate() - interval 1 day, 'Тестовая Новость Вчерашняя', '<p>Тестовая Новость Вчерашняя</p>')", c).ExecuteNonQuery();
+				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body, DestinationType) values(curdate(), 'Тестовая Новость Для поставщика', '<p>Тестовая Новость Для поставщика</p>', 0)", c).ExecuteNonQuery();
+				new MySqlCommand("insert into Usersettings.News(PublicationDate, Header, Body, DestinationType) values(curdate(), 'Тестовая Новость Для всех', '<p>Тестовая Новость Для всех</p>', 2)", c).ExecuteNonQuery();
 			});
+
 			Export<NewsExport>();
 
 			Assert.That(File.Exists(archivefile), Is.True,
@@ -36,6 +39,9 @@ namespace Integration.Models
 			var content = ReadExportContent("News");
 			Assert.That(content, Is.StringContaining("Тестовая Новость Текущая"));
 			Assert.That(content, Is.StringContaining("Тестовая Новость Вчерашняя"));
+			Assert.That(content, Is.StringContaining("Тестовая Новость Для всех"));
+			Assert.That(content, Is.Not.StringContaining("Тестовая Новость Завтрашняя"));
+			Assert.That(content, Is.Not.StringContaining("Тестовая Новость Для поставщика"));
 			Assert.That(files.Count, Is.EqualTo(1));
 		}
 
