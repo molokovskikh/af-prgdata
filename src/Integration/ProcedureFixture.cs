@@ -60,7 +60,7 @@ namespace Integration
 			futureUser = new User {
 				Id = testClient.Users[0].Id,
 				Login = testClient.Users[0].Login,
-				Client = new FutureClient { Id = testClient.Id }
+				Client = new Client { Id = testClient.Id }
 			};
 			futureAddress = new Address { Id = testClient.Addresses[0].Id };
 			futureUser.AvaliableAddresses = new List<Address> { futureAddress };

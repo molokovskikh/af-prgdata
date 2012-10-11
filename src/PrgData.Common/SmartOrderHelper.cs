@@ -333,7 +333,7 @@ namespace PrgData.Common
 			var sessionFactoryHolder = new SessionFactoryHolder(Settings.ConnectionName);
 			sessionFactoryHolder
 				.Configuration
-				.AddInputStream(HbmSerializer.Default.Serialize(typeof(FutureClient).Assembly))
+				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(SmartOrderRule).Assembly))
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(AnalitFVersionRule).Assembly));
 			IoC.Initialize(new WindsorContainer()
