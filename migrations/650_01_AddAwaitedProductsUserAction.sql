@@ -1,0 +1,1 @@
+﻿insert into UserSettings.UserActions (Id, Name, Identifier) values (21, 'Ожидаемые позиции', 'ShowAwaitedProducts');
