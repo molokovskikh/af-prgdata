@@ -163,7 +163,7 @@ namespace Integration
 
 			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, price.Id.PriceId);
 
-			var converter = new Orders2StringConverter(new List<Order> { order }, 1, 1, false);
+			var converter = new Orders2StringConverter(new List<UnconfirmedOrderInfo> { new UnconfirmedOrderInfo(order) { ClientOrderId = 1 } }, 1, false);
 
 			Assert.That(converter.OrderHead, Is.Not.Null);
 			Assert.That(converter.OrderItems, Is.Not.Null);
@@ -174,7 +174,7 @@ namespace Integration
 			var columns = converter.OrderHead.ToString().Split('\t');
 			Assert.That(columns.Length, Is.EqualTo(4), "Неожидаемое количество элементов, разделенных tab");
 
-			converter = new Orders2StringConverter(new List<Order> { order }, 1, 1, true);
+			converter = new Orders2StringConverter(new List<UnconfirmedOrderInfo> { new UnconfirmedOrderInfo(order) { ClientOrderId = 1 } }, 1, true);
 
 			Assert.That(converter.OrderHead, Is.Not.Null);
 			Assert.That(converter.OrderItems, Is.Not.Null);
@@ -257,12 +257,9 @@ namespace Integration
 
 				exporter.LoadOrders();
 
-				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(3));
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
-				foreach (var order in orders) {
-					Assert.That(exporter.LoadedOrders.Any(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-					Assert.That(updateData.UnconfirmedOrders.Any(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-				}
+				foreach (var order in orders)
+					Assert.That(updateData.UnconfirmedOrders.Any(o => o.OrderId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 
 				exporter.UnionOrders();
 
@@ -294,22 +291,29 @@ namespace Integration
 
 				exporter.LoadOrders();
 
-				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(4));
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
-				foreach (var order in orders) {
-					Assert.That(exporter.LoadedOrders.Any(o => o.RowId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-					Assert.That(updateData.UnconfirmedOrders.Any(o => o == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
-				}
+				foreach (var order in orders)
+					Assert.That(updateData.UnconfirmedOrders.Any(o => o.OrderId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 
 				exporter.UnionOrders();
 
 				Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(3));
 
-				Assert.That(exporter.ExportedOrders.Any(o => o.RowId == orders[0].RowId), Is.True);
-				Assert.That(exporter.ExportedOrders.Any(o => o.RowId == orders[1].RowId), Is.True);
-				Assert.That(exporter.ExportedOrders.Any(o => o.RowId == orders[3].RowId), Is.True);
+				Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[0].RowId), Is.True);
+				Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[1].RowId), Is.True);
+				Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[3].RowId), Is.True);
 
-				Assert.That(exporter.ExportedOrders[0].RowCount, Is.EqualTo(6));
+				Assert.That(exporter.ExportedOrders[0].Order.RowCount, Is.EqualTo(6));
+
+				Assert.That(
+					updateData.UnconfirmedOrders.All(orderInfo => orderInfo.ClientOrderId.HasValue),
+					Is.True,
+					"Для всех экспортированных заказов должно быть выставлено поле ClientOrderId");
+
+				Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[1].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
+				Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[3].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
+				Assert.That(updateData.UnconfirmedOrders[1].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[3].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
+				Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.EqualTo(updateData.UnconfirmedOrders[2].ClientOrderId), "Значение должны совпадать, т.к. заказы объединяются в один заказ при экспорте клиенту");
 			}
 		}
 
@@ -353,6 +357,7 @@ namespace Integration
 				Assert.That(sendLogs.Count, Is.EqualTo(1), "Должен быть один заказ, экспортированный пользователю в данном обновлении");
 				Assert.That(sendLogs[0].OrderId, Is.EqualTo(order.RowId), "Номер экспортированного заказа не совпадает");
 				Assert.That(sendLogs[0].User.Id, Is.EqualTo(_officeUser.Id), "Код пользователя не совпадает");
+				Assert.That(sendLogs[0].ExportedClientOrderId, Is.Not.Null, "Поле ExportedClientOrderId не установлено");
 			}
 
 			var service = new PrgDataEx();
@@ -405,7 +410,6 @@ namespace Integration
 
 				exporter.Export();
 
-				Assert.That(exporter.LoadedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
 				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
 
 				Assert.That(fileForArchives.Count, Is.EqualTo(0), "В очереди не должно быть файлов, т.к. нет неподтвержденных заказов для клиента {0}", _client.Id);
@@ -469,6 +473,7 @@ namespace Integration
 				Assert.That(sendLogs.Any(l => l.OrderId == secondOrder.RowId), Is.True, "Номер экспортированного заказа не совпадает");
 				Assert.That(sendLogs.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
 				Assert.That(sendLogs.All(l => !l.Committed), Is.True, "Код пользователя не совпадает");
+				Assert.That(sendLogs.All(l => l.ExportedClientOrderId.HasValue), Is.True, "Для заказов не установлено поле ExportedClientOrderId");
 			}
 
 			var thirdOrder = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
@@ -513,7 +518,10 @@ namespace Integration
 				Settings.ConnectionString(),
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", firstUpdateId)));
-			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}, {1}".Format(firstOrder.RowId, secondOrder.RowId)), "Неподтвержденный заказы {0}, {1} не содержатся в поле Addition", firstOrder.RowId, secondOrder.RowId);
+			Assert.That(
+				addition,
+				Is.StringContaining("Экспортированные неподтвержденные заказы: {0}+{1}->{2}".Format(firstOrder.RowId, secondOrder.RowId, sendLogs[0].ExportedClientOrderId)),
+				"Неподтвержденный заказы {0}, {1} не содержатся в поле Addition", firstOrder.RowId, secondOrder.RowId);
 		}
 
 
@@ -670,6 +678,49 @@ namespace Integration
 				Assert.That(sendLogsAfterCumulative.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
 				Assert.That(sendLogsAfterCumulative.All(l => !l.Committed), Is.True, "Есть подтвержденные заказы");
 			}
+		}
+
+		[Test(Description = "проверяем работу функции UnconfirmedOrderInfosToString")]
+		public void CheckUnconfirmedOrderInfosToString()
+		{
+			Assert.That(UnconfirmedOrdersExporter.UnconfirmedOrderInfosToString(null), Is.EqualTo(String.Empty));
+			Assert.That(UnconfirmedOrdersExporter.UnconfirmedOrderInfosToString(new List<UnconfirmedOrderInfo>()), Is.EqualTo(String.Empty));
+			Assert.That(UnconfirmedOrdersExporter.UnconfirmedOrderInfosToString(
+				new List<UnconfirmedOrderInfo> {
+					new UnconfirmedOrderInfo(1, 3),
+					new UnconfirmedOrderInfo(2, 4),
+				}),
+				Is.EqualTo("1->3, 2->4"));
+			Assert.That(UnconfirmedOrdersExporter.UnconfirmedOrderInfosToString(
+				new List<UnconfirmedOrderInfo> {
+					new UnconfirmedOrderInfo(1, 3),
+					new UnconfirmedOrderInfo(2, 4),
+					new UnconfirmedOrderInfo(3, 3),
+				}),
+				Is.EqualTo("1+3->3, 2->4"));
+			Assert.That(UnconfirmedOrdersExporter.UnconfirmedOrderInfosToString(
+				new List<UnconfirmedOrderInfo> {
+					new UnconfirmedOrderInfo(1, 3),
+					new UnconfirmedOrderInfo(2, 4),
+					new UnconfirmedOrderInfo(3, 3),
+					new UnconfirmedOrderInfo(5, 5),
+					new UnconfirmedOrderInfo(6, 6),
+					new UnconfirmedOrderInfo(7, 5),
+				}),
+				Is.EqualTo("1+3->3, 2->4, 5+7->5, 6->6"));
+			Assert.That(UnconfirmedOrdersExporter.UnconfirmedOrderInfosToString(
+				new List<UnconfirmedOrderInfo> {
+					new UnconfirmedOrderInfo(1, 3),
+					new UnconfirmedOrderInfo(2, 4),
+					new UnconfirmedOrderInfo(3, 3),
+					new UnconfirmedOrderInfo(5, 5),
+					new UnconfirmedOrderInfo(6, 6),
+					new UnconfirmedOrderInfo(7, 5),
+					new UnconfirmedOrderInfo(8, null),
+					new UnconfirmedOrderInfo(9, 7),
+					new UnconfirmedOrderInfo(10, null),
+				}),
+				Is.EqualTo("1+3->3, 2->4, 5+7->5, 6->6, 8->(неизвестно), 10->(неизвестно), 9->7"));
 		}
 	}
 

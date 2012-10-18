@@ -26,9 +26,7 @@ namespace PrgData.Common.Orders
 		public string OrdersHeadFileName { get; private set; }
 		public string OrdersListFileName { get; private set; }
 
-		public List<Order> LoadedOrders { get; private set; }
-
-		public List<Order> ExportedOrders { get; private set; }
+		public List<UnconfirmedOrderInfo> ExportedOrders { get; private set; }
 
 		public UnconfirmedOrdersExporter(UpdateData updateData, UpdateHelper helper, string exportFolder, Queue<FileForArchive> filesForArchive)
 		{
@@ -47,7 +45,7 @@ namespace PrgData.Common.Orders
 		public void Export()
 		{
 			LoadOrders();
-			if (LoadedOrders.Count > 0) {
+			if (Data.UnconfirmedOrders.Count > 0) {
 				UnionOrders();
 				ExportOrders();
 			}
@@ -58,7 +56,7 @@ namespace PrgData.Common.Orders
 			ShareFileHelper.WaitDeleteFile(OrdersHeadFileName);
 			ShareFileHelper.WaitDeleteFile(OrdersListFileName);
 
-			var converter = new Orders2StringConverter(ExportedOrders, Data.MaxOrderId, Data.MaxOrderListId, Data.AllowExportSendDate);
+			var converter = new Orders2StringConverter(ExportedOrders, Data.MaxOrderListId, Data.AllowExportSendDate);
 
 			File.WriteAllText(OrdersHeadFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(OrdersListFileName, converter.OrderItems.ToString(), Encoding.GetEncoding(1251));
@@ -71,26 +69,30 @@ namespace PrgData.Common.Orders
 
 		public void UnionOrders()
 		{
-			ExportedOrders = LoadedOrders
-				.GroupBy(o => new { o.AddressId, o.PriceList.PriceCode, o.RegionCode })
+			var maxOrderId = Data.MaxOrderId;
+			ExportedOrders = Data.UnconfirmedOrders
+				.GroupBy(info => new { info.Order.AddressId, info.Order.PriceList.PriceCode, info.Order.RegionCode })
 				.Select(
 				g => {
-					var firstOrder = g.OrderBy(o => o.WriteTime).First();
+					var firstOrderInfo = g.OrderBy(o => o.Order.WriteTime).First();
+					firstOrderInfo.ClientOrderId = maxOrderId;
+					maxOrderId++;
 					if (g.Count() > 1) {
-						foreach (var order in g) {
-							if (order != firstOrder)
-								for (int i = order.OrderItems.Count - 1; i >= 0; i--) {
-									var item = order.OrderItems[i];
-									order.RemoveItem(item);
-									item.Order = firstOrder;
-									firstOrder.OrderItems.Add(item);
+						foreach (var orderInfo in g) {
+							if (orderInfo != firstOrderInfo)
+								orderInfo.ClientOrderId = firstOrderInfo.ClientOrderId;
+								for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
+									var item = orderInfo.Order.OrderItems[i];
+									orderInfo.Order.RemoveItem(item);
+									item.Order = firstOrderInfo.Order;
+									firstOrderInfo.Order.OrderItems.Add(item);
 								}
 						}
 
-						firstOrder.RowCount = (uint)firstOrder.OrderItems.Count;
+						firstOrderInfo.Order.RowCount = (uint)firstOrderInfo.Order.OrderItems.Count;
 					}
 
-					return firstOrder;
+					return firstOrderInfo;
 				}).ToList();
 		}
 
@@ -106,16 +108,35 @@ namespace PrgData.Common.Orders
 					.Add(Restrictions.Eq("Deleted", false))
 					.Add(Restrictions.Eq("Processed", false))
 					.Add(Restrictions.In("AddressId", addressList.ToArray()));
-				LoadedOrders = criteria.GetExecutableCriteria(session).List<Order>().ToList();
+				var loadedOrders = criteria.GetExecutableCriteria(session).List<Order>().ToList();
 
 				Data.UnconfirmedOrders.Clear();
-				LoadedOrders.ForEach(o => Data.UnconfirmedOrders.Add(o.RowId));
+				loadedOrders.ForEach(o => Data.UnconfirmedOrders.Add(new UnconfirmedOrderInfo(o)));
 			}
+		}
+
+		public static string UnconfirmedOrderInfosToString(List<UnconfirmedOrderInfo> list)
+		{
+			if (list == null || list.Count == 0)
+				return String.Empty;
+
+			var exportInfo = new List<string>();
+			list.GroupBy(g => g.ClientOrderId)
+				.Each(g => {
+					if (g.Key.HasValue) {
+						exportInfo.Add(g.Select(i => i.OrderId).Implode("+") + "->" + g.Key.Value);
+					}
+					else
+						foreach (var unconfirmedOrderInfo in g) {
+							exportInfo.Add(unconfirmedOrderInfo.OrderId + "->(неизвестно)");
+						}
+				});
+			return exportInfo.Implode();
 		}
 
 		public static string DeleteUnconfirmedOrders(UpdateData updateData, MySqlConnection connection, uint updateId)
 		{
-			var list = new List<string>();
+			var orderInfos = new List<UnconfirmedOrderInfo>();
 
 			if (updateData.AllowDeleteUnconfirmedOrders)
 				With.DeadlockWraper(() => {
@@ -125,7 +146,8 @@ namespace PrgData.Common.Orders
 							connection,
 							@"
 select 
-  OrderId as RowId 
+  OrderId as RowId,
+  ExportedClientOrderId
 from 
   logs.UnconfirmedOrdersSendLogs
 where
@@ -139,7 +161,7 @@ order by OrderId",
 						if (orders.Tables.Count == 1) {
 							var logger = LogManager.GetLogger(typeof(UnconfirmedOrdersExporter));
 							foreach (DataRow row in orders.Tables[0].Rows) {
-								var orderId = row["RowId"];
+								var orderId = Convert.ToUInt32(row["RowId"]);
 								logger.DebugFormat("Удаляем неподтвержденный заказ: {0}", orderId);
 								MySql.Data.MySqlClient.MySqlHelper.ExecuteNonQuery(
 									connection,
@@ -156,7 +178,11 @@ and UpdateId = ?UpdateId;
 									new MySqlParameter("?orderId", orderId),
 									new MySqlParameter("?UserId", updateData.UserId),
 									new MySqlParameter("?UpdateId", updateId));
-								list.Add(orderId.ToString());
+
+								orderInfos.Add(
+									new UnconfirmedOrderInfo(
+										orderId,
+										Convert.IsDBNull(row["ExportedClientOrderId"]) ? null : (uint?)Convert.ToUInt32(row["ExportedClientOrderId"])));
 							}
 						}
 
@@ -168,7 +194,7 @@ and UpdateId = ?UpdateId;
 					}
 				});
 
-			return list.Implode();
+			return UnconfirmedOrderInfosToString(orderInfos);
 		}
 
 		public static void InsertUnconfirmedOrdersLogs(UpdateData updateData, MySqlConnection connection, uint? updateId)
@@ -181,10 +207,11 @@ and UpdateId = ?UpdateId;
 							connection,
 							@"
 insert into logs.UnconfirmedOrdersSendLogs 
-  (UserId, OrderId) 
+  (UserId, OrderId, ExportedClientOrderId)
 select 
 	?UserId, 
-	?OrderId 
+	?OrderId,
+	?ExportedClientOrderId
 from 
 	Customers.Users u
 where 
@@ -193,13 +220,15 @@ and not exists(select * from logs.UnconfirmedOrdersSendLogs where UserId = ?User
 update logs.UnconfirmedOrdersSendLogs
 set
   Committed = 0,
-  UpdateId = ?UpdateId
+  UpdateId = ?UpdateId,
+  ExportedClientOrderId = ?ExportedClientOrderId
 where
   UserId = ?UserId 
 and OrderId = ?OrderId;
 ",
 							new MySqlParameter("?UserId", updateData.UserId),
-							new MySqlParameter("?OrderId", unconfirmedOrder),
+							new MySqlParameter("?OrderId", unconfirmedOrder.OrderId),
+							new MySqlParameter("?ExportedClientOrderId", unconfirmedOrder.ClientOrderId),
 							new MySqlParameter("?UpdateId", updateId));
 					}
 

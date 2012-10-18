@@ -151,7 +151,7 @@ namespace PrgData.Common
 
 		public List<SupplierPromotion> SupplierPromotions = new List<SupplierPromotion>();
 
-		public List<uint> UnconfirmedOrders = new List<uint>();
+		public List<UnconfirmedOrderInfo> UnconfirmedOrders = new List<UnconfirmedOrderInfo>();
 
 		public bool AsyncRequest;
 		public bool Cumulative;
