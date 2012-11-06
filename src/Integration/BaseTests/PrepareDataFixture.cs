@@ -29,7 +29,6 @@ namespace Integration.BaseTests
 		[TestFixtureSetUp]
 		public void PrepareDataFixtureSetup()
 		{
-			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
 			ServiceContext.GetUserHost = () => "127.0.0.1";
 			UpdateHelper.GetDownloadUrl = () => "http://localhost/";
 			ServiceContext.GetResultPath = () => "results\\";

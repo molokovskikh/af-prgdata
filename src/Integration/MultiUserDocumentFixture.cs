@@ -311,8 +311,6 @@ namespace Integration
 		[Test(Description = "проверяем получение разобранного ненастоящего документа клиентом")]
 		public void Get_parsed_fake_docs()
 		{
-			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
-
 			TestWaybill waybill;
 			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				waybill = new TestWaybill(fakeDocument);
@@ -356,8 +354,6 @@ namespace Integration
 		Ignore("Данный тест надо восстановить, когда будет восстановлена передача разобранных накладных в копии AnalitF")]
 		public void Get_parsed_fake_docs_with_match_orders()
 		{
-			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
-
 			TestWaybill waybill;
 			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				waybill = new TestWaybill(fakeDocument);

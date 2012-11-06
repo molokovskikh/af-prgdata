@@ -23,8 +23,6 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
-			ArchiveHelper.SevenZipExePath = @".\7zip\7z.exe";
-
 			_afAppVersion = "1.1.1.1413";
 
 			ServiceContext.GetUserHost = () => "127.0.0.1";
