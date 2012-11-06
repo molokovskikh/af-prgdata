@@ -1148,6 +1148,9 @@ endprocNew:
 								If UpdateData.AllowInvoiceHeaders() Then
 									ShareFileHelper.WaitFile(ServiceContext.GetFileByShared("InvoiceHeaders" & UserId & ".txt"))
 								End If
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    ShareFileHelper.WaitFile(ServiceContext.GetFileByShared("WaybillOrders" & UserId & ".txt"))
+								End If
 #End If
 
 								Pr = New Process
@@ -1205,6 +1208,35 @@ endprocNew:
 									End If
 									Pr = Nothing
 								End If
+
+                                If UpdateData.AllowMatchWaybillsToOrders() then
+                                    Pr = New Process
+
+                                    startInfo = New ProcessStartInfo(SevenZipExe)
+                                    startInfo.CreateNoWindow = True
+                                    startInfo.RedirectStandardOutput = True
+                                    startInfo.RedirectStandardError = True
+                                    startInfo.UseShellExecute = False
+                                    startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                                    startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, ServiceContext.GetFileByLocal("WaybillOrders*" & UserId & ".txt"), SevenZipParam)
+                                    startInfo.FileName = SevenZipExe
+
+                                    Pr.StartInfo = startInfo
+
+                                    Pr.Start()
+
+                                    Вывод7Z = Pr.StandardOutput.ReadToEnd
+                                    Ошибка7Z = Pr.StandardError.ReadToEnd
+
+                                    Pr.WaitForExit()
+
+                                    If Pr.ExitCode <> 0 Then
+                                        Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
+                                        ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
+                                        Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                                    End If
+                                    Pr = Nothing
+                                End If
 
 								ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("DocumentHeaders" & UserId & ".txt"))
 								ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("DocumentBodies" & UserId & ".txt"))
