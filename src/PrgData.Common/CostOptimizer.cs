@@ -121,7 +121,7 @@ update core c
 	join farm.Core0 c0 on c0.Id = c.Id
 	join ActivePrices ap on c.PriceCode = ap.PriceCode
 	join ConcurentCosts cc on cc.ProductId = c.ProductId and cc.CodeFirmCr = c0.CodeFirmCr
-set c.Cost = MakeCost(c.Cost, cc.Cost)
+set c.Cost = MakeCostNoLess(c.Cost, cc.Cost)
 where ap.FirmCode = ?FirmCode and c.RegionCode = ?HomeRegionCode and c0.Junk = 0 and c0.CodeFirmCr is not null;
 
 select c0.ProductId, c0.CodeFirmCr, copy.Cost as SelfCost, cc.Cost as ConcurentCost, cc.AllCost, c.Cost as ResultCost

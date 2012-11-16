@@ -21,8 +21,8 @@ namespace Integration
 	[TestFixture]
 	public class CostOptimizationFixture
 	{
-		private uint _optimizationSupplierId = 5;
-		private uint _concurentSupplierId = 14;
+		private uint _optimizationSupplierId = 45;
+		private uint _concurentSupplierId = 94;
 		private uint _optimizationPriceId;
 
 		private TestClient _client;
@@ -126,7 +126,8 @@ limit 0, 50", conn);
 				var reader = command.ExecuteReader();
 
 				foreach (var row in reader.Cast<DbDataRecord>()) {
-					Assert.AreEqual(5, row["SupplierId"]);
+					Assert.AreEqual(45, row["SupplierId"]);
+					Assert.That(Convert.ToDecimal(row["SelfCost"]), Is.LessThanOrEqualTo(Convert.ToDecimal(row["ResultCost"])));
 				}
 			}
 		}
