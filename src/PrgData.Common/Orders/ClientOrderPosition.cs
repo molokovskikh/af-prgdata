@@ -39,6 +39,7 @@ namespace PrgData.Common.Orders
 		public ushort? NDS { get; set; }
 		public float CostWithDelayOfPayment { get; set; }
 
+		public bool IgnoreCostReducing;
 
 		public ClientOrderPosition()
 		{
@@ -174,6 +175,15 @@ and (Await = {6})",
 					SendResult,
 					Duplicated,
 					OrderPosition);
+		}
+
+		public bool IsCostChanged(Offer offer)
+		{
+			if (OrderPosition.Cost < offer.Cost)
+				return true;
+			if (!IgnoreCostReducing && OrderPosition.Cost > offer.Cost)
+				return true;
+			return false;
 		}
 	}
 }

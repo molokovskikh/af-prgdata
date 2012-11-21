@@ -574,15 +574,16 @@ limit 1
 			return part.Slice(part.IndexOf("=") + 1, -1);
 		}
 
-		private string PostOrder(ushort quantity = 1)
+		private string PostOrder(ushort quantity = 1, bool useCorrectOrders = false)
 		{
+			bool forceSend = !useCorrectOrders;
 			string serverResponse;
 			using (var prgData = new PrgDataEx()) {
 				serverResponse = prgData.PostSomeOrdersFullExtend(
 					UniqueId,
 					"7.0.0.1385",
-					true, //ForceSend
-					false, //UseCorrectOrders
+					forceSend, //ForceSend
+					useCorrectOrders, //UseCorrectOrders
 					_address.Id, //ClientId => AddressId
 					1, //OrderCount
 					new ulong[] { 1L }, //ClientOrderId
@@ -625,6 +626,19 @@ limit 1
 					new string[] { "" }); //NDS
 			}
 			return serverResponse;
+		}
+
+		[Test]
+		public void Post_optimaized_cost_with_offer_check()
+		{
+			CostOptimizaerConf.MakeUserOptimazible(_user, Convert.ToUInt32(activePrice["FirmCode"]));
+			firstOffer["Cost"] = Convert.ToDecimal(fourOffer["Cost"]) * 1.13m;
+			var response = PostOrder(useCorrectOrders: true);
+
+			var error = GetError(response);
+			var id = GetFirstOrderId(response);
+			Assert.That(error, Is.Empty, response);
+			Assert.That(id, Is.GreaterThan(0), response);
 		}
 
 		[Test(Description = "Отправляем заказ с групповым контролем суммы заказа с заказом, созданным в начале месяца")]

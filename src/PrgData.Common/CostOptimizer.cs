@@ -25,9 +25,10 @@ namespace PrgData.Common
 		private readonly MySqlConnection _readWriteConnection;
 
 		private readonly uint _clientId;
-		private readonly uint _supplierId;
 		private readonly uint _ruleId;
 		private readonly ulong _homeRegionCode;
+
+		public readonly uint SupplierId;
 
 		public static void OptimizeCostIfNeeded(MySqlConnection readWriteConnection, uint clientCode)
 		{
@@ -50,7 +51,7 @@ limit 1", _readWriteConnection);
 			command.Parameters.AddWithValue("?ClientId", clientCode);
 			using (var reader = command.ExecuteReader()) {
 				if (reader.Read()) {
-					_supplierId = reader.GetUInt32("SupplierId");
+					SupplierId = reader.GetUInt32("SupplierId");
 					_ruleId = reader.GetUInt32("Id");
 				}
 			}
@@ -64,20 +65,20 @@ where Id = ?ClientId";
 
 		public bool IsCostOptimizationNeeded()
 		{
-			if (_supplierId == 0)
+			if (SupplierId == 0)
 				return false;
 			var command = new MySqlCommand(@"
 select count(*)
 from usersettings.ActivePrices
 where firmcode = ?firmCode", _readWriteConnection);
-			command.Parameters.AddWithValue("?firmCode", _supplierId);
+			command.Parameters.AddWithValue("?firmCode", SupplierId);
 			return Convert.ToUInt32(command.ExecuteScalar()) > 0;
 		}
 
 		public void Oprimize()
 		{
 			if (_log.IsDebugEnabled)
-				_log.DebugFormat("Начало оптимизации цен, поставщик {0}", _supplierId);
+				_log.DebugFormat("Начало оптимизации цен, поставщик {0}", SupplierId);
 
 			var concurents = new List<uint>();
 			var command = new MySqlCommand(@"
@@ -134,7 +135,7 @@ where c.Cost <> copy.Cost and c.RegionCode = ?HomeRegionCode and copy.RegionCode
 drop temporary table ConcurentCosts;
 drop temporary table CoreCopy;
 ", String.Join(", ", concurents.Select(f => f.ToString()).ToArray())), _readWriteConnection);
-			optimizeCommand.Parameters.AddWithValue("?FirmCode", _supplierId);
+			optimizeCommand.Parameters.AddWithValue("?FirmCode", SupplierId);
 			optimizeCommand.Parameters.AddWithValue("?HomeRegionCode", _homeRegionCode);
 
 			var logs = new List<CostOptimizationLog>();
@@ -171,7 +172,7 @@ drop temporary table CoreCopy;
 						break;
 
 					var log = logs[begin + i];
-					commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, _supplierId));
+					commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, SupplierId));
 					if (i < 99 && begin + i < logs.Count - 1)
 						commandText.AppendLine(", ");
 				}
@@ -181,7 +182,7 @@ drop temporary table CoreCopy;
 			}
 
 			if (_log.IsDebugEnabled)
-				_log.DebugFormat("Оптимизация цен завершена, поставщик {0}", _supplierId);
+				_log.DebugFormat("Оптимизация цен завершена, поставщик {0}", SupplierId);
 		}
 
 		public string ForMySql(decimal? value)
@@ -207,7 +208,7 @@ update usersettings.ActivePrices ap
 set fresh = 1
 where ap.FirmCode = ?FirmCode and ap.RegionCode = ?HomeRegion", _readWriteConnection);
 				updateCommand.Parameters.AddWithValue("?HomeRegion", _homeRegionCode);
-				updateCommand.Parameters.AddWithValue("?FirmCode", _supplierId);
+				updateCommand.Parameters.AddWithValue("?FirmCode", SupplierId);
 				updateCommand.ExecuteNonQuery();
 			}
 		}

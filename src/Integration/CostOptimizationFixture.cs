@@ -5,8 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Castle.ActiveRecord;
+using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.Tools;
+using Integration.BaseTests;
 using log4net;
 using log4net.Config;
 using NUnit.Framework;
@@ -21,10 +23,7 @@ namespace Integration
 	[TestFixture]
 	public class CostOptimizationFixture
 	{
-		private uint _optimizationSupplierId = 45;
-		private uint _concurentSupplierId = 94;
-		private uint _optimizationPriceId;
-
+		private CostOptimizaerConf costOptimizaerConf;
 		private TestClient _client;
 		private TestUser _user;
 
@@ -42,43 +41,7 @@ namespace Integration
 				_user.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				connection.Open();
-
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					"call Customers.GetPrices(?UserId)",
-					new MySqlParameter("?UserId", _user.Id));
-
-				_optimizationPriceId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					@"
-select 
-	Prices.PriceCode, count(*)
-from
-	Prices
-	inner join farm.Core0 c on c.PriceCode = Prices.PriceCode
-where
-	Prices.FirmCode = ?OptimizationSupplierId
-group by Prices.PriceCode
-order by 2 desc",
-					new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId)));
-
-				var ruleId = Convert.ToUInt64(
-					MySqlHelper.ExecuteScalar(
-						connection,
-						@"
-insert into usersettings.costoptimizationrules (SupplierId) values (?OptimizationSupplierId);
-set @LastRuleId = last_insert_id();
-insert into usersettings.costoptimizationconcurrents (RuleId, SupplierId) values (@LastRuleId, ?ConcurentSupplierId);
-#insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?OldClientId);
-insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?NewClientId);
-select @LastRuleId;
-",
-						new MySqlParameter("?OptimizationSupplierId", _optimizationSupplierId),
-						new MySqlParameter("?ConcurentSupplierId", _concurentSupplierId),
-						new MySqlParameter("?NewClientId", _client.Id)));
-			}
+			costOptimizaerConf = CostOptimizaerConf.MakeUserOptimazible(_user);
 		}
 
 		private void CostOptimizerShouldCreateLogsWithSupplier(uint clientId, Action<MySqlCommand> getOffers)
@@ -99,8 +62,8 @@ select @LastRuleId;
    and pdc.FirmCode = ?concurentId
 group by cs.Id
 limit 0, 50", conn);
-				command.Parameters.AddWithValue("?priceId", _optimizationPriceId);
-				command.Parameters.AddWithValue("?concurentId", _concurentSupplierId);
+				command.Parameters.AddWithValue("?priceId", costOptimizaerConf.OptimizationPriceId);
+				command.Parameters.AddWithValue("?concurentId", costOptimizaerConf.ConcurentSupplierId);
 
 				var cores = command.ExecuteReader();
 				var update = new StringBuilder();
@@ -142,109 +105,6 @@ limit 0, 50", conn);
 					command.Parameters.AddWithValue("?UserId", _user.Id);
 					command.ExecuteNonQuery();
 				});
-		}
-
-		public class CostLogInsert
-		{
-			public uint ClientId;
-
-			private ILog _log;
-
-			public Thread Thread;
-
-			//общее кол-во вставляемых записей
-			private int _insertCount = 8000;
-			//кол-во записей вставляемых одной командой
-			private int _packCount = 300;
-
-			public bool Error { get; private set; }
-
-			public CostLogInsert(uint clientId)
-			{
-				_log = LogManager.GetLogger(typeof(CostLogInsert));
-				Thread = new Thread(ThreadMethod);
-				Thread.Start();
-				ClientId = clientId;
-			}
-
-			public string ForMySql(decimal? value)
-			{
-				if (value == null)
-					return "null";
-				return value.Value.ToString(CultureInfo.InvariantCulture);
-			}
-
-			public void ThreadMethod()
-			{
-				try {
-					using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-						connection.Open();
-						var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
-						try {
-							var header = "insert into logs.CostOptimizationLogs(ClientId, SupplierId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost) values";
-							var logCommand = new MySqlCommand(header, connection);
-
-							var begin = 0;
-
-							while (begin < _insertCount) {
-								var commandText = new StringBuilder();
-								commandText.Append(header);
-
-								for (var i = 0; i < _packCount; i++) {
-									if (begin + i >= _insertCount)
-										break;
-
-									commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", 1, 1, ForMySql(1.1m), ForMySql(1.2m), ForMySql(1.3m), ForMySql(1.0m), ClientId, 2));
-									if (i < (_packCount - 1) && begin + i < _insertCount - 1)
-										commandText.AppendLine(", ");
-								}
-								logCommand.CommandText = commandText.ToString();
-								logCommand.ExecuteNonQuery();
-								begin += _packCount;
-							}
-
-							transaction.Commit();
-						}
-						catch {
-							ConnectionHelper.SafeRollback(transaction);
-							throw;
-						}
-					}
-				}
-				catch (Exception exception) {
-					Error = true;
-					_log.ErrorFormat("Ошибка для клиента {0}: {1}", ClientId, exception);
-				}
-			}
-		}
-
-		[Test(Description = "Проверка множественных вставок в CostOptimizationLogs для воспроизведения ошибки Duplicate entry"),
-		 Ignore("Отключаю, т.к. ошибку тест не воспроизводит")]
-		public void TestMultiInsertWithSomeThreads()
-		{
-			BasicConfigurator.Configure();
-			try {
-				var log = LogManager.GetLogger(typeof(CostOptimizationFixture));
-
-				log.Debug("Начали работу теста");
-
-				var list = new List<CostLogInsert>();
-				var clientCount = 10;
-				for (int i = 0; i < clientCount; i++) {
-					list.Add(new CostLogInsert((uint)i + 1));
-				}
-
-				do {
-					Thread.Sleep(500);
-				} while (!list.TrueForAll(item => item.Thread.ThreadState == ThreadState.Stopped));
-
-				Assert.That(list.TrueForAll(item => !item.Error), "В одной из ниток возникла ошибка");
-
-				log.Debug("Закончили работу теста");
-			}
-			finally {
-				LogManager.ResetConfiguration();
-			}
 		}
 	}
 }

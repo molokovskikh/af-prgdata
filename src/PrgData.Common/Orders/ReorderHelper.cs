@@ -20,6 +20,8 @@ namespace PrgData.Common.Orders
 {
 	public class ReorderHelper : OrderHelper
 	{
+		private ILog logger = LogManager.GetLogger(typeof(ReorderHelper));
+
 		private bool _forceSend;
 		private bool _useCorrectOrders;
 		//Это в старой системе код клиента, а в новой системе код адреса доставки
@@ -73,8 +75,7 @@ namespace PrgData.Common.Orders
 									transaction.Rollback();
 								}
 								catch (Exception rollbackException) {
-									ILog _logger = LogManager.GetLogger(this.GetType());
-									_logger.Error(
+									logger.Error(
 										"Ошибка при rollback'е транзакции сохранения заказов",
 										rollbackException);
 								}
@@ -116,8 +117,6 @@ namespace PrgData.Common.Orders
 
 		private void CheckDoubleCoreId()
 		{
-			var logger = LogManager.GetLogger(typeof(ReorderHelper));
-
 			_orders.ForEach(
 				order => {
 					//Группируем элементы по ClientServerCoreId
@@ -280,7 +279,13 @@ values
 			var productIds = GetSearchedProductIds();
 
 			if (productIds.Count > 0) {
+				var optimizer = new CostOptimizer(_readWriteConnection, _user.Client.Id);
 				var offers = GetOffers(productIds);
+
+				var orderWithPosibleOptimizedCosts = _orders.Where(o => o.ActivePrice.Id.Price.Supplier.Id == optimizer.SupplierId);
+				foreach (var position in orderWithPosibleOptimizedCosts.SelectMany(o => o.Positions)) {
+					position.IgnoreCostReducing = true;
+				}
 
 				foreach (var order in _orders) {
 					foreach (var position in order.Positions) {
@@ -307,7 +312,7 @@ values
 				serverQuantity = offer.Quantity;
 			}
 
-			if (!position.OrderPosition.Cost.Equals(offer.Cost)) {
+			if (position.IsCostChanged(offer)) {
 				position.SendResult = PositionSendResult.DifferentCost;
 				position.ServerCost = offer.Cost;
 				if (serverQuantity.HasValue)
@@ -784,13 +789,12 @@ AND    RCS.clientcode          = ?ClientCode",
 
 		private void CheckDuplicatedOrders()
 		{
-			ILog _logger = LogManager.GetLogger(this.GetType());
 			string logMessage;
 
 			foreach (var order in _orders) {
 				//проверку производим только на заказах, которые помечены как успешные
 				if (order.SendResult != OrderSendResult.Success) {
-					_logger.DebugFormat("Для заказа (UserId: {0}, AddressId: {1}, ClientOrderId: {2}) не будем проверять дубликаты, т.к. он не успешен {3}\r\nПозиций: {4}\r\n{5}",
+					logger.DebugFormat("Для заказа (UserId: {0}, AddressId: {1}, ClientOrderId: {2}) не будем проверять дубликаты, т.к. он не успешен {3}\r\nПозиций: {4}\r\n{5}",
 						_data.UserId,
 						_orderedClientCode,
 						order.Order.ClientOrderId,
@@ -833,7 +837,7 @@ order by ol.RowId
 				dataAdapter.Fill(existsOrders);
 
 				if (existsOrders.Rows.Count == 0) {
-					_logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) не будем проверять дубликаты, т.к. не найдены предыдущие заказы\r\nПозиций: {4}\r\n{5}",
+					logger.DebugFormat("Для заказа (UserId: {0}, ClientId: {1}, AddressId: {2}, ClientOrderId: {3}) не будем проверять дубликаты, т.к. не найдены предыдущие заказы\r\nПозиций: {4}\r\n{5}",
 						_data.UserId,
 						_data.ClientId,
 						_orderedClientCode,
@@ -863,7 +867,7 @@ order by ol.RowId
 					order.ServerOrderId,
 					order.Positions.Count,
 					order.Positions.Implode("\r\n"));
-				_logger.DebugFormat(logMessage);
+				logger.DebugFormat(logMessage);
 
 				foreach (ClientOrderPosition position in order.Positions) {
 					//позиция может быть дублированной из-за ClientServerCoreId
@@ -883,7 +887,7 @@ order by ol.RowId
 									_data.UserId,
 									existsOrderList[0]["OrderId"],
 									existsOrderList[0]["RowId"]);
-								_logger.InfoFormat(logMessage);
+								logger.InfoFormat(logMessage);
 							}
 							else {
 								position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - serverQuantity);
@@ -895,7 +899,7 @@ order by ol.RowId
 									_data.UserId,
 									existsOrderList[0]["OrderId"],
 									existsOrderList[0]["RowId"]);
-								_logger.InfoFormat(logMessage);
+								logger.InfoFormat(logMessage);
 							}
 							//удаляем позицию, чтобы больше не находить ее
 							existsOrderList[0].Delete();
@@ -922,7 +926,7 @@ order by ol.RowId
 									existsOrderList[0]["OrderId"],
 									existsOrderList.Length,
 									stringBuilder);
-								_logger.InfoFormat(logMessage);
+								logger.InfoFormat(logMessage);
 							}
 							else {
 								position.OrderPosition.Quantity = (ushort)(position.OrderPosition.Quantity - existsOrderedQuantity);
@@ -936,7 +940,7 @@ order by ol.RowId
 									existsOrderList[0]["OrderId"],
 									existsOrderList.Length,
 									stringBuilder);
-								_logger.InfoFormat(logMessage);
+								logger.InfoFormat(logMessage);
 							}
 							//удаляем позиции, чтобы больше не находить их
 							byQuantity.ForEach(row => row.Delete());
@@ -953,7 +957,7 @@ order by ol.RowId
 						_data.ClientId,
 						_orderedClientCode,
 						order.Order.ClientOrderId);
-					_logger.DebugFormat(logMessage);
+					logger.DebugFormat(logMessage);
 
 					var serverOrder = IoC.Resolve<IRepository<Order>>().Load(Convert.ToUInt32(order.ServerOrderId));
 					order.Order.WriteTime = serverOrder.WriteTime;
