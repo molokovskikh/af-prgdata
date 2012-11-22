@@ -632,7 +632,7 @@ limit 1
 		public void Post_optimaized_cost_with_offer_check()
 		{
 			CostOptimizaerConf.MakeUserOptimazible(_user, Convert.ToUInt32(activePrice["FirmCode"]));
-			firstOffer["Cost"] = Convert.ToDecimal(fourOffer["Cost"]) * 1.13m;
+			firstOffer["Cost"] = Math.Round(Convert.ToDecimal(fourOffer["Cost"]) * 1.13m, 2);
 			var response = PostOrder(useCorrectOrders: true);
 
 			var error = GetError(response);

@@ -11,7 +11,7 @@ namespace Integration.BaseTests
 		public uint ConcurentSupplierId = 94;
 		public uint OptimizationPriceId;
 
-		public static CostOptimizaerConf MakeUserOptimazible(TestUser user, uint optimizationSupplierId = 5)
+		public static CostOptimizaerConf MakeUserOptimazible(TestUser user, uint optimizationSupplierId = 45)
 		{
 			var conf = new CostOptimizaerConf {
 				OptimizationSupplierId = optimizationSupplierId
