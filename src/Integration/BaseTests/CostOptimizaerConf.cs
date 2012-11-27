@@ -42,7 +42,8 @@ order by 2 desc",
 				MySqlHelper.ExecuteScalar(
 					connection,
 					@"
-insert into usersettings.costoptimizationrules (SupplierId) values (?OptimizationSupplierId);
+insert into usersettings.costoptimizationrules (SupplierId, MinAmount, MinPercent, MaxPercent, MinDelta, MaxDelta) 
+values (?OptimizationSupplierId, 1, 0.8, 23, 0.2, 0.7);
 set @LastRuleId = last_insert_id();
 insert into usersettings.costoptimizationconcurrents (RuleId, SupplierId) values (@LastRuleId, ?ConcurentSupplierId);
 insert into usersettings.costoptimizationclients (RuleId, ClientId) values (@LastRuleId, ?NewClientId);

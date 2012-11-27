@@ -279,7 +279,7 @@ values
 			var productIds = GetSearchedProductIds();
 
 			if (productIds.Count > 0) {
-				var optimizer = new CostOptimizer(_readWriteConnection, _user.Client.Id);
+				var optimizer = new CostOptimizer(_readWriteConnection, _user.Client.Id, _user.Id);
 				var offers = GetOffers(productIds);
 
 				var orderWithPosibleOptimizedCosts = _orders.Where(o => o.ActivePrice.Id.Price.Supplier.Id == optimizer.SupplierId);

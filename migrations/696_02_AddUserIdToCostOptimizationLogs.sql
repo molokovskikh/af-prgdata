@@ -1,0 +1,1 @@
+﻿ALTER TABLE `logs`.`costoptimizationlogs` ADD COLUMN `UserId` INTEGER UNSIGNED AFTER `SupplierId`;

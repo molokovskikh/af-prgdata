@@ -80,7 +80,7 @@ limit 0, 50", conn);
 
 				command.CommandType = CommandType.Text;
 
-				var optimizer = new CostOptimizer(conn, clientId);
+				var optimizer = new CostOptimizer(conn, clientId, _user.Id);
 				optimizer.Oprimize();
 
 				command.CommandText = "select * from logs.CostOptimizationLogs where LoggedOn > ?startTime and ClientId = ?clientId";
@@ -91,6 +91,7 @@ limit 0, 50", conn);
 				foreach (var row in reader.Cast<DbDataRecord>()) {
 					Assert.AreEqual(45, row["SupplierId"]);
 					Assert.That(Convert.ToDecimal(row["SelfCost"]), Is.LessThanOrEqualTo(Convert.ToDecimal(row["ResultCost"])));
+					Assert.That(row["UserId"], Is.EqualTo(_user.Id));
 				}
 			}
 		}

@@ -3362,7 +3362,7 @@ RestartTrans2:
 						'"WHERE  LENGTH(CryptCost)>0 " & _
 						'"   AND Core.PriceCode != ?ImpersonalPriceId;"
 
-						CostOptimizer.OptimizeCostIfNeeded(readWriteConnection, CCode)
+						CostOptimizer.OptimizeCostIfNeeded(readWriteConnection, CCode, UserId)
 
 						'SelProc.CommandText = _
 						'    "UPDATE ActivePrices Prices, " & _
