@@ -118,6 +118,7 @@
     <Compile Include="GetUpdateDataFixture.cs" />
     <Compile Include="ImpersonalPriceFixture.cs" />
     <Compile Include="log4netMySqlAdoNetAdapter.cs" />
+    <Compile Include="MakeCostNoLessFixture.cs" />
     <Compile Include="MatrixFixture.cs" />
     <Compile Include="MiniMailFixture.cs" />
     <Compile Include="Models\MailsExportFixture.cs" />

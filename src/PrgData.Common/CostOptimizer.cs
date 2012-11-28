@@ -25,21 +25,23 @@ namespace PrgData.Common
 		private readonly MySqlConnection _readWriteConnection;
 
 		private readonly uint _clientId;
+		private readonly uint _userId;
 		private readonly uint _ruleId;
 		private readonly ulong _homeRegionCode;
 
 		public readonly uint SupplierId;
 
-		public static void OptimizeCostIfNeeded(MySqlConnection readWriteConnection, uint clientCode)
+		public static void OptimizeCostIfNeeded(MySqlConnection readWriteConnection, uint clientCode, uint userId)
 		{
-			var optimizer = new CostOptimizer(readWriteConnection, clientCode);
+			var optimizer = new CostOptimizer(readWriteConnection, clientCode, userId);
 			if (optimizer.IsCostOptimizationNeeded())
 				optimizer.Oprimize();
 		}
 
-		public CostOptimizer(MySqlConnection readWriteConnection, uint clientCode)
+		public CostOptimizer(MySqlConnection readWriteConnection, uint clientCode, uint userId)
 		{
 			_clientId = clientCode;
+			_userId = userId;
 			_readWriteConnection = readWriteConnection;
 
 			var command = new MySqlCommand(@"
@@ -122,7 +124,7 @@ update core c
 	join farm.Core0 c0 on c0.Id = c.Id
 	join ActivePrices ap on c.PriceCode = ap.PriceCode
 	join ConcurentCosts cc on cc.ProductId = c.ProductId and cc.CodeFirmCr = c0.CodeFirmCr
-set c.Cost = MakeCostNoLess(c.Cost, cc.Cost)
+set c.Cost = MakeCostNoLess(c.Cost, cc.Cost, {1})
 where ap.FirmCode = ?FirmCode and c.RegionCode = ?HomeRegionCode and c0.Junk = 0 and c0.CodeFirmCr is not null;
 
 select c0.ProductId, c0.CodeFirmCr, copy.Cost as SelfCost, cc.Cost as ConcurentCost, cc.AllCost, c.Cost as ResultCost
@@ -134,7 +136,7 @@ where c.Cost <> copy.Cost and c.RegionCode = ?HomeRegionCode and copy.RegionCode
 
 drop temporary table ConcurentCosts;
 drop temporary table CoreCopy;
-", String.Join(", ", concurents.Select(f => f.ToString()).ToArray())), _readWriteConnection);
+", String.Join(", ", concurents.Select(f => f.ToString()).ToArray()), _ruleId), _readWriteConnection);
 			optimizeCommand.Parameters.AddWithValue("?FirmCode", SupplierId);
 			optimizeCommand.Parameters.AddWithValue("?HomeRegionCode", _homeRegionCode);
 
@@ -158,7 +160,7 @@ drop temporary table CoreCopy;
 				}
 			}
 
-			var header = "insert into logs.CostOptimizationLogs(ClientId, SupplierId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost) values";
+			var header = "insert into logs.CostOptimizationLogs(ClientId, SupplierId, ProductId, ProducerId, SelfCost, ConcurentCost, AllCost, ResultCost, UserId) values";
 			var logCommand = new MySqlCommand(header, _readWriteConnection);
 
 			var begin = 0;
@@ -172,7 +174,7 @@ drop temporary table CoreCopy;
 						break;
 
 					var log = logs[begin + i];
-					commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, SupplierId));
+					commandText.Append(String.Format(" ({6}, {7}, {0}, {1}, {2}, {3}, {4}, {5}, {8})", log.ProductId, log.ProducerId, ForMySql(log.SelfCost), ForMySql(log.ConcurentCost), ForMySql(log.AllCost), ForMySql(log.ResultCost), _clientId, SupplierId, _userId));
 					if (i < 99 && begin + i < logs.Count - 1)
 						commandText.AppendLine(", ");
 				}
