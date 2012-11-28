@@ -118,7 +118,8 @@ from
 	Documents.Mails
 	inner join Documents.Attachments on Attachments.MailId = Mails.Id
 where
-  Mails.Id in (" + forceAttachments.Implode() + ")";
+  Mails.Id in ("
+					+ forceAttachments.Implode() + ")";
 				using (var reader = selectCommand.ExecuteReader()) {
 					while (reader.Read()) {
 						var attachmentId = reader.GetUInt32(0);
@@ -149,7 +150,8 @@ from
 	Documents.Mails
 	inner join Customers.Suppliers on Suppliers.Id = Mails.SupplierId
 where
-  Mails.Id in (" + updateData.ExportMails.Select(m => m.MiniMailId).Implode() + ")";
+  Mails.Id in ("
+				+ updateData.ExportMails.Select(m => m.MiniMailId).Implode() + ")";
 		}
 
 		public string GetAttachmentsCommand()
@@ -165,7 +167,8 @@ from
 	Documents.Mails
 	inner join Documents.Attachments on Attachments.MailId = Mails.Id
 where
-  Mails.Id in (" + updateData.ExportMails.Select(m => m.MiniMailId).Implode() + ")";
+  Mails.Id in ("
+				+ updateData.ExportMails.Select(m => m.MiniMailId).Implode() + ")";
 		}
 
 		private void ProcessArchiveFile(string processedFile, string archiveFileName)

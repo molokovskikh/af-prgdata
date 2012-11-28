@@ -103,7 +103,8 @@ namespace PrgData.Common
 			return @"
 update Logs.DocumentSendLogs ds
 set ds.Committed = 1
-where ds.updateid = " + updateId;
+where ds.updateid = "
+				+ updateId;
 		}
 
 		public bool DefineMaxProducerCostsCostId()
@@ -706,7 +707,8 @@ where
 	DocumentHeaders.DownloadId in ({0})
 and (Clients.Id = DocumentHeaders.ClientCode)
 and (regions.RegionCode = Clients.RegionCode)
-", downloadIds);
+",
+				downloadIds);
 		}
 
 		public string GetDocumentBodiesCommand(string downloadIds)
@@ -1269,7 +1271,8 @@ and (DescriptionLogs.Operation = 2)
 		documents.certificatefiles cf
 		inner join documents.FileCertificates fc on fc.CertificateFileId = cf.Id
 	where
-		cf.Id in (" + ids + ")";
+		cf.Id in ("
+				+ ids + ")";
 		}
 
 		private string GetSourceSuppliersCommand()
@@ -1310,7 +1313,8 @@ and (DescriptionLogs.Operation = 2)
 	from
 		documents.certificatefiles cf
 	where
-		cf.Id in (" + ids + ")";
+		cf.Id in ("
+				+ ids + ")";
 		}
 
 		private string GetCertificateFilesCommand()
@@ -1333,7 +1337,8 @@ and (DescriptionLogs.Operation = 2)
 	from
 		documents.certificatefiles cf
 	where
-		cf.Id in (" + ids + ")";
+		cf.Id in ("
+				+ ids + ")";
 		}
 
 		private string GetCertificatesCommand()
@@ -1353,7 +1358,8 @@ and (DescriptionLogs.Operation = 2)
 	from
 		documents.certificates c
 	where
-		c.Id in (" + ids + ")";
+		c.Id in ("
+				+ ids + ")";
 		}
 
 		private void ProcessCertificates(MySqlCommand command)
@@ -2173,7 +2179,8 @@ select
 from 
   Customers.ClientToAddressMigrations
 where
-	UserId = " + _updateData.UserId;
+	UserId = "
+				+ _updateData.UserId;
 		}
 
 		public string GetUpdateValuesCommand()
@@ -2188,7 +2195,8 @@ select
 from
 	UserSettings.RetClientsSet
 where
-	ClientCode = " + _updateData.ClientId;
+	ClientCode = "
+				+ _updateData.ClientId;
 		}
 
 		public string GetMinReqRuleCommand()

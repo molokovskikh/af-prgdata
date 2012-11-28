@@ -136,7 +136,8 @@ where c.Cost <> copy.Cost and c.RegionCode = ?HomeRegionCode and copy.RegionCode
 
 drop temporary table ConcurentCosts;
 drop temporary table CoreCopy;
-", String.Join(", ", concurents.Select(f => f.ToString()).ToArray()), _ruleId), _readWriteConnection);
+",
+				String.Join(", ", concurents.Select(f => f.ToString()).ToArray()), _ruleId), _readWriteConnection);
 			optimizeCommand.Parameters.AddWithValue("?FirmCode", SupplierId);
 			optimizeCommand.Parameters.AddWithValue("?HomeRegionCode", _homeRegionCode);
 
@@ -202,7 +203,8 @@ drop temporary table CoreCopy;
 select exists(
 select *
 from activeprices
-where firmcode in ({0}) and fresh = 1)", String.Join(", ", concurents.Select(c => c.ToString()).ToArray())), _readWriteConnection);
+where firmcode in ({0}) and fresh = 1)",
+				String.Join(", ", concurents.Select(c => c.ToString()).ToArray())), _readWriteConnection);
 			var isConcurentUpdated = Convert.ToBoolean(command.ExecuteScalar());
 			if (isConcurentUpdated) {
 				var updateCommand = new MySqlCommand(@"
