@@ -2136,7 +2136,7 @@ where not exists (
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			});
@@ -2364,7 +2364,7 @@ AND    UserId            = {0};
 					return updateTime;
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			});
@@ -2386,7 +2386,7 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			});
@@ -2402,7 +2402,7 @@ select CostSessionKey from UserUpdateInfo where UserId = ?userId;
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			});
@@ -2743,7 +2743,7 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 				transaction.Commit();
 			}
 			catch {
-				ConnectionHelper.SafeRollback(transaction);
+				With.SafeRollback(transaction);
 				throw;
 			}
 		}
@@ -2796,7 +2796,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 				transaction.Commit();
 			}
 			catch {
-				ConnectionHelper.SafeRollback(transaction);
+				With.SafeRollback(transaction);
 				throw;
 			}
 		}
@@ -2816,7 +2816,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 						transaction.Commit();
 					}
 					catch {
-						ConnectionHelper.SafeRollback(transaction);
+						With.SafeRollback(transaction);
 						throw;
 					}
 				});
@@ -2874,7 +2874,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			});
@@ -2902,7 +2902,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			});
@@ -2981,7 +2981,7 @@ order by s.Hour, s.Minute";
 						transaction.Commit();
 					}
 					catch {
-						ConnectionHelper.SafeRollback(transaction);
+						With.SafeRollback(transaction);
 						throw;
 					}
 				}

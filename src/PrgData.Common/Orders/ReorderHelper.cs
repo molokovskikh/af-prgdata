@@ -99,7 +99,7 @@ namespace PrgData.Common.Orders
 							transaction.Commit();
 						}
 						catch {
-							ConnectionHelper.SafeRollback(transaction);
+							global::Common.MySql.With.SafeRollback(transaction);
 							throw;
 						}
 					});

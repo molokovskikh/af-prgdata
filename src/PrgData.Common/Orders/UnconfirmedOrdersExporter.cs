@@ -189,7 +189,7 @@ and UpdateId = ?UpdateId;
 						transaction.Commit();
 					}
 					catch {
-						ConnectionHelper.SafeRollback(transaction);
+						With.SafeRollback(transaction);
 						throw;
 					}
 				});
@@ -235,7 +235,7 @@ and OrderId = ?OrderId;
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			}

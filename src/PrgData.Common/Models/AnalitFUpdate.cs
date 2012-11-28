@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using Common.MySql;
 using Common.Tools;
 using MySql.Data.MySqlClient;
 using log4net;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace PrgData.Common.Models
 {
@@ -87,7 +89,7 @@ select last_insert_id()",
 					transaction.Commit();
 				}
 				catch {
-					ConnectionHelper.SafeRollback(transaction);
+					With.SafeRollback(transaction);
 					throw;
 				}
 			}

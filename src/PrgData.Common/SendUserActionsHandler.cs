@@ -127,7 +127,7 @@ namespace PrgData.Common
 						return insertCount;
 					}
 					catch {
-						ConnectionHelper.SafeRollback(transaction);
+						With.SafeRollback(transaction);
 						throw;
 					}
 				},
