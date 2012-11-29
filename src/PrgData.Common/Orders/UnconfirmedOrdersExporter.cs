@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using Common.Models;
 using Common.Tools;
+using NHibernate.Linq;
 using log4net;
 using MySql.Data.MySqlClient;
 using NHibernate.Criterion;
@@ -21,7 +22,7 @@ namespace PrgData.Common.Orders
 		public UpdateHelper Helper { get; private set; }
 		public string ExportFolder { get; private set; }
 
-		private Queue<FileForArchive> _filesForArchive;
+		public Queue<FileForArchive> FilesForArchive;
 
 		public string OrdersHeadFileName { get; private set; }
 		public string OrdersListFileName { get; private set; }
@@ -33,7 +34,7 @@ namespace PrgData.Common.Orders
 			Data = updateData;
 			Helper = helper;
 			ExportFolder = exportFolder;
-			_filesForArchive = filesForArchive;
+			FilesForArchive = filesForArchive;
 
 			OrdersHeadFileName = Path.Combine(ExportFolder, "CurrentOrderHeads" + Data.UserId + ".txt");
 			OrdersListFileName = Path.Combine(ExportFolder, "CurrentOrderLists" + Data.UserId + ".txt");
@@ -61,9 +62,9 @@ namespace PrgData.Common.Orders
 			File.WriteAllText(OrdersHeadFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(OrdersListFileName, converter.OrderItems.ToString(), Encoding.GetEncoding(1251));
 
-			lock (_filesForArchive) {
-				_filesForArchive.Enqueue(new FileForArchive(OrdersHeadFileName, true));
-				_filesForArchive.Enqueue(new FileForArchive(OrdersListFileName, true));
+			lock (FilesForArchive) {
+				FilesForArchive.Enqueue(new FileForArchive(OrdersHeadFileName, true));
+				FilesForArchive.Enqueue(new FileForArchive(OrdersListFileName, true));
 			}
 		}
 
@@ -109,6 +110,13 @@ namespace PrgData.Common.Orders
 					.Add(Restrictions.Eq("Processed", false))
 					.Add(Restrictions.In("AddressId", addressList.ToArray()));
 				var loadedOrders = criteria.GetExecutableCriteria(session).List<Order>().ToList();
+				var activePrices = session
+					.CreateSQLQuery("select RegionCode, PriceCode from usersettings.ActivePrices")
+					.List();
+
+				loadedOrders = loadedOrders
+					.Where(o => activePrices.Cast<object[]>().Any(p => Convert.ToUInt32(p[1]) == o.PriceList.PriceCode && Convert.ToUInt64(p[0]) == o.RegionCode))
+					.ToList();
 
 				Data.UnconfirmedOrders.Clear();
 				loadedOrders.ForEach(o => Data.UnconfirmedOrders.Add(new UnconfirmedOrderInfo(o)));

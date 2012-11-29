@@ -289,13 +289,8 @@ limit 1;")
 				var helper = new UpdateHelper(updateData, connection);
 
 				helper.MaintainReplicationInfo();
-
 				helper.Cleanup();
-
-				helper.SelectPrices();
-				helper.SelectReplicationInfo();
-				helper.SelectActivePrices();
-
+				helper.SelectActivePricesFull();
 				helper.SelectOffers();
 
 				var coreSql = helper.GetCoreCommand(false, true, true, false);

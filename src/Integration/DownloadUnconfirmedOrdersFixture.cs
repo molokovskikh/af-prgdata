@@ -41,6 +41,7 @@ namespace Integration
 
 		private string _afAppVersion;
 		private DateTime _lastUpdateTime;
+		private MySqlConnection connection;
 
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
@@ -104,56 +105,56 @@ namespace Integration
 			TestDataManager.DeleteAllOrdersForClient(_client.Id);
 
 			RegisterLogger();
+
+			connection = new MySqlConnection(Settings.ConnectionString());
+			connection.Open();
 		}
 
 		[TearDown]
 		public void TearDown()
 		{
 			CheckForErrors();
+			connection.Dispose();
 		}
 
 		[Test(Description = "Проверяем, что использование NHibernate-сессии от текущего подключение не закрывает подключение и транзакцию")]
 		public void TestNHibernateSession()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				connection.Open();
-
-				using (var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted)) {
-					using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(connection)) {
-						var tmpClientId = session
-							.CreateSQLQuery("select ClientCode from UserSettings.RetClientsSet where ClientCode = :clientId")
-							.SetParameter("clientId", _client.Id)
-							.UniqueResult();
-						Assert.That(tmpClientId, Is.Not.Null);
-						Assert.That(tmpClientId, Is.EqualTo(_client.Id));
-					}
-
-					Assert.That(connection.State, Is.EqualTo(ConnectionState.Open));
-
-					connection.Ping();
-
-					var transactionClientId = MySqlHelper.ExecuteScalar(
-						connection,
-						"select ClientCode from UserSettings.RetClientsSet where ClientCode = ?clientId",
-						new MySqlParameter("?clientId", _client.Id));
-					Assert.That(transactionClientId, Is.Not.Null);
-					Assert.That(transactionClientId, Is.EqualTo(_client.Id));
-
-					var updateCount = MySqlHelper.ExecuteNonQuery(
-						connection,
-						"update UserSettings.RetClientsSet set AllowDelayOfPayment = 1 where ClientCode = ?clientId",
-						new MySqlParameter("?clientId", _client.Id));
-					Assert.That(updateCount, Is.EqualTo(1));
-
-					transaction.Rollback();
+			using (var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted)) {
+				using (var session = IoC.Resolve<ISessionFactoryHolder>().SessionFactory.OpenSession(connection)) {
+					var tmpClientId = session
+						.CreateSQLQuery("select ClientCode from UserSettings.RetClientsSet where ClientCode = :clientId")
+						.SetParameter("clientId", _client.Id)
+						.UniqueResult();
+					Assert.That(tmpClientId, Is.Not.Null);
+					Assert.That(tmpClientId, Is.EqualTo(_client.Id));
 				}
 
-				var allowDelayOfPayments = Convert.ToBoolean(MySqlHelper.ExecuteScalar(
+				Assert.That(connection.State, Is.EqualTo(ConnectionState.Open));
+
+				connection.Ping();
+
+				var transactionClientId = MySqlHelper.ExecuteScalar(
 					connection,
-					"select AllowDelayOfPayment from UserSettings.RetClientsSet where ClientCode = ?clientId",
-					new MySqlParameter("?clientId", _client.Id)));
-				Assert.That(allowDelayOfPayments, Is.False);
+					"select ClientCode from UserSettings.RetClientsSet where ClientCode = ?clientId",
+					new MySqlParameter("?clientId", _client.Id));
+				Assert.That(transactionClientId, Is.Not.Null);
+				Assert.That(transactionClientId, Is.EqualTo(_client.Id));
+
+				var updateCount = MySqlHelper.ExecuteNonQuery(
+					connection,
+					"update UserSettings.RetClientsSet set AllowDelayOfPayment = 1 where ClientCode = ?clientId",
+					new MySqlParameter("?clientId", _client.Id));
+				Assert.That(updateCount, Is.EqualTo(1));
+
+				transaction.Rollback();
 			}
+
+			var allowDelayOfPayments = Convert.ToBoolean(MySqlHelper.ExecuteScalar(
+				connection,
+				"select AllowDelayOfPayment from UserSettings.RetClientsSet where ClientCode = ?clientId",
+				new MySqlParameter("?clientId", _client.Id)));
+			Assert.That(allowDelayOfPayments, Is.False);
 		}
 
 		[Test(Description = "проверяем работу класса Orders2StringConverter")]
@@ -214,27 +215,23 @@ namespace Integration
 				sendLog.Create();
 			}
 
+			var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
+			var unconfirmedOrdersCount = MySqlHelper.ExecuteScalar(
+				connection,
+				"select count(*) from orders.OrdersHead oh where oh.ClientCode = ?clientId and deleted = 0 and submited = 0",
+				new MySqlParameter("?clientId", _client.Id));
+			Assert.That(unconfirmedOrdersCount, Is.EqualTo(2));
 
-				var unconfirmedOrdersCount = MySqlHelper.ExecuteScalar(
-					connection,
-					"select count(*) from orders.OrdersHead oh where oh.ClientCode = ?clientId and deleted = 0 and submited = 0",
-					new MySqlParameter("?clientId", _client.Id));
-				Assert.That(unconfirmedOrdersCount, Is.EqualTo(2));
+			UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(updateData, connection, updateLog.Id);
 
-				UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(updateData, connection, updateLog.Id);
-
-				var unconfirmedOrdersCountAfterDelete = MySqlHelper.ExecuteScalar(
-					connection,
-					"select count(*) from orders.OrdersHead oh where oh.ClientCode = ?clientId and deleted = 1 and submited = 0 and (RowId = ?firstId or RowId = ?secondId)",
-					new MySqlParameter("?clientId", _client.Id),
-					new MySqlParameter("?firstId", orderFirst.RowId),
-					new MySqlParameter("?secondId", orderSecond.RowId));
-				Assert.That(unconfirmedOrdersCountAfterDelete, Is.EqualTo(2));
-			}
+			var unconfirmedOrdersCountAfterDelete = MySqlHelper.ExecuteScalar(
+				connection,
+				"select count(*) from orders.OrdersHead oh where oh.ClientCode = ?clientId and deleted = 1 and submited = 0 and (RowId = ?firstId or RowId = ?secondId)",
+				new MySqlParameter("?clientId", _client.Id),
+				new MySqlParameter("?firstId", orderFirst.RowId),
+				new MySqlParameter("?secondId", orderSecond.RowId));
+			Assert.That(unconfirmedOrdersCountAfterDelete, Is.EqualTo(2));
 		}
 
 		[Test(Description = "Проверяем загрузку заказов в Exporter'е")]
@@ -247,28 +244,34 @@ namespace Integration
 				orders.Add(order);
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			var exporter = InitExporter();
+			var updateData = exporter.Data;
+			var fileForArchives = exporter.FilesForArchive;
 
-				var fileForArchives = new Queue<FileForArchive>();
-				var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
+			Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
+			foreach (var order in orders)
+				Assert.That(updateData.UnconfirmedOrders.Any(o => o.OrderId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 
-				exporter.LoadOrders();
+			exporter.UnionOrders();
 
-				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
-				foreach (var order in orders)
-					Assert.That(updateData.UnconfirmedOrders.Any(o => o.OrderId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+			Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(3));
 
-				exporter.UnionOrders();
+			exporter.ExportOrders();
 
-				Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(3));
+			Assert.That(fileForArchives.Count, Is.EqualTo(2));
+		}
 
-				exporter.ExportOrders();
+		private UnconfirmedOrdersExporter InitExporter()
+		{
+			var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
+			var helper = new UpdateHelper(updateData, connection);
 
-				Assert.That(fileForArchives.Count, Is.EqualTo(2));
-			}
+			var fileForArchives = new Queue<FileForArchive>();
+			var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
+			exporter.Helper.MaintainReplicationInfo();
+			exporter.Helper.SelectActivePricesFull();
+			exporter.LoadOrders();
+			return exporter;
 		}
 
 		[Test(Description = "Проверяем объединение заказов в Exporter'е")]
@@ -281,40 +284,32 @@ namespace Integration
 			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
 			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId));
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			var exporter = InitExporter();
+			var updateData = exporter.Data;
 
-				var fileForArchives = new Queue<FileForArchive>();
-				var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
+			Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
+			foreach (var order in orders)
+				Assert.That(updateData.UnconfirmedOrders.Any(o => o.OrderId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
 
-				exporter.LoadOrders();
+			exporter.UnionOrders();
 
-				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(4));
-				foreach (var order in orders)
-					Assert.That(updateData.UnconfirmedOrders.Any(o => o.OrderId == order.RowId), Is.True, "Не найден заказ OrderId = {0}", order.RowId);
+			Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(3));
 
-				exporter.UnionOrders();
+			Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[0].RowId), Is.True);
+			Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[1].RowId), Is.True);
+			Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[3].RowId), Is.True);
 
-				Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(3));
+			Assert.That(exporter.ExportedOrders[0].Order.RowCount, Is.EqualTo(6));
 
-				Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[0].RowId), Is.True);
-				Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[1].RowId), Is.True);
-				Assert.That(exporter.ExportedOrders.Any(o => o.Order.RowId == orders[3].RowId), Is.True);
+			Assert.That(
+				updateData.UnconfirmedOrders.All(orderInfo => orderInfo.ClientOrderId.HasValue),
+				Is.True,
+				"Для всех экспортированных заказов должно быть выставлено поле ClientOrderId");
 
-				Assert.That(exporter.ExportedOrders[0].Order.RowCount, Is.EqualTo(6));
-
-				Assert.That(
-					updateData.UnconfirmedOrders.All(orderInfo => orderInfo.ClientOrderId.HasValue),
-					Is.True,
-					"Для всех экспортированных заказов должно быть выставлено поле ClientOrderId");
-
-				Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[1].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
-				Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[3].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
-				Assert.That(updateData.UnconfirmedOrders[1].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[3].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
-				Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.EqualTo(updateData.UnconfirmedOrders[2].ClientOrderId), "Значение должны совпадать, т.к. заказы объединяются в один заказ при экспорте клиенту");
-			}
+			Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[1].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
+			Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[3].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
+			Assert.That(updateData.UnconfirmedOrders[1].ClientOrderId, Is.Not.EqualTo(updateData.UnconfirmedOrders[3].ClientOrderId), "Ид заказов для экспорта клиенту не должен совпадать, т.к. это уникальные заказы");
+			Assert.That(updateData.UnconfirmedOrders[0].ClientOrderId, Is.EqualTo(updateData.UnconfirmedOrders[2].ClientOrderId), "Значение должны совпадать, т.к. заказы объединяются в один заказ при экспорте клиенту");
 		}
 
 		[Test(Description = "Проверяем простой запрос данных с выгружаемыми заказами")]
@@ -400,20 +395,17 @@ namespace Integration
 					s.SaveOrUpdate(submitedOrder);
 				});
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
-				var helper = new UpdateHelper(updateData, connection);
+			var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
+			var helper = new UpdateHelper(updateData, connection);
 
-				var fileForArchives = new Queue<FileForArchive>();
-				var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
+			var fileForArchives = new Queue<FileForArchive>();
+			var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
 
-				exporter.Export();
+			exporter.Export();
 
-				Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
+			Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);
 
-				Assert.That(fileForArchives.Count, Is.EqualTo(0), "В очереди не должно быть файлов, т.к. нет неподтвержденных заказов для клиента {0}", _client.Id);
-			}
+			Assert.That(fileForArchives.Count, Is.EqualTo(0), "В очереди не должно быть файлов, т.к. нет неподтвержденных заказов для клиента {0}", _client.Id);
 		}
 
 		[Test(Description = "Проверяем простой запрос данных без выгружаемых заказов")]
@@ -493,26 +485,7 @@ namespace Integration
 				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");
 			}
 
-			var deletedStatusFirst = Convert.ToBoolean(
-				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-					new MySqlParameter("?OrderId", firstOrder.RowId)));
-			Assert.That(deletedStatusFirst, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", firstOrder.RowId);
-
-			var deletedStatusSecond = Convert.ToBoolean(
-				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-					new MySqlParameter("?OrderId", secondOrder.RowId)));
-			Assert.That(deletedStatusSecond, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", secondOrder.RowId);
-
-			var deletedStatusThird = Convert.ToBoolean(
-				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-					new MySqlParameter("?OrderId", thirdOrder.RowId)));
-			Assert.That(deletedStatusThird, Is.False, "Неподтвержденный заказ {0} помечен как удаленный", thirdOrder.RowId);
+			CheckOrderStatus(Tuple.Create(firstOrder, true), Tuple.Create(secondOrder, true), Tuple.Create(thirdOrder, false));
 
 			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
 				Settings.ConnectionString(),
@@ -645,26 +618,7 @@ namespace Integration
 				Assert.That(sendLogs.All(l => l.UpdateId == firstUpdateId), Is.True, "В логе изменилось значение UpdateId");
 			}
 
-			var deletedStatusFirst = Convert.ToBoolean(
-				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-					new MySqlParameter("?OrderId", firstOrder.RowId)));
-			Assert.That(deletedStatusFirst, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", firstOrder.RowId);
-
-			var deletedStatusSecond = Convert.ToBoolean(
-				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-					new MySqlParameter("?OrderId", secondOrder.RowId)));
-			Assert.That(deletedStatusSecond, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", secondOrder.RowId);
-
-			var deletedStatusThird = Convert.ToBoolean(
-				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
-					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
-					new MySqlParameter("?OrderId", thirdOrder.RowId)));
-			Assert.That(deletedStatusThird, Is.False, "Неподтвержденный заказ {0} помечен как удаленный", thirdOrder.RowId);
+			CheckOrderStatus(Tuple.Create(firstOrder, true), Tuple.Create(secondOrder, true), Tuple.Create(thirdOrder, false));
 
 			var secondResponce = LoadData(false, _lastUpdateTime.ToUniversalTime(), _afAppVersion);
 			var secondUpdateId = ShouldBeSuccessfull(secondResponce);
@@ -678,6 +632,31 @@ namespace Integration
 				Assert.That(sendLogsAfterCumulative.All(l => l.User.Id == _officeUser.Id), Is.True, "Код пользователя не совпадает");
 				Assert.That(sendLogsAfterCumulative.All(l => !l.Committed), Is.True, "Есть подтвержденные заказы");
 			}
+		}
+
+		private static void CheckOrderStatus(params Tuple<Order, bool>[] orders)
+		{
+			foreach (var order in orders) {
+				var deletedStatusFirst = Convert.ToBoolean(
+					MySqlHelper.ExecuteScalar(
+						Settings.ConnectionString(),
+						"select Deleted from orders.OrdersHead where RowId = ?OrderId",
+						new MySqlParameter("?OrderId", order.Item1.RowId)));
+				Assert.That(deletedStatusFirst, Is.EqualTo(order.Item2), "Неподтвержденный заказ {0} не помечен как удаленный", order.Item1.RowId);
+			}
+		}
+
+		[Test]
+		public void Do_not_export_order_for_unavailable_price()
+		{
+			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id);
+			MySqlHelper.ExecuteScalar(connection,
+				"update Customers.Intersection set AvailableForClient = 0 where ClientId = ?clientId and PriceId = ?priceId",
+				new MySqlParameter("clientId", _drugstoreUser.Client.Id),
+				new MySqlParameter("priceId", order.PriceList.PriceCode));
+			var exporter = InitExporter();
+
+			Assert.That(exporter.Data.UnconfirmedOrders.Count, Is.EqualTo(0));
 		}
 
 		[Test(Description = "проверяем работу функции UnconfirmedOrderInfosToString")]

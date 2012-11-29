@@ -235,13 +235,8 @@ namespace Integration
 
 
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var ids = MySqlHelper.ExecuteDataset(connection,
@@ -651,13 +646,8 @@ and a.Enabled = 1",
 		public void Check_core_count_with_GroupBy()
 		{
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var coreSql = helper.GetCoreCommand(false, true, false, false);
@@ -1107,13 +1097,8 @@ and ForceReplication > 0;",
 		{
 			updateData.BuildNumber = 1405;
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var coreSql = helper.GetCoreCommand(false, true, false, false);
@@ -1132,15 +1117,9 @@ and ForceReplication > 0;",
 		public void CheckCoreForBuyingMatrixType()
 		{
 			updateData.BuyingMatrixPriceId = 4957;
-
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
@@ -1161,15 +1140,9 @@ and ForceReplication > 0;",
 		{
 			updateData.BuyingMatrixPriceId = 4957;
 			updateData.BuildNumber = 1405;
-
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
@@ -1195,15 +1168,9 @@ and ForceReplication > 0;",
 		{
 			updateData.OfferMatrixPriceId = 4957;
 			updateData.OfferMatrixType = 0;
-
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var existsProductId = MySqlHelper.ExecuteScalar(
@@ -1251,15 +1218,9 @@ limit 1",
 		{
 			updateData.OfferMatrixPriceId = 4957;
 			updateData.OfferMatrixType = 1;
-
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
@@ -1781,15 +1742,9 @@ limit 1;
 		public void CheckCoreForEAN13()
 		{
 			updateData.BuildNumber = 1880;
-
 			helper.MaintainReplicationInfo();
-
 			helper.Cleanup();
-
-			helper.SelectPrices();
-			helper.SelectReplicationInfo();
-			helper.SelectActivePrices();
-
+			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);

@@ -541,9 +541,7 @@ drop temporary table IF EXISTS CurrentReplicationInfo;";
 			With.DeadlockWraper(() => {
 				Cleanup();
 
-				SelectPrices();
-				SelectReplicationInfo();
-				SelectActivePrices();
+				SelectActivePricesFull();
 
 				var commandText = @"
 
@@ -648,6 +646,13 @@ and OrdersHead.RowId = sendlogs.OrderId;
 
 				Cleanup();
 			});
+		}
+
+		public void SelectActivePricesFull()
+		{
+			SelectPrices();
+			SelectReplicationInfo();
+			SelectActivePrices();
 		}
 
 		public DataTable GetProcessedDocuments(uint updateId)

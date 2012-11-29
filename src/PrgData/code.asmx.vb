@@ -3177,10 +3177,6 @@ RestartTrans2:
 				 "  ?Cumulative " & _
 				 "from UserUpdateInfo where UserId=" & UserId)
 
-				If UpdateType <> RequestType.PostOrderBatch Then
-					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath(), FilesForArchive)
-				End If
-
 				If helper.NeedClientToAddressMigration() Then
 					GetMySQLFileWithDefault("ClientToAddressMigrations", SelProc, helper.GetClientToAddressMigrationCommand())
 				End If
@@ -3200,7 +3196,6 @@ RestartTrans2:
 				End If
 
 				GetMySQLFileWithDefault("Products", SelProc, helper.GetProductsCommand())
-
 
 				ThreadZipStream = New Thread(AddressOf ZipStream)
 				ThreadZipStream.Start()
@@ -3307,6 +3302,10 @@ RestartTrans2:
 				helper.SelectReplicationInfo()
 				helper.SelectActivePrices()
 				helper.FillParentCodes()
+
+				If UpdateType <> RequestType.PostOrderBatch Then
+					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath(), FilesForArchive)
+				End If
 
 				If Not UpdateData.EnableImpersonalPrice Then
 					debugHelper.CopyActivePrices()
