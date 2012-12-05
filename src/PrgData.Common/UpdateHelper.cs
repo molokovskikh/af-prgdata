@@ -22,9 +22,12 @@ namespace PrgData.Common
 	public class Reclame
 	{
 		public string Region { get; set; }
+		public ulong RegionCode { get; set; }
 		public DateTime ReclameDate { get; set; }
 		public bool ShowAdvertising { get; set; }
 		public UpdateData UpdateData { get; set; }
+
+		public string DefaultReclameFolder { get { return Region + "_" + RegionCode; } }
 
 		public Reclame()
 		{
@@ -392,7 +395,8 @@ create temporary table ActivePrices ENGINE = MEMORY as select * from Prices;
 			var command = new MySqlCommand(@"
 SELECT r.Region,
 	   uui.ReclameDate,
-	   rcs.ShowAdvertising
+	   rcs.ShowAdvertising,
+		r.RegionCode
 FROM Customers.Clients c
 	join Customers.Users u on c.Id = u.Clientid
 	join usersettings.RetClientsSet rcs on rcs.ClientCode = u.Clientid
@@ -405,6 +409,7 @@ WHERE u.Id = ?UserId", _readWriteConnection);
 				reader.Read();
 				var reclame = new Reclame {
 					Region = reader.GetString("region"),
+					RegionCode = reader.GetUInt64("RegionCode"),
 					ShowAdvertising = reader.GetBoolean("ShowAdvertising"),
 					UpdateData = _updateData
 				};

@@ -1273,7 +1273,25 @@ endprocNew:
 							If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
 
 							RelamePathTemp = ResultFileName & "Reclame\" & reclameData.Region & "\"
+
+							Dim ReclamePathFiter As String
+							RelamePathTemp = ResultFileName & "Reclame\"
+							ReclamePathFiter = String.Format("*_{0}", reclameData.RegionCode)
+
+							Dim folderList As String()
+							folderList = Directory.GetDirectories(RelamePathTemp, ReclamePathFiter)
+							If folderList.Length > 0 Then
+								RelamePathTemp = folderList(0) & "\"
+							Else
+								RelamePathTemp = ResultFileName & "Reclame\" & reclameData.Region & "_" & reclameData.RegionCode & "\"
+							End If
+
+							Dim dirInfo As DirectoryInfo
+							dirInfo = New DirectoryInfo(RelamePathTemp)
+
+
 							Dim reclamePreffix = "Reclame\" & reclameData.Region & "\"
+							reclamePreffix = "Reclame\" & dirInfo.Name & "\"
 
 							If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", RelamePathTemp)
 
@@ -3700,9 +3718,20 @@ RestartTrans2:
 
 			MaxReclameFileDate = reclameData.ReclameDate
 			If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
-
+			Dim ReclamePathFiter As String
 			Reclame = True
 			ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
+			ReclamePath = ResultFileName & "Reclame\"
+			ReclamePathFiter = String.Format("*_{0}", reclameData.RegionCode)
+
+			Dim folderList As String()
+			folderList = Directory.GetDirectories(ReclamePath, ReclamePathFiter)
+			If folderList.Length > 0 Then
+				ReclamePath = folderList(0) & "\"
+			Else
+				ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "_" & reclameData.RegionCode & "\"
+			End If
+
 			If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)
 
 			ShareFileHelper.MySQLFileDelete(UpdateData.GetReclameFile())
@@ -3726,7 +3755,7 @@ RestartTrans2:
 
 				If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
-					if CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
+					If CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
 						If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
 						FileCount += 1
 
@@ -3737,7 +3766,7 @@ RestartTrans2:
 						End SyncLock
 
 						If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
-					Else 
+					Else
 						Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", FileName)
 						Exit For
 					End If

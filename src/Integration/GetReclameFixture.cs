@@ -70,16 +70,18 @@ namespace Integration
 			return service.ReclameComplete();
 		}
 
-		private DateTime SetReclameDir(string region)
+		private DateTime SetReclameDir(string region, bool deleteOld = true)
 		{
 			var mainReclameDir = resultsDir + "Reclame";
-			if (Directory.Exists(mainReclameDir))
-				FileHelper.DeleteDir(mainReclameDir);
+			if(deleteOld) {
+				if (Directory.Exists(mainReclameDir))
+					FileHelper.DeleteDir(mainReclameDir);
 
-			Directory.CreateDirectory(mainReclameDir);
-
+				Directory.CreateDirectory(mainReclameDir);
+			}
 			var regionReclameDir = Path.Combine(mainReclameDir, region);
-			Directory.CreateDirectory(regionReclameDir);
+			if(deleteOld)
+				Directory.CreateDirectory(regionReclameDir);
 
 			File.WriteAllText(Path.Combine(regionReclameDir, "index.htm"), "contents index.htm");
 			File.WriteAllText(Path.Combine(regionReclameDir, "2block.gif"), "contents 2block.gif");
@@ -99,7 +101,7 @@ namespace Integration
 			return info.LastWriteTime;
 		}
 
-		private void GetReclameForUser(string login, uint userId)
+		private void GetReclameForUser(string login, uint userId, string reclameFolder = null)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
@@ -114,7 +116,9 @@ namespace Integration
 				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
 				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
 
-				var maxFileTime = SetReclameDir(reclame.Region);
+				if(reclameFolder == null)
+					reclameFolder = reclame.DefaultReclameFolder;
+				var maxFileTime = SetReclameDir(reclameFolder);
 
 				SetCurrentUser(login);
 				var response = GetReclame();
@@ -156,6 +160,18 @@ namespace Integration
 			try {
 				ServiceContext.GetResultPath = () => Path.GetFullPath("results\\");
 				GetReclameForUser(_user.Login, _user.Id);
+			}
+			finally {
+				ServiceContext.GetResultPath = () => "results\\";
+			}
+		}
+
+		[Test]
+		public void GetReclameForNewFolderType()
+		{
+			try {
+				ServiceContext.GetResultPath = () => Path.GetFullPath("results\\");
+				GetReclameForUser(_user.Login, _user.Id, "Воронежская_обл_1");
 			}
 			finally {
 				ServiceContext.GetResultPath = () => "results\\";
@@ -297,7 +313,7 @@ namespace Integration
 				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
 				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
 
-				var maxFileTime = SetReclameDir(reclame.Region);
+				var maxFileTime = SetReclameDir(reclame.DefaultReclameFolder);
 
 				SetCurrentUser(_user.Login);
 
@@ -305,7 +321,7 @@ namespace Integration
 
 				var updateId = ShouldBeSuccessfull(response);
 
-				CheckOldReclameArchive(_user, updateId, reclame.Region);
+				CheckOldReclameArchive(_user, updateId, reclame.DefaultReclameFolder);
 
 				var updateTime = CommitExchange(updateId, RequestType.GetCumulative);
 
@@ -349,7 +365,7 @@ namespace Integration
 				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
 				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
 
-				var maxFileTime = SetReclameDir(reclame.Region);
+				var maxFileTime = SetReclameDir(reclame.DefaultReclameFolder);
 
 				SetCurrentUser(_user.Login);
 
@@ -361,7 +377,7 @@ namespace Integration
 
 				var archFolder = ExtractArchive(archiveName);
 
-				var userReclameDir = Path.Combine(archFolder, "Reclame", reclame.Region);
+				var userReclameDir = Path.Combine(archFolder, "Reclame", reclame.DefaultReclameFolder);
 				Assert.That(Directory.Exists(userReclameDir), "В архиве с обновлением не найден каталог с рекламой");
 
 				var files = Directory.GetFiles(userReclameDir);
@@ -437,9 +453,9 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 
-				SetReclameDir(reclame.Region);
+				SetReclameDir(reclame.DefaultReclameFolder);
 
-				var files = reclame.GetReclameFiles(Path.Combine(resultsDir + "Reclame", reclame.Region));
+				var files = reclame.GetReclameFiles(Path.Combine(resultsDir + "Reclame", reclame.DefaultReclameFolder));
 
 				var onlyFileName = files.Select(Path.GetFileName).ToArray();
 				var resultFiles = new string[] { "01.htm", "02.htm", "2b.gif", "any.jpg", "main.gif", "main.htm" };
@@ -458,9 +474,9 @@ namespace Integration
 				var helper = new UpdateHelper(updateData, connection);
 				var reclame = helper.GetReclame();
 
-				SetReclameDir(reclame.Region);
+				SetReclameDir(reclame.DefaultReclameFolder);
 
-				var files = reclame.GetReclameFiles(Path.Combine(resultsDir + "Reclame", reclame.Region));
+				var files = reclame.GetReclameFiles(Path.Combine(resultsDir + "Reclame", reclame.DefaultReclameFolder));
 
 				var onlyFileName = files.Select(Path.GetFileName).ToArray();
 				var resultFiles = new string[] { "index.htm", "2block.gif", "any.jpg", "main.gif", "main.htm" };
