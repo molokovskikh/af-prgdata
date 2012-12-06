@@ -1279,11 +1279,20 @@ endprocNew:
 							ReclamePathFiter = String.Format("*_{0}", reclameData.RegionCode)
 
 							Dim folderList As String()
+
+							If Not Directory.Exists(RelamePathTemp) Then
+								Try
+									Directory.CreateDirectory(RelamePathTemp)
+								Catch ex As Exception
+									Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", RelamePathTemp, ex)
+								End Try
+							End If
+
 							folderList = Directory.GetDirectories(RelamePathTemp, ReclamePathFiter)
 							If folderList.Length > 0 Then
 								RelamePathTemp = folderList(0) & "\"
 							Else
-								RelamePathTemp = ResultFileName & "Reclame\" & reclameData.Region & "_" & reclameData.RegionCode & "\"
+								RelamePathTemp = ResultFileName & "Reclame\" & reclameData.DefaultReclameFolder & "\"
 							End If
 
 							Dim dirInfo As DirectoryInfo
@@ -3725,11 +3734,20 @@ RestartTrans2:
 			ReclamePathFiter = String.Format("*_{0}", reclameData.RegionCode)
 
 			Dim folderList As String()
+
+			If Not Directory.Exists(ReclamePath) Then
+				Try
+					Directory.CreateDirectory(ReclamePath)
+				Catch ex As Exception
+					Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", ReclamePath, ex)
+				End Try
+			End If
+
 			folderList = Directory.GetDirectories(ReclamePath, ReclamePathFiter)
 			If folderList.Length > 0 Then
 				ReclamePath = folderList(0) & "\"
 			Else
-				ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "_" & reclameData.RegionCode & "\"
+				ReclamePath = ResultFileName & "Reclame\" & reclameData.DefaultReclameFolder & "\"
 			End If
 
 			If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)

@@ -160,7 +160,7 @@ namespace Integration
 		[Test(Description = "проверяем работу класса Orders2StringConverter")]
 		public void TestOrders2StringConverter()
 		{
-			var price = _drugstoreUser.GetActivePricesList()[0];
+			var price = _drugstoreUser.GetActivePricesList()[1];
 
 			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, price.Id.PriceId);
 
@@ -279,9 +279,9 @@ namespace Integration
 		{
 			var prices = _drugstoreUser.GetActivePricesList();
 			var orders = new List<Order>();
-			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
+			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[3].Id.PriceId));
 			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[1].Id.PriceId));
-			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[0].Id.PriceId));
+			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[3].Id.PriceId));
 			orders.Add(TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[2].Id.PriceId));
 
 			var exporter = InitExporter();
