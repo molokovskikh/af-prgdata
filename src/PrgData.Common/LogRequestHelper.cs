@@ -17,45 +17,40 @@ namespace PrgData
 			return Convert.ToBoolean(ConfigurationManager.AppSettings["MustLogHttpcontext"]);
 		}
 
-		public static void ForceMailWithRequest(string MessageText, Exception exception)
-		{
-			InternalMailWithRequest(MessageText, exception);
-		}
-
-		public static void MailWithRequest(ILog Logger, string MessageText, Exception exception)
+		public static void MailWithRequest(ILog logger, string messageText, Exception exception)
 		{
 			//Если логгер не установлен, то будем использовать логгер LogRequestHelper
-			var l = Logger ?? _Logger;
+			var l = logger ?? _Logger;
 			//Если exception не установлен, то будем брать исключение от сервера
 			var ex = exception ?? HttpContext.Current.Server.GetLastError();
 			if (NeedLogged())
-				InternalMailWithRequest(MessageText, ex);
+				MailWithRequest(messageText, ex);
 			else
-				l.Error(MessageText, ex);
+				l.Error(messageText, ex);
 		}
 
-		private static void InternalMailWithRequest(string MessageText, Exception exception)
+		public static void MailWithRequest(string text, Exception exception = null)
 		{
 			try {
 				var tmpRequestFileName = Path.GetTempFileName();
 				HttpContext.Current.Request.SaveAs(tmpRequestFileName, true);
 
 				try {
-					_Logger.Error(MessageText, exception);
+					_Logger.Error(text, exception);
 
 					if (exception != null)
-						MessageText = String.Format("{0} " + Environment.NewLine + "{1}", MessageText, exception);
-					MessageText = String.Format(
+						text = String.Format("{0} " + Environment.NewLine + "{1}", text, exception);
+					text = String.Format(
 						"Date: {0}" + Environment.NewLine +
 							"User: {1}" + Environment.NewLine +
 							"{2}",
 						DateTime.Now,
 						ServiceContext.GetUserName(),
-						MessageText);
+						text);
 
 					var httpRequestContent = File.ReadAllText(tmpRequestFileName);
 
-					MailHelper.Mail(MessageText, null, httpRequestContent, "HTTPReguest.txt");
+					MailHelper.Mail(text, null, httpRequestContent, "HTTPReguest.txt");
 				}
 				finally {
 					try {
