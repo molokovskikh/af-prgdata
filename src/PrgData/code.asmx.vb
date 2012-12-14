@@ -1453,6 +1453,7 @@ endprocNew:
 
 							MessageH = "Запрошенные вложения не найдены."
 							Addition &= UpdateData.AttachmentFailMessage()
+							LogRequestHelper.MailWithRequest("Запрошенные вложения не найдены.")
 							ErrorFlag = True
 							PackFinished = True
 							PackProtocols()
