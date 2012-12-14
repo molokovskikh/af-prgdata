@@ -70,6 +70,21 @@ namespace Integration
 			return service.ReclameComplete();
 		}
 
+		/// <summary>
+		/// Создает несколько папок с наименованиями производными от исходного наименовани
+		/// </summary>
+		/// <param name="originName">исходное наименование</param>
+		private void CreateWrongReclameFolders(string originName)
+		{
+			var mainReclameDir = resultsDir + "Reclame";
+			for (int i = 0; i < 10; i++) {
+				var path = Path.Combine(mainReclameDir, "0" + originName + i.ToString());
+				if (!Directory.Exists(path)) {
+					Directory.CreateDirectory(path);
+				}
+			}
+		}
+
 		private DateTime SetReclameDir(string region, bool deleteOld = true)
 		{
 			var mainReclameDir = resultsDir + "Reclame";
@@ -101,7 +116,7 @@ namespace Integration
 			return info.LastWriteTime;
 		}
 
-		private void GetReclameForUser(string login, uint userId, string reclameFolder = null)
+		private void GetReclameForUser(string login, uint userId, string reclameFolder = null, bool createWrongReclameFolder = false)
 		{
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
@@ -119,6 +134,9 @@ namespace Integration
 				if(reclameFolder == null)
 					reclameFolder = reclame.DefaultReclameFolder;
 				var maxFileTime = SetReclameDir(reclameFolder);
+				// Создаем несколько папок в директории с рекламой для "шума"
+				if(createWrongReclameFolder)
+					CreateWrongReclameFolders(reclameFolder);
 
 				SetCurrentUser(login);
 				var response = GetReclame();
@@ -166,17 +184,19 @@ namespace Integration
 			}
 		}
 
-		[Test(Description = "Проверяет, что реклама корректно загружается из папки формата *_КодРегиона")]
+		[Test(Description = "Проверяет, что реклама корректно загружается из папки формата *_КодРегиона" +
+			"при наличии папок, удовлетворяющих условию *_КодРегиона*")]
 		public void GetReclameForNewFolderType()
 		{
 			try {
 				ServiceContext.GetResultPath = () => Path.GetFullPath("results\\");
-				GetReclameForUser(_user.Login, _user.Id, "Воронежская_обл_1");
+				GetReclameForUser(_user.Login, _user.Id, "Воронежская_обл_1", true);
 			}
 			finally {
 				ServiceContext.GetResultPath = () => "results\\";
 			}
 		}
+
 
 		[Test(Description = "пытаемся получить рекламу для пользователя, который не привязан к системе")]
 		public void Get_reclame_for_non_exists_user()
