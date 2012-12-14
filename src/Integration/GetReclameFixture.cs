@@ -166,7 +166,7 @@ namespace Integration
 			}
 		}
 
-		[Test]
+		[Test(Description = "Проверяет, что реклама корректно загружается из папки формата *_КодРегиона")]
 		public void GetReclameForNewFolderType()
 		{
 			try {
