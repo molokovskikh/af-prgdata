@@ -1452,7 +1452,7 @@ endprocNew:
 						Else
 
 							MessageH = "Запрошенные вложения не найдены."
-							Addition &= " Запрошенные вложения не найдены"
+							Addition &= UpdateData.AttachmentFailMessage()
 							ErrorFlag = True
 							PackFinished = True
 							PackProtocols()

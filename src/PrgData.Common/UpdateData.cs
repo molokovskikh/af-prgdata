@@ -614,6 +614,12 @@ namespace PrgData.Common
 			return AttachmentRequests.Where(r => r.Success).Select(r => r.AttachmentId).ToList();
 		}
 
+		public string AttachmentFailMessage()
+		{
+			var ids = AttachmentRequests.Where(a => !a.Success).Implode(a => a.AttachmentId);
+			return String.Format("Запрошенные вложения не найдены {0}", ids);
+		}
+
 		public string GetAttachmentsResult()
 		{
 			return SuccesAttachmentIds().Implode("\n");

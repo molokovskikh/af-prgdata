@@ -246,11 +246,14 @@ and AttachmentSendLogs.AttachmentId = ?AttachmentId";
 			foreach (var request in updateData.AttachmentRequests) {
 				command.Parameters["?AttachmentId"].Value = request.AttachmentId;
 				var extension = command.ExecuteScalar();
-				if (extension != null && !String.IsNullOrEmpty((string)extension)) {
+				if (!String.IsNullOrEmpty((string)extension)) {
 					File.Copy(
 						Path.Combine(attachmentsPath, request.AttachmentId + (string)extension),
 						Path.Combine(docsPath, request.AttachmentId + (string)extension));
 					request.Success = true;
+				}
+				else {
+					log.WarnFormat("Не указано расширение для вложения {0}", request.AttachmentId);
 				}
 			}
 
