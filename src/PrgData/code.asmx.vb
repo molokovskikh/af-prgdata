@@ -1289,6 +1289,7 @@ endprocNew:
 							End If
 
 							folderList = Directory.GetDirectories(RelamePathTemp, ReclamePathFiter)
+							folderList = folderList.Where(Function(name) name.EndsWith(String.Format("_{0}", reclameData.RegionCode))).ToArray()
 							If folderList.Length > 0 Then
 								RelamePathTemp = folderList(0) & "\"
 							Else
