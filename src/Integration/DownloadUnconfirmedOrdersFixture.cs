@@ -274,6 +274,37 @@ namespace Integration
 			return exporter;
 		}
 
+		[Test(Description = "Проверяем объединение комментария в заказе")]
+		public void TestUnionClientAddition()
+		{
+			var prices = _drugstoreUser.GetActivePricesList();
+			var orders = new List<Order>();
+			var order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[3].Id.PriceId);
+			order.ClientAddition = "Комментарий1";
+			With.Transaction(s => s.SaveOrUpdate(order));
+			orders.Add(order);
+			order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[3].Id.PriceId);
+			order.ClientAddition = "Комментарий2";
+			With.Transaction(s => s.SaveOrUpdate(order));
+			orders.Add(order);
+			order = TestDataManager.GenerateOrder(3, _drugstoreUser.Id, _drugstoreAddress.Id, prices[3].Id.PriceId);
+			order.ClientAddition = "Комментарий3";
+			With.Transaction(s => s.SaveOrUpdate(order));
+			orders.Add(order);
+
+			var exporter = InitExporter();
+			var updateData = exporter.Data;
+
+			Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(3));
+
+			exporter.UnionOrders();
+
+			Assert.That(exporter.ExportedOrders.Count, Is.EqualTo(1));
+			Assert.That(exporter.ExportedOrders.First().Order.ClientAddition.Contains("Комментарий1"));
+			Assert.That(exporter.ExportedOrders.First().Order.ClientAddition.Contains("Комментарий2"));
+			Assert.That(exporter.ExportedOrders.First().Order.ClientAddition.Contains("Комментарий3"));
+		}
+
 		[Test(Description = "Проверяем объединение заказов в Exporter'е")]
 		public void TestUnionOrders()
 		{

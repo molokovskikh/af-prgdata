@@ -80,9 +80,11 @@ namespace PrgData.Common.Orders
 					maxOrderId++;
 					if (g.Count() > 1) {
 						foreach (var orderInfo in g) {
-							if (orderInfo != firstOrderInfo)
+							if (orderInfo != firstOrderInfo) {
 								orderInfo.ClientOrderId = firstOrderInfo.ClientOrderId;
-								for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
+								firstOrderInfo.Order.ClientAddition += " | " + orderInfo.Order.ClientAddition;
+							}
+							for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
 									var item = orderInfo.Order.OrderItems[i];
 									orderInfo.Order.RemoveItem(item);
 									item.Order = firstOrderInfo.Order;
