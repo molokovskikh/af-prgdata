@@ -739,9 +739,7 @@ Public Class PrgDataEx
 				UpdateType = RequestType.GetDocs
 			Else
 				'«десь должен помещать запрос на почтовые вложени€
-				If AttachmentIds IsNot Nothing AndAlso (AttachmentIds.Length > 0) AndAlso (AttachmentIds(0) <> 0) Then
-					UpdateData.FillAttachmentIds(AttachmentIds)
-				End If
+				UpdateData.FillAttachmentIds(AttachmentIds)
 
 				If Me.RequestAttachments Then
 					CurUpdTime = Now()

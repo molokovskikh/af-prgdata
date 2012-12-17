@@ -168,6 +168,11 @@ namespace PrgData.Common
 
 		public List<uint> MissingProductIds = new List<uint>();
 
+		//для тестов
+		public UpdateData()
+		{
+		}
+
 		public UpdateData(DataSet data)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
@@ -596,7 +601,10 @@ namespace PrgData.Common
 
 		public void FillAttachmentIds(uint[] attachmentIds)
 		{
-			foreach (var attachmentId in attachmentIds) {
+			if (attachmentIds == null)
+				return;
+
+			foreach (var attachmentId in attachmentIds.Where(id => id != 0)) {
 				var request = new AttachmentRequest {
 					AttachmentId = attachmentId
 				};

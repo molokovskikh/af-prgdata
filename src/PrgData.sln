@@ -1,6 +1,6 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{390AA44C-DDA2-471F-BF2F-384DA93B5812}"
 EndProject
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "PrgData", "PrgData\PrgData.vbproj", "{7CE51224-CC70-403A-A037-C19749A13F41}"
@@ -33,6 +33,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartOrderFactory", "SmartOrderFactory\SmartOrderFactory\SmartOrderFactory.csproj", "{F5D61060-DF73-4B6D-846F-8F60EE2A00A4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmartOrderFactory.Tests", "SmartOrderFactory\SmartOrderFactory.Tests\SmartOrderFactory.Tests.csproj", "{BCCDAED2-0C49-41F7-8073-FDDB810DD379}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unit", "Unit\Unit.csproj", "{E654D13C-AD1B-47F2-9FFD-630096BBBE11}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -189,12 +191,21 @@ Global
 		{BCCDAED2-0C49-41F7-8073-FDDB810DD379}.Release|x64.ActiveCfg = Release|x86
 		{BCCDAED2-0C49-41F7-8073-FDDB810DD379}.Release|x86.ActiveCfg = Release|x86
 		{BCCDAED2-0C49-41F7-8073-FDDB810DD379}.Release|x86.Build.0 = Release|x86
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Release|x64.ActiveCfg = Release|Any CPU
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4C6C1322-0E7A-4B15-8F4F-8562180CC36B} = {390AA44C-DDA2-471F-BF2F-384DA93B5812}
+		{E654D13C-AD1B-47F2-9FFD-630096BBBE11} = {390AA44C-DDA2-471F-BF2F-384DA93B5812}
 		{72AFCFE8-C9E9-45FA-9698-BEE896A517A3} = {0324F3EE-D86C-4E55-ABBA-6FDF1873D07D}
 		{8A680813-C83B-497A-85E6-E8F07B7D7650} = {0324F3EE-D86C-4E55-ABBA-6FDF1873D07D}
 		{A215E837-1208-49E3-AF93-A9612223122C} = {0324F3EE-D86C-4E55-ABBA-6FDF1873D07D}
