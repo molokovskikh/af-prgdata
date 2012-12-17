@@ -839,6 +839,9 @@ endprocNew:
 
 
 			If ErrorFlag Then
+				if MessageH = "Запрошенные вложения не найдены." Then
+					LogRequestHelper.MailWithRequest(MessageH)
+				End If
 
 				If Len(MessageH) = 0 Then
 					ResStr = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
@@ -1454,7 +1457,6 @@ endprocNew:
 
 							MessageH = "Запрошенные вложения не найдены."
 							Addition &= UpdateData.AttachmentFailMessage()
-							LogRequestHelper.MailWithRequest("Запрошенные вложения не найдены.")
 							ErrorFlag = True
 							PackFinished = True
 							PackProtocols()
