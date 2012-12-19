@@ -146,10 +146,10 @@ namespace PrgData.Common.Orders
 			CreateOrders(session);
 
 			//делаем проверки минимального заказа
-			CheckOrdersByMinRequest();
+			CheckOrdersByMinRequest(session);
 
 			//делаем проверку на дублирующиеся заказы
-			CheckDuplicatedOrders();
+			CheckDuplicatedOrders(session);
 
 			if (((_useCorrectOrders && !_forceSend)) && AllOrdersIsSuccess())
 				//делаем сравнение с существующим прайсом
@@ -395,7 +395,7 @@ values
 			}
 		}
 
-		private void CheckOrdersByMinRequest()
+		private void CheckOrdersByMinRequest(ISession session)
 		{
 			if (!_user.IgnoreCheckMinOrder)
 				foreach (var order in _orders) {
@@ -409,18 +409,16 @@ values
 						}
 				}
 
-			With.Session(s => {
-				var checker = new GroupSumOrderChecker(s);
-				var rejectedOrders = checker.Check(_orders.Select(o => o.Order));
-				foreach (var order in _orders) {
-					if (rejectedOrders.ContainsKey(order.Order)) {
-						order.SendResult = OrderSendResult.GreateThanMaxOrderSum;
-						order.MaxSum = rejectedOrders[order.Order];
-						order.ErrorReason = String.Format("Ваша заявка на {0} НЕ Принята, поскольку Сумма заказов в этом месяце по Вашему предприятию на поставщика {0} превысила установленный лимит.",
-							order.Order.PriceList.Supplier.Name);
-					}
+			var checker = new GroupSumOrderChecker(session);
+			var rejectedOrders = checker.Check(_orders.Select(o => o.Order));
+			foreach (var order in _orders) {
+				if (rejectedOrders.ContainsKey(order.Order)) {
+					order.SendResult = OrderSendResult.GreateThanMaxOrderSum;
+					order.MaxSum = rejectedOrders[order.Order];
+					order.ErrorReason = String.Format("Ваша заявка на {0} НЕ Принята, поскольку Сумма заказов в этом месяце по Вашему предприятию на поставщика {0} превысила установленный лимит.",
+						order.Order.PriceList.Supplier.Name);
 				}
-			});
+			}
 		}
 
 		private bool AllOrdersIsSuccess()
@@ -787,7 +785,7 @@ AND    RCS.clientcode          = ?ClientCode",
 				return null;
 		}
 
-		private void CheckDuplicatedOrders()
+		private void CheckDuplicatedOrders(ISession session)
 		{
 			string logMessage;
 
@@ -959,7 +957,7 @@ order by ol.RowId
 						order.Order.ClientOrderId);
 					logger.DebugFormat(logMessage);
 
-					var serverOrder = IoC.Resolve<IRepository<Order>>().Load(Convert.ToUInt32(order.ServerOrderId));
+					var serverOrder = session.Load<Order>(Convert.ToUInt32(order.ServerOrderId));
 					order.Order.WriteTime = serverOrder.WriteTime;
 				}
 			}
