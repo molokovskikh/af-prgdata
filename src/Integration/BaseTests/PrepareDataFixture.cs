@@ -167,10 +167,10 @@ namespace Integration.BaseTests
 			var updateRow = MySqlHelper.ExecuteDataRow(
 				Settings.ConnectionString(),
 				@"
-select 
+select
   uui.UpdateDate,
   afu.UpdateType
-from 
+from
   logs.AnalitFUpdates afu
   join usersettings.UserUpdateInfo uui on uui.UserId = afu.UserId
 where
@@ -278,12 +278,10 @@ where
 
 			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				var supplier = user.GetActivePrices()[0].Supplier;
-				doc = new TestDocumentLog {
+				doc = new TestDocumentLog(supplier, address) {
 					LogTime = DateTime.Now,
-					Supplier = supplier,
 					DocumentType = DocumentType.Waybill,
 					Client = user.Client,
-					AddressId = address.Id,
 					FileName = "test.data",
 					Ready = true
 				};

@@ -77,7 +77,7 @@ namespace Integration
 					Supplier = supplier,
 					DocumentType = DocumentType.Waybill,
 					Client = client,
-					AddressId = client.Addresses[0].Id,
+					Address = client.Addresses[0],
 					FileName = "test.data",
 					Ready = true
 				};
@@ -100,12 +100,10 @@ namespace Integration
 			TestDocumentLog doc;
 			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
 				var supplier = user.GetActivePrices()[0].Supplier;
-				doc = new TestDocumentLog {
+				doc = new TestDocumentLog(supplier, client) {
 					LogTime = DateTime.Now,
-					Supplier = supplier,
 					DocumentType = DocumentType.Waybill,
 					Client = client,
-					AddressId = client.Addresses[0].Id,
 					Ready = true,
 					IsFake = true
 				};
