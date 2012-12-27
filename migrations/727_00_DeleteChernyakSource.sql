@@ -1,0 +1,1 @@
+﻿delete from OrderSendRules.ParseAlgorithm where Name='ChernyakSource';
