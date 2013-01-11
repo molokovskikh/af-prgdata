@@ -82,7 +82,6 @@ namespace PrgData.Common.Orders
 						foreach (var orderInfo in g) {
 							if (orderInfo != firstOrderInfo) {
 								orderInfo.ClientOrderId = firstOrderInfo.ClientOrderId;
-								firstOrderInfo.Order.ClientAddition += " | " + orderInfo.Order.ClientAddition;
 							}
 							for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
 									var item = orderInfo.Order.OrderItems[i];
@@ -93,6 +92,11 @@ namespace PrgData.Common.Orders
 						}
 
 						firstOrderInfo.Order.RowCount = (uint)firstOrderInfo.Order.OrderItems.Count;
+						var unionClientAddition = g
+							.Where(i => !String.IsNullOrWhiteSpace(i.Order.ClientAddition))
+							.Select(i => i.Order.UserId + ": " + i.Order.ClientAddition)
+							.Implode(" | ");
+						firstOrderInfo.Order.ClientAddition = unionClientAddition;
 					}
 
 					return firstOrderInfo;
