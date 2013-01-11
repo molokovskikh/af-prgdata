@@ -80,15 +80,17 @@ namespace PrgData.Common.Orders
 					maxOrderId++;
 					if (g.Count() > 1) {
 						foreach (var orderInfo in g) {
+							//в группировке g содержится и первый заказ, поэтому при обработке его исключаем
 							if (orderInfo != firstOrderInfo) {
 								orderInfo.ClientOrderId = firstOrderInfo.ClientOrderId;
+								//переносим все позиции из заказов из группировки в первый заказ в группировке
+								for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
+										var item = orderInfo.Order.OrderItems[i];
+										orderInfo.Order.RemoveItem(item);
+										item.Order = firstOrderInfo.Order;
+										firstOrderInfo.Order.OrderItems.Add(item);
+									}
 							}
-							for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
-									var item = orderInfo.Order.OrderItems[i];
-									orderInfo.Order.RemoveItem(item);
-									item.Order = firstOrderInfo.Order;
-									firstOrderInfo.Order.OrderItems.Add(item);
-								}
 						}
 
 						firstOrderInfo.Order.RowCount = (uint)firstOrderInfo.Order.OrderItems.Count;
