@@ -936,14 +936,36 @@ limit 1";
 				networkSelfAddressIdJoin);
 		}
 
+		public string TechOperatingDateSubstring(string dateColumn, string biasColumn, string separator)
+		{
+			if(String.IsNullOrEmpty(dateColumn)
+				|| String.IsNullOrEmpty(biasColumn)
+				|| String.IsNullOrEmpty(separator))
+				return "";
+			var hours = String.Format(@"substring({0}, 1, instr({0}, '{2}')-1)+{1}", dateColumn, biasColumn, separator);
+			var resultHours = String.Format("if({0}>24, {0}-24, if({0}<0, {0}+24, {0}))", hours);
+			var time = String.Format(@"concat({2},
+substring({0}, instr({0}, '{1}'), length({0})))", dateColumn, separator, resultHours);
+			return time;
+		}
+
 		public string GetClientCommand()
 		{
 			var techInfo = String.Empty;
 			if (_updateData.AllowMatchWaybillsToOrders())
 				techInfo =
 					_updateData.AllowCorrectTechContact() ?
-						", c.RegionCode as HomeRegion, regions.TechContact, regions.TechOperatingMode "
-						: ", c.RegionCode as HomeRegion, concat('<tr> <td class=\"contactText\">', regions.TechContact, '</td> </tr>') as TechContact, concat('<tr> <td class=\"contactText\">', regions.TechOperatingMode, '</td> </tr>') as TechOperatingMode ";
+						String.Format(@", c.RegionCode as HomeRegion, regions.TechContact,
+(select {0} FROM usersettings.defaults a, farm.regions r where r.RegionCode = regions.RegionCode) as TechOperatingMode ",
+							String.Format("replace(replace(a.TechOperatingModeTemplate, '{{0}}', {0}), '{{1}}', {1})",
+								TechOperatingDateSubstring("a.TechOperatingModeBegin", "r.MoscowBias", "."),
+									TechOperatingDateSubstring("a.TechOperatingModeEnd", "r.MoscowBias", ".")))
+						: String.Format(", c.RegionCode as HomeRegion, concat('<tr> <td class=\"contactText\">', regions.TechContact, '</td> </tr>') as TechContact," +
+							"concat('<tr> <td class=\"contactText\">'," +
+							"(select {0} FROM usersettings.defaults a, farm.regions r where r.RegionCode = regions.RegionCode), '</td> </tr>') as TechOperatingMode ",
+							String.Format("replace(replace(a.TechOperatingModeTemplate, '{{0}}', {0}), '{{1}}', {1})",
+								TechOperatingDateSubstring("a.TechOperatingModeBegin", "r.MoscowBias", "."),
+									TechOperatingDateSubstring("a.TechOperatingModeEnd", "r.MoscowBias", ".")));
 
 			return String.Format(@"
 SELECT 
