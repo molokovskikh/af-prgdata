@@ -137,7 +137,7 @@ AND ct.regioncode = at.regioncode
 AND IF(?Cumulative, 1, fresh) 
 ";
 				var expectedCoreCount = Convert.ToInt32(_command.ExecuteScalar());
-				if (_updateData.OfferMatrixPriceId.HasValue && ExportCoreCount < expectedCoreCount)
+				if (_updateData.Settings.OfferMatrix.HasValue && ExportCoreCount < expectedCoreCount)
 					Logger.DebugFormat("Не совпадает кол-во выгруженных предложений в Core для копии, работающей с матрицей предложений: ожидаемое = {0} реальное = {1}", expectedCoreCount, ExportCoreCount);
 				else if (expectedCoreCount != ExportCoreCount) {
 					_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));

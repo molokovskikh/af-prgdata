@@ -4,6 +4,7 @@ using System.Linq;
 using System.Configuration;
 using System.Data;
 using Castle.ActiveRecord;
+using Common.Models;
 using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
@@ -13,7 +14,6 @@ using PrgData.Common.Counters;
 using Test.Support;
 using Test.Support.Catalog;
 using Test.Support.Suppliers;
-
 
 namespace Integration
 {
@@ -42,6 +42,7 @@ namespace Integration
 		}
 
 		private MySqlConnection connection;
+		private uint? matrixId = 4;
 
 		[SetUp]
 		public void SetUp()
@@ -1116,7 +1117,7 @@ and ForceReplication > 0;",
 		[Test]
 		public void CheckCoreForBuyingMatrixType()
 		{
-			updateData.BuyingMatrixPriceId = 4957;
+			updateData.Settings.BuyingMatrix = matrixId;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
@@ -1138,7 +1139,7 @@ and ForceReplication > 0;",
 		[Test]
 		public void CheckCoreForBuyingMatrixTypeWithRetailVitallyImportant()
 		{
-			updateData.BuyingMatrixPriceId = 4957;
+			updateData.Settings.BuyingMatrix = matrixId;
 			updateData.BuildNumber = 1405;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
@@ -1166,8 +1167,8 @@ and ForceReplication > 0;",
 		[Test]
 		public void CheckCoreForWhiteOfferMatrix()
 		{
-			updateData.OfferMatrixPriceId = 4957;
-			updateData.OfferMatrixType = 0;
+			updateData.Settings.OfferMatrix = matrixId;
+			updateData.Settings.OfferMatrixType = MatrixType.BlackList;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
@@ -1193,7 +1194,7 @@ limit 1",
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix"));
 			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
 			var dataAdapter = new MySqlDataAdapter(coreSql, connection);
@@ -1216,8 +1217,8 @@ limit 1",
 		[Test]
 		public void CheckCoreForBlackOfferMatrix()
 		{
-			updateData.OfferMatrixPriceId = 4957;
-			updateData.OfferMatrixType = 1;
+			updateData.Settings.OfferMatrix = matrixId;
+			updateData.Settings.OfferMatrixType = MatrixType.BlackList;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
@@ -1225,7 +1226,7 @@ limit 1",
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix"));
 			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
 			var productId = MySqlHelper.ExecuteScalar(

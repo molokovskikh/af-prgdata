@@ -6,9 +6,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Web;
+using Common.Models;
 using MySql.Data.MySqlClient;
 using System.Threading;
-using Common.MySql;
+using NHibernate;
+using PrgData.Common.Helpers;
 using PrgData.Common.Models;
 using log4net;
 using PrgData.Common.Orders;
@@ -16,6 +18,7 @@ using PrgData.Common.SevenZip;
 using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 using System.Collections.Generic;
 using Common.Tools;
+using With = Common.MySql.With;
 
 namespace PrgData.Common
 {
@@ -69,6 +72,23 @@ namespace PrgData.Common
 	{
 		private UpdateData _updateData;
 		private MySqlConnection _readWriteConnection;
+		private ILog log;
+		private uint maxProducerCostsCostId;
+
+		public static Func<string> GetDownloadUrl =
+			() => HttpContext.Current.Request.Url.Scheme
+				+ Uri.SchemeDelimiter
+				+ HttpContext.Current.Request.Url.Authority
+				+ HttpContext.Current.Request.ApplicationPath;
+
+		public UpdateHelper(UpdateData updateData, MySqlConnection readWriteConnection)
+		{
+			log = LogManager.GetLogger(typeof(UpdateHelper));
+			MaxProducerCostsPriceId = 4863;
+			maxProducerCostsCostId = 8148;
+			_updateData = updateData;
+			_readWriteConnection = readWriteConnection;
+		}
 
 		public MySqlConnection ReadWriteConnection
 		{
@@ -77,21 +97,6 @@ namespace PrgData.Common
 
 		//Код поставщика 7664
 		public uint MaxProducerCostsPriceId { get; private set; }
-		private uint maxProducerCostsCostId;
-
-		public UpdateHelper(UpdateData updateData, MySqlConnection readWriteConnection)
-		{
-			MaxProducerCostsPriceId = 4863;
-			maxProducerCostsCostId = 8148;
-			_updateData = updateData;
-			_readWriteConnection = readWriteConnection;
-		}
-
-		public static Func<string> GetDownloadUrl =
-			() => HttpContext.Current.Request.Url.Scheme
-				+ Uri.SchemeDelimiter
-				+ HttpContext.Current.Request.Url.Authority
-				+ HttpContext.Current.Request.ApplicationPath;
 
 		public static string GetFullUrl(string handlerName)
 		{
@@ -318,8 +323,15 @@ limit 1;",
 			var data = new DataSet();
 			dataAdapter.Fill(data);
 
-			if (data.Tables[0].Rows.Count > 0)
-				updateData = new UpdateData(data);
+			if (data.Tables[0].Rows.Count > 0) {
+				var id = Convert.ToUInt32(data.Tables[0].Rows[0]["ClientId"]);
+				OrderRules settings = null;
+				global::Common.Models.With.Session(s => {
+					settings = s.Load<OrderRules>(id);
+					NHibernateUtil.Initialize(settings);
+				});
+				updateData = new UpdateData(data, settings);
+			}
 
 			if (updateData == null)
 				return null;
@@ -1224,8 +1236,6 @@ and (DescriptionLogs.Operation = 2)
 			uint updateId,
 			Queue<FileForArchive> filesForArchive)
 		{
-			var log = LogManager.GetLogger(typeof(UpdateHelper));
-
 			try {
 				log.Debug("Будем выгружать сертификаты");
 
@@ -1461,7 +1471,6 @@ and (DescriptionLogs.Operation = 2)
 
 			try {
 				SevenZipHelper.ArchiveFiles(archiveFileName, fullPathFile);
-				var log = LogManager.GetLogger(typeof(UpdateHelper));
 				log.DebugFormat("файл для архивации: {0}", fullPathFile);
 			}
 			catch {
@@ -1535,7 +1544,6 @@ where db.Id in ({0})
 
 		private void GetMySQLFileWithDefaultEx(string FileName, MySqlCommand MyCommand, string SQLText, bool SetCumulative, bool AddToQueue, Queue<FileForArchive> filesForArchive)
 		{
-			var log = LogManager.GetLogger(typeof(UpdateHelper));
 			var SQL = SQLText;
 			bool oldCumulative = false;
 
@@ -1753,77 +1761,14 @@ AND hidden = 0";
 
 		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool cryptCost)
 		{
-			string buyingMatrixCondition;
-			string buyingMatrixProducerNullCondition = " 0 ";
-			string offerMatrixProducerNullCondition = " 0 ";
+			var matrixParts = new SqlParts();
+			if (exportBuyingMatrix && exportSupplierPriceMarkup)
+				matrixParts = new MatrixHelper(_updateData).BuyingMatrixCondition(exportInforoomPrice);
 
-			if (exportInforoomPrice) {
-				if (_updateData.BuyingMatrixPriceId.HasValue) {
-					if (_updateData.BuyingMatrixType == 0) {
-						//белый список
-						buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-						buyingMatrixProducerNullCondition = " 0 ";
-					}
-					else {
-						//черный список
-						buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-						buyingMatrixProducerNullCondition = " 1 ";
-					}
-				}
-				else
-					//разрешено все
-					buyingMatrixCondition = ", 0 as BuyingMatrixType";
-			}
-			else if (_updateData.OfferMatrixPriceId.HasValue) {
-				//Включена матрица предложений
-				if (_updateData.BuyingMatrixPriceId.HasValue) {
-					if (_updateData.BuyingMatrixType == 0) {
-						//белый список
-						buyingMatrixCondition = " if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
-						buyingMatrixProducerNullCondition = " 0 ";
-					}
-					else {
-						//черный список
-						buyingMatrixCondition = " if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") ";
-						buyingMatrixProducerNullCondition = " 1 ";
-					}
-				}
-				else {
-					//разрешено все
-					buyingMatrixCondition = " 0 ";
-				}
-				if (_updateData.OfferMatrixType == 0) {
-				//белый список - попал в список => попал в предложения
-					buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is not null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
-					offerMatrixProducerNullCondition = " 0 ";
-				}
-				else {
-					//черный список - не попал в список => попал в предложения
-					buyingMatrixCondition = ", if(oms.Id is not null or offerList.Id is null, " + buyingMatrixCondition + ", 1) as BuyingMatrixType ";
-					offerMatrixProducerNullCondition = " 1 ";
-				}
-			}
-			else if (_updateData.BuyingMatrixPriceId.HasValue) {
-				//включена матрица закупок
-				if (_updateData.BuyingMatrixType == 0) {
-					//белый список
-					buyingMatrixCondition = ", if(list.Id is not null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-					buyingMatrixProducerNullCondition = " 0 ";
-				}
-				else {
-					//черный список
-					buyingMatrixCondition = ", if(list.Id is null, 0, " + (_updateData.WarningOnBuyingMatrix ? "2" : "1") + ") as BuyingMatrixType";
-					buyingMatrixProducerNullCondition = " 1 ";
-				}
-			}
-			else { //ничего не включено
-				//разрешено все
-				buyingMatrixCondition = ", 0 as BuyingMatrixType";
-			}
-
+			var sql = "";
 			if (exportInforoomPrice)
 				if (!exportSupplierPriceMarkup)
-					return @"
+					sql = @"
 SELECT 
 	   ?ImpersonalPriceId               ,
 	   ?OffersRegionCode                ,
@@ -1883,8 +1828,7 @@ FROM
 	   CoreProducts A
 ";
 				else
-					return
-						String.Format(
+					sql = String.Format(
 							@"
 SELECT 
 	   ?ImpersonalPriceId               ,
@@ -1919,6 +1863,8 @@ FROM
 	  {1}
 WHERE
 	A.CodeFirmCr IS NOT NULL
+group by  @RowId
+{3}
 
 UNION
 
@@ -1953,18 +1899,15 @@ SELECT
 FROM   
 	   CoreProducts A
 	   {2}
-
+group by  @RowId
+{3}
 ",
-							exportBuyingMatrix ? buyingMatrixCondition : "",
-							exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @"
-  left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(a.CodeFirmCr is null, " + buyingMatrixProducerNullCondition + ", list.ProducerId = a.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
-							exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @"
-  left join catalogs.Products on Products.Id = A.ProductId
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1,  " + buyingMatrixProducerNullCondition + ") and list.PriceId = " + _updateData.BuyingMatrixPriceId : "");
-			else
-				return
-					String.Format(@"
+							matrixParts.Select,
+							matrixParts.Join,
+							matrixParts.JoinWithoutProducer,
+							matrixParts.Having);
+			else {
+				sql = String.Format(@"
 SELECT CT.PriceCode               ,
 	   CT.regioncode              ,
 	   CT.ProductId               ,
@@ -1991,7 +1934,7 @@ SELECT CT.PriceCode               ,
 	   {0}
 	   {4}
 	   {1}
-	   {6}
+	   {5}
 FROM (Core CT,
 		ActivePrices AT,
 		farm.core0 Core)
@@ -1999,12 +1942,13 @@ FROM (Core CT,
 		left join catalogs.Products on Products.Id = CT.ProductId
 		left join catalogs.catalog on catalog.Id = Products.CatalogId
 	   {2}
-	   {5}
 WHERE  ct.pricecode =at.pricecode
 AND    ct.regioncode=at.regioncode
 AND    Core.id      =CT.id
 AND    IF(?Cumulative, 1, fresh)
-group by CT.id, CT.regioncode ",
+group by CT.id, CT.regioncode
+{6}
+",
 						exportSupplierPriceMarkup ? @"
 , 
 if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
@@ -2019,15 +1963,16 @@ if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
 ) as SupplierPriceMarkup,
 Core.ProducerCost,
 Core.NDS " : "",
-						exportSupplierPriceMarkup && exportBuyingMatrix ? buyingMatrixCondition : "",
-						exportSupplierPriceMarkup && exportBuyingMatrix && _updateData.BuyingMatrixPriceId.HasValue ? @"
-  left join farm.BuyingMatrix list on list.ProductId = Products.Id and if(list.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + buyingMatrixProducerNullCondition + ", list.ProducerId = Core.CodeFirmCr)) and list.PriceId = " + _updateData.BuyingMatrixPriceId : "",
+						matrixParts.Select,
+						matrixParts.Join,
 						cryptCost ? "CT.CryptCost" : "CT.Cost",
 						exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
-						_updateData.OfferMatrixPriceId.HasValue ? @"
-  left join farm.BuyingMatrix offerlist on offerList.ProductId = Products.Id and if(offerList.ProducerId is null, 1, if(Core.CodeFirmCr is null, " + offerMatrixProducerNullCondition + ", offerList.ProducerId = Core.CodeFirmCr)) and offerList.PriceId = " + _updateData.OfferMatrixPriceId + @"
-  left join UserSettings.OfferMatrixSuppliers oms on oms.SupplierId = at.FirmCode and oms.ClientId = ?ClientCode " : "",
-						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "");
+						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
+						matrixParts.Having);
+			}
+
+			log.Debug(sql);
+			return sql;
 		}
 
 		public string GetSynonymFirmCrCommand(bool cumulative)
