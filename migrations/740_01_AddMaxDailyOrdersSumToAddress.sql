@@ -1,0 +1,2 @@
+﻿ALTER TABLE `customers`.`addresses` ADD COLUMN `CheckDailyOrdersSum` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0 AFTER `RuleGroup`,
+ ADD COLUMN `MaxDailyOrdersSum` INTEGER UNSIGNED NOT NULL DEFAULT 0 AFTER `CheckDailyOrdersSum`;

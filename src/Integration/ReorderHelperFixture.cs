@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Common.Models.Tests;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -1925,6 +1926,52 @@ and (i.PriceId = :PriceId)
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.Null, "В поле Addition не должно ничего быть, т.к. ошибок не возникло");
+			}
+		}
+
+		[Test(Description = "Проверяет срабатывание проверки для суммы недельного заказа")]
+		public void MaxWeeklyOrdersSumTest()
+		{
+			client.Settings.CheckWeeklyOrdersSum = true;
+			client.Settings.MaxWeeklyOrdersSum = 0;
+			client.Update();
+			CheckOrdersSum("Превышен недельный лимит заказа");
+		}
+
+		[Test(Description = "Проверяет срабатывание проверки для суммы дневного заказа")]
+		public void MaxDailyOrdersSumTest()
+		{
+			address.CheckDailyOrdersSum = true;
+			address.MaxDailyOrdersSum = 0;
+			address.Update();
+			CheckOrdersSum("Превышен дневной лимит заказа");
+		}
+
+		[Test(Description = "Проверяет срабатывание проверки для суммы дневного заказа, если также установлен и недельный")]
+		public void MaxDailyOrdersSumWithWeeklyTest()
+		{
+			client.Settings.CheckWeeklyOrdersSum = true;
+			client.Settings.MaxWeeklyOrdersSum = 0;
+			client.Update();
+			address.CheckDailyOrdersSum = true;
+			address.MaxDailyOrdersSum = 0;
+			address.Update();
+			CheckOrdersSum("Превышен дневной лимит заказа");
+		}
+
+		private void CheckOrdersSum(string message)
+		{
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				TestDataManager.GenerateOrder(3, user.Id, address.Id);
+				try {
+					var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+					Assert.Fail("Должны выбросить исключение");
+				}
+				catch(UpdateException ex) {
+					Assert.That(ex.Message, Is.StringContaining(message));
+				}
 			}
 		}
 

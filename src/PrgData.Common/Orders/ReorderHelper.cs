@@ -55,6 +55,7 @@ namespace PrgData.Common.Orders
 
 			CheckCanPostOrder();
 
+			CheckDailySumOrder();
 			CheckWeeklySumOrder();
 		}
 
@@ -443,6 +444,31 @@ values
 		private void CheckCanPostOrder()
 		{
 			CheckCanPostOrder(_orderedClientCode);
+		}
+
+		private void CheckDailySumOrder()
+		{
+			var dailySumOrder = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper
+				.ExecuteScalar(
+					_readWriteConnection, @"
+SELECT ROUND(IF(SUM(cost*quantity)>Adr.MaxDailyOrdersSum
+AND CheckDailyOrdersSum,SUM(cost*quantity), 0),0)
+FROM orders.OrdersHead Oh,
+orders.OrdersList Ol,
+customers.Addresses Adr
+WHERE WriteTime>curdate()
+AND Oh.RowId=ol.OrderId
+AND Adr.ID=oh.AddressId
+AND Adr.CheckDailyOrdersSum=1
+AND oh.clientcode=?ClientCode
+AND oh.AddressId=?AddressCode",
+					new MySqlParameter("?ClientCode", _data.ClientId),
+					new MySqlParameter("?AddressCode", _address.Id)));
+			if (dailySumOrder > 0)
+				throw new UpdateException(
+					String.Format("Превышен дневной лимит заказа (уже заказано на {0} руб).", dailySumOrder),
+					String.Empty,
+					RequestType.Forbidden);
 		}
 
 		private void CheckWeeklySumOrder()

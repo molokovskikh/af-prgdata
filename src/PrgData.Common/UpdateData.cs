@@ -5,6 +5,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using Common.Models;
 using Common.Tools;
 using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Orders;
@@ -99,13 +100,6 @@ namespace PrgData.Common
 		public bool UserEnabled;
 		public bool AFPermissionExists;
 
-		public uint? BuyingMatrixPriceId;
-		public int BuyingMatrixType;
-		public bool WarningOnBuyingMatrix;
-
-		public uint? OfferMatrixPriceId;
-		public int OfferMatrixType;
-
 		public bool SaveAFDataFiles;
 
 		public uint? BuildNumber;
@@ -168,12 +162,14 @@ namespace PrgData.Common
 
 		public List<uint> MissingProductIds = new List<uint>();
 
+		public OrderRules Settings;
+
 		//для тестов
 		public UpdateData()
 		{
 		}
 
-		public UpdateData(DataSet data)
+		public UpdateData(DataSet data, OrderRules settings)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
 
@@ -205,11 +201,6 @@ namespace PrgData.Common
 			ClientEnabled = Convert.ToBoolean(row["ClientEnabled"]);
 			UserEnabled = Convert.ToBoolean(row["UserEnabled"]);
 			AFPermissionExists = Convert.ToBoolean(row["AFPermissionExists"]);
-			BuyingMatrixPriceId = Convert.IsDBNull(row["BuyingMatrixPriceId"])
-				? null
-				: (uint?)Convert.ToUInt32(row["BuyingMatrixPriceId"]);
-			BuyingMatrixType = Convert.ToInt32(row["BuyingMatrixType"]);
-			WarningOnBuyingMatrix = Convert.ToBoolean(row["WarningOnBuyingMatrix"]);
 			EnableImpersonalPrice = Convert.ToBoolean(row["EnableImpersonalPrice"]);
 			KnownUniqueID = row["KnownUniqueID"].ToString();
 			KnownBuildNumber = Convert.IsDBNull(row["KnownBuildNumber"]) ? null : (uint?)Convert.ToUInt32(row["KnownBuildNumber"]);
@@ -219,15 +210,12 @@ namespace PrgData.Common
 				: (uint?)Convert.ToUInt32(row["NetworkPriceId"]);
 			SaveAFDataFiles = Convert.ToBoolean(row["SaveAFDataFiles"]);
 			ShowAdvertising = Convert.ToBoolean(row["ShowAdvertising"]);
-			OfferMatrixPriceId = Convert.IsDBNull(row["OfferMatrixPriceId"])
-				? null
-				: (uint?)Convert.ToUInt32(row["OfferMatrixPriceId"]);
-			OfferMatrixType = Convert.ToInt32(row["OfferMatrixType"]);
 			AllowDownloadUnconfirmedOrders = Convert.ToBoolean(row["AllowDownloadUnconfirmedOrders"]);
 			AllowAnalitFSchedule = Convert.ToBoolean(row["AllowAnalitFSchedule"]);
 
 			SendWaybills = Convert.ToBoolean(row["SendWaybills"]);
 			SendRejects = Convert.ToBoolean(row["SendRejects"]);
+			Settings = settings;
 		}
 
 		public bool Disabled()
