@@ -184,7 +184,7 @@ namespace Integration
 			Assert.That(converter.OrderItems.ToString(), Is.StringStarting("{0}\t{1}\t{2}".Format(1, 1, _drugstoreAddress.Id)), "Не корректно выгружен список позиций заказа");
 
 			columns = converter.OrderHead.ToString().Split('\t');
-			Assert.That(columns.Length, Is.EqualTo(5), "Неожидаемое количество элементов, разделенных tab");
+			Assert.That(columns.Length, Is.EqualTo(6), "Неожидаемое количество элементов, разделенных tab");
 			Assert.That(columns[4], Is.StringStarting(order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")), "Дата заказа экспортированна некорректно");
 		}
 
