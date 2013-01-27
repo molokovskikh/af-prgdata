@@ -151,7 +151,7 @@
     <Compile Include="DebugReplicationHelper.cs" />
     <Compile Include="FileForArchive.cs" />
     <Compile Include="Helpers\MatrixHelper.cs">
-        <ExcludeFromStyleCop>true</ExcludeFromStyleCop>
+      <ExcludeFromStyleCop>true</ExcludeFromStyleCop>
     </Compile>
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="LogRequestHelper.cs" />
@@ -164,8 +164,14 @@
     <Compile Include="Models\NewsExport.cs" />
     <Compile Include="Models\PromotionsExport.cs" />
     <Compile Include="Models\RejectExport.cs" />
+    <Compile Include="Models\ReorderingRule.cs" />
     <Compile Include="OrderHelper.cs" />
     <Compile Include="Orders\ClientOrderPosition.cs" />
+    <Compile Include="Orders\MinOrders\IMinOrderContext.cs" />
+    <Compile Include="Orders\MinOrders\IReorderingPeriod.cs" />
+    <Compile Include="Orders\MinOrders\MinOrderContext.cs" />
+    <Compile Include="Orders\MinOrders\MinReqController.cs" />
+    <Compile Include="Orders\MinOrders\ReorderingPeriod.cs" />
     <Compile Include="Orders\Orders2StringConverter.cs" />
     <Compile Include="Orders\UnconfirmedOrderInfo.cs" />
     <Compile Include="Orders\UnconfirmedOrdersExporter.cs" />

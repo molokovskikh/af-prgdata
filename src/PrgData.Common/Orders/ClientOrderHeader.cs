@@ -11,6 +11,7 @@ namespace PrgData.Common.Orders
 		LessThanMinReq = 1,
 		NeedCorrect = 2,
 		GreateThanMaxOrderSum = 3,
+		LessThanReorderingMinReq = 4
 	}
 
 	public class ClientOrderHeader

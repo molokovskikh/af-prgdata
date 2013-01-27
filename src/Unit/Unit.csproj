@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\ProjectLib.properties" Condition="Exists('..\ProjectLib.properties')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -30,8 +31,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="log4net, Version=1.2.11.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL" />
     <Reference Include="nunit.framework">
-      <HintPath>..\Integration\bin\Debug\nunit.framework.dll</HintPath>
+    </Reference>
+    <Reference Include="Rhino.Mocks">
+      <HintPath>..\..\lib\Rhino.Mocks.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -42,9 +46,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MinOrders\MinReqControllerFixture.cs" />
+    <Compile Include="MinOrders\ReorderingPeriodFixture.cs" />
     <Compile Include="UpdateDataFixture.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Common.Models\Common.Models\Common.Models.csproj">
+      <Project>{80C9F352-5EED-41B2-989A-6628BCAF4D36}</Project>
+      <Name>Common.Models</Name>
+    </ProjectReference>
     <ProjectReference Include="..\PrgData.Common\PrgData.Common.csproj">
       <Project>{A781C338-F75D-45A8-A7DC-C49E66051FC5}</Project>
       <Name>PrgData.Common</Name>
