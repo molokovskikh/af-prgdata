@@ -4,6 +4,7 @@ using System.Linq;
 using System.Configuration;
 using System.Data;
 using Castle.ActiveRecord;
+using Common.Models;
 using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
@@ -13,7 +14,6 @@ using PrgData.Common.Counters;
 using Test.Support;
 using Test.Support.Catalog;
 using Test.Support.Suppliers;
-
 
 namespace Integration
 {
@@ -42,6 +42,7 @@ namespace Integration
 		}
 
 		private MySqlConnection connection;
+		private uint? matrixId = 4;
 
 		[SetUp]
 		public void SetUp()
@@ -1116,7 +1117,7 @@ and ForceReplication > 0;",
 		[Test]
 		public void CheckCoreForBuyingMatrixType()
 		{
-			updateData.BuyingMatrixPriceId = 4957;
+			updateData.Settings.BuyingMatrix = matrixId;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
@@ -1138,7 +1139,7 @@ and ForceReplication > 0;",
 		[Test]
 		public void CheckCoreForBuyingMatrixTypeWithRetailVitallyImportant()
 		{
-			updateData.BuyingMatrixPriceId = 4957;
+			updateData.Settings.BuyingMatrix = matrixId;
 			updateData.BuildNumber = 1405;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
@@ -1166,8 +1167,8 @@ and ForceReplication > 0;",
 		[Test]
 		public void CheckCoreForWhiteOfferMatrix()
 		{
-			updateData.OfferMatrixPriceId = 4957;
-			updateData.OfferMatrixType = 0;
+			updateData.Settings.OfferMatrix = matrixId;
+			updateData.Settings.OfferMatrixType = MatrixType.BlackList;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
@@ -1193,7 +1194,7 @@ limit 1",
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix"));
 			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
 			var dataAdapter = new MySqlDataAdapter(coreSql, connection);
@@ -1216,8 +1217,8 @@ limit 1",
 		[Test]
 		public void CheckCoreForBlackOfferMatrix()
 		{
-			updateData.OfferMatrixPriceId = 4957;
-			updateData.OfferMatrixType = 1;
+			updateData.Settings.OfferMatrix = matrixId;
+			updateData.Settings.OfferMatrixType = MatrixType.BlackList;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
@@ -1225,7 +1226,7 @@ limit 1",
 
 			var coreSql = helper.GetCoreCommand(false, true, true, false);
 
-			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix offerlist on"));
+			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix"));
 			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
 
 			var productId = MySqlHelper.ExecuteScalar(
@@ -1685,11 +1686,25 @@ limit 1;
 		{
 			MySqlHelper.ExecuteNonQuery(
 				connection,
-				"update farm.Regions set TechContact=?TechContact, TechOperatingMode=?TechOperatingMode where RegionCode=?RegionCode",
+				"update farm.Regions set TechContact=?TechContact, TechOperatingMode=?TechOperatingMode where RegionCode=?RegionCode;",
 				new MySqlParameter("?RegionCode", _user.Client.RegionCode),
 				new MySqlParameter("?TechContact", "<p>тел.: <strong>260-60-00</strong></p>"),
 				new MySqlParameter("?TechOperatingMode", "будни: с 7.00 до 19.00"));
-
+			// Подготавливаем настройки режима работы техподдержки по московскому времени
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				@"update usersettings.defaults set TechOperatingModeTemplate=?TechOperatingModeTemplate,
+TechOperatingModeBegin=?TechOperatingModeBegin,
+TechOperatingModeEnd=?TechOperatingModeEnd;",
+				new MySqlParameter("?TechOperatingModeTemplate", "будни: с {0} до {1}"),
+				new MySqlParameter("?TechOperatingModeBegin", "7.30"),
+				new MySqlParameter("?TechOperatingModeEnd", "19.30"));
+			// Устанавливаем сдвиг времени для региона текущего клиента
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update farm.Regions set MoscowBias=?MoscowBias where RegionCode=?RegionCode;",
+				new MySqlParameter("?RegionCode", _user.Client.RegionCode),
+				new MySqlParameter("?MoscowBias", -2));
 			//Проверка для старых версий
 			var dataAdapter = new MySqlDataAdapter(helper.GetClientCommand(), connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?UserId", _user.Id);
@@ -1720,6 +1735,7 @@ limit 1;
 			Assert.That(dataTable.Rows[0]["TechContact"], Is.StringEnding("</td> </tr>"));
 			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.StringStarting("<tr> <td class=\"contactText\">"));
 			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.StringEnding("</td> </tr>"));
+			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.StringContaining("будни: с 5.30 до 17.30"));
 
 			//Проверка для версий от 1869
 			updateData.BuildNumber = 1870;
@@ -1736,6 +1752,14 @@ limit 1;
 			Assert.That(dataTable.Rows[0]["TechContact"], Is.Not.StringEnding("</td> </tr>"));
 			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.Not.StringStarting("<tr> <td class=\"contactText\">"));
 			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.Not.StringEnding("</td> </tr>"));
+			Assert.That(dataTable.Rows[0]["TechOperatingMode"], Is.StringContaining("будни: с 5.30 до 17.30"));
+
+			// Устанавливаем сдвиг времени для региона текущего клиента
+			MySqlHelper.ExecuteNonQuery(
+				connection,
+				"update farm.Regions set MoscowBias=?MoscowBias where RegionCode=?RegionCode;",
+				new MySqlParameter("?RegionCode", _user.Client.RegionCode),
+				new MySqlParameter("?MoscowBias", 0));
 		}
 
 		[Test(Description = "проверка экспорта новых полей в Core: EAN13, CodeOKP, Series")]
@@ -1809,6 +1833,24 @@ limit 1;
 			catalogUpdateTime = SelProc.Parameters["?CatalogUpdateTime"].Value;
 
 			Assert.That(catalogUpdateTime, Is.LessThan(updateTime), "Время обновления клиента должно быть больше времени обновления каталога, т.к. список отсутствующих продуктов не пуст");
+		}
+
+		[Test(Description = "Тестирует выборку времени работы техподдержки с поправкой на часовой пояс")]
+		public void TechOperatingDateSubstringTest()
+		{
+			var cmd = new MySqlCommand("update usersettings.defaults set TechOperatingModeBegin = '07.30';", connection);
+			cmd.ExecuteNonQuery();
+			var selector = helper.TechOperatingDateSubstring("a.TechOperatingModeBegin", "r.MoscowBias", ".");
+			var dataAdapter = new MySqlDataAdapter(String.Format(@"select r.MoscowBias, {0}
+FROM usersettings.defaults a, farm.regions r;", selector),
+				connection);
+
+			var table = new DataTable();
+			dataAdapter.Fill(table);
+
+			foreach (DataRow row in table.Rows) {
+				Assert.That(row[1], Is.EqualTo((Convert.ToInt32(row[0]) + 7).ToString() + ".30"));
+			}
 		}
 	}
 }

@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text;
 using Common.Models;
+using Common.MySql;
 
 namespace PrgData.Common.Orders
 {
@@ -17,12 +18,13 @@ namespace PrgData.Common.Orders
 
 			foreach (var orderInfo in orderInfos) {
 				OrderHead.AppendFormat(
-					"{0}\t{1}\t{2}\t{3}{4}\n",
+					"{0}\t{1}\t{2}\t{3}{4}{5}\n",
 					orderInfo.ClientOrderId,
 					orderInfo.Order.AddressId.Value,
 					orderInfo.Order.PriceList.PriceCode,
 					orderInfo.Order.RegionCode,
-					exportSendDate ? string.Format("\t{0}", orderInfo.Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")) : "");
+					exportSendDate ? string.Format("\t{0}", orderInfo.Order.WriteTime.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")) : "",
+					exportSendDate ? string.Format("\t{0}", orderInfo.Order.ClientAddition.ToMySqlExportString()) : "");
 				foreach (var item in orderInfo.Order.OrderItems) {
 					item.RowId = maxOrderListId;
 					maxOrderListId++;
