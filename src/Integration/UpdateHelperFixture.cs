@@ -884,7 +884,8 @@ from
 Prices 
 where
 Prices.Actual = 0
-and FirmCode not in ({0})".Format(disabledPrice["FirmCode"])));
+and FirmCode not in ({0})"
+					.Format(disabledPrice["FirmCode"])));
 
 			SelProc.CommandText = helper.GetPricesDataCommand();
 			var dataAdapter = new MySqlDataAdapter(SelProc);
