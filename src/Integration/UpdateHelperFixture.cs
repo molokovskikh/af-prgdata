@@ -883,7 +883,8 @@ count(*)
 from 
 Prices 
 where
-Prices.Actual = 0"));
+Prices.Actual = 0
+and FirmCode not in ({0})".Format(disabledPrice["FirmCode"])));
 
 			SelProc.CommandText = helper.GetPricesDataCommand();
 			var dataAdapter = new MySqlDataAdapter(SelProc);
@@ -897,6 +898,7 @@ Prices.Actual = 0"));
 			var pricesBySupplier = prices.Select("FirmCode = {0}".Format(disabledPrice["FirmCode"]));
 
 			var freshRows = prices.Select("Fresh = 1");
+			// Проверяем, что свежие прайс-листы - это прайс-листы поставщика плюс неактуальные листы других поставщиков
 			Assert.That(freshRows.Length - nonActualPrices, Is.EqualTo(pricesBySupplier.Length), "Кроме неактуальных прайс-листов свежими должны быть помечены все прайс-листы поставщика, у которого отключили прайс-лист");
 		}
 
