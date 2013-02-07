@@ -1,0 +1,3 @@
+﻿ALTER TABLE `ordersendrules`.`smart_order_rules` ADD COLUMN `SupplierMinQuantity` INTEGER UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Не заказывать препарат, если остаток у Поставщика меньше указанного' AFTER `NotCheckMinOrder`,
+ ADD COLUMN `MinOrderQuantityInPercent` INTEGER UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Не заказывать препарат, если Заказываемое количество составляет менее, чем указанное число в процентах от остатка Поставщика' AFTER `SupplierMinQuantity`,
+ ADD COLUMN `IgnoreSupplierInNotPharmacy` TINYINT(1) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Игнорировать изготовителя при заказе Нелекарственных средств' AFTER `MinOrderQuantityInPercent`;
