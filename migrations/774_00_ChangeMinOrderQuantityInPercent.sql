@@ -1,0 +1,1 @@
+﻿update OrderSendRules.smart_order_rules s set MinOrderQuantityInPercent=100 where MinOrderQuantityInPercent=0;
