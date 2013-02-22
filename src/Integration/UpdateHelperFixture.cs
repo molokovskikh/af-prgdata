@@ -1171,7 +1171,7 @@ and ForceReplication > 0;",
 		public void CheckCoreForWhiteOfferMatrix()
 		{
 			updateData.Settings.OfferMatrix = matrixId;
-			updateData.Settings.OfferMatrixType = MatrixType.BlackList;
+			updateData.Settings.OfferMatrixType = MatrixType.WhiteList;
 			helper.MaintainReplicationInfo();
 			helper.Cleanup();
 			helper.SelectActivePricesFull();
