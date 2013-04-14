@@ -580,7 +580,7 @@ namespace Integration
 				document.Log.Id, product.CatalogProduct.Name, certificateFile.Id);
 
 			using (new SessionScope()) {
-				var logs = TestCertificateRequestLog.Queryable.Where(l => l.Update.Id == simpleUpdateId).ToList();
+				var logs = TestCertificateRequestLog.Queryable.Where(l => l.UpdateRequest.Id == simpleUpdateId).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 			}
 
@@ -600,7 +600,7 @@ namespace Integration
 			var simpleUpdateId = ShouldBeSuccessfull(responce);
 
 			using (new SessionScope()) {
-				var logs = TestCertificateRequestLog.Queryable.Where(l => l.Update.Id == simpleUpdateId).ToList();
+				var logs = TestCertificateRequestLog.Queryable.Where(l => l.UpdateRequest.Id == simpleUpdateId).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Filename, Is.Null);
 			}
