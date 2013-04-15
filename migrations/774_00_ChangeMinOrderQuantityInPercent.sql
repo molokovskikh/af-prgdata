@@ -1,0 +1,2 @@
+﻿ALTER TABLE `ordersendrules`.`smart_order_rules` MODIFY COLUMN `MinOrderQuantityInPercent` INTEGER UNSIGNED NOT NULL DEFAULT 100 COMMENT 'Не заказывать препарат, если Заказываемое количество составляет менее, чем указанное число в процентах от остатка Поставщика';
+update OrderSendRules.smart_order_rules s set MinOrderQuantityInPercent=100 where MinOrderQuantityInPercent=0;

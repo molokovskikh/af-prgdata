@@ -65,8 +65,9 @@ namespace PrgData
 		protected void GetClientCode()
 		{
 			UserName = ServiceContext.GetShortUserName();
+			UpdateAFTime(UserName);
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
-			this.UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName);
+			UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName);
 
 			if (UpdateData == null || UpdateData.Disabled()) {
 				if (UpdateData == null) {
@@ -103,15 +104,20 @@ namespace PrgData
 
 			Cm.Parameters.AddWithValue("?UserName", UserName);
 			Cm.Parameters.AddWithValue("?ClientCode", CCode);
-
+			Cm.CommandText = "";
 			Cm.Connection = readWriteConnection;
-			Cm.Transaction = null;
-			Cm.CommandText = @"
-UPDATE Logs.AuthorizationDates A
-SET     AFTime    = now()
-WHERE   UserId=" + UserId;
-			var authorizationDatesCounter = Cm.ExecuteNonQuery();
+		}
 
+		private void UpdateAFTime(string username)
+		{
+			var sql = @"
+UPDATE Logs.AuthorizationDates A
+JOIN Customers.Users u on u.Id = a.UserId
+SET a.AFTime = now()
+WHERE u.Login = ?username";
+			var command = new MySqlCommand(sql, readWriteConnection);
+			command.Parameters.AddWithValue("?username", username);
+			var authorizationDatesCounter = command.ExecuteNonQuery();
 			if (authorizationDatesCounter != 1)
 				Addition += "Нет записи в AuthorizationDates (" + UserId + "); ";
 		}

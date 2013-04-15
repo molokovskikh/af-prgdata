@@ -984,7 +984,7 @@ SELECT
 	c.Id as ClientId,
 	left(c.Name, 50) as Name,
 	regions.CalculateOnProducerCost,
-	rcs.ParseWaybills,
+	1,
 	rcs.SendRetailMarkup,
 	rcs.ShowAdvertising,
 	rcs.SendWaybillsFromClient,
