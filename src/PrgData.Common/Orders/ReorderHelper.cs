@@ -94,10 +94,7 @@ namespace PrgData.Common.Orders
 						try {
 							GenerateDocsHelper.GenerateDocs(_readWriteConnection,
 								_data,
-								_orders.FindAll(
-									item =>
-										item.SendResult ==
-											OrderSendResult.Success));
+								_orders.FindAll(item => item.SendResult == OrderSendResult.Success && item.Order.RowId > 0));
 							transaction.Commit();
 						}
 						catch {

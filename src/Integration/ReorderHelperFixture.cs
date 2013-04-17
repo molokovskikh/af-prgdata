@@ -1595,6 +1595,8 @@ limit 1
 				specialAddress = specialUser.AvaliableAddresses[0];
 			}
 
+			TestDataManager.DeleteAllOrdersForClient(specialUser.Client.Id);
+
 			CreateFolders(specialAddress.Id.ToString());
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
