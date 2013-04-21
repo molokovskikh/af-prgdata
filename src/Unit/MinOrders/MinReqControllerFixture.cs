@@ -40,16 +40,11 @@ namespace Unit.MinOrders
 
 		private IMinOrderContext _minOrderContext;
 
-		private ClientOrderHeader _clientOrder;
-		private Order _order;
-		private float _sumOrder;
-
 		private DateTime _currentDateTime;
 		private bool _minReqEnabled;
 		private bool _controlMinReq;
 		private uint _minReq;
 		private uint _minReordering;
-
 
 		[SetUp]
 		public void Setup()
@@ -65,15 +60,6 @@ namespace Unit.MinOrders
 			_minOrderContext = _mockRepository.StrictMock<IMinOrderContext>();
 
 			_minOrderContext.Expect(x => x.CurrentDateTime).Do((Func<DateTime>)(() => _currentDateTime)).Repeat.Any();
-
-			//SetupResult.For(_minOrderContext.MinReqEnabled).Return(false).Repeat.Any();
-			//_minOrderContext.Expect(x => x.MinReqEnabled).Return(false);
-
-//			_clientOrder = _mockRepository.StrictMock<ClientOrderHeader>();
-//			_order = _mockRepository.StrictMock<Order>();
-//			_order.Stub(x => x.CalculateSum()).Return(_sumOrder);
-
-			//_clientOrder = CreateOrderWithSum(10);
 		}
 
 		public ClientOrderHeader CreateOrderWithSum(float sum)
@@ -109,7 +95,6 @@ namespace Unit.MinOrders
 			var controller = new MinReqController(_minOrderContext);
 			Assert.That(controller.Rules, Is.Null);
 			Assert.That(controller.OrderEpsilon.TotalSeconds, Is.EqualTo(10), "По умолчанию OrderEpsilon должно быть равно 10 секундам");
-			Assert.That(controller.MinTimeOfStopsOrders.Ticks, Is.EqualTo(0));
 			Assert.That(controller.CurrentOrderTime, Is.EqualTo(new DateTime(2013, 1, 24, 13, 0, 10)));
 		}
 
@@ -348,7 +333,6 @@ namespace Unit.MinOrders
 		[Test(Description = "правила не приняты, т.к. не хватает записей")]
 		public void RulesNotAllowed()
 		{
-			//BasicConfigurator.Configure();
 			_rules.RemoveAt(0);
 
 			var controller = new MinReqController(_minOrderContext);
@@ -362,24 +346,32 @@ namespace Unit.MinOrders
 			var controller = new MinReqController(_minOrderContext);
 			Assert.IsTrue(controller.AllowReorderingRules());
 			Assert.IsNotNull(controller.Rules);
-			Assert.That(controller.MinTimeOfStopsOrders.TotalHours, Is.EqualTo(14));
 		}
 
 		private void ClearTimeOfStopsOrders()
 		{
 			_rules.ForEach(r => r.TimeOfStopsOrders = null);
-			_rules[0].TimeOfStopsOrders = new TimeSpan(0);
 		}
 
-		[Test(Description = "проверка расчета значения MinTimeOfStopsOrders")]
-		public void CheckMinTimeOfStopsOrders()
+		[Test(Description = "правила не приняты, т.к. для всех записей не опеределено время окончания приема заявок")]
+		public void RulesNotAllowedByNulls()
 		{
 			ClearTimeOfStopsOrders();
 
 			var controller = new MinReqController(_minOrderContext);
+			Assert.IsFalse(controller.AllowReorderingRules());
+			Assert.IsNull(controller.Rules);
+		}
+
+		[Test(Description = "правила приняты, т.к. есть одна запись с установленным временем окончания приема заявок")]
+		public void RulesAllowedByOne()
+		{
+			ClearTimeOfStopsOrders();
+			_rules[3].TimeOfStopsOrders = new TimeSpan(0);
+
+			var controller = new MinReqController(_minOrderContext);
 			Assert.IsTrue(controller.AllowReorderingRules());
 			Assert.IsNotNull(controller.Rules);
-			Assert.That(controller.MinTimeOfStopsOrders.Ticks, Is.EqualTo(0));
 		}
 
 		private void CheckOrderPeriod(DateTime startTime, DateTime endTime)
@@ -403,8 +395,7 @@ namespace Unit.MinOrders
 		public void GetOrderPeriodWithZeroEnd()
 		{
 			_rules[3].TimeOfStopsOrders = new TimeSpan(0);
-			//Время окончания 14:00, т.к. это минимальное ненулевое время окончания по всем правилам
-			CheckOrderPeriod(new DateTime(2013, 1, 23, 19, 0, 0), new DateTime(2013, 1, 24, 14, 0, 0));
+			CheckOrderPeriod(new DateTime(2013, 1, 23, 19, 0, 0), new DateTime(2013, 1, 25, 0, 0, 0));
 		}
 
 		[Test(Description = "вызов метода GetOrderPeriod при нулевых датах окончания и начала")]
@@ -412,16 +403,16 @@ namespace Unit.MinOrders
 		{
 			_rules[2].TimeOfStopsOrders = new TimeSpan(0);
 			_rules[3].TimeOfStopsOrders = new TimeSpan(0);
-			//Время окончания 14:00, т.к. это минимальное ненулевое время окончания по всем правилам
-			CheckOrderPeriod(new DateTime(2013, 1, 23, 14, 0, 0), new DateTime(2013, 1, 24, 14, 0, 0));
+			CheckOrderPeriod(new DateTime(2013, 1, 24, 0, 0, 0), new DateTime(2013, 1, 25, 0, 0, 0));
 		}
 
 		[Test(Description = "вызов метода GetOrderPeriod при нулевых датах окончания")]
 		public void GetOrderPeriodWithAllZeroEnd()
 		{
 			ClearTimeOfStopsOrders();
+			_rules[0].TimeOfStopsOrders = new TimeSpan(0);
 
-			CheckOrderPeriod(new DateTime(2013, 1, 24, 0, 0, 0), new DateTime(2013, 1, 25, 0, 0, 0));
+			CheckOrderPeriod(new DateTime(2013, 1, 22, 0, 0, 0), new DateTime(2013, 1, 29, 0, 0, 0));
 		}
 
 		[Test(Description = "вызов метода GetOrderPeriod при дате старшей даты окончания за текущий день недели")]
@@ -443,6 +434,36 @@ namespace Unit.MinOrders
 		{
 			_currentDateTime = new DateTime(2013, 1, 24, 23, 59, 57);
 			CheckOrderPeriod(new DateTime(2013, 1, 24, 19, 0, 0), new DateTime(2013, 1, 25, 19, 0, 0));
+		}
+
+		[Test(Description = "вызов метода GetOrderPeriod при сложно заданном расписании")]
+		public void GetOrderPeriodByDifficult()
+		{
+			//пн - 19:00, вт - 19:00, ср - Null, чт - Null, пт - Null, сб - 14:00, вс - Null или пустота
+			_rules[0].TimeOfStopsOrders = new TimeSpan(19, 0, 0);
+			_rules[1].TimeOfStopsOrders = new TimeSpan(19, 0, 0);
+			_rules[2].TimeOfStopsOrders = null;
+			_rules[3].TimeOfStopsOrders = null;
+			_rules[4].TimeOfStopsOrders = null;
+			_rules[5].TimeOfStopsOrders = new TimeSpan(14, 0, 0);
+			_rules[6].TimeOfStopsOrders = null;
+			_currentDateTime = new DateTime(2013, 1, 24, 15, 0, 0);
+			CheckOrderPeriod(new DateTime(2013, 1, 22, 19, 0, 0), new DateTime(2013, 1, 26, 14, 0, 0));
+		}
+
+		[Test(Description = "вызов метода GetOrderPeriod при дате приближающейся к дате окончания за текущий день недели с Epsilon = 0")]
+		public void GetOrderPeriodWithZeroEpsilon()
+		{
+			_currentDateTime = new DateTime(2013, 1, 24, 18, 59, 57);
+
+			var controller = new MinReqController(_minOrderContext);
+			controller.OrderEpsilon = new TimeSpan(0);
+			Assert.IsTrue(controller.AllowReorderingRules());
+			Assert.IsNotNull(controller.Rules);
+			var period = controller.GetOrderPeriod();
+			Assert.IsNotNull(period);
+			Assert.That(period.StartTime, Is.EqualTo(new DateTime(2013, 1, 23, 19, 0, 0)));
+			Assert.That(period.EndTime, Is.EqualTo(new DateTime(2013, 1, 24, 19, 0, 0)));
 		}
 	}
 }

@@ -32,15 +32,19 @@ namespace PrgData.Common.Models
 		[Property]
 		public TimeSpan? TimeOfStopsOrders { get; set; }
 
-		public DateTime GetTimeOfStopsOrders(DateTime currentOrderTime, TimeSpan minTimeOfStopsOrders)
-		{
-			//Если указано время окончания у правила, то добавляем интервал к началу дня
-			if (TimeOfStopsOrders.HasValue && TimeOfStopsOrders.Value.Ticks > 0)
-				return currentOrderTime.Date.Add(TimeOfStopsOrders.Value);
+		//Можно ли рассчитать время окончания приема заявок относительно текущего правила?
+		public bool AllowCalcTimeOfStopsOrders {
+			get { return TimeOfStopsOrders.HasValue; }
+		}
 
-			//Если указано минимальное ненулевое время окончания, то добавляем интервал к началу дня
-			if (minTimeOfStopsOrders.Ticks > 0)
-				return currentOrderTime.Date.Add(minTimeOfStopsOrders);
+		public DateTime GetTimeOfStopsOrders(DateTime currentOrderTime)
+		{
+			if (!AllowCalcTimeOfStopsOrders)
+				throw new InvalidOperationException("Для данного правила нельзя рассчитать дату окончания приема заявок, т.к. не опеределено время окончания приема заявок.");
+
+			//Если указано время окончания у правила, то добавляем интервал к началу дня
+			if (TimeOfStopsOrders.Value.Ticks > 0)
+				return currentOrderTime.Date.Add(TimeOfStopsOrders.Value);
 
 			//Если ничего не сработало, то возвращаем начало следующего дня
 			return currentOrderTime.Date.AddDays(1);

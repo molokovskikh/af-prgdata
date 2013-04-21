@@ -13,18 +13,25 @@ namespace PrgData.Common.Orders.MinOrders
 			return rules.Find(r => r.DayOfWeek == date.DayOfWeek);
 		}
 
-		public static TimeSpan GetMinTimeOfStopsOrders(this List<ReorderingRule> rules)
+		public static DateTime GetNearTimeOfStopsOrdersDayOfWeek(this List<ReorderingRule> rules, DateTime date)
 		{
-			var minTimes = rules
-				.Where(r => r.TimeOfStopsOrders.HasValue && r.TimeOfStopsOrders.Value.Ticks > 0)
-				.Select(r => r.TimeOfStopsOrders.Value)
-				.OrderBy(t => t)
-				.ToList();
+			var rule = rules.GetRuleByDayOfWeek(date);
+			while (!rule.AllowCalcTimeOfStopsOrders) {
+				date = date.Date.AddDays(1);
+				rule = rules.GetRuleByDayOfWeek(date);
+			}
+			return rule.GetTimeOfStopsOrders(date);
+		}
 
-			if (minTimes.Count > 0)
-				return minTimes[0];
-
-			return new TimeSpan(0);
+		public static DateTime GetPrevTimeOfStopsOrdersDayOfWeek(this List<ReorderingRule> rules, DateTime date)
+		{
+			date = date.Date.AddDays(-1);
+			var rule = rules.GetRuleByDayOfWeek(date);
+			while (!rule.AllowCalcTimeOfStopsOrders) {
+				date = date.Date.AddDays(-1);
+				rule = rules.GetRuleByDayOfWeek(date);
+			}
+			return rule.GetTimeOfStopsOrders(date);
 		}
 	}
 
@@ -49,8 +56,6 @@ namespace PrgData.Common.Orders.MinOrders
 		{
 			get { return Context.CurrentDateTime.Add(OrderEpsilon); }
 		}
-
-		public TimeSpan MinTimeOfStopsOrders { get; private set; }
 
 		public MinReqController(IMinOrderContext context)
 		{
@@ -103,16 +108,10 @@ namespace PrgData.Common.Orders.MinOrders
 			}
 
 			//Если для всех дней недели неопределено время окончания приема заказов, то проверять нечего
-//			if (rules.TrueForAll(r => !r.TimeOfStopsOrders.HasValue))
-//				return false;
-
-//			var currentRule = rules.GetRuleByDayOfWeek(Context.CurrentDateTime);
-//			//Если правило для текущего дня недели не содержит
-//			if (!currentRule.TimeOfStopsOrders.HasValue)
-//				return false;
+			if (rules.TrueForAll(r => !r.TimeOfStopsOrders.HasValue))
+				return false;
 
 			Rules = rules;
-			MinTimeOfStopsOrders = Rules.GetMinTimeOfStopsOrders();
 			return true;
 		}
 
@@ -127,24 +126,19 @@ namespace PrgData.Common.Orders.MinOrders
 
 		public virtual ReorderingPeriod GetOrderPeriod()
 		{
-			//правило дозаказа для текущего дня недели
-			var currentDateRule = Rules.GetRuleByDayOfWeek(CurrentOrderTime);
-			//дата и время окончания приема заказов для текущего дня недели
-			var currentTimeOfStopsOrders = currentDateRule.GetTimeOfStopsOrders(CurrentOrderTime, MinTimeOfStopsOrders);
+			//ближайшая дата и время окончания приема заказов для текущего дня недели
+			var nearTimeOfStopsOrders = Rules.GetNearTimeOfStopsOrdersDayOfWeek(CurrentOrderTime);
 
 			//Если время заказа равно или больше времени окончания приема заказов, то берем следующий период
-			if (CurrentOrderTime.CompareTo(currentTimeOfStopsOrders) >= 0) {
+			if (CurrentOrderTime.CompareTo(nearTimeOfStopsOrders) >= 0) {
 				var nextDay = CurrentOrderTime.Date.AddDays(1);
-				var nextDateRule = Rules.GetRuleByDayOfWeek(nextDay);
-				var nextTimeOfStopsOrders = nextDateRule.GetTimeOfStopsOrders(nextDay, MinTimeOfStopsOrders);
-				return new ReorderingPeriod(currentTimeOfStopsOrders, nextTimeOfStopsOrders);
+				var nextTimeOfStopsOrders = Rules.GetNearTimeOfStopsOrdersDayOfWeek(nextDay);
+				return new ReorderingPeriod(nearTimeOfStopsOrders, nextTimeOfStopsOrders);
 			}
 			else {
 				//Если время заказа меньше времени окончания приема заказов, то берем предыдущий период
-				var prevDay = CurrentOrderTime.Date.AddDays(-1);
-				var prevDateRule = Rules.GetRuleByDayOfWeek(prevDay);
-				var prevTimeOfStopsOrders = prevDateRule.GetTimeOfStopsOrders(prevDay, MinTimeOfStopsOrders);
-				return new ReorderingPeriod(prevTimeOfStopsOrders, currentTimeOfStopsOrders);
+				var prevTimeOfStopsOrders = Rules.GetPrevTimeOfStopsOrdersDayOfWeek(CurrentOrderTime);
+				return new ReorderingPeriod(prevTimeOfStopsOrders, nearTimeOfStopsOrders);
 			}
 		}
 
