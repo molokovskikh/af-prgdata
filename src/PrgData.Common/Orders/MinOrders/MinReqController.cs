@@ -54,7 +54,7 @@ namespace PrgData.Common.Orders.MinOrders
 
 		public DateTime CurrentOrderTime
 		{
-			get { return Context.CurrentDateTime.Add(OrderEpsilon); }
+			get { return Context.CurrentRegionDateTime.Add(OrderEpsilon); }
 		}
 
 		public MinReqController(IMinOrderContext context)

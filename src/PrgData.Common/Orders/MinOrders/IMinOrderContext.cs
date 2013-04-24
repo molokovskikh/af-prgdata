@@ -45,9 +45,9 @@ namespace PrgData.Common.Orders.MinOrders
 		uint MinReordering { get; }
 
 		/// <summary>
-		/// Текущая дата и время для проверки расписания дозаказа
+		/// Текущая дата и время относительно региона заказа для проверки расписания дозаказа
 		/// </summary>
-		DateTime CurrentDateTime { get; }
+		DateTime CurrentRegionDateTime { get; }
 
 		/// <summary>
 		/// Расписание дозаказа поставщика относительно региона

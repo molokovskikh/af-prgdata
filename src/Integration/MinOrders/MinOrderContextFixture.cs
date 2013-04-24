@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using Castle.ActiveRecord;
 using Common.Models;
 using Common.Models.Tests;
 using Common.MySql;
+using Common.Tools;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NHibernate.Exceptions;
@@ -74,6 +77,7 @@ namespace Integration.MinOrders
 			Assert.That(context.UserId, Is.EqualTo(_user.Id));
 			Assert.That(context.PriceCode, Is.EqualTo(_price.Id.PriceId));
 			Assert.That(context.RegionCode, Is.EqualTo(_price.Id.RegionCode));
+			Assert.That(context.MoscowBias, Is.EqualTo(0), "При создании клиента без указания региона должен использоваться регион Воронеж со смещением = 0");
 
 			Assert.IsTrue(context.MinReqEnabled);
 
@@ -84,8 +88,8 @@ namespace Integration.MinOrders
 				Assert.That(context.RegionName, Is.EqualTo(region.Name));
 			}
 
-			//Значение CurrentDateTime должно задаваться при создании контекста
-			Assert.That(DateTime.Now.CompareTo(context.CurrentDateTime), Is.GreaterThan(0));
+			//Значение CurrentRegionDateTime должно задаваться при создании контекста
+			Assert.That(DateTime.Now.CompareTo(context.CurrentRegionDateTime), Is.GreaterThan(0));
 
 			var rules = context.GetRules();
 			Assert.IsNotNull(rules);
@@ -131,7 +135,7 @@ and (ai.AddressId = :addressId)")
 			Assert.IsNullOrEmpty(context.RegionName);
 		}
 
-		private void DropRules()
+		private void DropRules(TestActivePrice price)
 		{
 			_unitOfWork.CurrentSession
 				.CreateSQLQuery(@"
@@ -145,12 +149,12 @@ using
 where
 	pd.PriceCode = :priceCode
 and rd.RegionCode = :regionCode")
-				.SetParameter("priceCode", _price.Id.PriceId)
-				.SetParameter("regionCode", _price.Id.RegionCode)
+				.SetParameter("priceCode", price.Id.PriceId)
+				.SetParameter("regionCode", price.Id.RegionCode)
 				.ExecuteUpdate();
 		}
 
-		private void CreateRules(int?[] hours)
+		private void CreateRules(TestActivePrice price, int?[] hours)
 		{
 			if (hours == null)
 				return;
@@ -167,8 +171,8 @@ from
 where
 	pd.PriceCode = :priceCode
 and rd.RegionCode = :regionCode")
-				.SetParameter("priceCode", _price.Id.PriceId)
-				.SetParameter("regionCode", _price.Id.RegionCode)
+				.SetParameter("priceCode", price.Id.PriceId)
+				.SetParameter("regionCode", price.Id.RegionCode)
 				.UniqueResult<uint>();
 
 			var weeks = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
@@ -191,14 +195,14 @@ and rd.RegionCode = :regionCode")
 		[Test(Description = "читаем правила")]
 		public void ReadRules()
 		{
-			DropRules();
+			DropRules(_price);
 
 			var context = CreateContext();
 
 			var rules = context.GetRules();
 			Assert.That(rules.Count, Is.EqualTo(0));
 
-			CreateRules(new int?[] { 19, 19, 19, 19, null, 14, 0 });
+			CreateRules(_price, new int?[] { 19, 19, 19, 19, null, 14, 0 });
 			rules = context.GetRules();
 			Assert.That(rules.Count, Is.EqualTo(7));
 			Assert.That(rules[0].DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
@@ -210,20 +214,20 @@ and rd.RegionCode = :regionCode")
 		[Test(Description = "при попытке продублировать правило должно возникать исключение 'Duplicate entry'")]
 		public void RulesUniqueConstraint()
 		{
-			DropRules();
-			CreateRules(new int?[] { 19, 19, 19, 19, null, 14, 0 });
+			DropRules(_price);
+			CreateRules(_price, new int?[] { 19, 19, 19, 19, null, 14, 0 });
 
 			var context = CreateContext();
 			var rules = context.GetRules();
 			Assert.That(rules.Count, Is.EqualTo(7));
 
-			var exception = Assert.Throws<GenericADOException>(() => CreateRules(new int?[] { 19 }));
+			var exception = Assert.Throws<GenericADOException>(() => CreateRules(_price, new int?[] { 19 }));
 			Assert.That(exception.Message, Is.StringStarting("could not insert"));
 			Assert.IsTrue(ExceptionHelper.IsDuplicateEntryExceptionInChain(exception));
 		}
 
 		[Test(Description = "проверка работы метода OrderExists")]
-		public void CheckOrderExists()
+		public void SimpleCheckOrderExists()
 		{
 			var order = TestDataManager.GenerateOrder(3, _user.Id, _address.Id, _price.Id.PriceId);
 
@@ -243,6 +247,153 @@ and rd.RegionCode = :regionCode")
 
 			Assert.IsTrue(context.OrdersExists(existsPeriod));
 			Assert.IsFalse(context.OrdersExists(nonExistsPeriod));
+		}
+
+
+		private void CheckOrderExistsByOtherParams(Func<Order> otherOrderCallback)
+		{
+			Assert.IsNotNull(otherOrderCallback, "Не установлен callback для формирования другого заказа");
+
+			var order = TestDataManager.GenerateOrder(3, _user.Id, _address.Id, _price.Id.PriceId);
+			var otherOrder = otherOrderCallback();
+
+			var context = CreateContext();
+
+			var existsPeriod = new ReorderingPeriod(order.WriteTime.AddHours(-1), order.WriteTime.AddHours(1));
+			var nonExistsPeriod = new ReorderingPeriod(order.WriteTime.AddDays(1), order.WriteTime.AddDays(2));
+
+			//Заказы не помечены, как обработанные, поэтому в обоих периодах не будут найдены
+			Assert.IsFalse(context.OrdersExists(existsPeriod));
+			Assert.IsFalse(context.OrdersExists(nonExistsPeriod));
+
+			With.Transaction(() => {
+				otherOrder.Processed = true;
+				_unitOfWork.CurrentSession.Save(order);
+			});
+			Assert.IsFalse(context.OrdersExists(existsPeriod));
+			Assert.IsFalse(context.OrdersExists(nonExistsPeriod));
+
+			//Помечаем заказ под корректным пользователем как обработанный и тогда в периоде existsPeriod будут заказы
+			With.Transaction(() => {
+				order.Processed = true;
+				_unitOfWork.CurrentSession.Save(order);
+			});
+			Assert.IsTrue(context.OrdersExists(existsPeriod));
+			Assert.IsFalse(context.OrdersExists(nonExistsPeriod));
+		}
+
+		[Test(Description = "проверка работы метода OrderExists")]
+		public void CheckOrderExistsByOtherUser()
+		{
+			TestUser otherUser;
+
+			using (var transaction = new TransactionScope()) {
+				otherUser = _client.CreateUser();
+				otherUser.JoinAddress(_address);
+				otherUser.InheritPricesFrom = _user;
+				_client.Update();
+				transaction.VoteCommit();
+			}
+
+			CheckOrderExistsByOtherParams(() => TestDataManager.GenerateOrder(3, otherUser.Id, _address.Id, _price.Id.PriceId));
+		}
+
+		[Test(Description = "проверка работы метода OrderExists")]
+		public void CheckOrderExistsByOtherAddress()
+		{
+			TestAddress otherAddress;
+
+			using (var transaction = new TransactionScope()) {
+				otherAddress = _client.CreateAddress();
+				_user.JoinAddress(otherAddress);
+				_client.Update();
+				transaction.VoteCommit();
+			}
+
+			CheckOrderExistsByOtherParams(() => TestDataManager.GenerateOrder(3, _user.Id, otherAddress.Id, _price.Id.PriceId));
+		}
+
+		[Test(Description = "проверка работы метода OrderExists")]
+		public void CheckOrderExistsByClient()
+		{
+			var otherUser = CreateUserWithMinimumPrices();
+			var prices = otherUser.GetActivePricesList();
+			Assert.IsNotNull(prices.First(p => p.Id.Equals(_price.Id)));
+
+			CheckOrderExistsByOtherParams(() => TestDataManager.GenerateOrder(3, otherUser.Id, otherUser.AvaliableAddresses[0].Id, _price.Id.PriceId));
+		}
+
+		[Test(Description = "проверка работы метода OrderExists")]
+		public void CheckOrderExistsByPrice()
+		{
+			var prices = _user.GetActivePricesList();
+			var otherPrice = prices.First(p => p.Id.PriceId != _price.Id.PriceId);
+
+			CheckOrderExistsByOtherParams(() => TestDataManager.GenerateOrder(3, _user.Id, _address.Id, otherPrice.Id.PriceId));
+		}
+
+		private void CheckOrderExistsByContext(IMinOrderContext context, DateTime startTime, DateTime endTime, bool exists)
+		{
+			var period = new ReorderingPeriod(startTime, endTime);
+			Assert.That(context.OrdersExists(period), Is.EqualTo(exists));
+		}
+
+		[Test(Description = "проверяем работу с региональным смещением")]
+		public void CheckMoscowBias()
+		{
+			var client = TestClient.Create(64, 64);
+
+			var region = TestRegion.Find(client.RegionCode);
+			Assert.That(region.ShortAliase, Is.EqualTo("chel"));
+
+			TestUser user;
+			using (var transaction = new TransactionScope()) {
+				user = client.Users[0];
+
+				client.Users.Each(u => {
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				user.Update();
+			}
+
+			var prices = user.GetActivePricesList();
+			var price = prices[0];
+
+			var conext = new MinOrderContext(
+				_connection, _unitOfWork.CurrentSession,
+				client.Id, user.AvaliableAddresses[0].Id, user.Id,
+				price.Id.PriceId, price.Id.RegionCode);
+
+			//Для Челябинска смещение должно быть = 2
+			Assert.That(conext.MoscowBias, Is.EqualTo(2));
+			var timeSpan = conext.CurrentRegionDateTime.Subtract(DateTime.Now.AddMinutes(-1));
+			Assert.That(timeSpan.TotalHours, Is.GreaterThanOrEqualTo(conext.MoscowBias));
+
+
+			//Выполняем проверки существования заказа относительно регионального времени
+			var order = TestDataManager.GenerateOrder(3, user.Id, user.AvaliableAddresses[0].Id, price.Id.PriceId);
+
+			//Время отправки заказа относительно времени региона
+			var regionalOrderTime = order.WriteTime.AddHours(conext.MoscowBias);
+
+			//Заказ не помечен, как обработанный, поэтому не будет найден
+			CheckOrderExistsByContext(conext, DateTime.Now.Date, DateTime.Now.Date.AddDays(1), false);
+
+			With.Transaction(() => {
+				order.Processed = true;
+				_unitOfWork.CurrentSession.Save(order);
+			});
+
+			//проверка регионального периода: от (времени отправки заказа + 1 час) до начала следующего дня
+			CheckOrderExistsByContext(conext, regionalOrderTime.AddHours(1), regionalOrderTime.Date.AddDays(1), false);
+			//проверка регионального периода: от начал дня до (времени отправки заказа - 1 час)
+			CheckOrderExistsByContext(conext, regionalOrderTime.Date, regionalOrderTime.AddHours(-1), false);
+			//проверка регионального периода: от (времени отправки заказа + 1 сек) до начала следующего дня
+			CheckOrderExistsByContext(conext, regionalOrderTime.AddSeconds(1), regionalOrderTime.Date.AddDays(1), false);
+
+			//проверка регионального периода: указываем период, в который заказ точно должен быть отправлен
+			CheckOrderExistsByContext(conext, regionalOrderTime.AddSeconds(-10), regionalOrderTime.AddSeconds(10), true);
 		}
 	}
 }

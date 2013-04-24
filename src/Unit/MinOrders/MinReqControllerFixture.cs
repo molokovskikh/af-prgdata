@@ -59,7 +59,7 @@ namespace Unit.MinOrders
 
 			_minOrderContext = _mockRepository.StrictMock<IMinOrderContext>();
 
-			_minOrderContext.Expect(x => x.CurrentDateTime).Do((Func<DateTime>)(() => _currentDateTime)).Repeat.Any();
+			_minOrderContext.Expect(x => x.CurrentRegionDateTime).Do((Func<DateTime>)(() => _currentDateTime)).Repeat.Any();
 		}
 
 		public ClientOrderHeader CreateOrderWithSum(float sum)
@@ -314,7 +314,7 @@ namespace Unit.MinOrders
 
 			_minOrderContext = _mockRepository.StrictMock<IMinOrderContext>();
 
-			_minOrderContext.Expect(x => x.CurrentDateTime).Do((Func<DateTime>)(() => _currentDateTime)).Repeat.Any();
+			_minOrderContext.Expect(x => x.CurrentRegionDateTime).Do((Func<DateTime>)(() => _currentDateTime)).Repeat.Any();
 
 			_minOrderContext.Expect(x => x.MinReqEnabled).Return(true).Repeat.Any();
 			_minOrderContext.Expect(x => x.ControlMinReq).Return(true).Repeat.Any();

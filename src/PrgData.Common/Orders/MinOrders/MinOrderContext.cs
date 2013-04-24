@@ -21,7 +21,9 @@ namespace PrgData.Common.Orders.MinOrders
 		public bool ControlMinReq { get; private set; }
 		public uint MinReq { get; private set; }
 		public uint MinReordering { get; private set; }
-		public DateTime CurrentDateTime { get; private set; }
+		public DateTime CurrentRegionDateTime { get; private set; }
+		//региональное смещение по времени относительно Москвы
+		public int MoscowBias { get; private set; }
 
 		private MySqlConnection _connection;
 		private ISession _session;
@@ -32,7 +34,7 @@ namespace PrgData.Common.Orders.MinOrders
 			_connection = connection;
 			_session = session;
 
-			CurrentDateTime = DateTime.Now;
+			CurrentRegionDateTime = DateTime.Now;
 			ClientId = clientId;
 			AddressId = addressId;
 			UserId = userId;
@@ -48,7 +50,8 @@ if(ifnull(ai.MinReq, 0) > 0, ai.MinReq, if(ifnull(i.MinReq, 0) > 0, i.MinReq, pr
 ifnull(if(ifnull(ai.MinReordering, 0) > 0, ai.MinReordering, prd.MinReqReorder), 0) as MinReorderingValue,
 r.Region,
 s.Id,
-s.Name
+s.Name,
+r.MoscowBias
 FROM
 Customers.Intersection i
 join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id)
@@ -77,7 +80,11 @@ and (ai.AddressId = ?AddressId)
 					RegionName = reader.GetString(3);
 					SupplierId = reader.GetUInt32(4);
 					SupplierName = reader.GetString(5);
+					MoscowBias = reader.GetInt32(6);
 				}
+
+			//Применяем смещение, чтобы получить региональную дату и время
+			CurrentRegionDateTime = CurrentRegionDateTime.AddHours(MoscowBias);
 		}
 
 		public List<ReorderingRule> GetRules()
@@ -113,6 +120,8 @@ where
 	clientcode = :clientId
 and addressId = :addressId
 and userId = :userId
+and priceCode = :priceId
+and regionCode = :regionId
 and :startDate <= writetime
 and writetime < :endDate
 and processed = 1
@@ -120,8 +129,10 @@ and deleted = 0")
 				.SetParameter("clientId", ClientId)
 				.SetParameter("addressId", AddressId)
 				.SetParameter("userId", UserId)
-				.SetParameter("startDate", period.StartTime)
-				.SetParameter("endDate", period.EndTime)
+				.SetParameter("priceId", PriceCode)
+				.SetParameter("regionId", RegionCode)
+				.SetParameter("startDate", period.StartTime.AddHours(-MoscowBias))
+				.SetParameter("endDate", period.EndTime.AddHours(-MoscowBias))
 				.UniqueResult<long>();
 
 			return result > 0;
