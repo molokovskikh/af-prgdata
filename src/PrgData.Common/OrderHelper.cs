@@ -3,6 +3,18 @@ using MySql.Data.MySqlClient;
 
 namespace PrgData.Common
 {
+	public class MinReqController
+	{
+		public bool ControlMinReq;
+		public uint MinReq;
+
+		public MinReqController(bool controlMinReq, uint minReq)
+		{
+			ControlMinReq = controlMinReq;
+			MinReq = minReq;
+		}
+	}
+
 	public class OrderHelper
 	{
 		protected UpdateData _data;
@@ -12,6 +24,35 @@ namespace PrgData.Common
 		{
 			_data = data;
 			_readWriteConnection = readWriteConnection;
+		}
+
+		public MinReqController GetMinReq(uint clientCode, ulong regionCode, uint priceCode)
+		{
+			var command = new MySqlCommand(@"
+SELECT
+ai.ControlMinReq,
+if(ifnull(ai.MinReq, 0) > 0, ai.MinReq, if(ifnull(i.MinReq, 0) > 0, i.MinReq, prd.MinReq))
+FROM
+Customers.Intersection i
+join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id)
+join usersettings.pricesregionaldata prd on prd.pricecode = i.PriceId and prd.RegionCode = i.RegionId
+where
+	(i.ClientId = ?ClientCode)
+and (prd.PriceCode =  ?PriceCode)
+and (prd.RegionCode = ?RegionCode)
+and (ai.AddressId = ?AddressId)
+",
+				_readWriteConnection);
+			command.Parameters.AddWithValue("?ClientCode", _data.ClientId);
+			command.Parameters.AddWithValue("?RegionCode", regionCode);
+			command.Parameters.AddWithValue("?PriceCode", priceCode);
+			command.Parameters.AddWithValue("?AddressId", clientCode);
+
+			using (var reader = command.ExecuteReader())
+				if (reader.Read())
+					return new MinReqController(reader.GetBoolean(0), reader.GetUInt32(1));
+
+			return null;
 		}
 
 		public void CheckCanPostOrder(uint clientCode)

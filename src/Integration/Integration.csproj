@@ -122,7 +122,6 @@
     <Compile Include="MakeCostNoLessFixture.cs" />
     <Compile Include="MatrixFixture.cs" />
     <Compile Include="MiniMailFixture.cs" />
-    <Compile Include="MinOrders\MinOrderContextFixture.cs" />
     <Compile Include="Models\MailsExportFixture.cs" />
     <Compile Include="Models\NewsExportFixture.cs" />
     <Compile Include="Models\PromotionsExportFixture.cs" />
