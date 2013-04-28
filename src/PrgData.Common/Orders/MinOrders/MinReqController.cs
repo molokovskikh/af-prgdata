@@ -87,7 +87,7 @@ namespace PrgData.Common.Orders.MinOrders
 
 		public bool AllowMinReordering()
 		{
-			return Context.MinReordering > 0 && AllowReorderingRules();
+			return Context.SupportedMinReordering && Context.MinReordering > 0 && AllowReorderingRules();
 		}
 
 		public bool AllowReorderingRules()
@@ -120,6 +120,7 @@ namespace PrgData.Common.Orders.MinOrders
 			if (order.Order.CalculateSum() < Context.MinReq) {
 				order.SendResult = OrderSendResult.LessThanMinReq;
 				order.MinReq = Context.MinReq;
+				order.MinReordering = Context.MinReordering;
 				order.ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
 			}
 		}
@@ -147,6 +148,7 @@ namespace PrgData.Common.Orders.MinOrders
 			if (order.Order.CalculateSum() < Context.MinReordering) {
 				order.SendResult = OrderSendResult.LessThanReorderingMinReq;
 				order.MinReq = Context.MinReq;
+				order.MinReordering = Context.MinReordering;
 				order.ErrorReason = "Поставщик отказал в приеме дозаказа.\n Сумма дозаказа меньше минимально допустимой.";
 			}
 		}

@@ -22,6 +22,7 @@ namespace PrgData.Common.Orders.MinOrders
 		public uint MinReq { get; private set; }
 		public uint MinReordering { get; private set; }
 		public DateTime CurrentRegionDateTime { get; private set; }
+		public bool SupportedMinReordering { get; private set; }
 		//региональное смещение по времени относительно Москвы
 		public int MoscowBias { get; private set; }
 
@@ -29,7 +30,7 @@ namespace PrgData.Common.Orders.MinOrders
 		private ISession _session;
 
 		public MinOrderContext(MySqlConnection connection, ISession session, uint clientId,
-			uint addressId, uint userId, uint pricdeCode, ulong regionCode)
+			uint addressId, uint userId, uint pricdeCode, ulong regionCode, bool supportedMinReordering)
 		{
 			_connection = connection;
 			_session = session;
@@ -40,6 +41,7 @@ namespace PrgData.Common.Orders.MinOrders
 			UserId = userId;
 			PriceCode = pricdeCode;
 			RegionCode = regionCode;
+			SupportedMinReordering = supportedMinReordering;
 
 			MinReqEnabled = false;
 

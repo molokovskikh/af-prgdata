@@ -61,5 +61,10 @@ namespace PrgData.Common.Orders.MinOrders
 		/// <param name="period"></param>
 		/// <returns></returns>
 		bool OrdersExists(IReorderingPeriod period);
+
+		/// <summary>
+		/// Поддерживает ли текущая версия AnalitF работу с дозаказом?
+		/// </summary>
+		bool SupportedMinReordering { get; }
 	}
 }

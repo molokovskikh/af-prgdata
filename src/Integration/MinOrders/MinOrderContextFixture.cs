@@ -64,7 +64,8 @@ namespace Integration.MinOrders
 			return new MinOrderContext(
 				_connection, _unitOfWork.CurrentSession,
 				_client.Id, _address.Id, _user.Id,
-				_price.Id.PriceId, _price.Id.RegionCode);
+				_price.Id.PriceId, _price.Id.RegionCode,
+				true);
 		}
 
 		[Test(Description = "Простой тест на создание контекста")]
@@ -363,7 +364,8 @@ and rd.RegionCode = :regionCode")
 			var conext = new MinOrderContext(
 				_connection, _unitOfWork.CurrentSession,
 				client.Id, user.AvaliableAddresses[0].Id, user.Id,
-				price.Id.PriceId, price.Id.RegionCode);
+				price.Id.PriceId, price.Id.RegionCode,
+				true);
 
 			//Для Челябинска смещение должно быть = 2
 			Assert.That(conext.MoscowBias, Is.EqualTo(2));

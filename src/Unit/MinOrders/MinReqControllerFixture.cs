@@ -45,6 +45,7 @@ namespace Unit.MinOrders
 		private bool _controlMinReq;
 		private uint _minReq;
 		private uint _minReordering;
+		private bool _supportedMinReordering;
 
 		[SetUp]
 		public void Setup()
@@ -54,6 +55,7 @@ namespace Unit.MinOrders
 			_controlMinReq = false;
 			_minReq = 0;
 			_minReordering = 0;
+			_supportedMinReordering = false;
 
 			_mockRepository = new MockRepository();
 
@@ -114,6 +116,7 @@ namespace Unit.MinOrders
 		{
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.LessThanReorderingMinReq));
 			Assert.That(order.MinReq, Is.EqualTo(_minOrderContext.MinReq));
+			Assert.That(order.MinReordering, Is.EqualTo(_minOrderContext.MinReordering));
 			Assert.That(order.ErrorReason, Is.EqualTo("Поставщик отказал в приеме дозаказа.\n Сумма дозаказа меньше минимально допустимой."));
 		}
 
@@ -159,11 +162,30 @@ namespace Unit.MinOrders
 			OrderSuccess(order);
 		}
 
+		[Test(Description = "фунционал проверки минимального дозаказа не должен быть вызван, т.к. приложение не поддерживает минимальный дозаказ")]
+		public void MinReorderingDisabledThatDontSupported()
+		{
+			_minReqEnabled = true;
+			_controlMinReq = true;
+			_minReq = 9;
+			_minOrderContext.Expect(x => x.MinReqEnabled).Do((Func<bool>)(() => _minReqEnabled)).Repeat.Any();
+			_minOrderContext.Expect(x => x.ControlMinReq).Do((Func<bool>)(() => _controlMinReq)).Repeat.Any();
+			_minOrderContext.Expect(x => x.MinReq).Do((Func<uint>)(() => _minReq)).Repeat.Any();
+			_minOrderContext.Expect(x => x.SupportedMinReordering).Do((Func<bool>)(() => _supportedMinReordering)).Repeat.Any();
+			_mockRepository.ReplayAll();
+
+			var controller = new MinReqController(_minOrderContext);
+			var order = CreateOrderWithSum(10);
+			controller.ProcessOrder(order);
+			OrderSuccess(order);
+		}
+
 		private void SetContext(Action action = null)
 		{
 			_minOrderContext.Expect(x => x.MinReqEnabled).Do((Func<bool>)(() => _minReqEnabled)).Repeat.Any();
 			_minOrderContext.Expect(x => x.ControlMinReq).Do((Func<bool>)(() => _controlMinReq)).Repeat.Any();
 			_minOrderContext.Expect(x => x.MinReq).Do((Func<uint>)(() => _minReq)).Repeat.Any();
+			_minOrderContext.Expect(x => x.SupportedMinReordering).Do((Func<bool>)(() => _supportedMinReordering)).Repeat.Any();
 			_minOrderContext.Expect(x => x.MinReordering).Do((Func<uint>)(() => _minReordering)).Repeat.Any();
 
 			if (action != null)
@@ -252,6 +274,7 @@ namespace Unit.MinOrders
 			_controlMinReq = true;
 			_minReq = 15;
 			_minReordering = 6;
+			_supportedMinReordering = true;
 			SetContext(() => {
 				_minOrderContext.Expect(x => x.GetRules()).Return(GetDefaultRules()).Repeat.Any();
 				_minOrderContext.Expect(x => x.OrdersExists(null)).IgnoreArguments().Return(orderExists).Repeat.Any();

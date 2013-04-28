@@ -28,6 +28,8 @@ namespace PrgData.Common.Orders
 
 		public uint? MinReq { get; set; }
 
+		public uint? MinReordering { get; set; }
+
 		public decimal MaxSum { get; set; }
 
 		public Order Order { get; set; }
@@ -90,6 +92,16 @@ namespace PrgData.Common.Orders
 					ActivePrice.Id.Price.Supplier.Name,
 					MaxSum);
 			}
+
+			if (SendResult == OrderSendResult.LessThanReorderingMinReq) {
+				return String.Format(
+					"Заказ №{0} на сумму {1} на поставщика {2} был отклонен из-за нарушения минимальной суммы дозаказа {3}.",
+					ClientOrderId,
+					Order.CalculateSum(),
+					ActivePrice.Id.Price.Supplier.Name,
+					MinReordering);
+			}
+
 			return "";
 		}
 

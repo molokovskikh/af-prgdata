@@ -403,7 +403,8 @@ values
 						new MinOrderContext(
 							_readWriteConnection, session,
 							_data.ClientId, _address.Id, _user.Id,
-							order.Order.ActivePrice.Id.Price.PriceCode, order.Order.RegionCode));
+							order.Order.ActivePrice.Id.Price.PriceCode, order.Order.RegionCode,
+							_data.SupportedMinReordering()));
 					minReqController.ProcessOrder(order);
 				}
 
