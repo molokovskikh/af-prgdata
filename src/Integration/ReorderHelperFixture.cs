@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Common.Models.Tests;
+using PrgData.Common.Models;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
@@ -2023,6 +2024,359 @@ and (i.PriceId = :PriceId)
 
 				Assert.That(orderResponse.ServerOrderId, Is.GreaterThan(0));
 				Assert.That(orderResponse.PostResult, Is.EqualTo(OrderSendResult.Success));
+			}
+		}
+
+		private void SetReorderingRules(ActivePrice activePrice, int stopTimeHour)
+		{
+			var weeks = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
+
+			With.Transaction((session) => {
+				session
+					.CreateSQLQuery(@"
+	delete
+	from
+		r
+	using
+		UserSettings.pricesdata pd
+		join UserSettings.regionalData rd on rd.FirmCode = pd.FirmCode
+		inner join UserSettings.ReorderingRules r on r.RegionalDataId = rd.RowId
+	where
+		pd.PriceCode = :priceCode
+	and rd.RegionCode = :regionCode")
+					.SetParameter("priceCode", activePrice.Id.Price.PriceCode)
+					.SetParameter("regionCode", activePrice.Id.RegionCode)
+					.ExecuteUpdate();
+
+				var regionalDataId = session
+					.CreateSQLQuery(@"
+	select
+		rd.RowId
+	from
+		UserSettings.pricesdata pd
+		join UserSettings.regionalData rd on rd.FirmCode = pd.FirmCode
+	where
+		pd.PriceCode = :priceCode
+	and rd.RegionCode = :regionCode")
+					.SetParameter("priceCode", activePrice.Id.Price.PriceCode)
+					.SetParameter("regionCode", activePrice.Id.RegionCode)
+					.UniqueResult<uint>();
+
+				foreach (var dayOfWeek in weeks) {
+					var rule = new ReorderingRule {
+						DayOfWeek = dayOfWeek,
+						TimeOfStopsOrders = new TimeSpan(stopTimeHour, 0, 0),
+						RegionalDataId = regionalDataId
+					};
+					session.Save(rule);
+				}
+			});
+		}
+
+		[Test(Description = "Отправляем заказ, который должен быть с нарушением минимальной суммы заказа, но при этом настроен минимальный дозаказ")]
+		public void Send_order_with_MinReq_and_customized_reorderind()
+		{
+			TestPrice price;
+			TestPrice minReqPrice;
+
+			TestCore core;
+			TestCore minReqCore;
+
+			using (var transaction = new TransactionScope()) {
+				var prices = user.GetActivePrices();
+				price = prices[0];
+				minReqPrice = prices.First(p => p.Supplier != price.Supplier);
+
+				core =
+					TestCore.FindFirst(Expression.Eq("Price", price));
+				minReqCore =
+					TestCore.FindFirst(Expression.Eq("Price", minReqPrice));
+
+				NHibernateUtil.Initialize(core);
+				NHibernateUtil.Initialize(minReqCore);
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try {
+					session.CreateSQLQuery(@"
+update
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 0
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", price.Id)
+						.ExecuteUpdate();
+
+					session.CreateSQLQuery(@"
+update
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 1,
+  ai.MinReq = 5000,
+  ai.MinReordering = 1
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", minReqPrice.Id)
+						.ExecuteUpdate();
+				}
+				finally {
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+				transaction.VoteCommit();
+			}
+
+			var firstMinReorderingOrder = TestDataManager.GenerateOrder(3, user.Id, address.Id, minReqPrice.Id);
+			With.Transaction((session) => {
+				firstMinReorderingOrder.Processed = true;
+				session.Save(firstMinReorderingOrder);
+			});
+
+			var firstOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(price),
+				ClientOrderId = 1,
+			};
+			firstOrder.Positions.Add(
+				new ClientOrderPosition {
+					ClientPositionID = 1,
+					ClientServerCoreID = core.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer {
+						Id = new OfferKey(core.Id, firstOrder.ActivePrice.Id.RegionCode),
+						ProductId = core.Product.Id,
+						CodeFirmCr = core.Producer != null ? (uint?)core.Producer.Id : null,
+						SynonymCode = core.ProductSynonym.Id,
+						SynonymFirmCrCode = core.ProducerSynonym != null ? (uint?)core.ProducerSynonym.Id : null,
+					}
+				});
+
+			var minReqOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(minReqPrice),
+				ClientOrderId = 2,
+			};
+			minReqOrder.Positions.Add(
+				new ClientOrderPosition {
+					ClientPositionID = 2,
+					ClientServerCoreID = minReqCore.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer {
+						Id = new OfferKey(minReqCore.Id, minReqOrder.ActivePrice.Id.RegionCode),
+						ProductId = minReqCore.Product.Id,
+						CodeFirmCr = minReqCore.Producer != null ? (uint?)minReqCore.Producer.Id : null,
+						SynonymCode = minReqCore.ProductSynonym.Id,
+						SynonymFirmCrCode = minReqCore.ProducerSynonym != null ? (uint?)minReqCore.ProducerSynonym.Id : null,
+					}
+				});
+
+			var stopTimeHour = firstMinReorderingOrder.WriteTime.AddHours(2).Hour;
+			SetReorderingRules(minReqOrder.ActivePrice, stopTimeHour);
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				//Версии AnalitF < 1931 не должны поддерживать фукнционал минимального дозаказа
+				updateData.BuildNumber = 1927;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				var firstParsedOrders = GetOrders(firstOrderHelper);
+
+				firstParsedOrders.Add(firstOrder);
+				firstParsedOrders.Add(minReqOrder);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var orderResults = firstResult.Split(new[] { "ClientOrderID=" }, StringSplitOptions.RemoveEmptyEntries);
+
+				Assert.That(orderResults.Length, Is.EqualTo(2), "Должно быть два ответа");
+
+				var firstOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+				var minReqOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[1].TrimEnd(';'));
+
+				Assert.That(firstOrderResponse.ServerOrderId, Is.GreaterThan(0));
+
+				Assert.That(minReqOrderResponse.ServerOrderId, Is.EqualTo(0));
+				Assert.That(minReqOrderResponse.PostResult, Is.EqualTo(OrderSendResult.LessThanMinReq));
+				Assert.That(minReqOrderResponse.ErrorReason, Is.StringContaining("Сумма заказа меньше минимально допустимой").IgnoreCase);
+			}
+
+			using (new SessionScope()) {
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы заказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
+			}
+		}
+
+		[Test(Description = "Отправляем заказ, который должен быть с нарушением минимальной суммы дозаказа")]
+		public void Send_order_with_MinReorderind()
+		{
+			TestPrice price;
+			TestPrice minReqPrice;
+
+			TestCore core;
+			TestCore minReqCore;
+
+			using (var transaction = new TransactionScope()) {
+				var prices = user.GetActivePrices();
+				price = prices[0];
+				minReqPrice = prices.First(p => p.Supplier != price.Supplier);
+
+				core =
+					TestCore.FindFirst(Expression.Eq("Price", price));
+				minReqCore =
+					TestCore.FindFirst(Expression.Eq("Price", minReqPrice));
+
+				NHibernateUtil.Initialize(core);
+				NHibernateUtil.Initialize(minReqCore);
+
+				var session = ActiveRecordMediator.GetSessionFactoryHolder().CreateSession(typeof(ActiveRecordBase));
+				try {
+					session.CreateSQLQuery(@"
+update
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 0
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", price.Id)
+						.ExecuteUpdate();
+
+					session.CreateSQLQuery(@"
+update
+  Customers.Users u
+  join Customers.Clients c on u.ClientId = c.Id
+  join Customers.UserAddresses ua on ua.UserId = u.Id
+  join Customers.Addresses a on c.Id = a.ClientId and ua.AddressId = a.Id
+  join Customers.Intersection i on i.ClientId = c.Id
+  join Customers.AddressIntersection ai on (ai.IntersectionId = i.Id) and (ai.AddressId = a.Id)
+set
+  ai.ControlMinReq = 1,
+  ai.MinReq = 5000,
+  ai.MinReordering = 10000
+where
+	(u.Id = :UserId)
+and (a.Id = :AddressId)
+and (i.PriceId = :PriceId)
+")
+						.SetParameter("UserId", user.Id)
+						.SetParameter("AddressId", address.Id)
+						.SetParameter("PriceId", minReqPrice.Id)
+						.ExecuteUpdate();
+				}
+				finally {
+					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
+				}
+
+				transaction.VoteCommit();
+			}
+
+			var firstMinReorderingOrder = TestDataManager.GenerateOrder(3, user.Id, address.Id, minReqPrice.Id);
+			With.Transaction((session) => {
+				firstMinReorderingOrder.Processed = true;
+				session.Save(firstMinReorderingOrder);
+			});
+
+			var firstOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(price),
+				ClientOrderId = 1,
+			};
+			firstOrder.Positions.Add(
+				new ClientOrderPosition {
+					ClientPositionID = 1,
+					ClientServerCoreID = core.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer {
+						Id = new OfferKey(core.Id, firstOrder.ActivePrice.Id.RegionCode),
+						ProductId = core.Product.Id,
+						CodeFirmCr = core.Producer != null ? (uint?)core.Producer.Id : null,
+						SynonymCode = core.ProductSynonym.Id,
+						SynonymFirmCrCode = core.ProducerSynonym != null ? (uint?)core.ProducerSynonym.Id : null,
+					}
+				});
+
+			var minReqOrder = new ClientOrderHeader {
+				ActivePrice = BuildActivePrice(minReqPrice),
+				ClientOrderId = 2,
+			};
+			minReqOrder.Positions.Add(
+				new ClientOrderPosition {
+					ClientPositionID = 2,
+					ClientServerCoreID = minReqCore.Id,
+					OrderedQuantity = 1,
+					Offer = new Offer {
+						Id = new OfferKey(minReqCore.Id, minReqOrder.ActivePrice.Id.RegionCode),
+						ProductId = minReqCore.Product.Id,
+						CodeFirmCr = minReqCore.Producer != null ? (uint?)minReqCore.Producer.Id : null,
+						SynonymCode = minReqCore.ProductSynonym.Id,
+						SynonymFirmCrCode = minReqCore.ProducerSynonym != null ? (uint?)minReqCore.ProducerSynonym.Id : null,
+					}
+				});
+
+			var stopTimeHour = firstMinReorderingOrder.WriteTime.AddHours(2).Hour;
+			SetReorderingRules(minReqOrder.ActivePrice, stopTimeHour);
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				connection.Open();
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				updateData.BuildNumber = 1931;
+
+				var firstOrderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
+
+				var firstParsedOrders = GetOrders(firstOrderHelper);
+
+				firstParsedOrders.Add(firstOrder);
+				firstParsedOrders.Add(minReqOrder);
+
+				var firstResult = firstOrderHelper.PostSomeOrders();
+
+				var orderResults = firstResult.Split(new[] { "ClientOrderID=" }, StringSplitOptions.RemoveEmptyEntries);
+
+				Assert.That(orderResults.Length, Is.EqualTo(2), "Должно быть два ответа");
+
+				var firstOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[0].TrimEnd(';'));
+				var minReqOrderResponse = ConvertServiceResponse("ClientOrderID=" + orderResults[1].TrimEnd(';'));
+
+				Assert.That(firstOrderResponse.ServerOrderId, Is.GreaterThan(0));
+
+				Assert.That(minReqOrderResponse.ServerOrderId, Is.EqualTo(0));
+				Assert.That(minReqOrderResponse.PostResult, Is.EqualTo(OrderSendResult.LessThanReorderingMinReq));
+				Assert.That(minReqOrderResponse.ErrorReason, Is.StringContaining("Сумма дозаказа меньше минимально допустимой").IgnoreCase);
+			}
+
+			using (new SessionScope()) {
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				Assert.That(logs.Count, Is.EqualTo(1));
+				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы дозаказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}
 		}
 	}

@@ -78,6 +78,8 @@ namespace PrgData.Common
 		private static int _versionBeforeEAN13 = 1877;
 		//версия AnalitF до экспорта поле Адрес отдельным столбцом (от 1883)
 		private static int _version1883 = 1883;
+		//версия AnalitF до поддержки минимального дозаказа (от 1927)
+		private static int _versionBeforeMinReordering = 1927;
 
 		public string ShortName;
 		public uint ClientId;
@@ -571,6 +573,12 @@ namespace PrgData.Common
 		{
 			return (BuildNumber <= _versionBeforeRetailMargins)
 				&& (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeRetailMargins);
+		}
+
+		public bool SupportedMinReordering()
+		{
+			return BuildNumberGreaterThen(_versionBeforeMinReordering)
+				|| (UpdateExeVersionInfo != null && UpdateExeVersionInfo.VersionNumber > _versionBeforeMinReordering);
 		}
 
 		public bool AllowDocumentType(int documentType)
