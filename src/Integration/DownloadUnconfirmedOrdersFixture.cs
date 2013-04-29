@@ -432,6 +432,9 @@ namespace Integration
 			var fileForArchives = new Queue<FileForArchive>();
 			var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
 
+			exporter.Helper.MaintainReplicationInfo();
+			exporter.Helper.SelectActivePricesFull();
+
 			exporter.Export();
 
 			Assert.That(updateData.UnconfirmedOrders.Count, Is.EqualTo(0), "Не должно быть неподтвержденных заказов для клиента {0}", _client.Id);

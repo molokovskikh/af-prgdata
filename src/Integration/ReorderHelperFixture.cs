@@ -1245,6 +1245,18 @@ and (i.PriceId = :PriceId)
 						.SetParameter("AddressId", address.Id)
 						.SetParameter("PriceId", minReqPrice.Id)
 						.ExecuteUpdate();
+
+					// Сбрасываем значение MinReqReorder у региона, чтобы не работал механизм дозаказа
+					session.CreateSQLQuery(@"
+update
+  UserSettings.PricesRegionalData prd
+set
+  prd.MinReqReorder = 0
+where
+	(prd.PriceCode = :priceId)
+")
+						.SetParameter("priceId", minReqPrice.Id)
+						.ExecuteUpdate();
 				}
 				finally {
 					ActiveRecordMediator.GetSessionFactoryHolder().ReleaseSession(session);
@@ -1582,6 +1594,8 @@ limit 1
 				Assert.That(specialUser.AvaliableAddresses.Count, Is.GreaterThan(0));
 				specialAddress = specialUser.AvaliableAddresses[0];
 			}
+
+			TestDataManager.DeleteAllOrdersForClient(specialUser.Client.Id);
 
 			CreateFolders(specialAddress.Id.ToString());
 

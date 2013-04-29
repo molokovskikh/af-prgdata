@@ -6,6 +6,7 @@ using System.Text;
 using MySql.Data.MySqlClient;
 using Common.MySql;
 using System.Data;
+using PrgData.Common.Orders.MinOrders;
 using log4net;
 using System.IO;
 using Common.Models;
@@ -93,10 +94,7 @@ namespace PrgData.Common.Orders
 						try {
 							GenerateDocsHelper.GenerateDocs(_readWriteConnection,
 								_data,
-								_orders.FindAll(
-									item =>
-										item.SendResult ==
-											OrderSendResult.Success));
+								_orders.FindAll(item => item.SendResult == OrderSendResult.Success && item.Order.RowId > 0));
 							transaction.Commit();
 						}
 						catch {
@@ -400,14 +398,13 @@ values
 		{
 			if (!_user.IgnoreCheckMinOrder)
 				foreach (var order in _orders) {
-					var minReq = GetMinReq(_orderedClientCode, order.Order.RegionCode, order.Order.ActivePrice.Id.Price.PriceCode);
 					order.SendResult = OrderSendResult.Success;
-					if (minReq != null && minReq.ControlMinReq && minReq.MinReq > 0)
-						if (order.Order.CalculateSum() < minReq.MinReq) {
-							order.SendResult = OrderSendResult.LessThanMinReq;
-							order.MinReq = minReq.MinReq;
-							order.ErrorReason = "Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой.";
-						}
+					var minReqController = new MinReqController(
+						new MinOrderContext(
+							_readWriteConnection, session,
+							_data.ClientId, _address.Id, _user.Id,
+							order.Order.ActivePrice.Id.Price.PriceCode, order.Order.RegionCode));
+					minReqController.ProcessOrder(order);
 				}
 
 			var checker = new GroupSumOrderChecker(session);
