@@ -51,15 +51,6 @@ namespace Integration
 		private void PrepareMySqlPaths()
 		{
 			ServiceContext.SetupMySqlPath();
-
-			if (String.Equals(Environment.MachineName, "devsrv", StringComparison.OrdinalIgnoreCase)) {
-				//Если мы запустились на компьютере devsrv, то должны подменить папки для экспорта и импрорта на шары,
-				//чтобы этот путь был доступен базе данных с testsql.analit.net
-				var shareExportImportPath = @"\\fms.adc.analit.net\AFFiles";
-				ServiceContext.MySqlSharedExportPath = () => shareExportImportPath;
-				ServiceContext.MySqlLocalImportPath = () => shareExportImportPath;
-				CheckDBFiles();
-			}
 		}
 
 		private void CheckLocalDB()
