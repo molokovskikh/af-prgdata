@@ -24,13 +24,14 @@ namespace Integration
 			_client = _user.Client;
 		}
 
-		private void PostPriceSettings(string login)
+		[Test]
+		public void PostPriceSettings()
 		{
-			SetCurrentUser(login);
+			SetCurrentUser(_user.Login);
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, login);
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
 				helper.Cleanup();
 				helper.SelectPrices();
@@ -51,12 +52,6 @@ namespace Integration
 				injobs = new bool[] { true, false };
 				PostSettings(priceIds, regionIds, injobs);
 			}
-		}
-
-		[Test]
-		public void Post_settings_for_future()
-		{
-			PostPriceSettings(_user.Login);
 		}
 
 		private string PostSettings(int[] priceIds, long[] regionIds, bool[] injobs)

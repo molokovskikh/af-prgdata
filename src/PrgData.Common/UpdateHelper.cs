@@ -2063,9 +2063,9 @@ WHERE
 				try {
 					MySqlHelper.ExecuteNonQuery(
 						_readWriteConnection,
-						"set @INHost = ?INHost;set @INUser = ?INUser;",
-						new MySqlParameter("?INHost", ServiceContext.GetUserHost()),
-						new MySqlParameter("?INUser", _updateData.UserName));
+						"set @INHost = ?host;set @INUser = ?username;",
+						new MySqlParameter("?host", ServiceContext.GetUserHost()),
+						new MySqlParameter("?username", _updateData.UserName));
 					MySqlHelper.ExecuteNonQuery(_readWriteConnection, "DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;");
 					SelectPrices();
 
