@@ -362,7 +362,7 @@ limit 1;")
 			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.BuyingMatrixPriceId = _buyingPrice.Id.PriceId;
 			settings.BuyingMatrix = _buyingPrice.Price.Matrix;
-			settings.BuyingMatrixType = 1;
+			settings.BuyingMatrixType = TestMatrixType.BlackList;
 			settings.UpdateAndFlush();
 
 			InsertMatrix(_buyingPrice);
@@ -431,7 +431,7 @@ limit 1;")
 			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
-			settings.OfferMatrixType = 1;
+			settings.OfferMatrixType = TestMatrixType.BlackList;
 			settings.UpdateAndFlush();
 
 			InsertMatrix(_offerPrice);
@@ -460,7 +460,7 @@ limit 1;")
 			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
-			settings.OfferMatrixType = 1;
+			settings.OfferMatrixType = TestMatrixType.BlackList;
 			settings.UpdateAndFlush();
 
 			InsertMatrix(_offerPrice);
@@ -490,7 +490,7 @@ limit 1;")
 			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
-			settings.OfferMatrixType = 1;
+			settings.OfferMatrixType = TestMatrixType.BlackList;
 			settings.UpdateAndFlush();
 
 			InsertMatrix(_offerPrice);
@@ -562,7 +562,7 @@ limit 1;")
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
 			settings.OfferMatrixAction = TestMatrixAction.Delete;
-			settings.OfferMatrixType = 1;
+			settings.OfferMatrixType = TestMatrixType.BlackList;
 			settings.UpdateAndFlush();
 
 			InsertMatrix(_offerPrice);
@@ -593,7 +593,7 @@ limit 1;")
 				var settings = s.Load<TestDrugstoreSettings>(_client.Id);
 				settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 				settings.OfferMatrix = _offerPrice.Price.Matrix;
-				settings.OfferMatrixType = 1;
+				settings.OfferMatrixType = TestMatrixType.BlackList;
 				s.Save(settings);
 
 				var core = s.Query<TestCore>().First(c => c.Price == _offerPrice.Price);
