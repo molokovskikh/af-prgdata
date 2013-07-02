@@ -16,6 +16,7 @@ using PrgData.Common.Repositories;
 using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
+using log4net.Config;
 
 namespace Integration
 {
@@ -25,6 +26,8 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
+			XmlConfigurator.Configure();
+
 			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
 			Common.MySql.With.DefaultConnectionStringName = Common.MySql.ConnectionHelper.GetConnectionName();
 
