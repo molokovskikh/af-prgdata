@@ -7,10 +7,10 @@ using System.IO;
 using System.Linq;
 using System.Web;
 using Common.Models;
+using Common.Models.Helpers;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using NHibernate;
-using PrgData.Common.Helpers;
 using PrgData.Common.Models;
 using log4net;
 using PrgData.Common.Orders;
@@ -1763,7 +1763,7 @@ AND hidden = 0";
 		{
 			var matrixParts = new SqlParts();
 			if (exportBuyingMatrix && exportSupplierPriceMarkup)
-				matrixParts = new MatrixHelper(_updateData).BuyingMatrixCondition(exportInforoomPrice);
+				matrixParts = new MatrixHelper(_updateData.Settings).BuyingMatrixCondition(exportInforoomPrice);
 
 			var sql = "";
 			if (exportInforoomPrice)
@@ -1927,27 +1927,15 @@ SELECT CT.PriceCode               ,
 	   Core.RegistryCost          ,
 	   Core.VitallyImportant      ,
 	   ifnull(cc.RequestRatio, Core.RequestRatio) as RequestRatio,
-	   {3} as Cost,
+	   {2} as Cost,
 	   RIGHT(CT.ID, 9) as CoreID,
 	   ifnull(cc.MinOrderSum, core.OrderCost) as OrderCost,
 	   ifnull(cc.MinOrderCount, core.MinOrderCount) as MinOrderCount
 	   {0}
-	   {4}
+	   {3}
 	   {1}
+	   {4}
 	   {5}
-FROM (Core CT,
-		ActivePrices AT,
-		farm.core0 Core)
-	join Farm.CoreCosts cc on cc.PC_CostCode = at.CostCode and cc.Core_Id = core.Id
-		left join catalogs.Products on Products.Id = CT.ProductId
-		left join catalogs.catalog on catalog.Id = Products.CatalogId
-	   {2}
-WHERE  ct.pricecode =at.pricecode
-AND    ct.regioncode=at.regioncode
-AND    Core.id      =CT.id
-AND    IF(?Cumulative, 1, fresh)
-group by CT.id, CT.regioncode
-{6}
 ",
 						exportSupplierPriceMarkup ? @"
 , 
@@ -1964,11 +1952,10 @@ if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
 Core.ProducerCost,
 Core.NDS " : "",
 						matrixParts.Select,
-						matrixParts.Join,
 						cryptCost ? "CT.CryptCost" : "CT.Cost",
 						exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
-						matrixParts.Having);
+						SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true));
 			}
 
 			log.Debug(sql);

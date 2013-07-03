@@ -150,9 +150,6 @@
     <Compile Include="Counters\Utils.cs" />
     <Compile Include="DebugReplicationHelper.cs" />
     <Compile Include="FileForArchive.cs" />
-    <Compile Include="Helpers\MatrixHelper.cs">
-      <ExcludeFromStyleCop>true</ExcludeFromStyleCop>
-    </Compile>
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="LogRequestHelper.cs" />
     <Compile Include="MailHelper.cs" />
