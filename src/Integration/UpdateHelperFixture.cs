@@ -1179,8 +1179,10 @@ and ForceReplication > 0;",
 
 			var existsProductId = MySqlHelper.ExecuteScalar(
 				connection,
-				"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
-				new MySqlParameter("?PriceId", 4957));
+				@"select bm.ProductId from farm.BuyingMatrix bm
+join core c on c.ProductId = bm.ProductId
+where bm.MatrixId = ?MatrixId
+limit 1", new MySqlParameter("?MatrixId", matrixId));
 
 			var nonExistsProductId = MySqlHelper.ExecuteScalar(
 				connection,
@@ -1234,8 +1236,10 @@ limit 1",
 
 			var productId = MySqlHelper.ExecuteScalar(
 				connection,
-				"select ProductId from farm.BuyingMatrix where PriceId = ?PriceId limit 1",
-				new MySqlParameter("?PriceId", 4957));
+				@"select bm.ProductId from farm.BuyingMatrix bm
+join core c on c.ProductId = bm.ProductId
+where bm.MatrixId = ?MatrixId
+limit 1", new MySqlParameter("?MatrixId", matrixId));
 
 			var dataAdapter = new MySqlDataAdapter(coreSql, connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
