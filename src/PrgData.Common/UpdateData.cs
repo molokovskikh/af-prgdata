@@ -90,6 +90,9 @@ namespace PrgData.Common
 		public DateTime OldUpdateTime;
 		public DateTime UncommitedUpdateTime;
 
+		public DateTime? BuyingMatrixUpdateTime;
+		public DateTime? OfferMatrixUpdateTime;
+
 		public uint? OffersClientCode;
 		public ulong? OffersRegionCode;
 		public bool EnableImpersonalPrice;
@@ -197,6 +200,10 @@ namespace PrgData.Common
 				OldUpdateTime = Convert.ToDateTime(row["UpdateDate"]);
 			if (!(row["UncommitedUpdateDate"] is DBNull))
 				UncommitedUpdateTime = Convert.ToDateTime(row["UncommitedUpdateDate"]);
+			if (!(row["BuyingMatrixUpdateTime"] is DBNull))
+				BuyingMatrixUpdateTime = Convert.ToDateTime(row["BuyingMatrixUpdateTime"]);
+			if (!(row["OfferMatrixUpdateTime"] is DBNull))
+				OfferMatrixUpdateTime = Convert.ToDateTime(row["OfferMatrixUpdateTime"]);
 			ShortName = Convert.ToString(row["ShortName"]);
 			Spy = Convert.ToBoolean(row["Spy"]);
 			SpyAccount = Convert.ToBoolean(row["SpyAccount"]);
@@ -299,6 +306,10 @@ namespace PrgData.Common
 
 		private bool CheckNeedUpdateToBuyingMatrix()
 		{
+			if ((BuyingMatrixUpdateTime != null && BuyingMatrixUpdateTime.Value > OldUpdateTime) ||
+				(OfferMatrixUpdateTime != null && OfferMatrixUpdateTime.Value > OldUpdateTime))
+				return true;
+
 			if (UpdateExeVersionInfo != null && BuildNumber >= 1183 && BuildNumber <= 1229)
 				return UpdateExeVersionInfo.VersionNumber >= 1249;
 

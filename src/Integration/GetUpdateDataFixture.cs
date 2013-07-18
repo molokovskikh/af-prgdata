@@ -11,7 +11,7 @@ using Test.Support.Logs;
 namespace Integration
 {
 	[TestFixture]
-	public class GetUpdateDataFixture
+	public class GetUpdateDataFixture : IntegrationFixture
 	{
 		private TestClient _client;
 		private TestUser _user;
@@ -212,6 +212,35 @@ namespace Integration
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1279");
 				Assert.IsFalse(updateData.NeedUpdateToNewClientsWithLegalEntity, "Неправильно сработало условие обновления новых клиентов с юр лицами");
+			}
+		}
+
+		[Test]
+		public void Check_need_update_if_client_updated_matrix()
+		{
+			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
+			var matrix = new TestMatrix();
+			session.Save(matrix);
+			_client.Settings.BuyingMatrix = matrix;
+			session.Update(_client.Settings);
+			session.Flush();
+
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.ParseBuildNumber("6.0.0.1279");
+				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix);
+			}
+			matrix.MatrixUpdateTime = DateTime.Now.AddHours(-1);
+			session.Update(matrix);
+			Close();
+			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
+				updateData.OldUpdateTime = DateTime.Now;
+				updateData.ParseBuildNumber("6.0.0.1279");
+				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix);
+				updateData.OldUpdateTime = DateTime.Now.AddHours(-2);
+				updateData.ParseBuildNumber("6.0.0.1279");
+				Assert.IsTrue(updateData.NeedUpdateToBuyingMatrix);
 			}
 		}
 

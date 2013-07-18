@@ -291,11 +291,15 @@ SELECT
 	u.SendWaybills,
 	u.SendRejects,
 	u.WorkRegionMask as RegionMask,
-	ap.UserId is not null as AFPermissionExists
+	ap.UserId is not null as AFPermissionExists,
+	buyingMat.MatrixUpdateTime as BuyingMatrixUpdateTime,
+	offerMat.MatrixUpdateTime as OfferMatrixUpdateTime
 FROM  
   Customers.users u
   join Customers.Clients c                         on c.Id = u.ClientId
   join usersettings.retclientsset               on retclientsset.clientcode = c.Id
+  left join farm.matrices buyingMat on buyingMat.Id = retclientsset.BuyingMatrix
+  left join farm.matrices offerMat on offerMat.Id = retclientsset.OfferMatrix
   join usersettings.UserUpdateInfo rui          on rui.UserId = u.Id 
   join usersettings.UserPermissions up          on up.Shortcut = 'AF'
   left join usersettings.AssignedPermissions ap on ap.UserId = u.Id and ap.PermissionId = up.Id
