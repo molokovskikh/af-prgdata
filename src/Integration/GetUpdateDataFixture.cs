@@ -241,6 +241,7 @@ namespace Integration
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-2);
 				updateData.ParseBuildNumber("6.0.0.1279");
 				Assert.IsTrue(updateData.NeedUpdateToBuyingMatrix);
+				session.CreateSQLQuery("update farm.matrices set MatrixUpdateTime = null").ExecuteUpdate();
 			}
 		}
 
