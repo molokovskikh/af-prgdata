@@ -1959,7 +1959,7 @@ Core.NDS " : "",
 						cryptCost ? "CT.CryptCost" : "CT.Cost",
 						exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
-						SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true));
+						string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty));
 			}
 
 			log.Debug(sql);
