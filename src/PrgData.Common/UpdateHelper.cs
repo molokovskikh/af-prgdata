@@ -1940,6 +1940,7 @@ SELECT CT.PriceCode               ,
 	   {1}
 	   {4}
 	   {5}
+	   {6}
 ",
 						exportSupplierPriceMarkup ? @"
 , 
@@ -1959,6 +1960,7 @@ Core.NDS " : "",
 						cryptCost ? "CT.CryptCost" : "CT.Cost",
 						exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
+						_updateData.SupportExportExp() ? ", Core.Exp " : "",
 						string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty));
 			}
 

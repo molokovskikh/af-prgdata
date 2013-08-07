@@ -1798,6 +1798,9 @@ TechOperatingModeEnd=?TechOperatingModeEnd;",
 
 			Assert.That(indexBuying, Is.EqualTo(coreTable.Columns.Count - 1 - 3));
 			Assert.That(indexRetail, Is.EqualTo(indexBuying - 1));
+
+			//Поле EXP должно отсутствовать в таблице
+			Assert.That(coreTable.Columns.Contains("Exp"), Is.False);
 		}
 
 		[Test(Description = "проверяем заполнение для списка отсутствующих продуктов")]
@@ -1858,6 +1861,30 @@ FROM usersettings.defaults a, farm.regions r;", selector),
 			foreach (DataRow row in table.Rows) {
 				Assert.That(row[1], Is.EqualTo((Convert.ToInt32(row[0]) + 7).ToString() + ".30"));
 			}
+		}
+
+		[Test(Description = "проверка экспорта новых полей в Core: Exp")]
+		public void CheckCoreForColumnExp()
+		{
+			updateData.BuildNumber = 1936;
+			helper.MaintainReplicationInfo();
+			helper.Cleanup();
+			helper.SelectActivePricesFull();
+			helper.SelectOffers();
+
+			var coreSql = helper.GetCoreCommand(false, true, true, false);
+
+			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
+			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
+			var coreTable = new DataTable();
+
+			dataAdapter.Fill(coreTable);
+
+			//Поле EXP должно присутствовать в таблице
+			Assert.That(coreTable.Columns.Contains("Exp"), Is.True);
+			var indexSeries = coreTable.Columns.IndexOf("Series");
+			var indexExp = coreTable.Columns.IndexOf("Exp");
+			Assert.That(indexExp, Is.EqualTo(indexSeries + 1), "Поле Exp должно идти после поля Series");
 		}
 	}
 }
