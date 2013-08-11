@@ -53,12 +53,12 @@ namespace Integration
 					_user.Update();
 
 					var list = _user.GetActivePricesNaked(s);
-					_buyingPrice = list.First(item => item.PositionCount > 900);
+					_buyingPrice = list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
 					_buyingCoreCount = _buyingPrice.CoreCount();
 
 					var otherList =
-						list.Where(item => item.Supplier != _buyingPrice.Supplier && item.PositionCount > 800).OrderBy(
-							item => item.PositionCount);
+						list.Where(item => item.Supplier != _buyingPrice.Supplier)
+						.OrderByDescending(item => item.PositionCount);
 
 					_offerPrice = GetOfferPrice(otherList);
 
@@ -89,6 +89,9 @@ namespace Integration
 			TestActivePrice result = null;
 
 			foreach (var testActivePrice in otherList) {
+				if (testActivePrice.CoreCount() == 0)
+					continue;
+
 				_intersectionProductId = SessionHelper.WithSession<uint>(
 					s => s.CreateSQLQuery(@"
 select 
