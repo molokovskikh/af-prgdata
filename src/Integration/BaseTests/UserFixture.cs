@@ -10,7 +10,7 @@ namespace Integration.BaseTests
 {
 	public class UserFixture
 	{
-		public TestUser CreateUser()
+		public static TestUser CreateUser()
 		{
 			var client = TestClient.Create();
 			TestUser user;
@@ -27,13 +27,14 @@ namespace Integration.BaseTests
 			return user;
 		}
 
-		public TestUser CreateUserWithMinimumPrices()
+		public static TestUser CreateUserWithMinimumPrices()
 		{
 			var user = CreateUser();
 
 			SessionHelper.WithSession(
 				s => {
-					var prices = user.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
+					var prices = user.GetActivePricesList()
+						.Where(p => FixtureSetup.FilledSuppliers.Contains(p.Supplier.Id)).OrderBy(p => p.PositionCount);
 					var newPrices = new List<uint>();
 					foreach (var testActivePrice in prices) {
 						if (testActivePrice.CoreCount() > 0)

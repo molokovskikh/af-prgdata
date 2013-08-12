@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -23,6 +25,13 @@ namespace Integration
 	[SetUpFixture]
 	public class FixtureSetup
 	{
+		/// <summary>
+		/// Список поставщиков, для которых существуют предложения в farm.Core0
+		/// Команда bake PrepareLocal для PrgData загружает в Core0 только данные избранных прайс-листов
+		/// Список этих поставщиков используется в методе UserFixture.CreateUserWithMinimumPrices
+		/// </summary>
+		public static List<uint> FilledSuppliers = new List<uint>();
+
 		[SetUp]
 		public void Setup()
 		{
@@ -61,7 +70,17 @@ namespace Integration
 					connection,
 					"select count(*) from farm.Core0"));
 
-				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake PrepareLocalForPrgData");
+				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake PrepareLocal");
+
+				var distinctSuppliers = MySqlHelper.ExecuteDataset(
+					connection,
+					"select distinct pd.FirmCode as DistinctSupplier from farm.Core0 c join usersettings.PricesData pd on " +
+						"pd.PriceCode = c.PriceCode");
+
+				foreach (DataRow row in distinctSuppliers.Tables[0].Rows) {
+					FilledSuppliers.Add(Convert.ToUInt32(row["DistinctSupplier"]));
+				}
+
 			}
 		}
 
