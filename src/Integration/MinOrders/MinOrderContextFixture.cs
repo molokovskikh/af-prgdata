@@ -359,7 +359,10 @@ and rd.RegionCode = :regionCode")
 			}
 
 			var prices = user.GetActivePricesList();
-			var price = prices[0];
+			var price = prices
+				.OrderByDescending(p => p.PositionCount)
+				.FirstOrDefault(p => p.CoreCount() > 0);
+			Assert.That(price, Is.Not.Null, "Не найден прайс лист с предложениями в регионе Челябинск");
 
 			var conext = new MinOrderContext(
 				_connection, _unitOfWork.CurrentSession,
