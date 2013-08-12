@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Common.Models.Tests;
+using Integration.BaseTests;
 using PrgData.Common.Models;
 using log4net;
 using log4net.Appender;
@@ -154,19 +155,12 @@ namespace Integration
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 
-			client = TestClient.Create();
-
+			user = UserFixture.CreateUserWithMinimumPrices();
+			client = user.Client;
 			using (var transaction = new TransactionScope()) {
-				user = client.Users[0];
-				client.Users.Each(u => {
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
-
+				NHibernateUtil.Initialize(user.AvaliableAddresses);
 				address = user.AvaliableAddresses[0];
 			}
-
 
 			Directory.CreateDirectory("FtpRoot");
 			CreateFolders(address.Id.ToString());
