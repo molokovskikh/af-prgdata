@@ -80,7 +80,6 @@ namespace Integration
 				foreach (DataRow row in distinctSuppliers.Tables[0].Rows) {
 					FilledSuppliers.Add(Convert.ToUInt32(row["DistinctSupplier"]));
 				}
-
 			}
 		}
 
