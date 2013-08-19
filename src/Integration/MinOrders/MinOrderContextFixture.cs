@@ -45,7 +45,9 @@ namespace Integration.MinOrders
 				_client = _user.Client;
 			}
 
-			var prices = _user.GetActivePricesList();
+			//todo: прайс-листы сортируются по убыванию позиций, чтобы выбирались прайс-листы с большим кол-вом позиций,
+			//т.к. в таких прайс-листах будет меньше Junk-позиций и заказа будет успешно производиться (TestDataManager.GenerateOrder)
+			var prices = _user.GetActivePricesList().OrderByDescending(p => p.PositionCount).ToList();
 			Assert.That(prices.Count, Is.GreaterThan(0), "У пользователя {0} не найдены активные прайс-листы", _user.Id);
 			_price = prices[0];
 		}
@@ -327,7 +329,7 @@ and rd.RegionCode = :regionCode")
 		[Test(Description = "проверка работы метода OrderExists")]
 		public void CheckOrderExistsByPrice()
 		{
-			var prices = _user.GetActivePricesList();
+			var prices = _user.GetActivePricesList().OrderByDescending(p => p.PositionCount).ToList();
 			var otherPrice = prices.First(p => p.Id.PriceId != _price.Id.PriceId);
 
 			CheckOrderExistsByOtherParams(() => TestDataManager.GenerateOrder(3, _user.Id, _address.Id, otherPrice.Id.PriceId));
