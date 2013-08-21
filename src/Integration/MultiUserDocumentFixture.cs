@@ -224,6 +224,9 @@ namespace Integration
 			var responce = LoadDocuments();
 			Assert.That(responce, Is.StringContaining("Новых файлов документов нет"));
 
+			//ждем небольшое время, чтобы выполнилась нитка в PrgData, производящая создание записи в журнале AnalitFUpdates
+			Thread.Sleep(500);
+
 			using (new SessionScope()) {
 				var log = LastLog(client.Users[0]);
 				Assert.That(log.Commit, Is.True);
