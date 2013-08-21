@@ -395,7 +395,14 @@ and rd.RegionCode = :regionCode")
 			//проверка регионального периода: от (времени отправки заказа + 1 час) до начала следующего дня
 			CheckOrderExistsByContext(conext, regionalOrderTime.AddHours(1), regionalOrderTime.Date.AddDays(1), false);
 			//проверка регионального периода: от начал дня до (времени отправки заказа - 1 час)
-			CheckOrderExistsByContext(conext, regionalOrderTime.Date, regionalOrderTime.AddHours(-1), false);
+			//проверка имеет смысл, если regionalOrderTime больше часа ночи, т.к. в ином случае
+			//выражение regionalOrderTime.AddHours(-1) возвращает дату предыдущих суток, которая меньше чем
+			//дата начала суток regionalOrderTime
+			if (regionalOrderTime.Hour >= 1)
+				CheckOrderExistsByContext(conext, regionalOrderTime.Date, regionalOrderTime.AddHours(-1), false);
+			else
+				//если попадаем не предыдущие сутки, то берем дату начала предыдущих суток
+				CheckOrderExistsByContext(conext, regionalOrderTime.AddDays(-1).Date, regionalOrderTime.AddHours(-1), false);
 			//проверка регионального периода: от (времени отправки заказа + 1 сек) до начала следующего дня
 			CheckOrderExistsByContext(conext, regionalOrderTime.AddSeconds(1), regionalOrderTime.Date.AddDays(1), false);
 
