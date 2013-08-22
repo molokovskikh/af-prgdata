@@ -16,3 +16,4 @@ _resharper.*
 /src/PrgData/Logs/PrgDataDebug*
 packages/
 src/*.properties
+build/

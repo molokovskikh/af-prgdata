@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
 using Common.Tools;
@@ -20,7 +22,7 @@ namespace Integration
 	}
 
 	[TestFixture(Description = "Тесты для матрицы закупок и матрицы предложений")]
-	public class MatrixFixture
+	public class MatrixFixture : IntegrationFixture
 	{
 		private TestClient _client;
 		private TestUser _user;
@@ -36,6 +38,7 @@ namespace Integration
 
 		private long _buyingCoreCount;
 		private long _offerCoreCount;
+		private IList<TestActivePrice> _list;
 
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
@@ -52,12 +55,12 @@ namespace Integration
 					});
 					_user.Update();
 
-					var list = _user.GetActivePricesNaked(s);
-					_buyingPrice = list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
+					_list = _user.GetActivePricesNaked(s);
+					_buyingPrice = _list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
 					_buyingCoreCount = _buyingPrice.CoreCount();
 
 					var otherList =
-						list.Where(item => item.Supplier != _buyingPrice.Supplier)
+						_list.Where(item => item.Supplier != _buyingPrice.Supplier)
 						.OrderByDescending(item => item.PositionCount);
 
 					_offerPrice = GetOfferPrice(otherList);
@@ -383,6 +386,61 @@ limit 1;")
 				});
 		}
 
+		[Test(Description = "Проверяет работу черной матрицы закупок, с учетом поставщика")]
+		public void BlackMatrixWithSupplierCriteria()
+		{
+			var settings = TestDrugstoreSettings.Find(_client.Id);
+			settings.BuyingMatrix = _buyingPrice.Price.Matrix;
+			settings.BuyingMatrixType = TestMatrixType.BlackList;
+			settings.BuyingMatrixAction = TestMatrixAction.Block;
+			session.SaveOrUpdate(settings);
+
+			InsertMatrix(_offerPrice);
+
+			var supplierProduct = PrepareSupplierCoreDataForMatrix();
+
+			Close();
+
+			CheckOffers((helper, coreTable) => {
+					var offers = coreTable.Select("ProductId = {0}".Format(supplierProduct));
+					Assert.AreEqual(offers.Length, 2);
+					Assert.That(Convert.ToInt32(offers[0]["BuyingMatrixType"]), Is.EqualTo((int)BuyinMatrixStatus.Allow));
+					Assert.That(Convert.ToInt32(offers[0]["PriceCode"]), Is.EqualTo((int)_buyingPrice.Price.Id));
+					Assert.That(Convert.ToInt32(offers[1]["BuyingMatrixType"]), Is.EqualTo((int)BuyinMatrixStatus.Denied));
+					Assert.That(Convert.ToInt32(offers[1]["PriceCode"]), Is.EqualTo((int)_offerPrice.Price.Id));
+				});
+		}
+
+		private uint PrepareSupplierCoreDataForMatrix()
+		{
+			_buyingPrice = session.Get<TestActivePrice>(_buyingPrice.Id);
+			_offerPrice = session.Get<TestActivePrice>(_offerPrice.Id);
+			var name = Generator.Name();
+			var product = new TestProduct(name);
+			session.Save(product);
+			var productSynonym1 = new TestProductSynonym(name, product, _buyingPrice.Price);
+			session.Save(productSynonym1);
+			var core1 = new TestCore(productSynonym1);
+			session.Save(core1);
+			var coreCost1 = new TestCost(core1, _buyingPrice.Price.Costs[0], 100);
+			session.Save(coreCost1);
+
+			var productSynonym2 = new TestProductSynonym(name, product, _offerPrice.Price);
+			session.Save(productSynonym2);
+			var core2 = new TestCore(productSynonym2);
+			session.Save(core2);
+			var coreCost2 = new TestCost(core2, _offerPrice.Price.Costs[0], 100);
+			session.Save(coreCost2);
+
+			var matrixPosition = new TestBuyingMatrix {
+				Product = product,
+				Supplier = _offerPrice.Price.Supplier,
+				Matrix = _buyingPrice.Price.Matrix
+			};
+			session.Save(matrixPosition);
+			return product.Id;
+		}
+
 		private DataRow[] CheckOffer(DataTable core, TestActivePrice price, uint productId, bool exists, uint? producerId = null, bool checkProducerIsNull = false)
 		{
 			DataRow[] offers;
@@ -558,6 +616,7 @@ limit 1;")
 					}
 				});
 		}
+
 		[Test]
 		public void Remove_offers()
 		{
