@@ -413,6 +413,13 @@ limit 1;")
 
 		private uint PrepareSupplierCoreDataForMatrix()
 		{
+			var updateData = UpdateHelper.GetUpdateData((MySqlConnection)session.Connection, _user.Login);
+			var helper = new UpdateHelper(updateData, (MySqlConnection)session.Connection);
+
+			helper.MaintainReplicationInfo();
+			helper.Cleanup();
+			helper.SelectActivePricesFull();
+
 			_buyingPrice = session.Get<TestActivePrice>(_buyingPrice.Id);
 			_offerPrice = session.Get<TestActivePrice>(_offerPrice.Id);
 			var name = Generator.Name();
@@ -422,14 +429,20 @@ limit 1;")
 			session.Save(productSynonym1);
 			var core1 = new TestCore(productSynonym1);
 			session.Save(core1);
-			var coreCost1 = new TestCost(core1, _buyingPrice.Price.Costs[0], 100);
+			var costCode1 = session.CreateSQLQuery(
+				string.Format(@"select CostCode from ActivePrices where PriceCode = {0}", _buyingPrice.Price.Id))
+				.UniqueResult<UInt32>();
+			var coreCost1 = new TestCost(core1, _buyingPrice.Price.Costs.First(c => c.Id == costCode1), 100);
 			session.Save(coreCost1);
 
 			var productSynonym2 = new TestProductSynonym(name, product, _offerPrice.Price);
 			session.Save(productSynonym2);
 			var core2 = new TestCore(productSynonym2);
 			session.Save(core2);
-			var coreCost2 = new TestCost(core2, _offerPrice.Price.Costs[0], 100);
+			var costCode2 = session.CreateSQLQuery(
+				string.Format(@"select CostCode from ActivePrices where PriceCode = {0}", _offerPrice.Price.Id))
+				.UniqueResult<UInt32>();
+			var coreCost2 = new TestCost(core2, _offerPrice.Price.Costs.First(c => c.Id == costCode2), 100);
 			session.Save(coreCost2);
 
 			var matrixPosition = new TestBuyingMatrix {
