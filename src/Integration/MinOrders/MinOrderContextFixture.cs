@@ -45,7 +45,9 @@ namespace Integration.MinOrders
 				_client = _user.Client;
 			}
 
-			var prices = _user.GetActivePricesList();
+			//todo: прайс-листы сортируются по убыванию позиций, чтобы выбирались прайс-листы с большим кол-вом позиций,
+			//т.к. в таких прайс-листах будет меньше Junk-позиций и заказа будет успешно производиться (TestDataManager.GenerateOrder)
+			var prices = _user.GetActivePricesList().OrderByDescending(p => p.PositionCount).ToList();
 			Assert.That(prices.Count, Is.GreaterThan(0), "У пользователя {0} не найдены активные прайс-листы", _user.Id);
 			_price = prices[0];
 		}
@@ -327,7 +329,7 @@ and rd.RegionCode = :regionCode")
 		[Test(Description = "проверка работы метода OrderExists")]
 		public void CheckOrderExistsByPrice()
 		{
-			var prices = _user.GetActivePricesList();
+			var prices = _user.GetActivePricesList().OrderByDescending(p => p.PositionCount).ToList();
 			var otherPrice = prices.First(p => p.Id.PriceId != _price.Id.PriceId);
 
 			CheckOrderExistsByOtherParams(() => TestDataManager.GenerateOrder(3, _user.Id, _address.Id, otherPrice.Id.PriceId));
@@ -393,7 +395,14 @@ and rd.RegionCode = :regionCode")
 			//проверка регионального периода: от (времени отправки заказа + 1 час) до начала следующего дня
 			CheckOrderExistsByContext(conext, regionalOrderTime.AddHours(1), regionalOrderTime.Date.AddDays(1), false);
 			//проверка регионального периода: от начал дня до (времени отправки заказа - 1 час)
-			CheckOrderExistsByContext(conext, regionalOrderTime.Date, regionalOrderTime.AddHours(-1), false);
+			//проверка имеет смысл, если regionalOrderTime больше часа ночи, т.к. в ином случае
+			//выражение regionalOrderTime.AddHours(-1) возвращает дату предыдущих суток, которая меньше чем
+			//дата начала суток regionalOrderTime
+			if (regionalOrderTime.Hour >= 1)
+				CheckOrderExistsByContext(conext, regionalOrderTime.Date, regionalOrderTime.AddHours(-1), false);
+			else
+				//если попадаем не предыдущие сутки, то берем дату начала предыдущих суток
+				CheckOrderExistsByContext(conext, regionalOrderTime.AddDays(-1).Date, regionalOrderTime.AddHours(-1), false);
 			//проверка регионального периода: от (времени отправки заказа + 1 сек) до начала следующего дня
 			CheckOrderExistsByContext(conext, regionalOrderTime.AddSeconds(1), regionalOrderTime.Date.AddDays(1), false);
 
