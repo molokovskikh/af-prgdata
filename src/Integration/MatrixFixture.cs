@@ -50,49 +50,49 @@ namespace Integration
 		{
 			_client = TestClient.CreateNaked();
 
-			//using (var transaction = new TransactionScope(OnDispose.Rollback)) {
-			_user = _client.Users[0];
+			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
+				_user = _client.Users[0];
 
-			_client.Users.Each(u => {
-				u.SendRejects = true;
-				u.SendWaybills = true;
-			});
-			_user.Update();
+				_client.Users.Each(u => {
+					u.SendRejects = true;
+					u.SendWaybills = true;
+				});
+				_user.Update();
 
-			_list = _user.GetActivePricesNaked(session);
-			_buyingPrice = _list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
-			_buyingCoreCount = _buyingPrice.CoreCount();
+				_list = _user.GetActivePricesNaked(session);
+				_buyingPrice = _list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
+				_buyingCoreCount = _buyingPrice.CoreCount();
 
-			var otherList =
-				_list.Where(item => item.Supplier != _buyingPrice.Supplier)
-					.OrderByDescending(item => item.PositionCount);
+				var otherList =
+					_list.Where(item => item.Supplier != _buyingPrice.Supplier)
+						.OrderByDescending(item => item.PositionCount);
 
-			_offerPrice = GetOfferPrice(otherList);
+				_offerPrice = GetOfferPrice(otherList);
 
-			if (_buyingPrice.Price.Matrix == null) {
-				_buyingPrice.Price.Matrix = new TestMatrix();
-				session.Save(_buyingPrice.Price);
+				if (_buyingPrice.Price.Matrix == null) {
+					_buyingPrice.Price.Matrix = new TestMatrix();
+					session.Save(_buyingPrice.Price);
+				}
+				if (_offerPrice.Price.Matrix == null) {
+					_offerPrice.Price.Matrix = new TestMatrix();
+					session.Save(_offerPrice.Price);
+				}
+
+				Assert.That(_offerPrice,
+					Is.Not.Null,
+					"Не нашли прайс-лист, удовлетворяющий условию теста: должны быть пересечения и уникальные продукты с прайс-листом {0}",
+					_buyingPrice.Id.PriceId);
+				_offerCoreCount = _offerPrice.CoreCount();
+
+				session.CreateSQLQuery(
+					"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
+					.SetParameter("userId", _user.Id)
+					.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
+					.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
+					.ExecuteUpdate();
+				transaction.VoteCommit();
+				Close();
 			}
-			if (_offerPrice.Price.Matrix == null) {
-				_offerPrice.Price.Matrix = new TestMatrix();
-				session.Save(_offerPrice.Price);
-			}
-
-			Assert.That(_offerPrice,
-				Is.Not.Null,
-				"Не нашли прайс-лист, удовлетворяющий условию теста: должны быть пересечения и уникальные продукты с прайс-листом {0}",
-				_buyingPrice.Id.PriceId);
-			_offerCoreCount = _offerPrice.CoreCount();
-
-			session.CreateSQLQuery(
-				"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
-				.SetParameter("userId", _user.Id)
-				.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
-				.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
-				.ExecuteUpdate();
-			//	transaction.VoteCommit();
-			//}
-			Close();
 		}
 
 		private TestActivePrice GetOfferPrice(IOrderedEnumerable<TestActivePrice> otherList)
