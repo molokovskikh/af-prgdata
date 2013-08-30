@@ -48,16 +48,15 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
-			_client = TestClient.CreateNaked();
-
 			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
+				_client = TestClient.CreateNaked();
 				_user = _client.Users[0];
 
 				_client.Users.Each(u => {
 					u.SendRejects = true;
 					u.SendWaybills = true;
 				});
-				_user.Update();
+				session.SaveOrUpdate(_user);
 
 				_list = _user.GetActivePricesNaked(session);
 				_buyingPrice = _list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
@@ -91,6 +90,7 @@ namespace Integration
 					.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
 					.ExecuteUpdate();
 				transaction.VoteCommit();
+
 				Close();
 			}
 		}
