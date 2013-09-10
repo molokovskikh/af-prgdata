@@ -3,10 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Common.Models.Helpers;
 using MySql.Data.MySqlClient;
 using Common.MySql;
 using System.Data;
-using PrgData.Common.Orders.MinOrders;
 using log4net;
 using System.IO;
 using Common.Models;
@@ -50,14 +50,20 @@ namespace PrgData.Common.Orders
 				NHibernateUtil.Initialize(_orderRule);
 				_user = IoC.Resolve<IRepository<User>>().Load(data.UserId);
 				NHibernateUtil.Initialize(_user.AvaliableAddresses);
+				NHibernateUtil.Initialize(_user.Client);
 				_address = IoC.Resolve<IRepository<Address>>().Load(orderedClientCode);
 				NHibernateUtil.Initialize(_address.Users);
 			}
 
 			CheckCanPostOrder();
 
-			CheckDailySumOrder();
-			CheckWeeklySumOrder();
+			var helper = new PreorderChecker(_readWriteConnection, _user.Client, _address);
+			try {
+				helper.Check();
+			}
+			catch(OrderException e) {
+				throw new UpdateException(e.Message, "", RequestType.Forbidden);
+			}
 		}
 
 		private void ProcessDeadlock()
@@ -402,10 +408,10 @@ values
 					var minReqController = new MinReqController(
 						new MinOrderContext(
 							_readWriteConnection, session,
-							_data.ClientId, _address.Id, _user.Id,
-							order.Order.ActivePrice.Id.Price.PriceCode, order.Order.RegionCode,
+							order.Order,
 							_data.SupportedMinReordering()));
-					minReqController.ProcessOrder(order);
+					var status = minReqController.ProcessOrder(order.Order);
+					order.Apply(status);
 				}
 
 			var checker = new GroupSumOrderChecker(session);
@@ -442,54 +448,6 @@ values
 		private void CheckCanPostOrder()
 		{
 			CheckCanPostOrder(_orderedClientCode);
-		}
-
-		private void CheckDailySumOrder()
-		{
-			var dailySumOrder = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper
-				.ExecuteScalar(
-					_readWriteConnection, @"
-SELECT ROUND(IF(SUM(cost*quantity)>Adr.MaxDailyOrdersSum
-AND CheckDailyOrdersSum,SUM(cost*quantity), 0),0)
-FROM orders.OrdersHead Oh,
-orders.OrdersList Ol,
-customers.Addresses Adr
-WHERE WriteTime>curdate()
-AND Oh.RowId=ol.OrderId
-AND Adr.ID=oh.AddressId
-AND Adr.CheckDailyOrdersSum=1
-AND oh.clientcode=?ClientCode
-AND oh.AddressId=?AddressCode",
-					new MySqlParameter("?ClientCode", _data.ClientId),
-					new MySqlParameter("?AddressCode", _address.Id)));
-			if (dailySumOrder > 0)
-				throw new UpdateException(
-					String.Format("Превышен дневной лимит заказа (уже заказано на {0} руб).", dailySumOrder),
-					String.Empty,
-					RequestType.Forbidden);
-		}
-
-		private void CheckWeeklySumOrder()
-		{
-			var WeeklySumOrder = Convert.ToUInt32(MySql.Data.MySqlClient.MySqlHelper
-				.ExecuteScalar(
-					_readWriteConnection, @"
-SELECT ROUND(IF(SUM(cost            *quantity)>RCS.MaxWeeklyOrdersSum
-AND    CheCkWeeklyOrdersSum,SUM(cost*quantity), 0),0)
-FROM   orders.OrdersHead Oh,
-	   orders.OrdersList Ol,
-	   RetClientsSet RCS
-WHERE  WriteTime               >curdate() - interval dayofweek(curdate())-2 DAY
-AND    Oh.RowId                =ol.OrderId
-AND    RCS.ClientCode          =oh.ClientCode
-AND    RCS.CheCkWeeklyOrdersSum=1
-AND    RCS.clientcode          = ?ClientCode",
-					new MySqlParameter("?ClientCode", _data.ClientId)));
-			if (WeeklySumOrder > 0)
-				throw new UpdateException(
-					String.Format("Превышен недельный лимит заказа (уже заказано на {0} руб).", WeeklySumOrder),
-					String.Empty,
-					RequestType.Forbidden);
 		}
 
 		public void ParseOrders(

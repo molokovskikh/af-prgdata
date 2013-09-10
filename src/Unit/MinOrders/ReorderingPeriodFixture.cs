@@ -1,6 +1,6 @@
 ﻿using System;
+using Common.Models;
 using NUnit.Framework;
-using PrgData.Common.Orders.MinOrders;
 
 namespace Unit.MinOrders
 {

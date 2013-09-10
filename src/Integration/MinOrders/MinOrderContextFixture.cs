@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using Castle.ActiveRecord;
 using Common.Models;
+using Common.Models.Helpers;
 using Common.Models.Tests;
 using Common.MySql;
 using Common.Tools;
@@ -13,7 +14,6 @@ using NHibernate.Exceptions;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.Models;
-using PrgData.Common.Orders.MinOrders;
 using Test.Support;
 using With = Common.Models.With;
 
@@ -63,11 +63,17 @@ namespace Integration.MinOrders
 
 		private MinOrderContext CreateContext()
 		{
-			return new MinOrderContext(
-				_connection, _unitOfWork.CurrentSession,
-				_client.Id, _address.Id, _user.Id,
-				_price.Id.PriceId, _price.Id.RegionCode,
-				true);
+			var client = new Client {
+				Enabled = true,
+				RegionCode = _price.Id.RegionCode,
+			};
+			var address = new Address(client);
+			var order = new Order(new ActivePrice(),
+				new User(client) {
+					AvaliableAddresses = { address }
+				},
+				new OrderRules());
+			return new MinOrderContext(_connection, _unitOfWork.CurrentSession, order);
 		}
 
 		[Test(Description = "Простой тест на создание контекста")]
@@ -366,20 +372,18 @@ and rd.RegionCode = :regionCode")
 				.FirstOrDefault(p => p.CoreCount() > 0);
 			Assert.That(price, Is.Not.Null, "Не найден прайс лист с предложениями в регионе Челябинск");
 
+			//Выполняем проверки существования заказа относительно регионального времени
+			var order = TestDataManager.GenerateOrder(3, user.Id, user.AvaliableAddresses[0].Id, price.Id.PriceId);
+
 			var conext = new MinOrderContext(
 				_connection, _unitOfWork.CurrentSession,
-				client.Id, user.AvaliableAddresses[0].Id, user.Id,
-				price.Id.PriceId, price.Id.RegionCode,
-				true);
+				order);
 
 			//Для Челябинска смещение должно быть = 2
 			Assert.That(conext.MoscowBias, Is.EqualTo(2));
 			var timeSpan = conext.CurrentRegionDateTime.Subtract(DateTime.Now.AddMinutes(-1));
 			Assert.That(timeSpan.TotalHours, Is.GreaterThanOrEqualTo(conext.MoscowBias));
 
-
-			//Выполняем проверки существования заказа относительно регионального времени
-			var order = TestDataManager.GenerateOrder(3, user.Id, user.AvaliableAddresses[0].Id, price.Id.PriceId);
 
 			//Время отправки заказа относительно времени региона
 			var regionalOrderTime = order.WriteTime.AddHours(conext.MoscowBias);

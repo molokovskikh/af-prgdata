@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using Common.Models;
+using Common.Models.Helpers;
 using NUnit.Framework;
 using PrgData.Common.Models;
 using PrgData.Common.Orders;
-using PrgData.Common.Orders.MinOrders;
 using Rhino.Mocks;
 using Rhino.Mocks.Constraints;
 using log4net.Config;
@@ -100,20 +100,23 @@ namespace Unit.MinOrders
 			Assert.That(controller.CurrentOrderTime, Is.EqualTo(new DateTime(2013, 1, 24, 13, 0, 10)));
 		}
 
-		private void OrderSuccess(ClientOrderHeader order)
+		private void OrderSuccess(ClientOrderHeader order, MinReqController controller)
 		{
+			order.Apply(controller.ProcessOrder(order.Order));
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.Success));
 		}
 
-		private void OrderByMinReq(ClientOrderHeader order)
+		private void OrderByMinReq(ClientOrderHeader order, MinReqController controller)
 		{
+			order.Apply(controller.ProcessOrder(order.Order));
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.LessThanMinReq));
 			Assert.That(order.MinReq, Is.EqualTo(_minOrderContext.MinReq));
 			Assert.That(order.ErrorReason, Is.EqualTo("Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой."));
 		}
 
-		private void OrderByMinReordering(ClientOrderHeader order)
+		private void OrderByMinReordering(ClientOrderHeader order, MinReqController controller)
 		{
+			order.Apply(controller.ProcessOrder(order.Order));
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.LessThanReorderingMinReq));
 			Assert.That(order.MinReq, Is.EqualTo(_minOrderContext.MinReq));
 			Assert.That(order.MinReordering, Is.EqualTo(_minOrderContext.MinReordering));
@@ -128,8 +131,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		[Test(Description = "фунционал проверки минимального заказа не должен быть вызван, т.к. сброшен флаг ControlMinReq")]
@@ -142,8 +144,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		[Test(Description = "фунционал проверки минимального заказа не должен быть вызван, т.к. значение MinReq = 0")]
@@ -158,8 +159,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		[Test(Description = "фунционал проверки минимального дозаказа не должен быть вызван, т.к. приложение не поддерживает минимальный дозаказ")]
@@ -176,8 +176,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		private void SetContext(Action action = null)
@@ -204,8 +203,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		[Test(Description = "заказ запрещен к отправке, т.к. сумма заказа меньше минимальной суммы заказа")]
@@ -218,8 +216,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderByMinReq(order);
+			OrderByMinReq(order, controller);
 		}
 
 		[Test(Description = "заказ разрешен к отправке, т.к. сумма заказа больше минимальной суммы заказа, установлено значение 'Минимальная сумма дозаявки', но нет правил дозаявки")]
@@ -235,8 +232,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		[Test(Description = "заказ запрещен к отправке, т.к. сумма заказа больше минимальной суммы заказа, установлено значение 'Минимальная сумма дозаявки', но нет правил дозаявки")]
@@ -252,8 +248,7 @@ namespace Unit.MinOrders
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
-			controller.ProcessOrder(order);
-			OrderByMinReq(order);
+			OrderByMinReq(order, controller);
 		}
 
 		public class TestMinReqController : MinReqController
@@ -288,8 +283,7 @@ namespace Unit.MinOrders
 
 			var controller = new TestMinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(8);
-			controller.ProcessOrder(order);
-			OrderByMinReq(order);
+			OrderByMinReq(order, controller);
 		}
 
 		[Test(Description = "настроены параметры для дозаказа и существуют заказы в периоде приема заявок")]
@@ -299,8 +293,7 @@ namespace Unit.MinOrders
 
 			var controller = new TestMinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(8);
-			controller.ProcessOrder(order);
-			OrderSuccess(order);
+			OrderSuccess(order, controller);
 		}
 
 		[Test(Description = "настроены параметры для дозаказа и существуют заказы в периоде приема заявок, но заблокировано по сумме минимального дозаказа")]
@@ -310,8 +303,7 @@ namespace Unit.MinOrders
 
 			var controller = new TestMinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(5);
-			controller.ProcessOrder(order);
-			OrderByMinReordering(order);
+			OrderByMinReordering(order, controller);
 		}
 	}
 

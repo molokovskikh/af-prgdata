@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Common.Models;
+using Common.Models.Helpers;
 
 namespace PrgData.Common.Orders
 {
@@ -118,6 +119,18 @@ namespace PrgData.Common.Orders
 		public uint GetSavedRowCount()
 		{
 			return Convert.ToUInt32(Positions.Count(item => !item.Duplicated));
+		}
+
+		public void Apply(MinReqStatus status)
+		{
+			if (status != null) {
+				MinReordering = status.MinReordering;
+				MinReq = status.MinReq;
+				ErrorReason = status.Error;
+				SendResult = status.Type == MinReqStatus.ErrorType.MinReq
+					? OrderSendResult.LessThanMinReq
+					: OrderSendResult.LessThanReorderingMinReq;
+			}
 		}
 	}
 }
