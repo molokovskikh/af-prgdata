@@ -61,7 +61,7 @@ namespace PrgData.Common.Orders
 			try {
 				helper.Check();
 			}
-			catch(OrderException e) {
+			catch(global::Common.Models.OrderException e) {
 				throw new UpdateException(e.Message, "", RequestType.Forbidden);
 			}
 		}

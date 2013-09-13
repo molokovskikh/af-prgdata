@@ -11,6 +11,7 @@ using Common.Tools;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
 using NHibernate.Exceptions;
+using NHibernate.Hql.Ast.ANTLR;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.Models;
@@ -64,12 +65,22 @@ namespace Integration.MinOrders
 		private MinOrderContext CreateContext()
 		{
 			var client = new Client {
+				Id = _user.Client.Id,
 				Enabled = true,
 				RegionCode = _price.Id.RegionCode,
 			};
-			var address = new Address(client);
-			var order = new Order(new ActivePrice(),
+			var address = new Address(client) {
+				Id = _address.Id
+			};
+			var priceList = new PriceList {
+				PriceCode = _price.Id.PriceId
+			};
+			var order = new Order(
+				new ActivePrice {
+					Id = new PriceKey(priceList, _price.Id.RegionCode)
+				},
 				new User(client) {
+					Id = _user.Id,
 					AvaliableAddresses = { address }
 				},
 				new OrderRules());

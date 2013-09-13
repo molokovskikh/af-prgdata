@@ -1974,13 +1974,8 @@ and (i.PriceId = :PriceId)
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				TestDataManager.GenerateOrder(3, user.Id, address.Id);
-				try {
-					var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
-					Assert.Fail("Должны выбросить исключение");
-				}
-				catch(UpdateException ex) {
-					Assert.That(ex.Message, Is.StringContaining(message));
-				}
+				var e = Assert.Catch<UpdateException>(() => new ReorderHelper(updateData, connection, true, address.Id, false));
+				Assert.That(e.Message, Is.StringContaining(message));
 			}
 		}
 
