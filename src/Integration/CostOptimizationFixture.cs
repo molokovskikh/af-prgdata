@@ -7,6 +7,7 @@ using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models;
 using Common.Models.Tests.Repositories;
+using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
 using log4net;
@@ -26,6 +27,7 @@ namespace Integration
 		private CostOptimizaerConf costOptimizaerConf;
 		private TestClient _client;
 		private TestUser _user;
+		private MySqlConnection connection;
 
 		[SetUp]
 		public void SetUp()
@@ -42,70 +44,51 @@ namespace Integration
 			}
 
 			costOptimizaerConf = CostOptimizaerConf.MakeUserOptimazible(_user);
+			connection = new MySqlConnection(Settings.ConnectionString());
+			connection.Open();
 		}
 
-		private void CostOptimizerShouldCreateLogsWithSupplier(uint clientId, Action<MySqlCommand> getOffers)
+		[TearDown]
+		public void TearDown()
 		{
-			using (var conn = new MySqlConnection(Settings.ConnectionString())) {
-				conn.Open();
-				var command = new MySqlCommand("select Now()", conn);
-				var startTime = Convert.ToDateTime(command.ExecuteScalar());
-
-				command = new MySqlCommand(
-					@"select cs.Id, min(ccc.Cost) Cost
-  from farm.Core0 cs
-	   join farm.Core0 cc on cc.ProductId = cs.ProductId and cs.Id <> cc.Id and cs.ProductId = cc.ProductId
-	   join farm.CoreCosts ccc on ccc.Core_Id = cc.Id
-	   join usersettings.PricesData pds on pds.PriceCode = cs.PriceCode
-	   join usersettings.PricesData pdc on pdc.PriceCode = cc.PriceCode
- where pds.PriceCode = ?priceId
-   and pdc.FirmCode = ?concurentId
-group by cs.Id
-limit 0, 50", conn);
-				command.Parameters.AddWithValue("?priceId", costOptimizaerConf.OptimizationPriceId);
-				command.Parameters.AddWithValue("?concurentId", costOptimizaerConf.ConcurentSupplierId);
-
-				var cores = command.ExecuteReader();
-				var update = new StringBuilder();
-				foreach (var row in cores.Cast<DbDataRecord>())
-					update.Append("update farm.CoreCosts set Cost=").Append(row["Cost"]).Append("+1 where Core_Id=").Append(row["Id"]).Append(";");
-				cores.Close();
-
-				command.CommandText = update.ToString().Replace(',', '.');
-				command.ExecuteNonQuery();
-
-				command.Parameters.Clear();
-				getOffers(command);
-				command.Parameters.Clear();
-
-				command.CommandType = CommandType.Text;
-
-				var optimizer = new CostOptimizer(conn, clientId, _user.Id);
-				optimizer.Oprimize();
-
-				command.CommandText = "select * from logs.CostOptimizationLogs where LoggedOn > ?startTime and ClientId = ?clientId";
-				command.Parameters.AddWithValue("?startTime", startTime);
-				command.Parameters.AddWithValue("?clientId", clientId);
-				var reader = command.ExecuteReader();
-
-				foreach (var row in reader.Cast<DbDataRecord>()) {
-					Assert.AreEqual(45, row["SupplierId"]);
-					Assert.That(Convert.ToDecimal(row["SelfCost"]), Is.LessThanOrEqualTo(Convert.ToDecimal(row["ResultCost"])));
-					Assert.That(row["UserId"], Is.EqualTo(_user.Id));
-				}
-			}
+			connection.Close();
 		}
 
 		[Test(Description = "проверяем создание записей в логах оптимизации для клиента из новой реальности")]
 		public void CostOptimizerShouldCreateLogsWithSupplierForFuture()
 		{
-			CostOptimizerShouldCreateLogsWithSupplier(
-				_client.Id,
-				command => {
-					command.CommandText = "call Customers.GetOffers(?UserId);";
-					command.Parameters.AddWithValue("?UserId", _user.Id);
-					command.ExecuteNonQuery();
-				});
+			var begin = DateTime.Now;
+			var costSql = @"select cs.Id, min(ccc.Cost) Cost
+from farm.Core0 cs
+	join farm.Core0 cc on cc.ProductId = cs.ProductId and cs.Id <> cc.Id and cs.ProductId = cc.ProductId
+	join farm.CoreCosts ccc on ccc.Core_Id = cc.Id
+	join usersettings.PricesData pds on pds.PriceCode = cs.PriceCode
+	join usersettings.PricesData pdc on pdc.PriceCode = cc.PriceCode
+where pds.PriceCode = ?priceId
+and pdc.FirmCode = ?concurentId
+group by cs.Id
+limit 0, 50";
+
+			var update = new StringBuilder();
+			var parameters = new {
+				priceId = costOptimizaerConf.OptimizationPriceId,
+				concurentId = costOptimizaerConf.ConcurentSupplierId
+			};
+			foreach (var row in connection.Read(costSql, parameters))
+				update.Append("update farm.CoreCosts set Cost=").Append(row["Cost"]).Append("+1 where Core_Id=").Append(row["Id"]).Append(";");
+
+			connection.Execute(update.ToString().Replace(',', '.'));
+			connection.Execute("call Customers.GetOffers(?UserId);", new { userId = _user.Id });
+
+			var optimizer = new CostOptimizer(connection, _client.Id, _user.Id);
+			optimizer.Oprimize();
+
+			var sql = "select * from logs.CostOptimizationLogs where LoggedOn > ?begin and ClientId = ?clientId";
+			foreach (var row in connection.Read(sql, new { begin, clientId = _client.Id })) {
+				Assert.AreEqual(costOptimizaerConf.OptimizationSupplierId, row["SupplierId"]);
+				Assert.That(Convert.ToDecimal(row["SelfCost"]), Is.LessThanOrEqualTo(Convert.ToDecimal(row["ResultCost"])));
+				Assert.That(row["UserId"], Is.EqualTo(_user.Id));
+			}
 		}
 	}
 }

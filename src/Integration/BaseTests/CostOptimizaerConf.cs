@@ -7,15 +7,15 @@ namespace Integration.BaseTests
 {
 	public class CostOptimizaerConf
 	{
-		public uint OptimizationSupplierId = 45;
-		public uint ConcurentSupplierId = 94;
+		public uint OptimizationSupplierId = 5;
+		public uint ConcurentSupplierId = 14;
 		public uint OptimizationPriceId;
 
-		public static CostOptimizaerConf MakeUserOptimazible(TestUser user, uint optimizationSupplierId = 45)
+		public static CostOptimizaerConf MakeUserOptimazible(TestUser user, uint supplierId = 0)
 		{
-			var conf = new CostOptimizaerConf {
-				OptimizationSupplierId = optimizationSupplierId
-			};
+			var conf = new CostOptimizaerConf();
+			if (supplierId != 0)
+				conf.OptimizationSupplierId = supplierId;
 
 			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
 				connection.Open();
