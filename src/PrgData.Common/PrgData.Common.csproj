@@ -145,7 +145,6 @@
     <Compile Include="AnalitFVersions\VersionUpdaterFactory.cs" />
     <Compile Include="AsyncPrgDatas.cs" />
     <Compile Include="Context.cs" />
-    <Compile Include="CostOptimizer.cs" />
     <Compile Include="Counters\Counter.cs" />
     <Compile Include="Counters\Utils.cs" />
     <Compile Include="DebugReplicationHelper.cs" />

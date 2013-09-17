@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models;
+using Common.Models.Helpers;
 using Common.Models.Tests.Repositories;
 using Common.MySql;
 using Common.Tools;

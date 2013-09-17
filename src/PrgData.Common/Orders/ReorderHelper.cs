@@ -405,11 +405,7 @@ values
 			if (!_user.IgnoreCheckMinOrder)
 				foreach (var order in _orders) {
 					order.SendResult = OrderSendResult.Success;
-					var minReqController = new MinReqController(
-						new MinOrderContext(
-							_readWriteConnection, session,
-							order.Order,
-							_data.SupportedMinReordering()));
+					var minReqController = new MinReqController(session, order.Order, _data.SupportedMinReordering());
 					var status = minReqController.ProcessOrder(order.Order);
 					order.Apply(status);
 				}
