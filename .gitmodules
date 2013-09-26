@@ -1,15 +1,15 @@
 [submodule "src/Common.MySql"]
 	path = src/Common.MySql
-	url = git@git.analit.net:root/common-mysql-git
+	url = git@git.analit.net:root/common-mysql.git
 [submodule "src/Common.Models"]
 	path = src/Common.Models
-	url = git@git.analit.net:root/common-models-git
+	url = git@git.analit.net:root/common-models.git
 [submodule "src/Common.Tools"]
 	path = src/Common.Tools
-	url = git@git.analit.net:root/common-tools-git
+	url = git@git.analit.net:root/common-tools.git
 [submodule "src/SmartOrderFactory"]
 	path = src/SmartOrderFactory
-	url = git@git.analit.net:root/smartorderfactory-git
+	url = git@git.analit.net:root/smartorderfactory.git
 [submodule "src/Test.Support"]
 	path = src/Test.Support
-	url = git@git.analit.net:root/test-support-git
+	url = git@git.analit.net:root/test-support.git
