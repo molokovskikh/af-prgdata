@@ -651,44 +651,6 @@ limit 1;")
 				});
 		}
 
-		[Test]
-		public void Compare_by_okp_code()
-		{
-			var codeOkp = Generator.Random(int.MaxValue).First();
-			ulong coreId = 0;
-
-			var settings = session.Load<TestDrugstoreSettings>(_client.Id);
-			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
-			settings.OfferMatrix = _offerPrice.Price.Matrix;
-			settings.OfferMatrixType = TestMatrixType.BlackList;
-			session.Save(settings);
-
-			var core = session.Query<TestCore>().First(c => c.Price == _offerPrice.Price);
-			coreId = core.Id;
-			core.CodeOKP = codeOkp;
-			session.Save(core);
-
-			session.CreateSQLQuery(@"
-delete from farm.BuyingMatrix
-where PriceId = :priceId;
-insert into farm.BuyingMatrix(MatrixId, PriceId, Code, ProductId, ProducerId, CodeOKP)
-values(:matrixId, :priceId, null, null, null, :codeOkp);")
-				.SetParameter("priceId", _offerPrice.Id.PriceId)
-				.SetParameter("matrixId", _offerPrice.Price.Matrix.Id)
-				.SetParameter("codeOkp", codeOkp)
-				.ExecuteUpdate();
-
-			Close();
-
-			CheckOffers((helper, coreTable) => {
-					CheckRowCount(coreTable);
-
-					var offers = coreTable.Select("PriceCode = " + _offerPrice.Id.PriceId);
-					var offer = offers.First(r => Equals(r["CoreId"], coreId.ToString().RightSlice(9)));
-					Assert.That((BuyinMatrixStatus)Convert.ToInt32(offer["BuyingMatrixType"]), Is.EqualTo(BuyinMatrixStatus.Denied));
-				});
-		}
-
 		private void CheckRowCount(DataTable coreTable)
 		{
 			Assert.That(coreTable.Rows.Count, Is.EqualTo(_buyingCoreCount + _offerCoreCount), "Кол-во предложений должно быть равно кол-ву предложений в обоих прайс-листах, оно не должно меняться");
