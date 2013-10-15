@@ -124,40 +124,6 @@ where
 group by c.PriceCode, c.RegionCode
 ");
 				}
-
-				_command.CommandText = @"
-select
-  count(*)
-from
-  ActivePrices at, 
-  Core ct
-WHERE  
-	ct.pricecode  = at.pricecode 
-AND ct.regioncode = at.regioncode 
-AND IF(?Cumulative, 1, fresh) 
-";
-				var expectedCoreCount = Convert.ToInt32(_command.ExecuteScalar());
-				if (_updateData.Settings.OfferMatrix.HasValue && ExportCoreCount < expectedCoreCount)
-					Logger.DebugFormat("Не совпадает кол-во выгруженных предложений в Core для копии, работающей с матрицей предложений: ожидаемое = {0} реальное = {1}", expectedCoreCount, ExportCoreCount);
-				else if (expectedCoreCount != ExportCoreCount) {
-					_reasons.Add("Не совпадает кол-во выгруженных предложений в Core: ожидаемое = {0} реальное = {1}".Format(expectedCoreCount, ExportCoreCount));
-					FillTable(
-						"ActivePricesSizes",
-						@"
-select 
-  at.PriceCode, 
-  at.regioncode, 
-  count(ct.Id) as CoreCount,
-  count(c0.Id) as RealCount
-from   
-  ActivePrices at
-  inner join Core ct on ct.pricecode = at.pricecode AND ct.regioncode = at.regioncode
-  left join farm.Core0 c0 on c0.id = ct.Id 
-WHERE  
-   IF(?Cumulative, 1, fresh) 
-group by at.PriceCode, at.regioncode
-");
-				}
 			}
 
 			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
