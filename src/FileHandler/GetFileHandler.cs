@@ -65,6 +65,11 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 					Int64.TryParse(context.Request.QueryString["RangeStart"], out _fromByte);
 
 				var fn = ServiceContext.GetResultPath() + UserId + "_" + _updateId + ".zip";
+
+				if (!File.Exists(fn)) {
+					Thread.Sleep(TimeSpan.FromSeconds(3));
+				}
+
 				if (!File.Exists(fn)) {
 					Log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
 					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
