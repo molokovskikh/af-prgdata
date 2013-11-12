@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Common.Models.Tests;
+using Common.MySql;
 using Integration.BaseTests;
 using PrgData.Common.Models;
 using log4net;
@@ -31,6 +32,8 @@ using Test.Support;
 using Common.Tools;
 using Castle.ActiveRecord;
 using Test.Support.Logs;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
+using With = Common.Models.With;
 
 namespace Integration
 {
@@ -172,7 +175,7 @@ namespace Integration
 
 		private void DeleteOldOrders()
 		{
-			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
+			MySqlHelper.ExecuteNonQuery(ConnectionHelper.GetConnectionString(), @"
 delete 
 from orders.OrdersHead 
 where 
@@ -184,7 +187,7 @@ and WriteTime > now() - interval 2 week",
 		private void GetOffers()
 		{
 			if (!getOffers)
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 
 					MySqlHelper.ExecuteNonQuery(
@@ -734,7 +737,7 @@ limit 1
 
 		public void Check_simple_double_order(string userName, uint orderedClientId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
 				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
@@ -767,7 +770,7 @@ limit 1
 
 		public void Check_simple_double_orderWithNewCoreId(string userName, uint orderedClientId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
 				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
@@ -812,7 +815,7 @@ limit 1
 
 		public void Check_double_order_without_FullDuplicated(string userName, uint orderedClientId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
 				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
@@ -851,7 +854,7 @@ limit 1
 
 		public void Check_simple_double_order_with_correctorders(string userName, uint orderedClientId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
 				var orderHelper = new ReorderHelper(updateData, connection, false, orderedClientId, true);
@@ -882,7 +885,7 @@ limit 1
 
 		public void Check_order_with_ImpersonalPrice(string userName, uint orderedClientId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
 
@@ -959,7 +962,7 @@ limit 1
 
 		public void Check_simple_order_with_leaders(string userName, uint orderedClientId)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -1010,7 +1013,7 @@ where
 		{
 			string userName = user.Login;
 			uint orderedClientId = address.Id;
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -1048,7 +1051,7 @@ where
 		{
 			string userName = user.Login;
 			uint orderedClientId = address.Id;
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -1134,7 +1137,7 @@ and orderslist.Coreid is not null",
 			var userName = user.Login;
 			var orderedClientId = address.Id;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, userName);
 				updateData.BuildNumber = 1272;
@@ -1297,7 +1300,7 @@ where
 				});
 
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				updateData.BuildNumber = 1272;
@@ -1343,7 +1346,7 @@ where
 		[Test(Description = "Проверяем сохранение отсрочки платежа в заказе для клиентов из новой реальности")]
 		public void CheckSimpleOrderWithDelayOfPaymentForFutureClient()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
@@ -1381,7 +1384,7 @@ where
 		[Test(Description = "Проверяем сохранение значений отсрочек платежа и цен в заказе для клиентов из новой реальности")]
 		public void CheckSimpleOrderWithDelayOfPaymentsForFutureClient()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
@@ -1430,7 +1433,7 @@ where
 				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(-10.0m));
 
 				var orderItem = MySqlHelper.ExecuteDataRow(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 select 
   orderslist.* 
@@ -1475,7 +1478,7 @@ limit 1
 			Assert.That(client.MaskRegion, Is.EqualTo(maskRegion));
 
 			try {
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 
 					MySqlHelper.ExecuteNonQuery(
@@ -1594,7 +1597,7 @@ limit 1
 
 			CreateFolders(specialAddress.Id.ToString());
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, specialUser.Login);
@@ -1630,7 +1633,7 @@ limit 1
 		[Test(Description = "Отправляем несколько раз заказ, который дублируется полностью: заказ не должен дублироваться и должен возвращаться один и тот же ServerOrderId")]
 		public void RepeatedlySendDoubleOrder()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
@@ -1666,7 +1669,7 @@ limit 1
 		[Test(Description = "Отправляем несколько раз заказ с добавленными позициями")]
 		public void RepeatedlySendDoubleOrderWithNewPositions()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
@@ -1735,7 +1738,7 @@ limit 1
 				user.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var orderHelper = new ReorderHelper(updateData, connection, true, address.Id, false);
@@ -1836,7 +1839,7 @@ and (i.PriceId = :PriceId)
 				});
 
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				updateData.BuildNumber = 1272;
@@ -1870,7 +1873,7 @@ and (i.PriceId = :PriceId)
 		[Test(Description = "проверяем отсутствие ServerOrderListId при отправке заказа для версий 1833 и ниже ")]
 		public void SendSimpleOrderWithServerOrderListIdBy1833()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				updateData.BuildNumber = 1833;
@@ -1905,7 +1908,7 @@ and (i.PriceId = :PriceId)
 		[Test(Description = "проверяем отсутствие ServerOrderListId при отправке заказа для версий от 1833")]
 		public void SendSimpleOrderWithServerOrderListIdByGreaterThan1833()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				updateData.BuildNumber = 1840;
@@ -1970,7 +1973,7 @@ and (i.PriceId = :PriceId)
 
 		private void CheckOrdersSum(string message)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				TestDataManager.GenerateOrder(3, user.Id, address.Id);
@@ -1994,7 +1997,7 @@ and (i.PriceId = :PriceId)
 			CreateFolders(address.Id.ToString());
 			DeleteOldOrders();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				updateData.BuildNumber = 1828;
@@ -2180,7 +2183,7 @@ and (i.PriceId = :PriceId)
 			var stopTimeHour = firstMinReorderingOrder.WriteTime.AddHours(2).Hour;
 			SetReorderingRules(minReqOrder.ActivePrice, stopTimeHour);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				//Версии AnalitF < 1931 не должны поддерживать фукнционал минимального дозаказа
@@ -2334,7 +2337,7 @@ and (i.PriceId = :PriceId)
 			var stopTimeHour = firstMinReorderingOrder.WriteTime.AddHours(2).Hour;
 			SetReorderingRules(minReqOrder.ActivePrice, stopTimeHour);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				updateData.BuildNumber = 1931;

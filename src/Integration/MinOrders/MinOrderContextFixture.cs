@@ -34,7 +34,7 @@ namespace Integration.MinOrders
 		[SetUp]
 		public void SetUp()
 		{
-			_connection = new MySqlConnection(Settings.ConnectionString());
+			_connection = new MySqlConnection(ConnectionHelper.GetConnectionString());
 			_connection.Open();
 			_unitOfWork = new UnitOfWork();
 

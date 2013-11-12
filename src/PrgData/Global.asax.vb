@@ -13,9 +13,6 @@ Public Class Global_asax
     Shared Logger As ILog = LogManager.GetLogger(GetType(Global_asax))
 
 	Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
-#If Not Debug Then
-		Settings.ConnectionName = Environment.MachineName.ToLower()
-#End If
 		XmlConfigurator.Configure()
 		SmartOrderHelper.InitializeIoC()
 

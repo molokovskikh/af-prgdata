@@ -2,6 +2,7 @@
 using System.Data;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
@@ -9,6 +10,7 @@ using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using Test.Support;
 using Test.Support.Suppliers;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -61,7 +63,7 @@ namespace Integration
 			Assert.That(delay.Id, Is.GreaterThan(0));
 
 			var dayOfWeek = MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select DayOfWeek from usersettings.DelayOfPayments where Id = ?Id",
 				new MySqlParameter("?Id", delay.Id));
 
@@ -83,7 +85,7 @@ namespace Integration
 		[Test]
 		public void GetOldDelayOfPayments()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1385;
@@ -101,7 +103,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsWithVitallyImportantForUpdate()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1385;
@@ -122,7 +124,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsWithVitallyImportant()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1386;
@@ -142,7 +144,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsByPrice()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1405;
@@ -162,7 +164,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsByPriceForUpdateFrom1385()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1385;
@@ -183,7 +185,7 @@ namespace Integration
 		[Test]
 		public void GetDelayOfPaymentsByPriceForUpdateFrom1403()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.BuildNumber = 1403;

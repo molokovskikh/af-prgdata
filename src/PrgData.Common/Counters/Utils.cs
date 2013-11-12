@@ -4,6 +4,7 @@ using System.Text;
 using System.Reflection;
 using System.Configuration;
 using System.Net.Mail;
+using Common.MySql;
 using PrgData.Common;
 using MySql.Data.MySqlClient;
 using System.ComponentModel;
@@ -19,7 +20,7 @@ namespace PrgData.Common.Counters
 
 		public static int Execute(string CommandText, object ParametersAsAnonymousObject)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);
@@ -29,7 +30,7 @@ namespace PrgData.Common.Counters
 
 		public static IList<ClientStatus> Request(string CommandText, object ParametersAsAnonymousObject)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);
@@ -45,7 +46,7 @@ namespace PrgData.Common.Counters
 
 		public static T RequestScalar<T>(string CommandText)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 
@@ -56,7 +57,7 @@ namespace PrgData.Common.Counters
 
 		public static T RequestScalar<T>(string CommandText, object ParametersAsAnonymousObject)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var command = new MySqlCommand(CommandText, connection);
 				BindParameters(command, ParametersAsAnonymousObject);

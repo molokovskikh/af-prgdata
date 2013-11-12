@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Threading;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
@@ -12,6 +13,7 @@ using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Models;
 using Test.Support;
 using Test.Support.Suppliers;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration.Models
 {
@@ -24,7 +26,7 @@ namespace Integration.Models
 		public void SetUp()
 		{
 			TestSupplier.Create();
-			connection = new MySqlConnection(Settings.ConnectionString());
+			connection = new MySqlConnection(ConnectionHelper.GetConnectionString());
 			connection.Open();
 			updateData.UpdateExeVersionInfo = new VersionInfo(1500);
 		}

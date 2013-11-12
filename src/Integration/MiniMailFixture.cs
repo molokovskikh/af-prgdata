@@ -4,6 +4,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
@@ -82,7 +83,7 @@ namespace Integration
 		[Test(Description = "Проверяем корректность SQL для работы с почтой")]
 		public void CheckMailSql()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -391,7 +392,7 @@ namespace Integration
 		{
 			var log = CreateTestMail();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -424,7 +425,7 @@ namespace Integration
 				log.Mail.Supplier.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);

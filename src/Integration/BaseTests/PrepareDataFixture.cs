@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using Test.Support.Documents;
@@ -18,6 +19,7 @@ using NUnit.Framework;
 using PrgData;
 using PrgData.Common;
 using Test.Support;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration.BaseTests
 {
@@ -165,7 +167,7 @@ namespace Integration.BaseTests
 			Thread.Sleep(3000);
 
 			var updateRow = MySqlHelper.ExecuteDataRow(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 select
   uui.UpdateDate,

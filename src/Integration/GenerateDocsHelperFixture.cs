@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Linq;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using MySql.Data.MySqlClient;
@@ -21,7 +22,7 @@ namespace Integration
 		{
 			var user = TestClient.Create().Users[0];
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				ulong supplierId = 3;
 				string sourceFilePath = @"..\..\Data\3687747_Протек-21_3687688_Протек-21_8993929-001__.sst";
 				connection.Open();

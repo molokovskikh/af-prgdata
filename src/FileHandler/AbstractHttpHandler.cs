@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Web;
+using Common.MySql;
 using log4net;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
@@ -40,7 +41,7 @@ namespace PrgData.FileHandlers
 			var userName = ServiceContext.GetShortUserName();
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
 			try {
-				using (var connection = Settings.GetConnection()) {
+				using (var connection = ConnectionHelper.GetConnection()) {
 					connection.Open();
 					var command = new MySqlCommand(@"
 SELECT u.Id

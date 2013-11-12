@@ -1,5 +1,6 @@
 ﻿using System;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using MySql.Data.MySqlClient;
 using NUnit.Framework;
@@ -7,6 +8,7 @@ using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using Test.Support;
 using Test.Support.Logs;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -35,7 +37,7 @@ namespace Integration
 		[Test]
 		public void Get_update_data_for_enabled_future_client()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(_user.Id));
@@ -64,7 +66,7 @@ namespace Integration
 				}
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _userWithoutAF.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(_userWithoutAF.Id));
@@ -92,7 +94,7 @@ namespace Integration
 				disabledUser.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, disabledUser.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(disabledUser.Id));
@@ -122,7 +124,7 @@ namespace Integration
 				disabledClient.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, disabledUser.Login);
 				Assert.That(updateData, Is.Not.Null);
 				Assert.That(updateData.UserId, Is.EqualTo(disabledUser.Id));
@@ -165,7 +167,7 @@ namespace Integration
 		private void Check_ON_flags_for_BuyingMatrix_and_MNN(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1183");
@@ -184,7 +186,7 @@ namespace Integration
 		private void Check_OFF_flags_for_BuyingMatrix_and_MNN(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1269");
@@ -196,7 +198,7 @@ namespace Integration
 		private void Check_ON_flags_for_NewClients(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1271");
@@ -207,7 +209,7 @@ namespace Integration
 		private void Check_OFF_flags_for_NewClients(string login)
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1279");
@@ -225,7 +227,7 @@ namespace Integration
 			session.Update(_client.Settings);
 			session.Flush();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.ParseBuildNumber("6.0.0.1279");
 				Assert.IsFalse(updateData.NeedUpdateToBuyingMatrix);
@@ -233,7 +235,7 @@ namespace Integration
 			matrix.MatrixUpdateTime = DateTime.Now.AddHours(-1);
 			session.Update(matrix);
 			Close();
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				updateData.OldUpdateTime = DateTime.Now;
 				updateData.ParseBuildNumber("6.0.0.1279");
@@ -251,7 +253,7 @@ namespace Integration
 			var login = _user.Login;
 
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				updateData.KnownBuildNumber = 1279;
 				try {
@@ -272,7 +274,7 @@ namespace Integration
 			var login = _user.Login;
 
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				//Устанавливаем любой прайс-лист, в данном случае это прайс поставщика Инфорум
 				updateData.NetworkPriceId = 2647;
@@ -293,7 +295,7 @@ namespace Integration
 		private void CheckPreviousRequestOnFirst(string userName, uint userId)
 		{
 			try {
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -341,7 +343,7 @@ namespace Integration
 			}
 
 			try {
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -396,7 +398,7 @@ namespace Integration
 			}
 
 			try {
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 
 					var updateData = UpdateHelper.GetUpdateData(connection, userName);
@@ -423,7 +425,7 @@ namespace Integration
 		[Test(Description = "проверяем методы для работы с именами подготовленными файлами")]
 		public void CheckResultPaths()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -474,7 +476,7 @@ namespace Integration
 		{
 			var login = _user.Login;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 
 				Assert.That(updateData.IsConfirmUserMessage(), Is.EqualTo(false), "Для неопределенной версии доступен механизм");
@@ -501,7 +503,7 @@ namespace Integration
 		[Test(Description = "проверяем корректное чтение TargetVersion")]
 		public void CheckReadTargetVersion()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				MySqlHelper.ExecuteNonQuery(
@@ -528,7 +530,7 @@ namespace Integration
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -563,7 +565,7 @@ namespace Integration
 		public void CheckNeedUpdateForRetailVitallyImportant()
 		{
 			ServiceContext.GetResultPath = () => "..\\..\\Data\\EtalonUpdates\\";
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				Assert.That(updateData, Is.Not.Null);
 				updateData.ParseBuildNumber("6.0.0.1183");
@@ -610,7 +612,7 @@ namespace Integration
 		{
 			var login = _user.Login;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, login);

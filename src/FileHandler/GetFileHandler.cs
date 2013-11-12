@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Web;
+using Common.MySql;
 using log4net;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
@@ -20,7 +21,7 @@ namespace PrgData.FileHandlers
 		private void LogSend(Exception ex)
 		{
 			try {
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 					var command = connection.CreateCommand();
 					command.CommandText =

@@ -2,6 +2,7 @@
 using System.Configuration;
 using System.Threading;
 using System.Web.Services;
+using Common.MySql;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
 using PrgData.Common.Models;
@@ -36,7 +37,7 @@ namespace PrgData
 		{
 			UserHost = ServiceContext.GetUserHost();
 			try {
-				readWriteConnection = Settings.GetConnection();
+				readWriteConnection = ConnectionHelper.GetConnection();
 				readWriteConnection.Open();
 
 				return true;

@@ -206,7 +206,7 @@ namespace PrgData.Common
 			var buildItems = new StringBuilder();
 			var buildReport = new StringBuilder();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				foreach (var order in orders) {
@@ -317,8 +317,8 @@ namespace PrgData.Common
 
 		public static void InitializeIoC()
 		{
-			With.DefaultConnectionStringName = Settings.ConnectionName;
-			var sessionFactoryHolder = new SessionFactoryHolder(Settings.ConnectionName);
+			With.DefaultConnectionStringName = ConnectionHelper.GetConnectionName();
+			var sessionFactoryHolder = new SessionFactoryHolder(ConnectionHelper.GetConnectionName());
 			sessionFactoryHolder
 				.Configuration
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))

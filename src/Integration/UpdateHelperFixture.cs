@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Data;
 using Castle.ActiveRecord;
 using Common.Models;
+using Common.MySql;
 using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
@@ -14,6 +15,7 @@ using PrgData.Common.Counters;
 using Test.Support;
 using Test.Support.Catalog;
 using Test.Support.Suppliers;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -58,7 +60,7 @@ namespace Integration
 				_user.Update();
 			}
 
-			connection = new MySqlConnection(Settings.ConnectionString());
+			connection = new MySqlConnection(ConnectionHelper.GetConnectionString());
 			connection.Open();
 			//тк тести может иметь инициализацию, нам нужно загружать данные только
 			//после этой инициализации
@@ -130,7 +132,7 @@ namespace Integration
 
 		private void ClearLocks()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(connection, "delete from Logs.PrgDataLogs");
 			}
@@ -1325,7 +1327,7 @@ insert into UserSettings.AnalitFSchedules (ClientId, Enable, Hour, Minute) value
 				supplierUser = supplier.Users.First();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var result = UpdateHelper.UserExists(connection, "ddsdsdsdsds");

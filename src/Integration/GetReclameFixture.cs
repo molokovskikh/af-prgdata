@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models.Tests.Repositories;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
@@ -19,6 +20,7 @@ using PrgData.Common;
 using Test.Support;
 using System.Text.RegularExpressions;
 using log4net;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -118,7 +120,7 @@ namespace Integration
 
 		private void GetReclameForUser(string login, uint userId, string reclameFolder = null, bool createWrongReclameFolder = false)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -161,7 +163,7 @@ namespace Integration
 
 		private void GetReclameForErrorUser(string login)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -244,28 +246,28 @@ namespace Integration
 			SetCurrentUser(_user.Login);
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"update usersettings.UserUpdateInfo uui set uui.ReclameDate = now() where uui.UserId = ?UserId",
 				new MySqlParameter("?UserId", _user.Id));
 
 			ProcessGetUserData(true, DateTime.Now);
 
 			var reclameDate = MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
 				new MySqlParameter("?UserId", _user.Id));
 
 			Assert.That(reclameDate, Is.EqualTo(DBNull.Value), "После КО столбец ReclameDate не равен DBNull");
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"update usersettings.UserUpdateInfo uui set uui.ReclameDate = now() where uui.UserId = ?UserId",
 				new MySqlParameter("?UserId", _user.Id));
 
 			ProcessGetUserData(false, DateTime.Now.AddHours(-1));
 
 			reclameDate = MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select uui.ReclameDate from usersettings.UserUpdateInfo uui where uui.UserId = ?UserId",
 				new MySqlParameter("?UserId", _user.Id));
 
@@ -320,7 +322,7 @@ namespace Integration
 		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
 		public void GetReclameWithUpdate()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -372,7 +374,7 @@ namespace Integration
 		[Test(Description = "Получаем рекламу вместе с обновлением данных")]
 		public void GetReclameWithUpdateAfterNewReclame()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -446,7 +448,7 @@ namespace Integration
 		[Test(Description = "проверяем работу метода ExcludeFileNames для пустого списка файлов")]
 		public void CheckExludeFileNamesOnEmptyList()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -466,7 +468,7 @@ namespace Integration
 		]
 		public void CheckExludeFileNamesforOldReclame()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -486,7 +488,7 @@ namespace Integration
 		[Test(Description = "проверяем работу метода ExcludeFileNames для нового алгоритма рекламы")]
 		public void CheckExludeFileNamesforNewReclame()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -507,7 +509,7 @@ namespace Integration
 		[Test(Description = "при автообновлении версий (если доступна новая версия) будем всегда передавать заново все файлы рекламы, чтобы не было проблем в будущем")]
 		public void ResetReclameDateOnUpdateExe()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				MySqlHelper.ExecuteNonQuery(

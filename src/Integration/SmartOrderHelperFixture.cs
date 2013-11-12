@@ -10,6 +10,7 @@ using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Repositories;
 using Common.Models.Tests.Repositories;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
@@ -23,6 +24,7 @@ using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using Test.Support;
 using Test.Support.Logs;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 
 namespace Integration
@@ -69,7 +71,7 @@ namespace Integration
 		[ExpectedException(typeof(UpdateException), ExpectedMessage = "Услуга 'АвтоЗаказ' не предоставляется")]
 		public void Get_UpdateException_on_disabled_EnableSmartOrder()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -88,7 +90,7 @@ namespace Integration
 				orderRule.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -114,7 +116,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -184,7 +186,7 @@ namespace Integration
 				NHibernateUtil.Initialize(secondAddress.Users);
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -283,7 +285,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -329,7 +331,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -380,7 +382,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -438,7 +440,7 @@ namespace Integration
 				orderRule.UpdateAndFlush();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -505,7 +507,7 @@ namespace Integration
 				_user.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);
@@ -545,7 +547,7 @@ namespace Integration
 				notAllowAddress.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				SetCurrentUser(_user.Login);

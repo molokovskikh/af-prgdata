@@ -8,9 +8,9 @@ using System.Reflection;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
-using MySql.Data.MySqlClient;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.Models;
@@ -19,6 +19,7 @@ using SmartOrderFactory;
 using SmartOrderFactory.Domain;
 using SmartOrderFactory.Repositories;
 using log4net.Config;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -64,7 +65,7 @@ namespace Integration
 
 		private void CheckLocalDB()
 		{
-			using (var connection = Settings.GetConnection()) {
+			using (var connection = ConnectionHelper.GetConnection()) {
 				connection.Open();
 				var coreCount = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
 					connection,

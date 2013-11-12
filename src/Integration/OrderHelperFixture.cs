@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using NUnit.Framework;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
 using System.Data;
 using Test.Support;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -39,7 +41,7 @@ namespace Integration
 		{
 			var userName = _user.Login;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var trans = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try {

@@ -136,7 +136,7 @@ values (?UpdateId, ?DocumentBodyId, ?CertificateId, ?Filename)";
 		public static void SetErrorUpdateType(uint updateId)
 		{
 			try {
-				using (var connection = Settings.GetConnection()) {
+				using (var connection = ConnectionHelper.GetConnection()) {
 					connection.Open();
 					MySqlHelper.ExecuteNonQuery(
 						connection,

@@ -13,6 +13,7 @@ using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
+using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
 using Test.Support.Logs;
@@ -34,6 +35,7 @@ using SmartOrderFactory.Repositories;
 using Test.Support;
 using Test.Support.Helpers;
 using Test.Support.Suppliers;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -68,7 +70,7 @@ namespace Integration
 
 		public static void Execute(string commnad)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
 				try {
@@ -230,7 +232,7 @@ call usersettings.GetOffers({0}, 0);", clientId));
 
 		public static void DoWorkLogLockWaits()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				try {
 					while (!StopThreads) {
@@ -402,7 +404,7 @@ show full processlist;
 		private void ConfirmUserMessage(uint userId, string appVersion, string confirmedMessage)
 		{
 			var maxUpdateId = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select max(UpdateId) from logs.AnalitFUpdates where UserId = ?UserId",
 				new MySqlParameter("?UserId", userId)));
 
@@ -413,14 +415,14 @@ show full processlist;
 			Assert.That(responce, Is.EqualTo("Res=Ok").IgnoreCase, "Неожидаемый ответ от сервера");
 
 			var logsAfterConfirm = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select count(*) from logs.AnalitFUpdates where UserId = ?UserId and UpdateId > ?MaxUpdateId",
 				new MySqlParameter("?UserId", userId),
 				new MySqlParameter("?MaxUpdateId", maxUpdateId)));
 			Assert.That(logsAfterConfirm, Is.EqualTo(1), "Должно быть одно логирующее сообщение с подтверждением");
 
 			var confirmLog = MySqlHelper.ExecuteDataRow(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select * from logs.AnalitFUpdates where UserId = ?UserId order by UpdateId desc limit 1",
 				new MySqlParameter("?UserId", userId));
 			Assert.That(confirmLog["UpdateType"], Is.EqualTo((int)RequestType.ConfirmUserMessage), "Не совпадает тип обновления");
@@ -448,7 +450,7 @@ show full processlist;
 		{
 			var testUser = CreateUserForAnalitF();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
@@ -473,7 +475,7 @@ show full processlist;
 		{
 			var testUser = CreateUserForAnalitF();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
@@ -518,7 +520,7 @@ show full processlist;
 				var simpleUpdateId = ParseUpdateId(responce);
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", simpleUpdateId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
@@ -554,7 +556,7 @@ show full processlist;
 				var firstCumulativeId = ParseUpdateId(responce);
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", firstCumulativeId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
@@ -584,7 +586,7 @@ show full processlist;
 			var userMessage = "test User Message 123";
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
 ",
@@ -605,7 +607,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
 				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
@@ -613,7 +615,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
@@ -630,7 +632,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			var userMessage = "test User Message 123";
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
 ",
@@ -651,7 +653,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
 				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
@@ -659,7 +661,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
@@ -667,7 +669,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				ConfirmUserMessage(_user.Id, appVersion, realMessage);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
@@ -684,7 +686,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			var userMessage = "test User Message 123";
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
 ",
@@ -705,7 +707,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				Assert.That(realMessage, Is.EqualTo(userMessage), "Не совпадает сообщение в ответе сервера: {0}", responce);
 
 				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
@@ -713,13 +715,13 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
 
 				MySqlHelper.ExecuteNonQuery(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
 ",
@@ -729,7 +731,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				ConfirmUserMessage(_user.Id, appVersion, realMessage);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено, т.к. текст сообщения уже другой");
@@ -746,7 +748,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 			var userMessage = "   test User Message это сообщение 123  \r\n   ";
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 where UserId = ?UserId
 ",
@@ -770,7 +772,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				realMessage = realMessage.Trim();
 
 				var messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
@@ -778,7 +780,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				CommitExchange(updateId, RequestType.GetCumulative);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(1), "Сообщение не должно быть подтверждено");
@@ -786,7 +788,7 @@ update usersettings.UserUpdateInfo set Message = ?Message, MessageShowCount = 1 
 				ConfirmUserMessage(_user.Id, appVersion, realMessage);
 
 				messageShowCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId",
 					new MySqlParameter("?UserId", _user.Id)));
 				Assert.That(messageShowCount, Is.EqualTo(0), "Сообщение должно быть подтверждено");
@@ -823,7 +825,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 			var _client = CreateClient();
 			var _user = _client.Users[0];
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				CheckConfirmUserMessage(connection, _user.Id, _user.Login, "aaa", "aaa");
@@ -947,7 +949,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 
 			var postBatchId = Convert.ToUInt32(
 				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 insert into logs.AnalitFUpdates
   (RequestTime, UpdateType, UserId, Commit, AppVersion) 
@@ -975,7 +977,7 @@ select @postBatchId;",
 				Assert.That(simpleId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", simpleId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
@@ -997,7 +999,7 @@ select @postBatchId;",
 
 			var postBatchId = Convert.ToUInt32(
 				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 insert into logs.AnalitFUpdates
   (RequestTime, UpdateType, UserId, Commit, AppVersion) 
@@ -1025,7 +1027,7 @@ select @postBatchId;",
 				Assert.That(cumulativeId, Is.Not.EqualTo(postBatchId), "UpdateId не должны совпадать");
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", cumulativeId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
@@ -1169,7 +1171,7 @@ select ForceReplication from usersettings.AnalitFReplicationInfo where FirmCode 
 				childUser.Update();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var parentUpdateData = UpdateHelper.GetUpdateData(connection, parentUser.Login);
@@ -1290,7 +1292,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				var cumulativeId = ParseUpdateId(responce);
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", cumulativeId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
@@ -1317,7 +1319,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				var cumulativeId = ParseUpdateId(responce);
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", cumulativeId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetLimitedCumulative), "Неожидаемый тип обновления: должно быть кумулятивное");
@@ -1340,12 +1342,12 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 			SetCurrentUser(_user.Login);
 
 			var productId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select Id from catalogs.Products where Hidden = 0 and UpdateTime < ?simpleUpdateTime order by UpdateTime desc limit 1",
 				new MySqlParameter("?simpleUpdateTime", simpleUpdateTime)));
 			Assert.That(productId, Is.GreaterThan(0), "Не смогли найти продукт с датой обновления меньше даты обновления клиента");
 			var catalogId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select CatalogId from catalogs.Products where Id = ?id",
 				new MySqlParameter("?id", productId)));
 
@@ -1361,7 +1363,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				WaitAsyncResponse(simpleUpdateId);
 
 				var requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", simpleUpdateId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");
@@ -1390,7 +1392,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				WaitAsyncResponse(simpleUpdateId);
 
 				requestType = Convert.ToInt32(MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select UpdateType from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 					new MySqlParameter("?UpdateId", simpleUpdateId)));
 				Assert.That(requestType, Is.EqualTo((int)RequestType.GetData), "Неожидаемый тип обновления: должно быть накопительное");

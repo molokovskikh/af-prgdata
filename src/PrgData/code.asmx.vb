@@ -102,7 +102,7 @@ Public Class PrgDataEx
     Public Function SendLetterEx(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte, ByVal emailGroup As Byte) As String
         Try
             Dim updateData As UpdateData
-            Using connection = Settings.GetConnection()
+            Using connection = ConnectionHelper.GetConnection()
                 connection.Open()
 
                 Dim letterUserName = ServiceContext.GetShortUserName()
@@ -937,7 +937,7 @@ endprocNew:
 			Dim ef(), ListOfDocs() As String
 
 
-			Using connection = Settings.GetConnection()
+			Using connection = ConnectionHelper.GetConnection()
 				connection.Open()
 
 
@@ -2718,7 +2718,7 @@ StartZipping:
 		Using connection = New MySqlConnection
 			ThreadContext.Properties("user") = UpdateData.UserName
 
-			connection.ConnectionString = Settings.ConnectionString
+			connection.ConnectionString = ConnectionHelper.GetConnectionString()
 			connection.Open()
 
 			LogCm.Connection = connection
@@ -2812,7 +2812,7 @@ StartZipping:
 
 			Log.Debug("Попытка обновить тип обновления")
 			Using connection = New MySqlConnection
-				connection.ConnectionString = Settings.ConnectionString
+				connection.ConnectionString = ConnectionHelper.GetConnectionString()
 				connection.Open()
 
 				If UpdateType = RequestType.Error then
@@ -2837,7 +2837,7 @@ StartZipping:
 				Try
 					ThreadContext.Properties("user") = UpdateData.UserName
 
-					connection.ConnectionString = Settings.ConnectionString
+					connection.ConnectionString = ConnectionHelper.GetConnectionString()
 					connection.Open()
 
 					LogCm.Connection = connection

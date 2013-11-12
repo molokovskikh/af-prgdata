@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Common.Models;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
@@ -13,6 +14,7 @@ using PrgData.Common;
 using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Repositories;
 using Test.Support;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -46,7 +48,7 @@ namespace Integration
 		private void DeleteVersions()
 		{
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"delete from usersettings.AnalitFVersionRules");
 		}
 
@@ -55,7 +57,7 @@ namespace Integration
 			DeleteVersions();
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 insert into usersettings.AnalitFVersionRules
 (SourceVersion, DestinationVersion)
@@ -88,7 +90,7 @@ values
 		{
 			var realVersionCount = Convert.ToInt32(
 				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select count(*) from UserSettings.AnalitFVersionRules"));
 
 			var rulesRepository = IoC.Resolve<IVersionRuleRepository>();
@@ -203,7 +205,7 @@ values
 			var appVersion = "1.1.1.1378";
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 delete from usersettings.AnalitFVersionRules
 where
@@ -280,7 +282,7 @@ where
 			var appVersion = "1.1.1." + fromVersion;
 
 			MySqlHelper.ExecuteNonQuery(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 update Customers.Users
 set

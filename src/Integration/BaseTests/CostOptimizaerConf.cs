@@ -1,7 +1,9 @@
 using System;
+using Common.MySql;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
 using Test.Support;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration.BaseTests
 {
@@ -17,7 +19,7 @@ namespace Integration.BaseTests
 			if (supplierId != 0)
 				conf.OptimizationSupplierId = supplierId;
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				MySqlHelper.ExecuteNonQuery(

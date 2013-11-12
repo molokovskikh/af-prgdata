@@ -7,6 +7,7 @@ using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using log4net;
@@ -30,6 +31,7 @@ using MySql.Data.MySqlClient;
 using System.Data;
 using NHibernate.Criterion;
 using LumiSoft.Net.IMAP.Client;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -114,7 +116,7 @@ namespace Integration
 
 		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId, uint? buildNumber = null)
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, login);
@@ -182,7 +184,7 @@ namespace Integration
 		[Test]
 		public void Check_AnalitFReplicationInfo_after_GetUserData()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var ExistsFirms = MySqlHelper.ExecuteScalar(
 					connection,
@@ -209,7 +211,7 @@ where
 
 			CheckGetUserData(user.Login);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				MySqlHelper.ExecuteNonQuery(
 					connection,
@@ -258,7 +260,7 @@ and afi.ForceReplication = 0",
 
 			CommitExchange();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
 					connection,
@@ -352,7 +354,7 @@ and afi.ForceReplication > 0",
 			Thread.Sleep(3000);
 
 			var dbUpdateTime = Convert.ToDateTime(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				@"
 select 
   uui.UpdateDate 

@@ -45,7 +45,7 @@ namespace Integration
 			}
 
 			costOptimizaerConf = CostOptimizaerConf.MakeUserOptimazible(_user);
-			connection = new MySqlConnection(Settings.ConnectionString());
+			connection = new MySqlConnection(ConnectionHelper.GetConnectionString());
 			connection.Open();
 		}
 

@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Common.Tools.Calendar;
 using Inforoom.Common;
@@ -13,6 +14,7 @@ using System.Data;
 using PrgData.Common;
 using Test.Support;
 using Test.Support.Logs;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -35,7 +37,7 @@ namespace Integration
 		{
 			InitClient();
 
-			MySqlHelper.ExecuteNonQuery(Settings.ConnectionString(), @"
+			MySqlHelper.ExecuteNonQuery(ConnectionHelper.GetConnectionString(), @"
 delete 
 from orders.OrdersHead 
 where 
@@ -59,7 +61,7 @@ and WriteTime > now() - interval 2 week",
 		private void GetOffers()
 		{
 			if (!getOffers)
-				using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+				using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 					connection.Open();
 
 					MySqlHelper.ExecuteNonQuery(
@@ -251,7 +253,7 @@ limit 1
 		[Test(Description = "Отправляем заказы с указанием отсрочки платежа")]
 		public void SendOrdersWithDelays()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
@@ -343,7 +345,7 @@ where
 				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(-20.0m));
 
 				var orderItem = MySqlHelper.ExecuteDataRow(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 select 
   orderslist.* 
@@ -362,7 +364,7 @@ limit 1
 		[Test(Description = "Отправляем заказы без указания отсрочки платежа")]
 		public void SendOrdersWithRetailCostAndNullDelayOfPayment()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var serverResponse = PostOrder();
 
@@ -402,7 +404,7 @@ where
 				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(0m));
 
 				var orderItem = MySqlHelper.ExecuteDataRow(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 select 
   orderslist.* 
@@ -421,7 +423,7 @@ limit 1
 		[Test(Description = "Отправляем заказы с указанием отсрочки платежа")]
 		public void SendOrdersWithRetailCost()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var UniqueId = MySqlHelper.ExecuteScalar(connection, "select AFCopyId from usersettings.UserUpdateInfo where UserId = " + _user.Id).ToString();
@@ -511,7 +513,7 @@ where
 				Assert.That(vitallyImportantDelayOfPayment, Is.EqualTo(0m));
 
 				var orderItem = MySqlHelper.ExecuteDataRow(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					@"
 select 
   orderslist.* 

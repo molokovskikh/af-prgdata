@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
 using NUnit.Framework;
@@ -8,6 +9,7 @@ using PrgData.Common;
 using Test.Support;
 using PrgData;
 using MySql.Data.MySqlClient;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -29,7 +31,7 @@ namespace Integration
 		{
 			SetCurrentUser(_user.Login);
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);

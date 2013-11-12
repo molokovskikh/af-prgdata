@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using MySql.Data.MySqlClient;
@@ -85,7 +86,7 @@ namespace Integration
 		[Test(Description = "Попытка разбора полученного от пользователя 12061 архива"), Ignore("Разбор конкретной проблемы")]
 		public void ParseErrorArchive()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -124,7 +125,7 @@ namespace Integration
 		[Test(Description = "После работы Handler'а не должно быть новых файлов в папке с временными файлами")]
 		public void EmptyTempFoldersAfterWork()
 		{
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);

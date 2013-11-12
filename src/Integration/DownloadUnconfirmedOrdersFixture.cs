@@ -9,6 +9,7 @@ using System.Threading;
 using Castle.ActiveRecord;
 using Common.Models;
 using Common.Models.Tests;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
@@ -28,6 +29,8 @@ using PrgData.Common.Orders;
 using Test.Support;
 using Test.Support.Helpers;
 using Test.Support.Logs;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
+using With = Common.Models.With;
 
 namespace Integration
 {
@@ -106,7 +109,7 @@ namespace Integration
 
 			RegisterLogger();
 
-			connection = new MySqlConnection(Settings.ConnectionString());
+			connection = new MySqlConnection(ConnectionHelper.GetConnectionString());
 			connection.Open();
 		}
 
@@ -394,13 +397,13 @@ namespace Integration
 
 			var deletedStatus = Convert.ToBoolean(
 				MySqlHelper.ExecuteScalar(
-					Settings.ConnectionString(),
+					ConnectionHelper.GetConnectionString(),
 					"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 					new MySqlParameter("?OrderId", order.RowId)));
 			Assert.That(deletedStatus, Is.True, "Неподтвержденный заказ {0} не помечен как удаленный", order.RowId);
 
 			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", simpleUpdateId)));
 			Assert.That(addition, Is.StringContaining("Экспортированные неподтвержденные заказы: {0}".Format(order.RowId)), "Неподтвержденный заказ {0} не содержится в поле Addition", order.RowId);
@@ -469,7 +472,7 @@ namespace Integration
 			Thread.Sleep(3000);
 
 			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", simpleUpdateId)));
 			Assert.That(addition, Is.Not.StringContaining("Экспортированные неподтвержденные заказы: "), "Список экспортированных неподтвержденные заказов должен быть пустым");
@@ -522,7 +525,7 @@ namespace Integration
 			CheckOrderStatus(Tuple.Create(firstOrder, true), Tuple.Create(secondOrder, true), Tuple.Create(thirdOrder, false));
 
 			var addition = Convert.ToString(MySqlHelper.ExecuteScalar(
-				Settings.ConnectionString(),
+				ConnectionHelper.GetConnectionString(),
 				"select Addition from logs.AnalitFUpdates where UpdateId = ?UpdateId",
 				new MySqlParameter("?UpdateId", firstUpdateId)));
 			Assert.That(
@@ -673,7 +676,7 @@ namespace Integration
 			foreach (var order in orders) {
 				var deletedStatusFirst = Convert.ToBoolean(
 					MySqlHelper.ExecuteScalar(
-						Settings.ConnectionString(),
+						ConnectionHelper.GetConnectionString(),
 						"select Deleted from orders.OrdersHead where RowId = ?OrderId",
 						new MySqlParameter("?OrderId", order.Item1.RowId)));
 				Assert.That(deletedStatusFirst, Is.EqualTo(order.Item2), "Неподтвержденный заказ {0} не помечен как удаленный", order.Item1.RowId);

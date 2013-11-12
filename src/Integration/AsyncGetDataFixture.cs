@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
 using MySql.Data.MySqlClient;
@@ -12,6 +13,7 @@ using PrgData.Common;
 using Test.Support;
 using Test.Support.Logs;
 using log4net.Core;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -131,7 +133,7 @@ namespace Integration
 				log.Save();
 			}
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
@@ -263,7 +265,7 @@ namespace Integration
 		private void checkConnectionList()
 		{
 			var processSql = "show full processlist";
-			var connections = MySqlHelper.ExecuteDataset(Settings.ConnectionString(), processSql);
+			var connections = MySqlHelper.ExecuteDataset(ConnectionHelper.GetConnectionString(), processSql);
 
 			var dump = DebugReplicationHelper.TableToString(connections, connections.Tables[0].TableName);
 			Assert.That(connections.Tables[0].Rows.Count == 1 && connections.Tables[0].Rows[0]["Info"].ToString().Trim() == processSql, "В списке процессов содержаться неожидаемые соединения:\r\n{0}", dump);

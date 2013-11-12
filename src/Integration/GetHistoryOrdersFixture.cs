@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using Integration.BaseTests;
@@ -11,10 +12,10 @@ using Test.Support;
 using PrgData;
 using System;
 using System.Text.RegularExpressions;
-using MySql.Data.MySqlClient;
 using System.Data;
 using NHibernate.Criterion;
 using Test.Support.Documents;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -85,7 +86,7 @@ namespace Integration
 
 			if (!_fullHistory) {
 				var commit =
-					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+					Convert.ToBoolean(MySqlHelper.ExecuteScalar(ConnectionHelper.GetConnectionString(),
 						"select Commit from logs.AnalitFUpdates where UpdateId = " +
 							_lastUpdateId));
 				Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
@@ -93,7 +94,7 @@ namespace Integration
 				CommitExchange();
 
 				commit =
-					Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+					Convert.ToBoolean(MySqlHelper.ExecuteScalar(ConnectionHelper.GetConnectionString(),
 						"select Commit from logs.AnalitFUpdates where UpdateId = " +
 							_lastUpdateId));
 				Assert.IsTrue(commit, "Запрос с историей заказов считается неподтвержденным");
@@ -122,7 +123,7 @@ namespace Integration
 			}
 
 			var commit =
-				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+				Convert.ToBoolean(MySqlHelper.ExecuteScalar(ConnectionHelper.GetConnectionString(),
 					"select Commit from logs.AnalitFUpdates where UpdateId = " +
 						_lastUpdateId));
 			Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
@@ -137,7 +138,7 @@ namespace Integration
 			CommitExchange();
 
 			commit =
-				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+				Convert.ToBoolean(MySqlHelper.ExecuteScalar(ConnectionHelper.GetConnectionString(),
 					"select Commit from logs.AnalitFUpdates where UpdateId = " +
 						_lastUpdateId));
 			Assert.IsTrue(commit, "Запрос с историей заказов считается неподтвержденным");
@@ -170,7 +171,7 @@ namespace Integration
 			}
 
 			var commit =
-				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+				Convert.ToBoolean(MySqlHelper.ExecuteScalar(ConnectionHelper.GetConnectionString(),
 					"select Commit from logs.AnalitFUpdates where UpdateId = " +
 						_lastUpdateId));
 			Assert.IsFalse(commit, "Запрос с историей заказов считается подтвержденным");
@@ -178,7 +179,7 @@ namespace Integration
 			CommitExchange();
 
 			commit =
-				Convert.ToBoolean(MySqlHelper.ExecuteScalar(Settings.ConnectionString(),
+				Convert.ToBoolean(MySqlHelper.ExecuteScalar(ConnectionHelper.GetConnectionString(),
 					"select Commit from logs.AnalitFUpdates where UpdateId = " +
 						_lastUpdateId));
 			Assert.IsTrue(commit, "Запрос с историей заказов считается неподтвержденным");

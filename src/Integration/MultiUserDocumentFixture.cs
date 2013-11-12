@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Castle.ActiveRecord;
+using Common.MySql;
 using Common.Tools;
 using Inforoom.Common;
 using MySql.Data.MySqlClient;
@@ -20,6 +21,7 @@ using PrgData.Common;
 using Test.Support;
 using Test.Support.Documents;
 using Test.Support.Logs;
+using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -924,7 +926,7 @@ namespace Integration
 		{
 			var user = client.Users[0];
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -942,7 +944,7 @@ namespace Integration
 
 			SendWaybill();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var helper = new UpdateHelper(updateData, connection);
@@ -960,7 +962,7 @@ namespace Integration
 
 			SendWaybill();
 
-			using (var connection = new MySqlConnection(Settings.ConnectionString())) {
+			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var helper = new UpdateHelper(updateData, connection);
