@@ -74,35 +74,35 @@ namespace PrgData.Common.Orders
 			ExportedOrders = Data.UnconfirmedOrders
 				.GroupBy(info => new { info.Order.AddressId, info.Order.PriceList.PriceCode, info.Order.RegionCode })
 				.Select(
-				g => {
-					var firstOrderInfo = g.OrderBy(o => o.Order.WriteTime).First();
-					firstOrderInfo.ClientOrderId = maxOrderId;
-					maxOrderId++;
-					if (g.Count() > 1) {
-						foreach (var orderInfo in g) {
-							//в группировке g содержится и первый заказ, поэтому при обработке его исключаем
-							if (orderInfo != firstOrderInfo) {
-								orderInfo.ClientOrderId = firstOrderInfo.ClientOrderId;
-								//переносим все позиции из заказов из группировки в первый заказ в группировке
-								for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
+					g => {
+						var firstOrderInfo = g.OrderBy(o => o.Order.WriteTime).First();
+						firstOrderInfo.ClientOrderId = maxOrderId;
+						maxOrderId++;
+						if (g.Count() > 1) {
+							foreach (var orderInfo in g) {
+								//в группировке g содержится и первый заказ, поэтому при обработке его исключаем
+								if (orderInfo != firstOrderInfo) {
+									orderInfo.ClientOrderId = firstOrderInfo.ClientOrderId;
+									//переносим все позиции из заказов из группировки в первый заказ в группировке
+									for (int i = orderInfo.Order.OrderItems.Count - 1; i >= 0; i--) {
 										var item = orderInfo.Order.OrderItems[i];
 										orderInfo.Order.RemoveItem(item);
 										item.Order = firstOrderInfo.Order;
 										firstOrderInfo.Order.OrderItems.Add(item);
 									}
+								}
 							}
+
+							firstOrderInfo.Order.RowCount = (uint)firstOrderInfo.Order.OrderItems.Count;
+							var unionClientAddition = g
+								.Where(i => !String.IsNullOrWhiteSpace(i.Order.ClientAddition))
+								.Select(i => i.Order.UserId + ": " + i.Order.ClientAddition)
+								.Implode(" | ");
+							firstOrderInfo.Order.ClientAddition = unionClientAddition;
 						}
 
-						firstOrderInfo.Order.RowCount = (uint)firstOrderInfo.Order.OrderItems.Count;
-						var unionClientAddition = g
-							.Where(i => !String.IsNullOrWhiteSpace(i.Order.ClientAddition))
-							.Select(i => i.Order.UserId + ": " + i.Order.ClientAddition)
-							.Implode(" | ");
-						firstOrderInfo.Order.ClientAddition = unionClientAddition;
-					}
-
-					return firstOrderInfo;
-				}).ToList();
+						return firstOrderInfo;
+					}).ToList();
 		}
 
 		public void LoadOrders()

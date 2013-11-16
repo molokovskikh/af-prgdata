@@ -39,7 +39,7 @@ namespace PrgData.Common.Orders
 			bool forceSend,
 			uint orderedClientCode,
 			bool useCorrectOrders) :
-			base(data, readWriteConnection)
+				base(data, readWriteConnection)
 		{
 			_forceSend = forceSend;
 			_orderedClientCode = orderedClientCode;
@@ -61,7 +61,7 @@ namespace PrgData.Common.Orders
 			try {
 				helper.Check();
 			}
-			catch(global::Common.Models.OrderException e) {
+			catch (global::Common.Models.OrderException e) {
 				throw new UpdateException(e.Message, "", RequestType.Forbidden);
 			}
 		}
@@ -255,7 +255,10 @@ values
 								}
 							});
 
-					clientOrder.Positions.ForEach(position => { if (!position.Duplicated) position.PrepareBeforPost(session); });
+					clientOrder.Positions.ForEach(position => {
+						if (!position.Duplicated)
+							position.PrepareBeforPost(session);
+					});
 				});
 		}
 
@@ -349,7 +352,7 @@ values
 							return
 								order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
 									order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
-										item.Id.CoreId.ToString().Equals(position.ClientServerCoreID.ToString());
+									item.Id.CoreId.ToString().Equals(position.ClientServerCoreID.ToString());
 						});
 				else
 					//Если длина в символах = 9, то ищем с конца
@@ -358,7 +361,7 @@ values
 							return
 								order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
 									order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
-										item.Id.CoreId.ToString().EndsWith(position.ClientServerCoreID.ToString());
+									item.Id.CoreId.ToString().EndsWith(position.ClientServerCoreID.ToString());
 						});
 
 			if (clientServerCoreIdOffers.Count == 1)
@@ -370,16 +373,16 @@ values
 						return
 							order.Order.ActivePrice.Id.Price.PriceCode.Equals(item.PriceList.Id.Price.PriceCode) &&
 								order.Order.RegionCode.Equals(item.PriceList.Id.RegionCode) &&
-									item.ProductId == newOrder.ProductId &&
-										item.SynonymCode == newOrder.SynonymCode &&
-											item.SynonymFirmCrCode == newOrder.SynonymFirmCrCode &&
-												item.Code == newOrder.Code &&
-													item.CodeCr == newOrder.CodeCr &&
-														item.Junk == newOrder.Junk &&
-															item.Await == newOrder.Await &&
-																item.RequestRatio == newOrder.RequestRatio &&
-																	newOrder.OrderCost == item.OrderCost &&
-																		item.MinOrderCount == newOrder.MinOrderCount;
+								item.ProductId == newOrder.ProductId &&
+								item.SynonymCode == newOrder.SynonymCode &&
+								item.SynonymFirmCrCode == newOrder.SynonymFirmCrCode &&
+								item.Code == newOrder.Code &&
+								item.CodeCr == newOrder.CodeCr &&
+								item.Junk == newOrder.Junk &&
+								item.Await == newOrder.Await &&
+								item.RequestRatio == newOrder.RequestRatio &&
+								newOrder.OrderCost == item.OrderCost &&
+								item.MinOrderCount == newOrder.MinOrderCount;
 					});
 				if (filterOffers.Count > 0)
 					return filterOffers[0];
@@ -556,9 +559,9 @@ values
 						DelayOfPayment =
 							String.IsNullOrEmpty(delayOfPayment[i]) ? 0m : decimal
 								.Parse(
-								delayOfPayment[i],
-								System.Globalization.NumberStyles.Currency,
-								System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
+									delayOfPayment[i],
+									System.Globalization.NumberStyles.Currency,
+									System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
 					};
 
 					var clientOrder =
@@ -569,9 +572,9 @@ values
 							VitallyImportantDelayOfPayment =
 								String.IsNullOrEmpty(vitallyImportantDelayOfPayment[i]) ? 0m : decimal
 									.Parse(
-									vitallyImportantDelayOfPayment[i],
-									System.Globalization.NumberStyles.Currency,
-									System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
+										vitallyImportantDelayOfPayment[i],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat)
 						};
 
 					var currentRowCount = rowCount[i];
@@ -598,9 +601,9 @@ values
 							OrderCost =
 								String.IsNullOrEmpty(orderCost[detailIndex]) ? null : (float?)float
 									.Parse(
-									orderCost[detailIndex],
-									System.Globalization.NumberStyles.Currency,
-									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+										orderCost[detailIndex],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 							MinOrderCount =
 								String.IsNullOrEmpty(minOrderCount[detailIndex]) ? null : (uint?)uint.Parse(minOrderCount[detailIndex]),
 							Cost = Convert.ToSingle(cost[detailIndex]),
@@ -613,16 +616,16 @@ values
 							RegistryCost =
 								String.IsNullOrEmpty(registryCost[detailIndex]) ? null : (float?)float
 									.Parse(
-									registryCost[detailIndex],
-									System.Globalization.NumberStyles.Currency,
-									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+										registryCost[detailIndex],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 							VitallyImportant = vitallyImportant[detailIndex],
 							ProducerCost =
 								String.IsNullOrEmpty(producerCost[detailIndex]) ? null : (float?)float
 									.Parse(
-									producerCost[detailIndex],
-									System.Globalization.NumberStyles.Currency,
-									System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+										producerCost[detailIndex],
+										System.Globalization.NumberStyles.Currency,
+										System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 							EAN13 = ean13[detailIndex],
 							CodeOKP = codeOKP[detailIndex],
 							Series = series[detailIndex],
@@ -635,17 +638,17 @@ values
 									MinCost =
 										String.IsNullOrEmpty(minCost[detailIndex]) ? null : (float?)float
 											.Parse(
-											minCost[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+												minCost[detailIndex],
+												System.Globalization.NumberStyles.Currency,
+												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 									PriceCode =
 										String.IsNullOrEmpty(minPriceCode[detailIndex]) ? null : (uint?)uint.Parse(minPriceCode[detailIndex]),
 									LeaderMinCost =
 										String.IsNullOrEmpty(leaderMinCost[detailIndex]) ? null : (float?)float
 											.Parse(
-											leaderMinCost[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+												leaderMinCost[detailIndex],
+												System.Globalization.NumberStyles.Currency,
+												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 									LeaderPriceCode =
 										String.IsNullOrEmpty(leaderMinPriceCode[detailIndex]) ? null : (uint?)uint.Parse(leaderMinPriceCode[detailIndex]),
 								};
@@ -667,17 +670,17 @@ values
 										? null
 										: (float?)float
 											.Parse(
-											retailMarkup[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+												retailMarkup[detailIndex],
+												System.Globalization.NumberStyles.Currency,
+												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 								SupplierPriceMarkup =
 									String.IsNullOrEmpty(supplierPriceMarkup[detailIndex])
 										? null
 										: (float?)float
 											.Parse(
-											supplierPriceMarkup[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+												supplierPriceMarkup[detailIndex],
+												System.Globalization.NumberStyles.Currency,
+												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 								NDS =
 									String.IsNullOrEmpty(nds[detailIndex]) ? null : (ushort?)ushort.Parse(nds[detailIndex]),
 								RetailCost =
@@ -685,9 +688,9 @@ values
 										? null
 										: (float?)float
 											.Parse(
-											retailCost[detailIndex],
-											System.Globalization.NumberStyles.Currency,
-											System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
+												retailCost[detailIndex],
+												System.Globalization.NumberStyles.Currency,
+												System.Globalization.CultureInfo.InvariantCulture.NumberFormat),
 								CostWithDelayOfPayment = Convert.ToSingle(costWithDelayOfPayment[detailIndex]),
 							};
 
@@ -714,9 +717,9 @@ values
 						? 0m
 						: decimal
 							.Parse(
-							delayOfPayment[i],
-							System.Globalization.NumberStyles.Currency,
-							System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+								delayOfPayment[i],
+								System.Globalization.NumberStyles.Currency,
+								System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
 					for (uint detailIndex = detailsPosition; detailIndex < (detailsPosition + rowCount[i]); detailIndex++) {
 						results[detailIndex] = cost[detailIndex] * (1m + delay / 100m);
 					}

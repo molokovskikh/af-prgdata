@@ -23,10 +23,7 @@ namespace PrgData.Common.Models
 
 		public override RequestType[] AllowedArchiveRequests
 		{
-			get
-			{
-				return base.AllowedArchiveRequests.Concat(new[] { RequestType.RequestAttachments }).ToArray();
-			}
+			get { return base.AllowedArchiveRequests.Concat(new[] { RequestType.RequestAttachments }).ToArray(); }
 		}
 
 		public override void Export()

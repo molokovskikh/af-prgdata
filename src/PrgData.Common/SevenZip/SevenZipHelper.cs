@@ -21,10 +21,10 @@ namespace PrgData.Common.SevenZip
 				startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866);
 				startInfo.Arguments = String
 					.Format(
-					" a \"{0}\" \"{1}\" {2}",
-					archiveFileName,
-					fileMask,
-					SevenZipParam + " -w" + Path.GetTempPath());
+						" a \"{0}\" \"{1}\" {2}",
+						archiveFileName,
+						fileMask,
+						SevenZipParam + " -w" + Path.GetTempPath());
 
 				startInfo.FileName = SevenZipExe;
 

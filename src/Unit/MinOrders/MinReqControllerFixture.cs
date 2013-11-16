@@ -75,7 +75,7 @@ namespace Unit.MinOrders
 			var address = new Address(client);
 			user.AvaliableAddresses.Add(address);
 			clientOrder.Order = new Order(new ActivePrice { Id = new PriceKey(new PriceList()) }, user, new OrderRules());
-			clientOrder.Order.AddOrderItem(new Offer {Id = new OfferKey(654654879879, 1), Cost = sum}, 1);
+			clientOrder.Order.AddOrderItem(new Offer { Id = new OfferKey(654654879879, 1), Cost = sum }, 1);
 
 			Assert.That(clientOrder.Order.CalculateSum(), Is.EqualTo(sum));
 			clientOrder.SendResult = OrderSendResult.Success;
@@ -226,9 +226,7 @@ namespace Unit.MinOrders
 			_controlMinReq = true;
 			_minReq = 9;
 			_minReordering = 1;
-			SetContext(() => {
-				_minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any();
-			});
+			SetContext(() => { _minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any(); });
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
@@ -242,9 +240,7 @@ namespace Unit.MinOrders
 			_controlMinReq = true;
 			_minReq = 15;
 			_minReordering = 6;
-			SetContext(() => {
-				_minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any();
-			});
+			SetContext(() => { _minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any(); });
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);

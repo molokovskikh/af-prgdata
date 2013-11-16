@@ -30,7 +30,10 @@ namespace PrgData.Common
 		public bool ShowAdvertising { get; set; }
 		public UpdateData UpdateData { get; set; }
 
-		public string DefaultReclameFolder { get { return Region + "_" + RegionCode; } }
+		public string DefaultReclameFolder
+		{
+			get { return Region + "_" + RegionCode; }
+		}
 
 		public Reclame()
 		{
@@ -954,7 +957,7 @@ limit 1";
 
 		public string TechOperatingDateSubstring(string dateColumn, string biasColumn, string separator)
 		{
-			if(String.IsNullOrEmpty(dateColumn)
+			if (String.IsNullOrEmpty(dateColumn)
 				|| String.IsNullOrEmpty(biasColumn)
 				|| String.IsNullOrEmpty(separator))
 				return "";
@@ -975,13 +978,13 @@ substring({0}, instr({0}, '{1}'), length({0})))", dateColumn, separator, resultH
 (select {0} FROM usersettings.defaults a, farm.regions r where r.RegionCode = regions.RegionCode) as TechOperatingMode ",
 							String.Format("replace(replace(a.TechOperatingModeTemplate, '{{0}}', {0}), '{{1}}', {1})",
 								TechOperatingDateSubstring("a.TechOperatingModeBegin", "r.MoscowBias", "."),
-									TechOperatingDateSubstring("a.TechOperatingModeEnd", "r.MoscowBias", ".")))
+								TechOperatingDateSubstring("a.TechOperatingModeEnd", "r.MoscowBias", ".")))
 						: String.Format(", c.RegionCode as HomeRegion, concat('<tr> <td class=\"contactText\">', regions.TechContact, '</td> </tr>') as TechContact," +
 							"concat('<tr> <td class=\"contactText\">'," +
 							"(select {0} FROM usersettings.defaults a, farm.regions r where r.RegionCode = regions.RegionCode), '</td> </tr>') as TechOperatingMode ",
 							String.Format("replace(replace(a.TechOperatingModeTemplate, '{{0}}', {0}), '{{1}}', {1})",
 								TechOperatingDateSubstring("a.TechOperatingModeBegin", "r.MoscowBias", "."),
-									TechOperatingDateSubstring("a.TechOperatingModeEnd", "r.MoscowBias", ".")));
+								TechOperatingDateSubstring("a.TechOperatingModeEnd", "r.MoscowBias", ".")));
 
 			return String.Format(@"
 SELECT 
@@ -1833,7 +1836,7 @@ FROM
 ";
 				else
 					sql = String.Format(
-							@"
+						@"
 SELECT 
 	   ?ImpersonalPriceId               ,
 	   ?OffersRegionCode                ,
@@ -1906,10 +1909,10 @@ FROM
 group by  @RowId
 {3}
 ",
-							matrixParts.Select,
-							matrixParts.Join,
-							matrixParts.JoinWithoutProducer,
-							matrixParts.Having);
+						matrixParts.Select,
+						matrixParts.Join,
+						matrixParts.JoinWithoutProducer,
+						matrixParts.Having);
 			else {
 				sql = String.Format(@"
 SELECT CT.PriceCode               ,
@@ -1942,7 +1945,7 @@ SELECT CT.PriceCode               ,
 	   {5}
 	   {6}
 ",
-						exportSupplierPriceMarkup ? @"
+					exportSupplierPriceMarkup ? @"
 , 
 if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
    null, 
@@ -1956,12 +1959,12 @@ if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
 ) as SupplierPriceMarkup,
 Core.ProducerCost,
 Core.NDS " : "",
-						matrixParts.Select,
-						cryptCost ? "CT.CryptCost" : "CT.Cost",
-						exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
-						_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
-						_updateData.SupportExportExp() ? ", Core.Exp " : "",
-						string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty));
+					matrixParts.Select,
+					cryptCost ? "CT.CryptCost" : "CT.Cost",
+					exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
+					_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
+					_updateData.SupportExportExp() ? ", Core.Exp " : "",
+					string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty));
 			}
 
 			log.Debug(sql);

@@ -70,10 +70,7 @@ from usersettings.SupplierPromotions sp
 
 		private bool SendAllData
 		{
-			get
-			{
-				return updateData.Cumulative || updateData.NeedUpdateToSupplierPromotions;
-			}
+			get { return updateData.Cumulative || updateData.NeedUpdateToSupplierPromotions; }
 		}
 
 		public string GetPromotionsCommandById(List<uint> promotionIds)

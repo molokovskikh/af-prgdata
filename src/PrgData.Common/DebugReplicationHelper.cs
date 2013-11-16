@@ -182,10 +182,10 @@ group by c.PriceCode, c.RegionCode
 		{
 			var body = String
 				.Format(
-				"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}\r\nПричины:\r\n{2}",
-				_updateData.UserName,
-				_updateData.OldUpdateTime,
-				_reasons.Implode("\r\n"));
+					"Проблема возникла у пользователя: {0}\r\nпри подготовке обновления от : {1}\r\nПричины:\r\n{2}",
+					_updateData.UserName,
+					_updateData.OldUpdateTime,
+					_reasons.Implode("\r\n"));
 			var attachment = DumpTables();
 
 			MailHelper.Mail(body, "при подготовке данных возникли различия во Fresh между PricesData и Core", attachment, null);

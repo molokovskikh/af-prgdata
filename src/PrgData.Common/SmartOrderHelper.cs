@@ -326,15 +326,15 @@ namespace PrgData.Common
 				.AddInputStream(HbmSerializer.Default.Serialize(typeof(AnalitFVersionRule).Assembly));
 			IoC.Initialize(new WindsorContainer()
 				.Register(
-				Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
-				Component.For<RepositoryInterceptor>(),
-				Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)),
-				Component.For<IOrderFactoryRepository>().ImplementedBy<OrderFactoryRepository>(),
-				Component.For<IOfferRepository>().ImplementedBy<OfferRepository>(),
-				Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
-				Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
-				Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
-				Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()));
+					Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
+					Component.For<RepositoryInterceptor>(),
+					Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)),
+					Component.For<IOrderFactoryRepository>().ImplementedBy<OrderFactoryRepository>(),
+					Component.For<IOfferRepository>().ImplementedBy<OfferRepository>(),
+					Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
+					Component.For<ISmartOfferRepository>().ImplementedBy<SmartOfferRepository>(),
+					Component.For<IOrderFactory>().ImplementedBy<SmartOrderFactory.SmartOrderFactory>(),
+					Component.For<IVersionRuleRepository>().ImplementedBy<VersionRuleRepository>()));
 		}
 	}
 }

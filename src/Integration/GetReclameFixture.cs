@@ -90,14 +90,14 @@ namespace Integration
 		private DateTime SetReclameDir(string region, bool deleteOld = true)
 		{
 			var mainReclameDir = resultsDir + "Reclame";
-			if(deleteOld) {
+			if (deleteOld) {
 				if (Directory.Exists(mainReclameDir))
 					FileHelper.DeleteDir(mainReclameDir);
 
 				Directory.CreateDirectory(mainReclameDir);
 			}
 			var regionReclameDir = Path.Combine(mainReclameDir, region);
-			if(deleteOld)
+			if (deleteOld)
 				Directory.CreateDirectory(regionReclameDir);
 
 			File.WriteAllText(Path.Combine(regionReclameDir, "index.htm"), "contents index.htm");
@@ -133,11 +133,11 @@ namespace Integration
 				Assert.IsNotNullOrEmpty(reclame.Region, "Не установлен регион рекламы");
 				Assert.That(reclame.ReclameDate, Is.EqualTo(new DateTime(2003, 1, 1)), "Дата рекламы не установлена");
 
-				if(reclameFolder == null)
+				if (reclameFolder == null)
 					reclameFolder = reclame.DefaultReclameFolder;
 				var maxFileTime = SetReclameDir(reclameFolder);
 				// Создаем несколько папок в директории с рекламой для "шума"
-				if(createWrongReclameFolder)
+				if (createWrongReclameFolder)
 					CreateWrongReclameFolders(reclameFolder);
 
 				SetCurrentUser(login);

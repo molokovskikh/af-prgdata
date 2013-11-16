@@ -41,10 +41,10 @@ namespace PrgData.Common
 			catch (Exception exception) {
 				logger
 					.ErrorFormat(
-					"Ошибка при отправке письма:{0}\r\nТема:{1}\r\nТело письма:{2}",
-					exception,
-					subject,
-					messageText);
+						"Ошибка при отправке письма:{0}\r\nТема:{1}\r\nТело письма:{2}",
+						exception,
+						subject,
+						messageText);
 			}
 		}
 

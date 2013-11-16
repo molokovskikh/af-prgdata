@@ -141,10 +141,10 @@ namespace Integration
 				startInfo.StandardErrorEncoding = System.Text.Encoding.GetEncoding(866);
 				startInfo.Arguments = String
 					.Format(
-					"/c net use {0} {1} /user:{2}",
-					share,
-					password,
-					userName);
+						"/c net use {0} {1} /user:{2}",
+						share,
+						password,
+						userName);
 
 				process.StartInfo = startInfo;
 

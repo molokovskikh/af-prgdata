@@ -730,9 +730,9 @@ limit 1
 		{
 			return Convert.ToInt32(MySqlHelper
 				.ExecuteScalar(
-				connection,
-				"select count(*) from orders.orderslist where OrderId = ?OrderId",
-				new MySqlParameter("?OrderId", orderId)));
+					connection,
+					"select count(*) from orders.orderslist where OrderId = ?OrderId",
+					new MySqlParameter("?OrderId", orderId)));
 		}
 
 		public void Check_simple_double_order(string userName, uint orderedClientId)
@@ -905,9 +905,9 @@ limit 1
 
 				var countWithSynonymNull = MySqlHelper
 					.ExecuteScalar(
-					connection,
-					"select count(*) from orders.OrdersList ol where ol.OrderId = ?OrderId and ol.SynonymCode is null and ol.SynonymFirmCrCode is null",
-					new MySqlParameter("?OrderId", firstServerOrderId));
+						connection,
+						"select count(*) from orders.OrdersList ol where ol.OrderId = ?OrderId and ol.SynonymCode is null and ol.SynonymFirmCrCode is null",
+						new MySqlParameter("?OrderId", firstServerOrderId));
 				Assert.That(countWithSynonymNull, Is.EqualTo(2), "Не совпадает кол-во позиций в заказе, у которых поля SynonymCode SynonymFirmCr в null");
 			}
 		}

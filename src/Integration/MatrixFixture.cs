@@ -324,9 +324,7 @@ limit 1;")
 		public void AllOffers()
 		{
 			CheckOffers(
-				(helper, coreTable) => {
-					CheckRowCount(coreTable);
-				});
+				(helper, coreTable) => { CheckRowCount(coreTable); });
 		}
 
 		[Test(Description = "проверяем работу белой матрицы закупок")]
@@ -393,13 +391,13 @@ limit 1;")
 			Close();
 
 			CheckOffers((helper, coreTable) => {
-					var offers = coreTable.Select("ProductId = {0}".Format(supplierProduct));
-					Assert.AreEqual(offers.Length, 2);
-					Assert.That(Convert.ToInt32(offers[0]["BuyingMatrixType"]), Is.EqualTo((int)BuyinMatrixStatus.Allow));
-					Assert.That(Convert.ToInt32(offers[0]["PriceCode"]), Is.EqualTo((int)_buyingPrice.Price.Id));
-					Assert.That(Convert.ToInt32(offers[1]["BuyingMatrixType"]), Is.EqualTo((int)BuyinMatrixStatus.Denied));
-					Assert.That(Convert.ToInt32(offers[1]["PriceCode"]), Is.EqualTo((int)_offerPrice.Price.Id));
-				});
+				var offers = coreTable.Select("ProductId = {0}".Format(supplierProduct));
+				Assert.AreEqual(offers.Length, 2);
+				Assert.That(Convert.ToInt32(offers[0]["BuyingMatrixType"]), Is.EqualTo((int)BuyinMatrixStatus.Allow));
+				Assert.That(Convert.ToInt32(offers[0]["PriceCode"]), Is.EqualTo((int)_buyingPrice.Price.Id));
+				Assert.That(Convert.ToInt32(offers[1]["BuyingMatrixType"]), Is.EqualTo((int)BuyinMatrixStatus.Denied));
+				Assert.That(Convert.ToInt32(offers[1]["PriceCode"]), Is.EqualTo((int)_offerPrice.Price.Id));
+			});
 
 			session.CreateSQLQuery(string.Format("delete from farm.Core0 where ProductId = {0}", supplierProduct)).ExecuteUpdate();
 		}

@@ -12,6 +12,7 @@ namespace Integration
 	public class MakeCostNoLessFixture : IntegrationFixture
 	{
 		private TestSupplier _supplier;
+
 		[SetUp]
 		public void SetUp()
 		{
@@ -54,7 +55,7 @@ CREATE temporary table usersettings.TmpData(
 				var opponentCost = (decimal)obj[1];
 				var resultCost = (decimal)obj[2];
 				var diff = ((selfCost - opponentCost) * 100) / opponentCost;
-				if(selfCost <= 30 || diff > -0.8m || diff < -23) {
+				if (selfCost <= 30 || diff > -0.8m || diff < -23) {
 					// если цена не больше 30 р. или не укладывается в порог, то результат==исходной
 					Assert.That(resultCost, Is.EqualTo(selfCost));
 				}
@@ -68,4 +69,3 @@ CREATE temporary table usersettings.TmpData(
 		}
 	}
 }
-

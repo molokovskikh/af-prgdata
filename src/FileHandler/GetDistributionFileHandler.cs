@@ -6,7 +6,7 @@ using PrgData.Common;
 
 namespace PrgData.FileHandlers
 {
-	public class GetDistributionFileHandler : AbstractHttpHandler,  IHttpHandler
+	public class GetDistributionFileHandler : AbstractHttpHandler, IHttpHandler
 	{
 #if DEBUG
 		//Нужен для тестирования
@@ -76,10 +76,7 @@ namespace PrgData.FileHandlers
 
 		public bool IsReusable
 		{
-			get
-			{
-				return false;
-			}
+			get { return false; }
 		}
 	}
 }

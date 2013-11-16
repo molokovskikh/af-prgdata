@@ -306,6 +306,7 @@ where
 
 			return doc;
 		}
+
 		protected DateTime GetLastUpdateTime(TestUser user)
 		{
 			var simpleUpdateTime = DateTime.Now;
