@@ -39,7 +39,7 @@ namespace PrgData.Common.Orders
 			bool forceSend,
 			uint orderedClientCode,
 			bool useCorrectOrders) :
-				base(data, readWriteConnection)
+			base(data, readWriteConnection)
 		{
 			_forceSend = forceSend;
 			_orderedClientCode = orderedClientCode;
