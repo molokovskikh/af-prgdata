@@ -23,6 +23,11 @@ namespace PrgData.FileHandlers
 
 		protected uint LastLockId;
 
+		public bool IsReusable
+		{
+			get { return false; }
+		}
+
 		protected void CopyStreams(Stream input, Stream output, HttpContext context)
 		{
 			var bytes = new byte[BufferSize];

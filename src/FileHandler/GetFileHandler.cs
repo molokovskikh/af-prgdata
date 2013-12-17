@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Configuration;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Web;
 using Common.MySql;
+using Common.Tools.Helpers;
 using log4net;
 using MySql.Data.MySqlClient;
 using PrgData.Common;
@@ -13,10 +15,17 @@ namespace PrgData.FileHandlers
 {
 	public class GetFileHandler : AbstractHttpHandler, IHttpHandler
 	{
+		public static TimeSpan Filetimeout = TimeSpan.Zero;
+
 		private string _userHost;
 		private long _totalBytes;
 		private long _updateId;
 		private long _fromByte;
+
+		public static void ReadConfig()
+		{
+			TimeSpan.TryParse(ConfigurationManager.AppSettings["Filetimeout"], out Filetimeout);
+		}
 
 		private void LogSend(Exception ex)
 		{
@@ -47,7 +56,6 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 			LogSend(null);
 		}
 
-
 		public void ProcessRequest(HttpContext context)
 		{
 			try {
@@ -67,12 +75,9 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 
 				var fn = ServiceContext.GetResultPath() + UserId + "_" + _updateId + ".zip";
 
-				if (!File.Exists(fn)) {
-					Thread.Sleep(TimeSpan.FromSeconds(3));
-				}
+				WaitHelper.Wait(Filetimeout, () => File.Exists(fn));
 
 				if (!File.Exists(fn)) {
-					Log.DebugFormat("При вызове GetFileHandler не найден файл: {0}", fn);
 					throw new Exception(String.Format("При вызове GetFileHandler не найден файл с подготовленными данными: {0}", fn));
 				}
 
@@ -94,30 +99,13 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 				Log.DebugFormat("Производим протоколирование после передачи файла для пользователя: {0}", UserId);
 				LogSend();
 			}
-			catch (COMException comex) {
-				//-2147024832 - (0x80070040): Указанное сетевое имя более недоступно. (Исключение из HRESULT: 0x80070040)
-				//-2147024775 - (0x80070079): Превышен таймаут семафора. (Исключение из HRESULT: 0x80070079)
-				if (comex.ErrorCode != -2147023901
-					&& comex.ErrorCode != -2147024775
-					&& comex.ErrorCode != -2147024832) {
-					LogSend(comex);
-					Log.Error(String.Format("COMException при запросе получения файла с данными, пользователь: {0}", SUserId), comex);
-				}
-			}
-			catch (HttpException wex) {
-				// 0x800703E3 -2147023901 Удаленный хост разорвал соединение.
-
+			catch (ExternalException wex) {
 				LogSend(wex);
-				if (wex.ErrorCode != -2147014842
-					&& wex.ErrorCode != -2147023901
-					&& wex.ErrorCode != -2147467259
-					&& wex.ErrorCode != -2147024832
-					&& wex.ErrorCode != -2147024775)
+				if (!wex.IsWellKnownException())
 					Log.Error(String.Format("HttpException " + wex.ErrorCode + "  при запросе получения файла с данными, пользователь: {0}", SUserId), wex);
 			}
 			catch (Exception ex) {
 				LogSend(ex);
-
 				if (!(ex is ThreadAbortException)) {
 					context.AddError(ex);
 					Log.Error(String.Format("Exception при запросе получения файла с данными, пользователь: {0}", SUserId), ex);
@@ -129,11 +117,6 @@ values (?UpdateId, ?IP, ?FromByte, ?SendBytes, ?TotalBytes, ?Addition);";
 				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "FileHandler", LastLockId);
 				Log.DebugFormat("Успешно снята блокировка FileHandler для пользователя: {0}", SUserId);
 			}
-		}
-
-		public bool IsReusable
-		{
-			get { return false; }
 		}
 	}
 }

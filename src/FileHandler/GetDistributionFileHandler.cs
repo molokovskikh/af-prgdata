@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Web;
 using PrgData.Common;
@@ -61,7 +62,7 @@ namespace PrgData.FileHandlers
 					context.Response.StatusCode = 404;
 				}
 			}
-			catch (HttpException wex) {
+			catch (ExternalException wex) {
 				if (!wex.IsWellKnownException())
 					Log.ErrorFormat("Запрос на получение файла дистрибутива\r\nErrCode : {0}\r\n{1}", wex.ErrorCode, wex);
 			}
@@ -72,11 +73,6 @@ namespace PrgData.FileHandlers
 					context.Response.StatusCode = 500;
 				}
 			}
-		}
-
-		public bool IsReusable
-		{
-			get { return false; }
 		}
 	}
 }

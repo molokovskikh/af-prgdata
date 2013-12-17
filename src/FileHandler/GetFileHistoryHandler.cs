@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Web;
 using PrgData.Common;
@@ -37,7 +38,7 @@ namespace PrgData.FileHandlers
 				else
 					context.Response.StatusCode = 404;
 			}
-			catch (HttpException wex) {
+			catch (ExternalException wex) {
 				if (!wex.IsWellKnownException())
 					Log.ErrorFormat("Запрос на получение файла с историей заказов\r\nErrCode : {0}\r\n{1}", wex.ErrorCode, wex);
 			}
@@ -51,11 +52,6 @@ namespace PrgData.FileHandlers
 			finally {
 				Counter.ReleaseLock(Convert.ToUInt32(SUserId), "HistoryFileHandler", LastLockId);
 			}
-		}
-
-		public bool IsReusable
-		{
-			get { return false; }
 		}
 	}
 }

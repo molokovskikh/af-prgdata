@@ -1,4 +1,5 @@
-﻿Imports log4net.Config
+﻿Imports PrgData.FileHandlers
+Imports log4net.Config
 Imports log4net
 Imports PrgData.Common
 Imports PrgData.Common.Counters
@@ -8,13 +9,12 @@ Imports System.IO
 
 
 Public Class Global_asax
-    Inherits System.Web.HttpApplication
-
-    Shared Logger As ILog = LogManager.GetLogger(GetType(Global_asax))
+	Inherits HttpApplication
 
 	Sub Application_Start(ByVal sender As Object, ByVal e As EventArgs)
 		XmlConfigurator.Configure()
 		SmartOrderHelper.InitializeIoC()
+		GetFileHandler.ReadConfig()
 
 #If DEBUG Then
         Dim dirs = New String() { _
@@ -36,45 +36,18 @@ Public Class Global_asax
 
         ServiceContext.SetupDebugContext()
 #End If
-		'Logger.Debug("Приложение запущено")
 	End Sub
 
-    Sub Session_Start(ByVal sender As Object, ByVal e As EventArgs)
-    End Sub
-
-    Sub Application_BeginRequest(ByVal sender As Object, ByVal e As EventArgs)
-        ' Fires at the beginning of each request
-    End Sub
-
-    Sub Application_EndRequest(ByVal sender As Object, ByVal e As EventArgs)
-        'Логируем все запросы при статусе 500
-        If Context.Response.StatusCode = 500 Then
+	Sub Application_EndRequest(ByVal sender As Object, ByVal e As EventArgs)
+		'Логируем все запросы при статусе 500
+		If Context.Response.StatusCode = 500 Then
 			Try
 				ThreadContext.Properties("user") = ServiceContext.GetUserName()
 				LogRequestHelper.MailWithRequest(Nothing, "Данный запрос сгенерировал ошибку 500", Nothing)
 			Finally
 				ThreadContext.Properties.Clear()
 			End Try
-        End If
-    End Sub
-
-    Sub Application_AuthorizeRequest(ByVal sender As Object, ByVal e As EventArgs)
-    End Sub
-
-    Sub Application_AuthenticateRequest(ByVal sender As Object, ByVal e As EventArgs)
-        ' Fires upon attempting to authenticate the use
-    End Sub
-
-    Sub Application_Error(ByVal sender As Object, ByVal e As EventArgs)
-        ' Fires when an error occurs
-    End Sub
-
-    Sub Session_End(ByVal sender As Object, ByVal e As EventArgs)
-        ' Fires when the session ends
-    End Sub
-
-    Sub Application_End(ByVal sender As Object, ByVal e As EventArgs)
-        'Logger.Debug("Приложение остановлено")
-    End Sub
+		End If
+	End Sub
 
 End Class
