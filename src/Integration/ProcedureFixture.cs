@@ -908,7 +908,7 @@ select MessageShowCount from usersettings.UserUpdateInfo where UserId = ?UserId"
 			using (new TransactionScope()) {
 				var smartRule = new TestSmartOrderRule();
 				smartRule.OffersClientCode = null;
-				smartRule.AssortimentPriceCode = 4662;
+				smartRule.AssortmentPriceCode = 4662;
 				smartRule.UseOrderableOffers = true;
 				smartRule.ParseAlgorithm = "TestSource";
 				smartRule.SaveAndFlush();
