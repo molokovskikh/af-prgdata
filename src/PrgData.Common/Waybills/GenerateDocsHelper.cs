@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Security;
 using System.ServiceModel;
 using System.Text;
+using Common.Tools;
 using MySql.Data.MySqlClient;
 using System.IO;
 using System.Configuration;
@@ -69,12 +70,12 @@ namespace PrgData.Common.Orders
 			var addressId = MySqlHelper.ExecuteScalar(headerCommand.Connection, "select AddressId from orders.OrdersHead where RowId = " + order.ServerOrderId);
 
 			headerCommand.CommandText = @"
-insert into logs.document_logs 
-  (FirmCode, ClientCode, DocumentType, FileName, AddressId) 
-values 
+insert into logs.document_logs
+  (FirmCode, ClientCode, DocumentType, FileName, AddressId)
+values
   (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId);
 set @LastDownloadId = last_insert_id();
-insert into documents.DocumentHeaders 
+insert into documents.DocumentHeaders
   (DownloadId, FirmCode, ClientCode, DocumentType, OrderId, ProviderDocumentId, DocumentDate, AddressId)
 values
   (@LastDownloadId, ?FirmCode, ?ClientCode, ?DocumentType, ?OrderId, concat(hex(?OrderId), '-', hex(@LastDownloadId)), curdate(), ?AddressId);
@@ -304,7 +305,7 @@ values
 
 		public static bool ParseWaybils(MySqlConnection connection, UpdateData updateData, uint clientId, ulong[] providerIds, string[] fileNames, string waybillArchive)
 		{
-			var extractDir = Path.GetDirectoryName(waybillArchive) + "\\WaybillExtract";
+			var extractDir = Path.Combine(Path.GetDirectoryName(waybillArchive) ?? "", "WaybillExtract");
 			if (!Directory.Exists(extractDir))
 				Directory.CreateDirectory(extractDir);
 
@@ -313,40 +314,26 @@ values
 
 			var ids = new List<uint>();
 
-			global::Common.MySql.With.DeadlockWraper(() => {
-				var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
-				try {
-					var updateId = Convert.ToUInt64(MySqlHelper.ExecuteScalar(
-						connection,
-						@"
-insert into logs.AnalitFUpdates 
-  (RequestTime, UpdateType, UserId, ResultSize, Commit) 
-values 
-  (now(), ?UpdateType, ?UserId, ?Size, 1);
+			global::Common.MySql.With.DeadlockWraper(c => {
+				var updateId = Convert.ToUInt64(MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+insert into logs.AnalitFUpdates
+(RequestTime, UpdateType, UserId, ResultSize, Commit)
+values
+(now(), ?UpdateType, ?UserId, ?Size, 1);
 select last_insert_id()
 ",
-						new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills),
-						new MySqlParameter("?UserId", updateData.UserId),
-						new MySqlParameter("?Size", fileLength)));
+					new MySqlParameter("?UpdateType", (int)RequestType.SendWaybills),
+					new MySqlParameter("?UserId", updateData.UserId),
+					new MySqlParameter("?Size", fileLength)));
 
-					ids.Clear();
+				ids.Clear();
 
-					for (var i = 0; i < fileNames.Length; i++) {
-						if (File.Exists(extractDir + "\\" + fileNames[i]))
-							ids.Add(CopyWaybill(connection, updateData, clientId, providerIds[i], extractDir + "\\" + fileNames[i], updateId));
-					}
-
-					transaction.Commit();
-				}
-				catch {
-					try {
-						transaction.Rollback();
-					}
-					catch (Exception rollbackException) {
-						ILog _logger = LogManager.GetLogger(typeof(GenerateDocsHelper));
-						_logger.Error("Ошибка при rollback'е транзакции сохранения заказов", rollbackException);
-					}
-					throw;
+				for (var i = 0; i < fileNames.Length; i++) {
+					var localname = Path.Combine(extractDir, fileNames[i]);
+					if (File.Exists(localname))
+						ids.Add(CopyWaybill(connection, updateData, clientId, providerIds[i], localname, updateId));
 				}
 			});
 
@@ -404,7 +391,7 @@ select last_insert_id()
 			headerCommand.Parameters.Add("?SendUpdateId", MySqlDbType.UInt64);
 
 			headerCommand.CommandText = @"
-insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId, Ready) 
+insert into logs.document_logs (FirmCode, ClientCode, DocumentType, FileName, AddressId, SendUpdateId, Ready)
 values (?FirmCode, ?ClientCode, ?DocumentType, ?FileName, ?AddressId, ?SendUpdateId, 1);
 
 set @LastDownloadId = last_insert_id();
@@ -426,12 +413,12 @@ values (?UserId, @LastDownloadId);";
 			var lastDownloadId = Convert.ToUInt32(headerCommand.ExecuteScalar());
 
 			headerCommand.CommandText = "select Name from Customers.Suppliers where Id = ?FirmCode;";
-			var shortName = headerCommand.ExecuteScalar();
+			var shortName = headerCommand.ExecuteScalar().ToString();
 
 			resultFileName =
 				String.Format("{0}_{1}({2}){3}",
 					lastDownloadId,
-					shortName,
+					FileHelper.FileNameToWindows1251(shortName),
 					Path.GetFileNameWithoutExtension(resultFileName),
 					Path.GetExtension(resultFileName));
 
