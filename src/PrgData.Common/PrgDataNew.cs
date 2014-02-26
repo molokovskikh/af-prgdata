@@ -171,7 +171,7 @@ WHERE u.Login = ?username";
 				var rawUpdateType = AnalitFUpdate.GetUpdateTypeByUpdateId(readWriteConnection, UpdateId);
 
 				if (!rawUpdateType.HasValue)
-					throw new Exception("Получили null для updateId = {0}".Format(UpdateId));
+					return "Res=Wait";
 
 				RequestType requestType;
 				if (RequestType.TryParse(rawUpdateType.ToString(), out requestType)) {
