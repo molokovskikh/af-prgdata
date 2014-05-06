@@ -711,8 +711,7 @@ from Logs.DocumentSendLogs ds
 	join Logs.Document_logs d on d.RowId = ds.DocumentId
 where ds.UserId = ?UserId 
 	and ds.Committed = 0
-order by d.LogTime desc
-limit 400;
+order by d.LogTime desc;
 ";
 		}
 
