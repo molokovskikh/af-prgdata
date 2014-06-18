@@ -10,6 +10,7 @@ using System.Data;
 using log4net;
 using System.IO;
 using Common.Models;
+using NHibernate.Linq;
 using SmartOrderFactory;
 using Common.Models.Repositories;
 using SmartOrderFactory.Repositories;
@@ -57,7 +58,7 @@ namespace PrgData.Common.Orders
 
 			CheckCanPostOrder();
 
-			var helper = new PreorderChecker(_readWriteConnection, _user.Client, _address);
+			var helper = new PreorderChecker(_readWriteConnection, _user.Client);
 			try {
 				helper.Check();
 			}
@@ -77,6 +78,9 @@ namespace PrgData.Common.Orders
 								InternalSendOrders(session);
 
 								transaction.Commit();
+							}
+							catch (global::Common.Models.OrderException e) {
+								throw new UpdateException(e.Message, "", RequestType.Forbidden);
 							}
 							catch {
 								try {
@@ -151,7 +155,7 @@ namespace PrgData.Common.Orders
 			CreateOrders(session);
 
 			//делаем проверки минимального заказа
-			CheckOrdersByMinRequest(session);
+			CheckOrders(session);
 
 			//делаем проверку на дублирующиеся заказы
 			CheckDuplicatedOrders(session);
@@ -403,15 +407,27 @@ values
 			}
 		}
 
-		private void CheckOrdersByMinRequest(ISession session)
+		private void CheckOrders(ISession session)
 		{
-			if (!_user.IgnoreCheckMinOrder)
+			if (_address.CheckDailyOrdersSum) {
+				var acceptedSum = session.Query<OrderItem>()
+					.Where(i => i.Order.ClientCode == _address.Client.Id && i.Order.AddressId == _address.Id && i.Order.WriteTime > DateTime.Today)
+					.Sum(i => (decimal?)(i.Quantity * i.Cost))
+					.GetValueOrDefault();
+				var sum = acceptedSum + (decimal)_orders.Sum(o => o.Order.CalculateSum());
+				if (sum > _address.MaxDailyOrdersSum)
+					throw new global::Common.Models.OrderException(
+						String.Format("Превышен дневной лимит заказа (уже заказано на {0:C}).", acceptedSum));
+			}
+
+			if (!_user.IgnoreCheckMinOrder) {
 				foreach (var order in _orders) {
 					order.SendResult = OrderSendResult.Success;
 					var minReqController = new MinReqController(session, order.Order, _data.SupportedMinReordering());
 					var status = minReqController.ProcessOrder(order.Order);
 					order.Apply(status);
 				}
+			}
 
 			var checker = new GroupSumOrderChecker(session);
 			var rejectedOrders = checker.Check(_orders.Select(o => o.Order));
