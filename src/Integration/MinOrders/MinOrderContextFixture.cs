@@ -84,7 +84,7 @@ namespace Integration.MinOrders
 					AvaliableAddresses = { address }
 				},
 				new OrderRules());
-			return new MinOrderContext(_connection, _unitOfWork.CurrentSession, order);
+			return new MinOrderContext(_unitOfWork.CurrentSession, order);
 		}
 
 		[Test(Description = "Простой тест на создание контекста")]
@@ -386,9 +386,7 @@ and rd.RegionCode = :regionCode")
 			//Выполняем проверки существования заказа относительно регионального времени
 			var order = TestDataManager.GenerateOrder(3, user.Id, user.AvaliableAddresses[0].Id, price.Id.PriceId);
 
-			var conext = new MinOrderContext(
-				_connection, _unitOfWork.CurrentSession,
-				order);
+			var conext = new MinOrderContext(_unitOfWork.CurrentSession, order);
 
 			//Для Челябинска смещение должно быть = 2
 			Assert.That(conext.MoscowBias, Is.EqualTo(2));

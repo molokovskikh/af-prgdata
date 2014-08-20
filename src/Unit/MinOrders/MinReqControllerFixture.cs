@@ -102,13 +102,15 @@ namespace Unit.MinOrders
 
 		private void OrderSuccess(ClientOrderHeader order, MinReqController controller)
 		{
-			order.Apply(controller.ProcessOrder(order.Order));
+			_minOrderContext.Expect(x => x.Order).Do((Func<Order>)(() => order.Order)).Repeat.Any();
+			order.Apply(controller.ProcessOrder());
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.Success));
 		}
 
 		private void OrderByMinReq(ClientOrderHeader order, MinReqController controller)
 		{
-			order.Apply(controller.ProcessOrder(order.Order));
+			_minOrderContext.Expect(x => x.Order).Do((Func<Order>)(() => order.Order)).Repeat.Any();
+			order.Apply(controller.ProcessOrder());
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.LessThanMinReq));
 			Assert.That(order.MinReq, Is.EqualTo(_minOrderContext.MinReq));
 			Assert.That(order.ErrorReason, Is.EqualTo("Поставщик отказал в приеме заказа.\n Сумма заказа меньше минимально допустимой."));
@@ -116,7 +118,8 @@ namespace Unit.MinOrders
 
 		private void OrderByMinReordering(ClientOrderHeader order, MinReqController controller)
 		{
-			order.Apply(controller.ProcessOrder(order.Order));
+			_minOrderContext.Expect(x => x.Order).Do((Func<Order>)(() => order.Order)).Repeat.Any();
+			order.Apply(controller.ProcessOrder());
 			Assert.That(order.SendResult, Is.EqualTo(OrderSendResult.LessThanReorderingMinReq));
 			Assert.That(order.MinReq, Is.EqualTo(_minOrderContext.MinReq));
 			Assert.That(order.MinReordering, Is.EqualTo(_minOrderContext.MinReordering));
@@ -226,7 +229,7 @@ namespace Unit.MinOrders
 			_controlMinReq = true;
 			_minReq = 9;
 			_minReordering = 1;
-			SetContext(() => { _minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any(); });
+			SetContext(() => _minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any());
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);
@@ -240,7 +243,7 @@ namespace Unit.MinOrders
 			_controlMinReq = true;
 			_minReq = 15;
 			_minReordering = 6;
-			SetContext(() => { _minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any(); });
+			SetContext(() => _minOrderContext.Expect(x => x.GetRules()).Return(new List<ReorderingRule>()).Repeat.Any());
 
 			var controller = new MinReqController(_minOrderContext);
 			var order = CreateOrderWithSum(10);

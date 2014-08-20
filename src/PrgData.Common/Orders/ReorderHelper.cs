@@ -424,7 +424,7 @@ values
 				foreach (var order in _orders) {
 					order.SendResult = OrderSendResult.Success;
 					var minReqController = new MinReqController(session, order.Order, _data.SupportedMinReordering());
-					var status = minReqController.ProcessOrder(order.Order);
+					var status = minReqController.ProcessOrder();
 					order.Apply(status);
 				}
 			}
