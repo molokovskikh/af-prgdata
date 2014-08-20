@@ -303,7 +303,7 @@ limit 1;")
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			var dataAdapter = new MySqlDataAdapter(coreSql, Connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);

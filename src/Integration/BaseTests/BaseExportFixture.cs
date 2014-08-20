@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -16,14 +17,14 @@ namespace Integration.BaseTests
 	{
 		protected TestUser user;
 		protected UpdateData updateData;
-		protected Queue<FileForArchive> files;
+		protected ConcurrentQueue<string> files;
 		protected string archivefile;
 
 		[SetUp]
 		public void BaseExportSetup()
 		{
 			archivefile = "temp.7z";
-			files = new Queue<FileForArchive>();
+			files = new ConcurrentQueue<string>();
 
 			user = CreateUser();
 

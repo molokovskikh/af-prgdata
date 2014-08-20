@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Data;
@@ -22,14 +23,14 @@ namespace PrgData.Common.Orders
 		public UpdateHelper Helper { get; private set; }
 		public string ExportFolder { get; private set; }
 
-		public Queue<FileForArchive> FilesForArchive;
+		public ConcurrentQueue<string> FilesForArchive;
 
 		public string OrdersHeadFileName { get; private set; }
 		public string OrdersListFileName { get; private set; }
 
 		public List<UnconfirmedOrderInfo> ExportedOrders { get; private set; }
 
-		public UnconfirmedOrdersExporter(UpdateData updateData, UpdateHelper helper, string exportFolder, Queue<FileForArchive> filesForArchive)
+		public UnconfirmedOrdersExporter(UpdateData updateData, UpdateHelper helper, string exportFolder, ConcurrentQueue<string> filesForArchive)
 		{
 			Data = updateData;
 			Helper = helper;
@@ -62,10 +63,8 @@ namespace PrgData.Common.Orders
 			File.WriteAllText(OrdersHeadFileName, converter.OrderHead.ToString(), Encoding.GetEncoding(1251));
 			File.WriteAllText(OrdersListFileName, converter.OrderItems.ToString(), Encoding.GetEncoding(1251));
 
-			lock (FilesForArchive) {
-				FilesForArchive.Enqueue(new FileForArchive(OrdersHeadFileName, true));
-				FilesForArchive.Enqueue(new FileForArchive(OrdersListFileName, true));
-			}
+			FilesForArchive.Enqueue(OrdersHeadFileName);
+			FilesForArchive.Enqueue(OrdersListFileName);
 		}
 
 		public void UnionOrders()

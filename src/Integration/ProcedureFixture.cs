@@ -480,19 +480,11 @@ show full processlist;
 
 				var updateData = UpdateHelper.GetUpdateData(connection, testUser.Login);
 				var helper = new UpdateHelper(updateData, connection);
-
 				helper.MaintainReplicationInfo();
-
-				var SelProc = new MySqlCommand();
-				SelProc.Connection = connection;
-
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
-				helper.SetUpdateParameters(SelProc, DateTime.Now);
-
 				helper.Cleanup();
-
 				helper.SelectPrices();
-				helper.PreparePricesData(SelProc);
+				helper.PreparePricesData();
 				helper.SelectReplicationInfo();
 				helper.SelectActivePrices();
 

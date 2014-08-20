@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Common.Tools;
@@ -10,7 +11,7 @@ namespace PrgData.Common.Models
 	{
 		private List<BaseExport> exporters;
 
-		public ExportProcessor(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
+		public ExportProcessor(UpdateData updateData, MySqlConnection connection, ConcurrentQueue<string> files)
 		{
 			var rootType = typeof(BaseExport);
 			var types = rootType.Assembly.GetTypes().Where(t =>

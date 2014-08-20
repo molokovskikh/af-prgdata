@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using MySql.Data.MySqlClient;
 
 namespace PrgData.Common.Models
 {
 	public class RejectExport : BaseExport
 	{
-		public RejectExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
+		public RejectExport(UpdateData updateData, MySqlConnection connection, ConcurrentQueue<string> files)
 			: base(updateData, connection, files)
 		{
 		}

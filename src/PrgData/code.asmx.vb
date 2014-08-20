@@ -5,6 +5,8 @@ Imports System.Web
 Imports System.Text
 Imports System.Globalization
 Imports Common.Models.Helpers
+Imports System.Collections.Concurrent
+Imports Common.Tools.Helpers
 Imports log4net
 Imports Common.MySql
 Imports PrgData.Common.Models
@@ -49,7 +51,6 @@ Public Class PrgDataEx
 
     End Sub
 
-    Private WithEvents SelProc As MySql.Data.MySqlClient.MySqlCommand
     Private WithEvents DA As MySql.Data.MySqlClient.MySqlDataAdapter
     Friend WithEvents dtProcessingDocuments As System.Data.DataTable
 
@@ -81,15 +82,12 @@ Public Class PrgDataEx
     Private ThreadZipStream As New Thread(AddressOf ZipStream)
     Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
 
-	Private CurUpdTime As DateTime
     Private LimitedCumulative As Boolean
 	Private ResultLenght As UInt32
     Private ReclamePath As String
 	Private PackFinished As Boolean
     Private NewZip As Boolean = True
     Private WithEvents DS As System.Data.DataSet
-
-    Private FilesForArchive As Queue(Of FileForArchive) = New Queue(Of FileForArchive)
 
     'Получает письмо и отправляет его
     <WebMethod()> _
@@ -735,7 +733,7 @@ Public Class PrgDataEx
 				If DocumentBodyIds IsNot Nothing AndAlso (DocumentBodyIds.Length > 0) AndAlso (DocumentBodyIds(0) <> 0) Then
 					UpdateData.FillDocumentBodyIds(DocumentBodyIds)
 				End If
-				CurUpdTime = Now()
+				UpdateData.CurrentUpdateTime = Now()
 
 				UpdateType = RequestType.GetDocs
 			Else
@@ -743,7 +741,7 @@ Public Class PrgDataEx
 				UpdateData.FillAttachmentIds(AttachmentIds)
 
 				If Me.RequestAttachments Then
-					CurUpdTime = Now()
+					UpdateData.CurrentUpdateTime = Now()
 
 					UpdateType = RequestType.RequestAttachments
 				Else 
@@ -772,7 +770,7 @@ Public Class PrgDataEx
 
 						Log.DebugFormat("Файл будет архивироваться заново: {0}", UpdateData.GetCurrentTempFile())
 
-						CurUpdTime = helper.GetCurrentUpdateDate(UpdateType)
+						UpdateData.CurrentUpdateTime = helper.GetCurrentUpdateDate(UpdateType)
 
 					End If
 				End If
@@ -931,8 +929,7 @@ endprocNew:
 			Dim SevenZipParam As String = " -mx7 -bd -slp -mmt=6 -w" & Path.GetTempPath
 			Dim SevenZipTmpArchive As String
 			Dim xRow As DataRow
-			Dim FileName, Вывод7Z, Ошибка7Z As String
-			Dim zipfilecount = 0
+			Dim Вывод7Z, Ошибка7Z As String
 			Dim ArchTrans As MySqlTransaction
 			Dim ef(), ListOfDocs() As String
 
@@ -1100,7 +1097,7 @@ endprocNew:
 									End If
 								Next
 
-								GetMySQLFileWithDefaultEx("DocumentHeaders", ArchCmd, helper.GetDocumentHeadersCommand(ids), False, False)
+								helper.GetMySQLFileWithDefaultEx("DocumentHeaders", connection, helper.GetDocumentHeadersCommand(ids), False, False)
 								If Not String.IsNullOrEmpty(ids) Then
 									Log.DebugFormat("Список запрашиваемых Id документов: {0}", ids)
 									Try
@@ -1133,12 +1130,12 @@ endprocNew:
 								Else
 									Log.DebugFormat("Список запрашиваемых Id документов пуст")
 								End If
-								GetMySQLFileWithDefaultEx("DocumentBodies", ArchCmd, helper.GetDocumentBodiesCommand(ids), False, False)
+								helper.GetMySQLFileWithDefaultEx("DocumentBodies", connection, helper.GetDocumentBodiesCommand(ids), False, False)
 								If UpdateData.AllowInvoiceHeaders() Then
-									GetMySQLFileWithDefaultEx("InvoiceHeaders", ArchCmd, helper.GetInvoiceHeadersCommand(ids), False, False)
+									helper.GetMySQLFileWithDefaultEx("InvoiceHeaders", connection, helper.GetInvoiceHeadersCommand(ids), False, False)
 								End If
                                 If UpdateData.AllowMatchWaybillsToOrders() then
-                                    GetMySQLFileWithDefaultEx("WaybillOrders", ArchCmd, helper.GetWaybillOrdersCommand(ids), False, False)
+                                    helper.GetMySQLFileWithDefaultEx("WaybillOrders", connection, helper.GetWaybillOrdersCommand(ids), False, False)
 								End If
 
 #If DEBUG Then
@@ -1410,7 +1407,7 @@ endprocNew:
 
 					'здесь будем выгружать сертификаты
 					If Documents AndAlso UpdateData.NeedExportCertificates Then
-						helper.ArchiveCertificates(connection, SevenZipTmpArchive, CurUpdTime, Addition, ClientLog, GUpdateId, FilesForArchive)
+						helper.ArchiveCertificates(connection, SevenZipTmpArchive, Addition, ClientLog, GUpdateId, FilesForArchive)
 					End If
 
 					Dim processor = New ExportProcessor(UpdateData, connection, FilesForArchive)
@@ -1516,67 +1513,39 @@ endprocNew:
 
 				'Архивирование данных, или рекламы
 				Try
-					Dim FileForArchive As FileForArchive
+					Dim FileForArchive As string
 					If Not Documents AndAlso Not Me.RequestAttachments Then
 
 StartZipping:
 						If ErrorFlag Then Exit Sub
 
-						If FilesForArchive.Count > 0 Then
-
-							SyncLock (FilesForArchive)
-								FileForArchive = FilesForArchive.Dequeue
-							End SyncLock
-
-						Else
-
+						if Not FilesForArchive.TryDequeue(FileForArchive) Then
 							Thread.Sleep(500)
 							GoTo StartZipping
+						end if
 
-						End If
 
-
-						If FileForArchive.FileName.StartsWith("EndOfFiles.txt") Then
+						If FileForArchive.StartsWith("EndOfFiles.txt") Then
+							Dim target = UpdateData.GetCurrentTempFile()
 							If GetHistory Then
-								File.Move(SevenZipTmpArchive, UpdateData.GetOrdersFile())
-
-								FileInfo = New FileInfo(UpdateData.GetOrdersFile())
-								ResultLenght = Convert.ToUInt32(FileInfo.Length)
+								target = UpdateData.GetOrdersFile()
 							ElseIf Reclame Then
-
-								File.Move(SevenZipTmpArchive, UpdateData.GetReclameFile())
-
-							Else
-
-								File.Move(SevenZipTmpArchive, UpdateData.GetCurrentTempFile())
-								Log.DebugFormat("Закончено архивирование файла: {0}", UpdateData.GetCurrentTempFile())
-
-								FileInfo = New FileInfo(UpdateData.GetCurrentTempFile())
-								ResultLenght = Convert.ToUInt32(FileInfo.Length)
-
+								target = UpdateData.GetReclameFile()
 							End If
 
+							File.Move(SevenZipTmpArchive, target)
+							FileInfo = New FileInfo(target)
+							ResultLenght = Convert.ToUInt32(FileInfo.Length)
+							Log.DebugFormat("Закончено архивирование файла {0} размер {1}", target, ResultLenght)
 							PackFinished = True
 							Log.Debug("Будет вызывать PackProtocols()")
 							PackProtocols()
 							Exit Sub
 						End If
 
-						If Reclame Then
-							FileName = ReclamePath & FileForArchive.FileName
-						Else
-
-							If FileForArchive.FileType Then
-								FileName = FileForArchive.FileName
-							Else
-								FileName = ServiceContext.GetFileByLocal(FileForArchive.FileName & UserId & ".txt")
-							End If
-
-
 #If DEBUG Then
-							ShareFileHelper.WaitFile(FileName)
+						ShareFileHelper.WaitFile(FileForArchive)
 #End If
-						End If
 
 						Pr = New Process
 
@@ -1586,7 +1555,7 @@ StartZipping:
 						startInfo.RedirectStandardError = True
 						startInfo.UseShellExecute = False
 						startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
-						startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, FileName, SevenZipParam)
+						startInfo.Arguments = String.Format(" a ""{0}"" ""{1}"" {2}", SevenZipTmpArchive, FileForArchive, SevenZipParam)
 						startInfo.FileName = SevenZipExe
 
 						Pr.StartInfo = startInfo
@@ -1603,28 +1572,19 @@ StartZipping:
 							ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 							Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
 						End If
-						If Not Reclame Then ShareFileHelper.MySQLFileDelete(FileName)
-						zipfilecount += 1
+						If Not Reclame Then ShareFileHelper.MySQLFileDelete(FileForArchive)
 
 						GoTo StartZipping
-
 					End If
-
 				Catch ex As ThreadAbortException
 					Log.Debug("Ошибка ThreadAbortException при архивировании данных")
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-
 					Try
-
 						Pr.Kill()
 						Pr.WaitForExit()
-
 					Catch
 					End Try
-
-
 				Catch ex As MySqlException
-
 					If Not Pr Is Nothing Then
 						If Not Pr.HasExited Then Pr.Kill()
 						Pr.WaitForExit()
@@ -1638,9 +1598,7 @@ StartZipping:
 						if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
 					End If
 					Addition &= " Архивирование: " & ex.ToString() & "; "
-
 				Catch Unhandled As Exception
-
 					ErrorFlag = True
 					UpdateType = RequestType.Error
 					if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
@@ -2654,11 +2612,15 @@ StartZipping:
 
 				helper.ProcessBatchFile()
 
-				AddFileToQueue(helper.BatchReportFileName)
-				AddFileToQueue(helper.BatchOrderFileName)
-				AddFileToQueue(helper.BatchOrderItemsFileName)
+
+				FilesForArchive.Enqueue(helper.BatchReportFileName)
+
+				FilesForArchive.Enqueue(helper.BatchOrderFileName)
+
+				FilesForArchive.Enqueue(helper.BatchOrderItemsFileName)
 				If (UpdateData.BuildNumber > 1271) Then
-					AddFileToQueue(helper.BatchReportServiceFieldsFileName)
+
+					FilesForArchive.Enqueue(helper.BatchReportServiceFieldsFileName)
 				End If
 
 				ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing, False, Nothing)
@@ -2735,7 +2697,7 @@ StartZipping:
 
 				transaction = connection.BeginTransaction(IsoLevel)
 
-				If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
+				If UpdateData.CurrentUpdateTime < Now().AddDays(-1) Then UpdateData.CurrentUpdateTime = Now()
 
 				'если нет новых документов то и подтверждения не будет
 				'а в интерейсе неподтвержденное обновление это тревога
@@ -2765,7 +2727,7 @@ StartZipping:
 					.Parameters.Add(New MySqlParameter("?EXEVersion", UpdateData.BuildNumber))
 					.Parameters.Add(New MySqlParameter("?Size", ResultLenght))
 					.Parameters.Add(New MySqlParameter("?Addition", Addition))
-					.Parameters.Add(New MySqlParameter("?UpdateTime", CurUpdTime))
+					.Parameters.Add(New MySqlParameter("?UpdateTime", UpdateData.CurrentUpdateTime))
 					.Parameters.AddWithValue("?Commit", commit)
 					.Parameters.AddWithValue("?ClientHost", UserHost)
 				End With
@@ -2865,7 +2827,7 @@ PostLog:
 
 							transaction = connection.BeginTransaction(IsoLevel)
 
-							If CurUpdTime < Now().AddDays(-1) Then CurUpdTime = Now()
+							If UpdateData.CurrentUpdateTime < Now().AddDays(-1) Then UpdateData.CurrentUpdateTime = Now()
 
 							'если нет новых документов то и подтверждения не будет
 							'а в интерейсе неподтвержденное обновление это тревога
@@ -2995,7 +2957,7 @@ PostLog:
 				Catch ex As Exception
 					Global.Common.MySql.With.SafeRollback(transaction)
 					GUpdateId = Nothing
-					If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
+					If Global.Common.MySql.ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
 						Thread.Sleep(500)
 						GoTo PostLog
 					End If
@@ -3015,7 +2977,6 @@ PostLog:
 		Me.DS = New System.Data.DataSet
 		Me.dtProcessingDocuments = New System.Data.DataTable
 		Me.readWriteConnection = New MySql.Data.MySqlClient.MySqlConnection
-		Me.SelProc = New MySql.Data.MySqlClient.MySqlCommand
 		Me.DA = New MySql.Data.MySqlClient.MySqlDataAdapter
 		CType(Me.DS, System.ComponentModel.ISupportInitialize).BeginInit()
 		CType(Me.dtProcessingDocuments, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -3035,12 +2996,6 @@ PostLog:
 		'ReadOnlyCn
 		'
 		Me.readWriteConnection.ConnectionString = Nothing
-		'
-		'SelProc
-		'
-		Me.SelProc.Connection = Me.readWriteConnection
-		Me.SelProc.Transaction = Nothing
-
 		Me.DA.DeleteCommand = Nothing
 		Me.DA.InsertCommand = Nothing
 		Me.DA.SelectCommand = Me.Cm
@@ -3184,45 +3139,39 @@ RestartTrans2:
 					ThreadZipStream.Abort()
 				End If
 
-				SelProc = New MySqlCommand
-				SelProc.Connection = readWriteConnection
-				helper.SetUpdateParameters(SelProc, CurUpdTime)
-
-				Dim debugHelper = New DebugReplicationHelper(UpdateData, readWriteConnection, SelProc)
+				Dim debugHelper = New DebugReplicationHelper(UpdateData, readWriteConnection)
 
 				transaction = readWriteConnection.BeginTransaction(IsolationLevel.RepeatableRead)
-				SelProc.Transaction = transaction
 
-				SelProc.CommandText = "drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo; "
-				SelProc.ExecuteNonQuery()
+				readWriteConnection.Execute("drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo;")
 
-				GetMySQLFileWithDefault( _
+				helper.GetMySQLFileWithDefault( _
 				 "UpdateInfo", _
-				 SelProc, _
+				 readWriteConnection, _
 				 "select " & _
 				 "  date_sub(?LastUpdateTime, interval time_to_sec(date_sub(now(), interval unix_timestamp() second)) second)," & _
 				 "  ?Cumulative " & _
 				 "from UserUpdateInfo where UserId=" & UserId)
 
 				If helper.NeedClientToAddressMigration() Then
-					GetMySQLFileWithDefault("ClientToAddressMigrations", SelProc, helper.GetClientToAddressMigrationCommand())
+					helper.GetMySQLFileWithDefault("ClientToAddressMigrations", readWriteConnection, helper.GetClientToAddressMigrationCommand())
 				End If
 
 				If UpdateData.NeedUpdateForHistoryDocs() Then
-					GetMySQLFileWithDefault("UpdateValues", SelProc, helper.GetUpdateValuesCommand())
+					helper.GetMySQLFileWithDefault("UpdateValues", readWriteConnection, helper.GetUpdateValuesCommand())
 				End If
 
-				Dim processor = New ExportProcessor(UpdateData, SelProc.Connection, FilesForArchive)
+				Dim processor = New ExportProcessor(UpdateData, readWriteConnection, FilesForArchive)
 				processor.Process()
 
-				GetMySQLFileWithDefault("User", SelProc, helper.GetUserCommand())
-				GetMySQLFileWithDefault("Client", SelProc, helper.GetClientCommand())
+				helper.GetMySQLFileWithDefault("User", readWriteConnection, helper.GetUserCommand())
+				helper.GetMySQLFileWithDefault("Client", readWriteConnection, helper.GetClientCommand())
 
 				If UpdateData.SupportAnalitFSchedule Then
-					GetMySQLFileWithDefault("Schedules", SelProc, helper.GetSchedulesCommand())
+					helper.GetMySQLFileWithDefault("Schedules", readWriteConnection, helper.GetSchedulesCommand())
 				End If
 
-				GetMySQLFileWithDefault("Products", SelProc, helper.GetProductsCommand())
+				helper.GetMySQLFileWithDefault("Products", readWriteConnection, helper.GetProductsCommand())
 
 				ThreadZipStream = New Thread(AddressOf ZipStream)
 				ThreadZipStream.Start()
@@ -3232,71 +3181,69 @@ RestartTrans2:
 
 					If (UpdateData.BuildNumber >= 1150) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
 						'Подготовка данных для версии программы >= 1150 или обновление на нее
-						GetMySQLFileWithDefaultEx( _
+						helper.GetMySQLFileWithDefaultEx( _
 						 "Catalogs", _
-						 SelProc, _
+						 readWriteConnection, _
 						 helper.GetCatalogCommand(False), _
 						 UpdateData.NeedUpdateTo945(), _
 						 True)
 
 						'Обновляем на новую структуру MNN без RussianMNN = (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN)
-						GetMySQLFileWithDefaultEx( _
+						helper.GetMySQLFileWithDefaultEx( _
 						 "MNN", _
-						 SelProc, _
+						 readWriteConnection, _
 						 helper.GetMNNCommand( _
 						  False, _
 						  (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN), _
 						 ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate(), _
 						 True)
 
-						GetMySQLFileWithDefaultEx( _
+						helper.GetMySQLFileWithDefaultEx( _
 						 "Descriptions", _
-						 SelProc, _
+						 readWriteConnection, _
 						 helper.GetDescriptionCommand(False), _
 						 UpdateData.NeedUpdateTo945(), _
 						 True)
 
 						If (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
 							'Если производим обновление на версию 1159 и выше, то надо полностью отдать каталог производителей
-							GetMySQLFileWithDefaultEx( _
+							helper.GetMySQLFileWithDefaultEx( _
 							 "Producers", _
-							 SelProc, _
+							 readWriteConnection, _
 							 helper.GetProducerCommand(True), _
 							 UpdateData.NeedUpdateTo945(), _
 							 True)
 						Else
-							GetMySQLFileWithDefaultEx( _
+							helper.GetMySQLFileWithDefaultEx( _
 							 "Producers", _
-							 SelProc, _
+							 readWriteConnection, _
 							 helper.GetProducerCommand(UpdateData.Cumulative), _
 							 UpdateData.NeedUpdateTo945(), _
 							 True)
 						End If
 
 					Else
-						GetMySQLFileWithDefaultEx( _
+						helper.GetMySQLFileWithDefaultEx( _
 						 "Catalogs", _
-						 SelProc, _
+						 readWriteConnection, _
 						 helper.GetCatalogCommand(True), _
 						 UpdateData.NeedUpdateTo945(), _
 						 True)
 
-						GetMySQLFileWithDefaultEx( _
-						 "MNN", _
-						 SelProc, _
+						helper.GetMySQLFileWithDefaultEx("MNN", readWriteConnection,
 						 helper.GetMNNCommand(True, False), _
 						 ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)) Or (UpdateData.BuildNumber <= 1035)) And UpdateData.EnableUpdate(), _
 						 True)
 
-						GetMySQLFileWithDefaultEx( _
+						helper.GetMySQLFileWithDefaultEx( _
 						 "Descriptions", _
-						 SelProc, _
+						 readWriteConnection, _
 						 helper.GetDescriptionCommand(True), _
 						 UpdateData.NeedUpdateTo945(), _
 						 True)
 					End If
 				Else
-					GetMySQLFileWithDefault("Catalogs", SelProc, _
+					helper.GetMySQLFileWithDefault("Catalogs", readWriteConnection, _
 					"SELECT C.Id             , " & _
 					"       CN.Id            , " & _
 					"       LEFT(CN.name, 250)  , " & _
@@ -3314,7 +3261,7 @@ RestartTrans2:
 				End If
 
 
-				GetMySQLFileWithDefault("CatDel", SelProc, _
+				helper.GetMySQLFileWithDefault("CatDel", readWriteConnection, _
 				" SELECT C.Id " & _
 				" FROM   Catalogs.Catalog C " & _
 				" WHERE  C.UpdateTime > ?UpdateTime " & _
@@ -3322,10 +3269,10 @@ RestartTrans2:
 				"   AND NOT ?Cumulative")
 
 
-				GetMySQLFileWithDefault("Regions", SelProc, helper.GetRegionsCommand())
+				helper.GetMySQLFileWithDefault("Regions", readWriteConnection, helper.GetRegionsCommand())
 
 				helper.SelectPrices()
-				helper.PreparePricesData(SelProc)
+				helper.PreparePricesData()
 				helper.SelectReplicationInfo()
 				helper.SelectActivePrices()
 				helper.FillParentCodes()
@@ -3340,67 +3287,48 @@ RestartTrans2:
 
 				Try
 					'Подготовка временной таблицы с контактами
-					helper.PrepareProviderContacts(SelProc)
+					helper.PrepareProviderContacts(readWriteConnection)
 
-					GetMySQLFileWithDefault("Providers", SelProc, helper.GetProvidersCommand())
+					helper.GetMySQLFileWithDefault("Providers", readWriteConnection, helper.GetProvidersCommand())
 				Finally
-					helper.ClearProviderContacts(SelProc)
+					helper.ClearProviderContacts()
 				End Try
 
-				GetMySQLFileWithDefault("RegionalData", SelProc, helper.GetRegionalDataCommand())
+				helper.GetMySQLFileWithDefault("RegionalData", readWriteConnection, helper.GetRegionalDataCommand())
 
-				GetMySQLFileWithDefault("PricesRegionalData", SelProc, helper.GetPricesRegionalDataCommand())
+				helper.GetMySQLFileWithDefault("PricesRegionalData", readWriteConnection, helper.GetPricesRegionalDataCommand())
 
-				GetMySQLFileWithDefault("MinReqRules", SelProc, helper.GetMinReqRuleCommand())
+				helper.GetMySQLFileWithDefault("MinReqRules", readWriteConnection, helper.GetMinReqRuleCommand())
 
-				GetMySQLFileWithDefault("Clients", SelProc, helper.GetClientsCommand())
+				helper.GetMySQLFileWithDefault("Clients", readWriteConnection, helper.GetClientsCommand())
 
-				GetMySQLFileWithDefault("DelayOfPayments", SelProc, helper.GetDelayOfPaymentsCommand())
+				helper.GetMySQLFileWithDefault("DelayOfPayments", readWriteConnection, helper.GetDelayOfPaymentsCommand())
 
 
 				If UpdateData.EnableImpersonalPrice And (UpdateData.OldUpdateTime < New DateTime(2010, 8, 18, 5, 18, 0)) Then
-					GetMySQLFileWithDefault("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(True))
+					helper.GetMySQLFileWithDefault("SynonymFirmCr", readWriteConnection, helper.GetSynonymFirmCrCommand(True))
 
-					GetMySQLFileWithDefault("Synonyms", SelProc, helper.GetSynonymCommand(True))
+					helper.GetMySQLFileWithDefault("Synonyms", readWriteConnection, helper.GetSynonymCommand(True))
 				Else
-					GetMySQLFileWithDefault("SynonymFirmCr", SelProc, helper.GetSynonymFirmCrCommand(UpdateData.Cumulative))
+					helper.GetMySQLFileWithDefault("SynonymFirmCr", readWriteConnection, helper.GetSynonymFirmCrCommand(UpdateData.Cumulative))
 
-					GetMySQLFileWithDefault("Synonyms", SelProc, helper.GetSynonymCommand(UpdateData.Cumulative))
+					helper.GetMySQLFileWithDefault("Synonyms", readWriteConnection, helper.GetSynonymCommand(UpdateData.Cumulative))
 				End If
 
 				If Not UpdateData.EnableImpersonalPrice Then
 
-					SelProc.CommandText = "" & _
+					Dim cmd = new MySqlCommand("" & _
 					"SELECT IFNULL(SUM(fresh), 0) " & _
-					"FROM   ActivePrices"
-					If CType(SelProc.ExecuteScalar, Integer) > 0 Or UpdateData.Cumulative Then
-
-						helper.SelectOffers()
-						CostOptimizer.OptimizeCostIfNeeded(readWriteConnection, CCode, UserId)
-
+					"FROM   ActivePrices", readWriteConnection)
+					If CType(cmd.ExecuteScalar, Integer) > 0 Or UpdateData.Cumulative Then
 						debugHelper.CopyActivePrices()
-
 						debugHelper.Logger.DebugFormat("Before Core GED = {0}", UpdateData.Cumulative)
-
-						debugHelper.ExportCoreCount = GetMySQLFileForCore( _
-						 "Core", _
-						 SelProc, _
-						 helper.GetCoreCommand( _
-						  False, _
-						  (UpdateData.BuildNumber > 1027) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))), _
-						  (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, _
-						  False
-						 ), _
-						 (UpdateData.BuildNumber <= 1027) And UpdateData.EnableUpdate(), _
-						 True, _
-						 debugHelper
-						)
-
+						debugHelper.ExportCoreCount = helper.ExportOffers()
 						debugHelper.Logger.DebugFormat("ExportCoreCount = {0}", debugHelper.ExportCoreCount)
 					Else
 						'Выгружаем пустую таблицу Core
 						'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
-						GetMySQLFileWithDefault("Core", SelProc, "SELECT * from ActivePrices limit 0")
+						helper.GetMySQLFileWithDefault("Core", readWriteConnection, "SELECT * from ActivePrices limit 0")
 					End If
 
 					If (UpdateData.BuildNumber > 945) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber = 945) Or ((UpdateData.BuildNumber >= 705) And (UpdateData.BuildNumber <= 716)) Or ((UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837)))) Then
@@ -3409,34 +3337,34 @@ RestartTrans2:
 							 Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber < 1049) Or ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150)))) _
 							 Or helper.MaxProducerCostIsFresh() _
 							Then
-								GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand())
+								helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand())
 							Else
 								'Если прайс-лист не обновлен, то отдаем пустой файл
-								GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+								helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 							End If
 						Else
-							GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+							helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 							Log.WarnFormat("Невозможно определить базовую цены для прайс-листа с максимальными ценами производителей. Код прайс-листа: {0}", helper.MaxProducerCostsPriceId)
 						End If
 					Else
-						GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+						helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 					End If
 				Else
 
-					If Convert.ToInt32(SelProc.Parameters("?ImpersonalPriceFresh").Value) = 1 Then
-						helper.PrepareImpersonalOffres(SelProc)
+					If UpdateData.ImpersonalPriceFresh Then
+						helper.PrepareImpersonalOffres()
 
 						'Выгрузка данных для обезличенного прайс-листа
-						GetMySQLFileWithDefault("Core", SelProc, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix, False))
+						helper.GetMySQLFileWithDefault("Core", readWriteConnection, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix))
 					Else
 						'выгружаем пустую таблицу Core
-						GetMySQLFileWithDefault("Core", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+						helper.GetMySQLFileWithDefault("Core", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 					End If
 					'выгружаем пустую таблицу MaxProducerCosts
-					GetMySQLFileWithDefault("MaxProducerCosts", SelProc, helper.GetMaxProducerCostsCommand() & " limit 0")
+					helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 				End If
 
-				GetMySQLFileWithDefault("PricesData", SelProc, helper.GetPricesDataCommand())
+				helper.GetMySQLFileWithDefault("PricesData", readWriteConnection, helper.GetPricesDataCommand())
 
 				If Not UpdateData.EnableImpersonalPrice Then
 					If debugHelper.NeedDebugInfo() Then
@@ -3461,7 +3389,7 @@ RestartTrans2:
 
 			Catch ex As Exception
 				Global.Common.MySql.With.SafeRollback(transaction)
-				If ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
+				If Global.Common.MySql.ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
 					Log.DebugFormat("Перезапускаем транзакцию из-за deadlock")
 					Thread.Sleep(2500)
 					GoTo RestartTrans2
@@ -3777,13 +3705,7 @@ RestartTrans2:
 					If CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
 						If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
 						FileCount += 1
-
-						SyncLock (FilesForArchive)
-
-							FilesForArchive.Enqueue(New FileForArchive(FileInfo.Name, True))
-
-						End SyncLock
-
+						FilesForArchive.Enqueue(FileInfo.FullName)
 						If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
 					Else
 						Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", FileName)
@@ -3920,94 +3842,9 @@ RestartTrans2:
 		End Try
 	End Sub
 
-	Private Sub AddFileToQueue(ByVal FileName As String)
-		SyncLock (FilesForArchive)
-			FilesForArchive.Enqueue(New FileForArchive(FileName, True))
-		End SyncLock
-	End Sub
-
-
 	Private Sub AddEndOfFiles()
-		SyncLock (FilesForArchive)
-			FilesForArchive.Enqueue(New FileForArchive("EndOfFiles.txt", False))
-		End SyncLock
+		FilesForArchive.Enqueue("EndOfFiles.txt")
 	End Sub
-
-	Private Function GetFileNameForMySql(ByVal outFileName As String) As String
-		Dim fullName = ServiceContext.GetFileByShared(outFileName)
-		Return MySql.Data.MySqlClient.MySqlHelper.EscapeString(fullName)
-	End Function
-
-	Private Sub GetMySQLFileWithDefault(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String)
-
-		GetMySQLFileWithDefaultEx(FileName, MyCommand, SQLText, False, True)
-
-	End Sub
-
-	Private Sub GetMySQLFileWithDefaultEx(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean, ByVal AddToQueue As Boolean)
-		Dim SQL As String = SQLText
-		Dim oldCumulative As Boolean
-
-		Try
-			If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
-				oldCumulative = MyCommand.Parameters("?Cumulative").Value
-				MyCommand.Parameters("?Cumulative").Value = True
-			End If
-
-			SQL &= " INTO OUTFILE '" & GetFileNameForMySql(FileName & UserId & ".txt") & "' "
-			MyCommand.CommandText = SQL
-			MyCommand.ExecuteNonQuery()
-
-		Finally
-			If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
-				MyCommand.Parameters("?Cumulative").Value = oldCumulative
-			End If
-		End Try
-
-		If AddToQueue Then
-			SyncLock (FilesForArchive)
-
-				FilesForArchive.Enqueue(New FileForArchive(FileName, False))
-
-			End SyncLock
-		End If
-
-	End Sub
-
-	Private Function GetMySQLFileForCore(ByVal FileName As String, ByVal MyCommand As MySqlCommand, ByVal SQLText As String, ByVal SetCumulative As Boolean, ByVal AddToQueue As Boolean, ByRef debughelper As DebugReplicationHelper) As Integer
-		Dim SQL As String = SQLText
-		Dim oldCumulative As Boolean
-		Dim Result As Integer = 0
-
-		Try
-			debughelper.Logger.DebugFormat("For Core flag SetCumulative = {0}", SetCumulative)
-			debughelper.Logger.DebugFormat("For Core Params: {0}", MyCommand.Parameters.Cast(Of MySqlParameter)().Select(Function(param) String.Format("{0} = {1}", param.ParameterName, param.Value)).Implode())
-			If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
-				oldCumulative = MyCommand.Parameters("?Cumulative").Value
-				MyCommand.Parameters("?Cumulative").Value = True
-			End If
-
-			SQL &= " INTO OUTFILE '" & GetFileNameForMySql(FileName & UserId & ".txt") & "' "
-			MyCommand.CommandText = SQL
-			Result = MyCommand.ExecuteNonQuery()
-
-		Finally
-			If SetCumulative And MyCommand.Parameters.Contains("?Cumulative") Then
-				MyCommand.Parameters("?Cumulative").Value = oldCumulative
-			End If
-		End Try
-
-		If AddToQueue Then
-			SyncLock (FilesForArchive)
-
-				FilesForArchive.Enqueue(New FileForArchive(FileName, False))
-
-			End SyncLock
-		End If
-
-		Return Result
-
-	End Function
 
 	<WebMethod()> _
 	Public Function GetHistoryOrders( _
@@ -4044,6 +3881,7 @@ RestartTrans2:
 			UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID, UpdateType)
 			UpdateData.ParseBuildNumber(EXEVersion)
 			UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
+			Dim helper = new UpdateHelper(UpdateData, readWriteConnection)
 
 			If UpdateData.EnableImpersonalPrice Then
 				Throw New UpdateException( _
@@ -4069,26 +3907,22 @@ RestartTrans2:
 				End If
 			End If
 
-			SelProc = New MySqlCommand
-			SelProc.Connection = readWriteConnection
 			Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
-			SelProc.Transaction = transaction
 
 			Try
-
 				ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("PostedOrderHeads" & UserId & ".txt"))
 				ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("PostedOrderLists" & UserId & ".txt"))
 
-				SelProc.Parameters.Clear()
-				SelProc.Parameters.AddWithValue("?UserId", UpdateData.UserId)
-				SelProc.Parameters.AddWithValue("?ClientId", UpdateData.ClientId)
+				Dim cmd = new MySqlCommand("", readWriteConnection)
+				cmd.Parameters.AddWithValue("?UserId", UpdateData.UserId)
+				cmd.Parameters.AddWithValue("?ClientId", UpdateData.ClientId)
 
-				SelProc.CommandText = _
+				cmd.CommandText = _
 					"set @MaxOrderId := " & MaxOrderId & ";" & _
 					"set @MaxOrderListId := " & MaxOrderListId & ";"
-				SelProc.ExecuteNonQuery()
+				cmd.ExecuteNonQuery()
 
-				SelProc.CommandText = _
+				cmd.CommandText = _
 					"drop temporary table IF EXISTS HistoryIds;" & _
 					"create temporary table HistoryIds engine=MEMORY as " & _
 					"select " & _
@@ -4099,35 +3933,34 @@ RestartTrans2:
 					" where "
 
 				Dim ClientIdAsField As String
-				SelProc.CommandText &= " (useraddresses.UserId is not null and useraddresses.UserId = ?UserId)  "
+				cmd.CommandText &= " (useraddresses.UserId is not null and useraddresses.UserId = ?UserId)  "
 				ClientIdAsField = "OrdersHead.AddressId"
 
-				SelProc.CommandText &= " and OrdersHead.deleted = 0 and OrdersHead.processed = 1 "
+				cmd.CommandText &= " and OrdersHead.deleted = 0 and OrdersHead.processed = 1 "
 
 				If Not String.IsNullOrEmpty(historyIds) Then
-					SelProc.CommandText &= " and OrdersHead.RowId not in (" & historyIds & ");"
+					cmd.CommandText &= " and OrdersHead.RowId not in (" & historyIds & ");"
 				Else
-					SelProc.CommandText &= ";"
+					cmd.CommandText &= ";"
 				End If
 
-				SelProc.ExecuteNonQuery()
+				cmd.ExecuteNonQuery()
 
-				SelProc.CommandText = "select count(*) from HistoryIds"
-				Dim historyOrdersCount = Convert.ToInt32(SelProc.ExecuteScalar())
+				cmd = new MySqlCommand("select count(*) from HistoryIds", readWriteConnection)
+				Dim historyOrdersCount = Convert.ToInt32(cmd.ExecuteScalar())
 
 				Dim historyDocsCount As Int32 = 0
 
 				if (historyDocIds Isnot Nothing) Then
-					SelProc.CommandText = _
-						" update Logs.DocumentSendLogs ds " & _
+					cmd = new MySqlCommand(" update Logs.DocumentSendLogs ds " & _
 						" set ds.Committed = 0, ds.FileDelivered = 0, ds.DocumentDelivered = 0 " & _
-						" where ds.UserId = " & + UpdateData.UserId.ToString()
+						" where ds.UserId = " & + UpdateData.UserId.ToString(), readWriteConnection)
 						
 					if Not String.IsNullOrEmpty(historyDocIds) then
-						SelProc.CommandText &= " and ds.DocumentId not in (" & historyDocIds & ")"
+						cmd.CommandText &= " and ds.DocumentId not in (" & historyDocIds & ")"
 					End If
 
-					historyDocsCount = SelProc.ExecuteNonQuery()
+					historyDocsCount = cmd.ExecuteNonQuery()
 				End If
 
 
@@ -4143,11 +3976,9 @@ RestartTrans2:
 					End If
 				End If
 
-				'OrdersHead
-				'AddressId, UserId,  PriceDate, RowCount, Processed, Submited, Deleted, SubmitDate, ClientOrderId, CalculateLeader, 
-				GetMySQLFileWithDefault( _
+				helper.GetMySQLFileWithDefault( _
 				 "PostedOrderHeads", _
-				 SelProc, _
+				 readWriteConnection, _
 				 "select " & _
 				 "  HistoryIds.PostOrderId as OrderId, " & _
 				 "  OrdersHead.RowID as ServerOrderId, " & _
@@ -4162,13 +3993,9 @@ RestartTrans2:
 				 " HistoryIds " & _
 				 " inner join orders.OrdersHead on OrdersHead.RowId = HistoryIds.ServerOrderId ")
 
-				'OrdersList
-				'RowID, OrderID, CoreId, 
-				'OrderedOffers
-				'ID,  MinBoundCost, MaxBoundCost, CoreUpdateTime, CoreQuantityUpdate, 
-				GetMySQLFileWithDefault( _
+				helper.GetMySQLFileWithDefault( _
 				 "PostedOrderLists", _
-				 SelProc, _
+				 readWriteConnection, _
 				 "select " & _
 				 "  (@MaxOrderListId := @MaxOrderListId + 1) as PostOrderListId, " & _
 				 "  HistoryIds.PostOrderId as OrderId, " & _

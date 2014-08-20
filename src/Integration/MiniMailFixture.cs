@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -88,13 +89,13 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
-				var mailsExport = new MailsExport(updateData, connection, new Queue<FileForArchive>());
+				var mailsExport = new MailsExport(updateData, connection, new ConcurrentQueue<string>());
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
 				updateData.Cumulative = true;
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
-				helper.SetUpdateParameters(selectComand, DateTime.Now);
+				helper.SetUpdateParameters(selectComand);
 
 
 				mailsExport.FillExportMails(selectComand);
@@ -397,13 +398,13 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
-				var mailsExport = new MailsExport(updateData, connection, new Queue<FileForArchive>());
+				var mailsExport = new MailsExport(updateData, connection, new ConcurrentQueue<string>());
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
 				updateData.Cumulative = true;
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
-				helper.SetUpdateParameters(selectComand, DateTime.Now);
+				helper.SetUpdateParameters(selectComand);
 
 				mailsExport.FillExportMails(selectComand);
 
@@ -430,13 +431,13 @@ namespace Integration
 
 				var updateData = UpdateHelper.GetUpdateData(connection, _user.Login);
 				var helper = new UpdateHelper(updateData, connection);
-				var mailsExport = new MailsExport(updateData, connection, new Queue<FileForArchive>());
+				var mailsExport = new MailsExport(updateData, connection, new ConcurrentQueue<string>());
 
 				var selectComand = new MySqlCommand();
 				selectComand.Connection = connection;
 				updateData.Cumulative = true;
 				updateData.OldUpdateTime = DateTime.Now.AddHours(-1);
-				helper.SetUpdateParameters(selectComand, DateTime.Now);
+				helper.SetUpdateParameters(selectComand);
 
 				mailsExport.FillExportMails(selectComand);
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,7 +12,7 @@ namespace PrgData.Common.Models
 {
 	public class MailsExport : BaseExport
 	{
-		public MailsExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
+		public MailsExport(UpdateData updateData, MySqlConnection connection, ConcurrentQueue<string> files)
 			: base(updateData, connection, files)
 		{
 		}
@@ -46,7 +47,7 @@ namespace PrgData.Common.Models
 				var exportMailscommand = new MySqlCommand();
 				exportMailscommand.Connection = connection;
 				var helper = new UpdateHelper(updateData, connection);
-				helper.SetUpdateParameters(exportMailscommand, DateTime.Now);
+				helper.SetUpdateParameters(exportMailscommand);
 				FillExportMails(exportMailscommand);
 
 				if (updateData.ExportMails.Count > 0) {

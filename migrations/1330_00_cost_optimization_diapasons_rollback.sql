@@ -1,0 +1,2 @@
+alter table UserSettings.CostOptimizationDiapasons drop foreign key FK_UserSettings_CostOptimizationDiapasons_RuleId;
+drop table if exists UserSettings.CostOptimizationDiapasons;

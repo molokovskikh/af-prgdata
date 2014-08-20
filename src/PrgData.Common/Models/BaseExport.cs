@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -10,14 +11,14 @@ namespace PrgData.Common.Models
 	public abstract class BaseExport
 	{
 		protected ILog log;
-		protected Queue<FileForArchive> files;
+		protected ConcurrentQueue<string> files;
 		protected MySqlConnection connection;
 		protected UpdateData updateData;
 
 		public bool UnderTest;
 		public Dictionary<string, DataTable> data = new Dictionary<string, DataTable>();
 
-		protected BaseExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
+		protected BaseExport(UpdateData updateData, MySqlConnection connection, ConcurrentQueue<string> files)
 		{
 			log = LogManager.GetLogger(GetType());
 			this.updateData = updateData;
@@ -67,7 +68,7 @@ namespace PrgData.Common.Models
 			command.ExecuteNonQuery();
 
 			if (addToQueue)
-				files.Enqueue(new FileForArchive(name, false));
+				files.Enqueue(importFile);
 
 #if DEBUG
 			//в отладочной версии ожидаем экспортирование файла из базы данных MySql

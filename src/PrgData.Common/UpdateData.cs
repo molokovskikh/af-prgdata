@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Data;
@@ -179,6 +180,7 @@ namespace PrgData.Common
 		public UpdateData(DataSet data, OrderRules settings)
 		{
 			_currentTempFileName = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+			CurrentUpdateTime = DateTime.Now;
 
 			PreviousRequest = new UncommittedRequest();
 			if (data.Tables.Count < 2)
@@ -531,6 +533,10 @@ namespace PrgData.Common
 		{
 			get { return CheckVersion(_versionBeforeHistoryDocs); }
 		}
+
+		public DateTime CurrentUpdateTime;
+		public ConcurrentQueue<string> FilesForArchive;
+		public bool ImpersonalPriceFresh;
 
 		public bool CheckVersion(int requiredVersion)
 		{

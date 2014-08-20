@@ -4,7 +4,7 @@ using NHibernate.Mapping.Attributes;
 namespace PrgData.Common.Models
 {
 	[
-		Class(Table = "UserSettings.AnalitFVersionRules", Lazy = false),
+		Class(Table = "AnalitFVersionRules", Schema = "UserSettings", Lazy = false),
 		Serializable
 	]
 	public class AnalitFVersionRule

@@ -1,16 +1,21 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Web;
 using Common.Models;
 using Common.Models.Helpers;
+using Common.MySql;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using NHibernate;
+using NHibernate.Linq;
+using NHibernate.Type;
 using PrgData.Common.Models;
 using log4net;
 using PrgData.Common.Orders;
@@ -91,6 +96,14 @@ namespace PrgData.Common
 			maxProducerCostsCostId = 8148;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
+		}
+
+		public static ISessionFactory SessionFactory
+		{
+			get
+			{
+				return IoC.Resolve<ISessionFactoryHolder>().SessionFactory;
+			}
 		}
 
 		public MySqlConnection ReadWriteConnection
@@ -332,11 +345,11 @@ limit 1;",
 
 			if (data.Tables[0].Rows.Count > 0) {
 				var id = Convert.ToUInt32(data.Tables[0].Rows[0]["ClientId"]);
-				OrderRules settings = null;
-				global::Common.Models.With.Session(s => {
-					settings = s.Load<OrderRules>(id);
+				OrderRules settings;
+				using(var session = SessionFactory.OpenSession(connection)) {
+					settings = session.Load<OrderRules>(id);
 					NHibernateUtil.Initialize(settings);
-				});
+				}
 				updateData = new UpdateData(data, settings);
 			}
 
@@ -1236,22 +1249,16 @@ and (DescriptionLogs.Operation = 2)
 
 		public void ArchiveCertificates(MySqlConnection connection,
 			string archiveFileName,
-			DateTime currentUpdateTime,
 			ref string addition,
 			ref string updateLog,
 			uint updateId,
-			Queue<FileForArchive> filesForArchive)
+			ConcurrentQueue<string> filesForArchive)
 		{
 			try {
 				log.Debug("Будем выгружать сертификаты");
 
-				var command = new MySqlCommand();
-				command.Connection = connection;
-				SetUpdateParameters(command, currentUpdateTime);
-
-				ExportCertificates(archiveFileName, command, filesForArchive);
-
-				updateLog = ArchiveCertificatesFiles(archiveFileName, command);
+				ExportCertificates(archiveFileName, connection, filesForArchive);
+				updateLog = ArchiveCertificatesFiles(archiveFileName, connection);
 			}
 			catch (Exception exception) {
 				log.Error("Ошибка при архивировании сертификатов", exception);
@@ -1261,7 +1268,7 @@ and (DescriptionLogs.Operation = 2)
 			}
 		}
 
-		private void ExportCertificates(string archiveFileName, MySqlCommand command, Queue<FileForArchive> filesForArchive)
+		private void ExportCertificates(string archiveFileName, MySqlConnection connection, ConcurrentQueue<string> filesForArchive)
 		{
 			var certificateRequestsFile = DeleteFileByPrefix("CertificateRequests");
 			var certificatesFile = DeleteFileByPrefix("Certificates");
@@ -1270,34 +1277,34 @@ and (DescriptionLogs.Operation = 2)
 			var certificateFilesFile = DeleteFileByPrefix("CertificateFiles");
 			var fileCertificatesFile = DeleteFileByPrefix("FileCertificates");
 
-			ProcessCertificates(command);
+			ProcessCertificates(connection);
 
 			File.WriteAllText(ServiceContext.GetFileByLocal(certificateRequestsFile), _updateData.GetCertificatesResult());
 
 			ProcessArchiveFile(certificateRequestsFile, archiveFileName);
 
 
-			GetMySQLFileWithDefaultEx("Certificates", command, GetCertificatesCommand(), false, false, filesForArchive);
+			GetMySQLFileWithDefaultEx("Certificates", connection, GetCertificatesCommand(), false, false);
 
 			ProcessArchiveFile(certificatesFile, archiveFileName);
 
 
-			GetMySQLFileWithDefaultEx("CertificateSources", command, GetCertificateSourcesCommand(), false, false, filesForArchive);
+			GetMySQLFileWithDefaultEx("CertificateSources", connection, GetCertificateSourcesCommand(), false, false);
 
 			ProcessArchiveFile(certificateSourcesFile, archiveFileName);
 
 
-			GetMySQLFileWithDefaultEx("SourceSuppliers", command, GetSourceSuppliersCommand(), false, false, filesForArchive);
+			GetMySQLFileWithDefaultEx("SourceSuppliers", connection, GetSourceSuppliersCommand(), false, false);
 
 			ProcessArchiveFile(sourceSuppliersFile, archiveFileName);
 
 
-			GetMySQLFileWithDefaultEx("CertificateFiles", command, GetCertificateFilesCommand(), false, false, filesForArchive);
+			GetMySQLFileWithDefaultEx("CertificateFiles", connection, GetCertificateFilesCommand(), false, false);
 
 			ProcessArchiveFile(certificateFilesFile, archiveFileName);
 
 
-			GetMySQLFileWithDefaultEx("FileCertificates", command, GetFileCertificatesCommand(), false, false, filesForArchive);
+			GetMySQLFileWithDefaultEx("FileCertificates", connection, GetFileCertificatesCommand(), false, false);
 
 			ProcessArchiveFile(fileCertificatesFile, archiveFileName);
 		}
@@ -1410,16 +1417,17 @@ and (DescriptionLogs.Operation = 2)
 				+ ids + ")";
 		}
 
-		private void ProcessCertificates(MySqlCommand command)
+		private void ProcessCertificates(MySqlConnection connection)
 		{
 			var showWithoutSuppliers = Convert.ToBoolean(
 				MySqlHelper.ExecuteScalar(
-					command.Connection,
+					connection,
 					"select ShowCertificatesWithoutRefSupplier from UserSettings.RetClientsSet where ClientCode = ?clientId",
 					new MySqlParameter("?clientId", _updateData.ClientId)));
 
+			string sql;
 			if (showWithoutSuppliers)
-				command.CommandText = @"
+				sql = @"
 	select
 		c.Id as CertificateId,
 		cf.Id as CertificateFileId
@@ -1433,7 +1441,7 @@ and (DescriptionLogs.Operation = 2)
 		db.Id = ?bodyId
 ";
 			else
-				command.CommandText = @"
+				sql = @"
 	select
 		c.Id as CertificateId,
 		cf.Id as CertificateFileId
@@ -1448,12 +1456,10 @@ and (DescriptionLogs.Operation = 2)
 		db.Id = ?bodyId
 ";
 
-			command.Parameters.Add("?bodyId", MySqlDbType.UInt32);
-
-			var dataAdapter = new MySqlDataAdapter(command);
+			var dataAdapter = new MySqlDataAdapter(sql, connection);
 
 			foreach (var certificateRequest in _updateData.CertificateRequests) {
-				command.Parameters["?bodyId"].Value = certificateRequest.DocumentBodyId;
+				dataAdapter.SelectCommand.Parameters["?bodyId"].Value = certificateRequest.DocumentBodyId;
 
 				var table = new DataTable();
 				dataAdapter.Fill(table);
@@ -1489,7 +1495,7 @@ and (DescriptionLogs.Operation = 2)
 			ShareFileHelper.WaitDeleteFile(fullPathFile);
 		}
 
-		private string ArchiveCertificatesFiles(string archiveFileName, MySqlCommand command)
+		private string ArchiveCertificatesFiles(string archiveFileName, MySqlConnection connection)
 		{
 			var certificatesFolder = "Certificates";
 			var certificatesPath = Path.Combine(_updateData.ResultPath, certificatesFolder);
@@ -1508,10 +1514,10 @@ and (DescriptionLogs.Operation = 2)
 				}
 			}
 
-			return BuildLog(command);
+			return BuildLog(connection);
 		}
 
-		private string BuildLog(MySqlCommand command)
+		private string BuildLog(MySqlConnection connection)
 		{
 			var sended = _updateData.CertificateRequests.Where(r => r.SendedFiles.Count > 0).ToArray();
 			if (sended.Length == 0)
@@ -1524,7 +1530,7 @@ join Catalogs.Products p on p.Id = db.ProductId
 join Catalogs.Catalog c on c.Id = p.CatalogId
 where db.Id in ({0})
 ", sended.Implode(r => r.DocumentBodyId));
-			var adapter = new MySqlDataAdapter(sql, command.Connection);
+			var adapter = new MySqlDataAdapter(sql, connection);
 			var table = new DataTable();
 			adapter.Fill(table);
 
@@ -1548,37 +1554,28 @@ where db.Id in ({0})
 			return writer.ToString();
 		}
 
-		private void GetMySQLFileWithDefaultEx(string FileName, MySqlCommand MyCommand, string SQLText, bool SetCumulative, bool AddToQueue, Queue<FileForArchive> filesForArchive)
+		public int GetMySQLFileWithDefault(string fileName, MySqlConnection connection, string sql)
 		{
-			var SQL = SQLText;
-			bool oldCumulative = false;
+			return GetMySQLFileWithDefaultEx(fileName, connection, sql, false, true);
+		}
 
-			try {
-				if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative")) {
-					oldCumulative = Convert.ToBoolean(MyCommand.Parameters["?Cumulative"].Value);
-					MyCommand.Parameters["?Cumulative"].Value = true;
-				}
+		public int GetMySQLFileWithDefaultEx(string fileName, MySqlConnection connection, string SQLText, bool SetCumulative, bool AddToQueue)
+		{
+			var cmd = new MySqlCommand(SQLText, connection);
+			fileName = ServiceContext.GetFileByShared(fileName + _updateData.UserId + ".txt");
 
-				var fullName = ServiceContext.GetFileByShared(FileName + _updateData.UserId + ".txt");
-				fullName = MySqlHelper.EscapeString(fullName);
+			SetUpdateParameters(cmd);
+			if (SetCumulative)
+				cmd.Parameters["?Cumulative"].Value = true;
 
-				SQL += " INTO OUTFILE '" + fullName + "' ";
-
-				log.DebugFormat("SQL команда для выгрузки акций: {0}", SQL);
-
-				MyCommand.CommandText = SQL;
-				MyCommand.ExecuteNonQuery();
-			}
-			finally {
-				if (SetCumulative && MyCommand.Parameters.Contains("?Cumulative"))
-					MyCommand.Parameters["?Cumulative"].Value = oldCumulative;
-			}
+			cmd.CommandText += " INTO OUTFILE '" + MySqlHelper.EscapeString(fileName) + "' ";
+			log.DebugFormat("SQL команда: {0}", cmd.CommandText);
+			var result = cmd.ExecuteNonQuery();
 
 			if (AddToQueue) {
-				lock (filesForArchive) {
-					filesForArchive.Enqueue(new FileForArchive(FileName, false));
-				}
+				_updateData.FilesForArchive.Enqueue(fileName);
 			}
+			return result;
 		}
 
 		private string DeleteFileByPrefix(string prefix)
@@ -1765,7 +1762,7 @@ WHERE
 AND hidden = 0";
 		}
 
-		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool cryptCost)
+		public string GetCoreCommand(bool exportInforoomPrice, bool exportSupplierPriceMarkup, bool exportBuyingMatrix)
 		{
 			var matrixParts = new SqlParts();
 			if (exportBuyingMatrix && exportSupplierPriceMarkup)
@@ -1913,61 +1910,70 @@ group by  @RowId
 						matrixParts.JoinWithoutProducer,
 						matrixParts.Having);
 			else {
-				sql = String.Format(@"
-SELECT CT.PriceCode               ,
-	   CT.regioncode              ,
-	   CT.ProductId               ,
-	   ifnull(Core.codefirmcr, 0) as ProducerId,
-	   Core.synonymcode           ,
-	   Core.SynonymFirmCrCode     ,
-	   Core.Code                  ,
-	   Core.CodeCr                ,
-	   Core.unit                  ,
-	   Core.volume                ,
-	   Core.Junk                  ,
-	   Core.Await                 ,
-	   Core.quantity              ,
-	   Core.note                  ,
-	   Core.period                ,
-	   Core.doc                   ,
-	   Core.RegistryCost          ,
-	   Core.VitallyImportant      ,
-	   ifnull(cc.RequestRatio, Core.RequestRatio) as RequestRatio,
-	   {2} as Cost,
-	   RIGHT(CT.ID, 9) as CoreID,
-	   ifnull(cc.MinOrderSum, core.OrderCost) as OrderCost,
-	   ifnull(cc.MinOrderCount, core.MinOrderCount) as MinOrderCount
-	   {0}
-	   {3}
-	   {1}
-	   {4}
-	   {5}
-	   {6}
+				return GetOfferQuery(exportSupplierPriceMarkup, exportBuyingMatrix).ToSql();
+			}
+
+			return sql;
+		}
+
+		private Query GetOfferQuery(bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool ignoreVersionRules = false)
+		{
+			var matrixParts = new SqlParts();
+			if (ignoreVersionRules || (exportBuyingMatrix && exportSupplierPriceMarkup))
+				matrixParts = new MatrixHelper(_updateData.Settings).BuyingMatrixCondition(false);
+
+			var query = new Query();
+			var select = String.Format(@"
+	CT.PriceCode               ,
+	CT.regioncode              ,
+	CT.ProductId               ,
+	ifnull(Core.codefirmcr, 0) as ProducerId,
+	Core.synonymcode           ,
+	Core.SynonymFirmCrCode     ,
+	Core.Code                  ,
+	Core.CodeCr                ,
+	Core.unit                  ,
+	Core.volume                ,
+	Core.Junk                  ,
+	Core.Await                 ,
+	Core.quantity              ,
+	Core.note                  ,
+	Core.period                ,
+	Core.doc                   ,
+	Core.RegistryCost          ,
+	Core.VitallyImportant      ,
+	ifnull(cc.RequestRatio, Core.RequestRatio) as RequestRatio,
+	CT.Cost as Cost,
+	RIGHT(CT.ID, 9) as CoreID,
+	ifnull(cc.MinOrderSum, core.OrderCost) as OrderCost,
+	ifnull(cc.MinOrderCount, core.MinOrderCount) as MinOrderCount
+	{0}
+	{2}
+	{1}
+	{3}
+	{4}
 ",
-					exportSupplierPriceMarkup ? @"
+					ignoreVersionRules || exportSupplierPriceMarkup ? @"
 , 
-if((Core.ProducerCost is null) or (Core.ProducerCost = 0), 
-   null, 
-   if((Core.NDS is null) or (Core.NDS < 0), 
+if((Core.ProducerCost is null) or (Core.ProducerCost = 0),
+   null,
+   if((Core.NDS is null) or (Core.NDS < 0),
 	 (CT.Cost/(Core.ProducerCost*1.1)-1)*100,
 	 if(Core.NDS = 0,
 	   (CT.Cost/Core.ProducerCost-1)*100,
 	   (CT.Cost/(Core.ProducerCost*(1 + Core.NDS/100))-1)*100
-	 )     
+	 )
    )
 ) as SupplierPriceMarkup,
 Core.ProducerCost,
 Core.NDS " : "",
 					matrixParts.Select,
-					cryptCost ? "CT.CryptCost" : "CT.Cost",
-					exportSupplierPriceMarkup && _updateData.AllowDelayByPrice() ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
-					_updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
-					_updateData.SupportExportExp() ? ", Core.Exp " : "",
-					string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty));
-			}
-
-			log.Debug(sql);
-			return sql;
+					ignoreVersionRules || (exportSupplierPriceMarkup && _updateData.AllowDelayByPrice()) ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
+					ignoreVersionRules || _updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
+					ignoreVersionRules || _updateData.SupportExportExp() ? ", Core.Exp " : "");
+			query.Select(select);
+			query.From(string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty).Replace("FROM ", ""));
+			return query;
 		}
 
 		public string GetSynonymFirmCrCommand(bool cumulative)
@@ -2404,18 +2410,18 @@ WHERE
 			});
 		}
 
-		public void SetUpdateParameters(MySqlCommand selectComand, DateTime currentUpdateTime)
+		public void SetUpdateParameters(MySqlCommand selectComand)
 		{
 			selectComand.Parameters.AddWithValue("?ClientCode", _updateData.ClientId);
 			selectComand.Parameters.AddWithValue("?UserId", _updateData.UserId);
 			selectComand.Parameters.AddWithValue("?Cumulative", _updateData.Cumulative);
 			selectComand.Parameters.AddWithValue("?UpdateTime", _updateData.OldUpdateTime);
-			selectComand.Parameters.AddWithValue("?LastUpdateTime", currentUpdateTime);
+			selectComand.Parameters.AddWithValue("?LastUpdateTime", _updateData.CurrentUpdateTime);
 			selectComand.Parameters.AddWithValue("?OffersClientCode", _updateData.OffersClientCode);
 			selectComand.Parameters.AddWithValue("?OffersRegionCode", _updateData.OffersRegionCode);
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceId", _updateData.ImpersonalPriceId);
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceDate", DateTime.Now);
-			selectComand.Parameters.AddWithValue("?ImpersonalPriceFresh", 0);
+			selectComand.Parameters.AddWithValue("?ImpersonalPriceFresh", _updateData.ImpersonalPriceFresh);
 
 			if (_updateData.MissingProductIds.Count > 0) {
 				selectComand.CommandText = String.Format(@"
@@ -2438,15 +2444,16 @@ and p.Hidden = 0",
 				selectComand.Parameters.AddWithValue("?CatalogUpdateTime", _updateData.OldUpdateTime);
 		}
 
-		public void PrepareImpersonalOffres(MySqlCommand selectCommand)
+		public void PrepareImpersonalOffres()
 		{
-			selectCommand.CommandText = @"
+			var cmd = new MySqlCommand(@"
 DROP TEMPORARY TABLE IF EXISTS Prices, ActivePrices;
 CALL Customers.GetActivePrices(?OffersClientCode);
-CALL Customers.GetOffers(?OffersClientCode);";
-			selectCommand.ExecuteNonQuery();
+CALL Customers.GetOffers(?OffersClientCode);", _readWriteConnection);
+			SetUpdateParameters(cmd);
+			cmd.ExecuteNonQuery();
 
-			selectCommand.CommandText = @"
+			cmd = new MySqlCommand(@"
 DROP TEMPORARY TABLE IF EXISTS CoreAssortment, CoreProducts;
 CREATE TEMPORARY TABLE CoreAssortment (ProductId       INT unsigned, CodeFirmCr INT unsigned, UNIQUE MultiK(ProductId, CodeFirmCr)) engine=MEMORY;
 CREATE TEMPORARY TABLE CoreProducts (ProductId INT unsigned, UNIQUE MultiK(ProductId)) engine=MEMORY;
@@ -2474,8 +2481,9 @@ SELECT   ProductId
 FROM     CoreAssortment
 GROUP BY ProductId;
 						
-SET @RowId :=1;";
-			selectCommand.ExecuteNonQuery();
+SET @RowId :=1;");
+			SetUpdateParameters(cmd);
+			cmd.ExecuteNonQuery();
 		}
 
 		public string GetPricesRegionalDataCommand()
@@ -2545,10 +2553,10 @@ and				Suppliers.Id = regionaldata.firmcode",
 					_updateData.AllowAfter1883() ? ", Suppliers.Address " : string.Empty);
 		}
 
-		public void PrepareProviderContacts(MySqlCommand selectCommand)
+		public void PrepareProviderContacts(MySqlConnection connection)
 		{
 			if (!_updateData.EnableImpersonalPrice) {
-				selectCommand.CommandText = @"
+				connection.Execute(@"
 DROP TEMPORARY TABLE IF EXISTS ProviderContacts;
 
 CREATE TEMPORARY TABLE ProviderContacts engine=MEMORY
@@ -2583,16 +2591,13 @@ WHERE           cd.Id IN
 								FROM             Prices
 								)
 AND             cg.Type = 1
-AND             c.Type  = 0;
-";
-				selectCommand.ExecuteNonQuery();
+AND             c.Type  = 0;");
 			}
 		}
 
-		public void ClearProviderContacts(MySqlCommand selectCommand)
+		public void ClearProviderContacts()
 		{
-			selectCommand.CommandText = "drop TEMPORARY TABLE IF EXISTS ProviderContacts";
-			selectCommand.ExecuteNonQuery();
+			_readWriteConnection.Execute("drop TEMPORARY TABLE IF EXISTS ProviderContacts");
 		}
 
 		public string GetProvidersCommand()
@@ -2677,14 +2682,15 @@ GROUP BY Prices.FirmCode,
 					_updateData.AllowHistoryDocs ? " Prices.pricename " : " concat(firm.name, IF(PriceCounts.PriceCount> 1 OR Prices.ShowPriceName = 1, concat(' (', Prices.pricename, ')'), '')) ");
 		}
 
-		public void PreparePricesData(MySqlCommand selectCommand)
+		public void PreparePricesData()
 		{
 			if (_updateData.EnableImpersonalPrice) {
-				selectCommand.CommandText = "select max(PriceDate) from Prices";
-				var priceDate = Convert.ToDateTime(selectCommand.ExecuteScalar());
-				selectCommand.Parameters["?ImpersonalPriceDate"].Value = priceDate;
+				var cmd = new MySqlCommand("select max(PriceDate) from Prices", _readWriteConnection);
+				SetUpdateParameters(cmd);
+				var priceDate = Convert.ToDateTime(cmd.ExecuteScalar());
+				cmd.Parameters["?ImpersonalPriceDate"].Value = priceDate;
 
-				selectCommand.CommandText = @"
+				cmd.CommandText = @"
 select 
   ifnull(sum((ARI.ForceReplication != 0) OR ((Prices.actual = 0) and (?UpdateTime < Prices.PriceDate + interval f.maxold day)) OR ?Cumulative), 0) as Fresh
 from 
@@ -2695,11 +2701,11 @@ from
   inner JOIN farm.formrules f on f.Id = pi.FormRuleId
 where
   ARI.UserId = ?UserId";
-				var priceFresh = Convert.ToInt32(selectCommand.ExecuteScalar());
-				selectCommand.Parameters["?ImpersonalPriceFresh"].Value = priceFresh > 0 ? 1 : 0;
+				var priceFresh = Convert.ToInt32(cmd.ExecuteScalar());
+				_updateData.ImpersonalPriceFresh = priceFresh > 0;
 			}
 			else {
-				selectCommand.CommandText = @"
+				_readWriteConnection.Execute(@"
 CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT unsigned )engine=MEMORY;
 		INSERT
 		INTO   PriceCounts
@@ -2707,8 +2713,7 @@ CREATE TEMPORARY TABLE PriceCounts ( FirmCode INT unsigned, PriceCount MediumINT
 				 COUNT(pricecode)
 		FROM     Prices
 		GROUP BY FirmCode,
-				 RegionCode;";
-				selectCommand.ExecuteNonQuery();
+				 RegionCode;");
 			}
 		}
 
@@ -2888,7 +2893,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 			});
 		}
 
-		public void UnconfirmedOrdersExport(string exportFolder, Queue<FileForArchive> filesForArchive)
+		public void UnconfirmedOrdersExport(string exportFolder, ConcurrentQueue<string> filesForArchive)
 		{
 			if (_updateData.NeedDownloadUnconfirmedOrders) {
 				var exporter = new UnconfirmedOrdersExporter(_updateData, this, exportFolder, filesForArchive);
@@ -3038,6 +3043,185 @@ from
 where
 	(ProducerLogs.LogTime >= ?UpdateTime)
 	and (ProducerLogs.Operation = 2)";
+		}
+
+		public int ExportOffers()
+		{
+			var exportSupplierPriceMarkup = (_updateData.BuildNumber > 1027) || (_updateData.EnableUpdate() && ((_updateData.BuildNumber >= 945) || ((_updateData.BuildNumber >= 705) && (_updateData.BuildNumber <= 716)) || ((_updateData.BuildNumber >= 829) && (_updateData.BuildNumber <= 837))));
+			var exportBuyingMatrix = _updateData.BuildNumber >= 1249 || _updateData.NeedUpdateToBuyingMatrix;
+			var watch = new Stopwatch();
+			watch.Start();
+			SelectOffers();
+			CostOptimizer.OptimizeCostIfNeeded(_readWriteConnection, _updateData.ClientId, _updateData.UserId);
+
+			int count;
+			if (!TryExportAndOptimizeCosts(exportSupplierPriceMarkup, exportBuyingMatrix, out count)) {
+				var sql = GetCoreCommand(false, exportSupplierPriceMarkup, exportBuyingMatrix);
+				count = GetMySQLFileWithDefaultEx("Core", _readWriteConnection, sql,
+					(_updateData.BuildNumber <= 1027) && _updateData.EnableUpdate(),
+					true);
+			}
+			watch.Stop();
+			log.DebugFormat("Экспорт предложений завершен за {0} экспортировано {1} позиций", watch.Elapsed, count);
+			return count;
+		}
+
+		private bool TryExportAndOptimizeCosts(bool exportSupplierPriceMarkup, bool exportBuyingMatrix, out int count)
+		{
+			count = 0;
+			using (var session = SessionFactory.OpenSession(_readWriteConnection)) {
+				var client = session.Load<Client>(_updateData.ClientId);
+				var activePrices = session.Query<AFActivePrice>().ToList();
+				var supplierIds = activePrices.Select(p => p.Id.Price.Supplier.Id).Distinct().ToArray();
+				var rules = session.Query<CostOptimizationRule>()
+					.Where(r => supplierIds.Contains(r.Supplier.Id) && r.RuleType == RuleType.MaxCost
+						&& (r.Clients.Count == 0 || r.Clients.Contains(client)))
+					.ToArray();
+				//в запросе мы выбираем правила как имеющее в своем списке текущего клиента так и общие
+				//общими считаются правила без клиентов, ниже для каждого поставщика берем одно правила
+				//предпочитая правила которые были определены для этого клиента
+				rules = rules.GroupBy(r => r.Supplier)
+					.Select(g => g.OrderByDescending(r => r.Clients.Count).First())
+					.ToArray();
+				if (!rules.Any())
+					return false;
+
+				//отметить те прайс-листы которые мы будем передавать из-за того что обновился кто-то из конкурентов
+				var fresh = activePrices.Where(p => p.Fresh).Select(p => p.Id.Price.Supplier).ToArray();
+				var topatch = rules
+					.Where(r => !fresh.Contains(r.Supplier) && r.Concurrents.Intersect(fresh).Any())
+					.Select(r => r.Supplier);
+				activePrices
+					.Where(p => topatch.Contains(p.Id.Price.Supplier))
+					.Each(p => p.Fresh = true);
+				var exportable = activePrices.Where(p => p.Fresh).Select(p => p.Id.Price.PriceCode).OrderBy(i => i).ToArray();
+
+				var query = GetOfferQuery(true, true, true);
+				query.Select("at.FirmCode", "core.MaxBoundCost");
+				if (log.IsDebugEnabled)
+					log.Debug(query.ToSql());
+				var cmd = new MySqlCommand(query.ToSql(), _readWriteConnection);
+				//для вычисления монопольных предложений нам нужно выбрать все предложения
+				SetUpdateParameters(cmd);
+				cmd.Parameters["?Cumulative"].Value = true;
+
+				var offers = new List<Offer2>();
+				using (var reader = cmd.ExecuteReader()) {
+					log.Debug("Данные выбраны, начинаю загрузку");
+					while (reader.Read()) {
+						offers.Add(new Offer2 {
+							//поля для экспорта
+							PriceId = reader.GetUInt32(0),
+							RegionId = reader.GetUInt64(1),
+							ProductId = reader.GetUInt32(2),
+							ProducerId = reader.GetNullableUInt32(3),
+							SynonymCode = reader.GetUInt32(4),
+							SynonymFirmCrCode = reader.GetNullableUInt32(5),
+							Code = reader.SafeGetString(6),
+							CodeCr = reader.SafeGetString(7),
+							Unit = reader.SafeGetString(8),
+							Volume = reader.SafeGetString(9),
+							Junk = reader.GetBoolean(10),
+							Await = reader.GetBoolean(11),
+							RawQuantity = reader.SafeGetString(12),
+							Note = reader.SafeGetString(13),
+							Period = reader.SafeGetString(14),
+							Doc = reader.SafeGetString(15),
+							RegistryCost = reader.GetNullableFloat(16),
+							VitallyImportant = reader.GetBoolean(17),
+							RequestRatio = reader.GetNullableUInt32(18),
+							Cost = reader.GetDecimal(19),
+							ClientOfferId = reader.SafeGetString(20),
+							OrderCost = reader.GetNullableFloat(21),
+							MinOrderCount = reader.GetNullableUInt32(22),
+							SupplierPriceMarkup = reader.GetNullableDecimal(23),
+							ProducerCost = reader.GetNullableFloat(24),
+							Nds = reader.GetNullableUInt32(25),
+							RetailVitallyImportan = reader.GetBoolean(26),
+							BuyingMatrixType = reader.GetUInt32(27),
+							CodeOKP = reader.SafeGetString(28),
+							EAN13 = reader.SafeGetString(29),
+							Series = reader.SafeGetString(30),
+							Exp = reader.GetNullableDateTime(31),
+							//поля для оптимизации цен
+							SupplierId = reader.GetUInt32(32),
+							MaxBoundCost = reader.GetNullableFloat(33)
+						});
+					}
+				}
+				log.Debug("Загрузка завершена, начинаю оптимизацию");
+				var logs = CostOptimizer.MonopolisticsOptimize(offers, rules);
+				CostOptimizer.SaveLogs(_readWriteConnection, logs, _updateData.UserId, _updateData.ClientId);
+				log.Debug("Оптимизация завершена, начинаю выгрузку");
+
+				var columnCount = 32;
+				if (!exportSupplierPriceMarkup) {
+					//добавили Nds, ProducerCost, SupplierPriceMarkup
+					columnCount -= 3 + 1 + 1 + 3 + 1;
+				}
+				else if (!exportBuyingMatrix) {
+					//добавили BuyingMatrixType
+					columnCount -= 1 + 1 + 3 + 1;
+				}
+				else if (!_updateData.AllowDelayByPrice()) {
+					//добавили RetailVitallyImportan
+					columnCount -= 1 + 3 + 1;
+				}
+				else if (!_updateData.AllowEAN13()) {
+					//добавили CodeOKP, EAN13, Series
+					columnCount -= 3 + 1;
+				}
+				else if (!_updateData.SupportExportExp()) {
+					//добавили Exp
+					columnCount -= 1;
+				}
+				//todo - ошибка экспорт определяется для PriceCode + RegionCode!
+				var filename = ServiceContext.GetFileByShared("Core" + _updateData.UserId + ".txt");
+				using (var file = new StreamWriter(filename, false, Encoding.GetEncoding(1251))) {
+					var toexport = offers
+						.Where(o => Array.BinarySearch(exportable, o.PriceId) >= 0)
+						.Select(o => new object[] {
+							o.PriceId,
+							o.RegionId,
+							o.ProductId,
+							o.ProducerId.GetValueOrDefault(),
+							o.SynonymCode,
+							o.SynonymFirmCrCode,
+							o.Code,
+							o.CodeCr,
+							o.Unit,
+							o.Volume,
+							o.Junk,
+							o.Await,
+							o.RawQuantity,
+							o.Note,
+							o.Period,
+							o.Doc,
+							o.RegistryCost,
+							o.VitallyImportant,
+							o.RequestRatio,
+							o.Cost,
+							o.ClientOfferId,
+							o.OrderCost,
+							o.MinOrderCount,
+							//дальше идут поля которые могут быть не экспортированны в зависимости от версии
+							o.SupplierPriceMarkup,
+							o.ProducerCost,
+							o.Nds,
+							//это безумее но судя по коду это так с 1403 добавляется RetailVitallyImportan но вместо того что бы
+							//добавиться в конец где уже есть BuyingMatrixType оно добавляется перед BuyingMatrixType
+							!_updateData.AllowDelayByPrice() && exportBuyingMatrix ? o.BuyingMatrixType : (object)o.RetailVitallyImportan,
+							o.BuyingMatrixType,
+							o.CodeOKP,
+							o.EAN13,
+							o.Series,
+							o.Exp
+						});
+					count = global::Common.MySql.MySqlHelper.Export(toexport, file, 0, columnCount);
+				}
+				_updateData.FilesForArchive.Enqueue(filename);
+			}
+			return true;
 		}
 	}
 }

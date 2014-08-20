@@ -139,7 +139,7 @@ namespace Integration
 			updateData.OldUpdateTime = DateTime.Now.AddDays(-10);
 
 			var selectCommand = new MySqlCommand() { Connection = connection };
-			helper.SetUpdateParameters(selectCommand, DateTime.Now);
+			helper.SetUpdateParameters(selectCommand);
 
 			CheckFillData(selectCommand, helper.GetSynonymCommand(cumulative), updateData);
 

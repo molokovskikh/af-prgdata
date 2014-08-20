@@ -5,12 +5,15 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using Castle.ActiveRecord;
 using Castle.MicroKernel.Registration;
 using Common.Models;
 using Common.Models.Tests.Repositories;
 using Common.MySql;
 using Common.Tools;
+using Common.Tools.Helpers;
 using Inforoom.Common;
+using NHibernate.Mapping.Attributes;
 using NUnit.Framework;
 using PrgData.Common;
 using PrgData.Common.Models;
@@ -39,7 +42,7 @@ namespace Integration
 			XmlConfigurator.Configure();
 
 			ArchiveHelper.SevenZipExePath = @"7zip\7z.exe";
-			Common.MySql.With.DefaultConnectionStringName = Common.MySql.ConnectionHelper.GetConnectionName();
+			Common.MySql.With.DefaultConnectionStringName = ConnectionHelper.GetConnectionName();
 
 			PrepareMySqlPaths();
 
@@ -47,9 +50,14 @@ namespace Integration
 
 			CheckLocalDB();
 
-			Test.Support.Setup.Initialize();
+			Test.Support.Setup.BuildConfiguration();
+			var holder = ActiveRecordMediator.GetSessionFactoryHolder();
+			var cfg = holder.GetConfiguration(typeof(ActiveRecordBase));
+			cfg.AddInputStream(HbmSerializer.Default.Serialize(Assembly.Load("Common.Models")));
+			var factory = holder.GetSessionFactory(typeof(ActiveRecordBase));
+			Test.Support.Setup.SessionFactory = factory;
 
-			ContainerInitializer.InitializerContainerForTests(new Assembly[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
+			ContainerInitializer.InitializerContainerForTests(new[] { typeof(SmartOrderRule).Assembly, typeof(AnalitFVersionRule).Assembly });
 
 			IoC.Container.Register(
 				Component.For<ISmartOrderFactoryRepository>().ImplementedBy<SmartOrderFactoryRepository>(),
@@ -120,47 +128,12 @@ namespace Integration
 				accessExists = true;
 			}
 			catch (Exception) {
-				ConnectToShare(dbFilesPath, "analit\\PrgDataTester", "newpassword");
+				//C:\Users\tester>net use \\fms.adc.analit.net\affiles newpassword /user:analit\PrgDataTester
+				ProcessHelper.Cmd("net use {0} {1} /user:{2}", dbFilesPath, "newpassword", "analit\\PrgDataTester");
 			}
 
 			if (!accessExists)
 				CheckNetworkFile(testFile);
-		}
-
-		private void ConnectToShare(string share, string userName, string password)
-		{
-			//C:\Users\tester>net use \\fms.adc.analit.net\affiles newpassword /user:analit\PrgDataTester
-
-			using (var process = new Process()) {
-				var startInfo = new ProcessStartInfo("cmd.exe");
-				startInfo.CreateNoWindow = true;
-				startInfo.RedirectStandardOutput = true;
-				startInfo.RedirectStandardError = true;
-				startInfo.UseShellExecute = false;
-				startInfo.StandardOutputEncoding = System.Text.Encoding.GetEncoding(866);
-				startInfo.StandardErrorEncoding = System.Text.Encoding.GetEncoding(866);
-				startInfo.Arguments = String
-					.Format(
-						"/c net use {0} {1} /user:{2}",
-						share,
-						password,
-						userName);
-
-				process.StartInfo = startInfo;
-
-				process.Start();
-
-				process.WaitForExit();
-
-				if (process.ExitCode != 0) {
-					throw new Exception(
-						String.Format(
-							"Команда подлючения завершилась в ошибкой: {0}\r\n{1}\r\n{2}",
-							process.ExitCode,
-							process.StandardOutput.ReadToEnd(),
-							process.StandardError.ReadToEnd()));
-				}
-			}
 		}
 	}
 }

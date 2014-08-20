@@ -32,7 +32,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="log4net" />
-    <Reference Include="nunit.framework"></Reference>
+    <Reference Include="nunit.framework">
+    </Reference>
     <Reference Include="Rhino.Mocks">
       <HintPath>..\..\lib\Rhino.Mocks.dll</HintPath>
     </Reference>
@@ -45,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CostOptimizer2Fixture.cs" />
     <Compile Include="MinOrders\MinReqControllerFixture.cs" />
     <Compile Include="MinOrders\ReorderingPeriodFixture.cs" />
     <Compile Include="UpdateDataFixture.cs" />
@@ -53,6 +55,10 @@
     <ProjectReference Include="..\Common.Models\Common.Models\Common.Models.csproj">
       <Project>{80C9F352-5EED-41B2-989A-6628BCAF4D36}</Project>
       <Name>Common.Models</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Common.Tools\Common.Tools\Common.Tools.csproj">
+      <Project>{72afcfe8-c9e9-45fa-9698-bee896a517a3}</Project>
+      <Name>Common.Tools</Name>
     </ProjectReference>
     <ProjectReference Include="..\PrgData.Common\PrgData.Common.csproj">
       <Project>{A781C338-F75D-45A8-A7DC-C49E66051FC5}</Project>

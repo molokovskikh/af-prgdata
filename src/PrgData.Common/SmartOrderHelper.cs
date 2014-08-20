@@ -182,17 +182,6 @@ namespace PrgData.Common
 			} while (!success);
 		}
 
-		private string GetCryptCost(MySqlConnection connection, float cost, string sessionKey)
-		{
-			var t = MySql.Data.MySqlClient.MySqlHelper.ExecuteScalar(
-				connection,
-				"select cast(AES_ENCRYPT(?Cost, ?SessionKey) as char);",
-				new MySqlParameter("?Cost", cost),
-				new MySqlParameter("?SessionKey", sessionKey))
-				.ToString();
-			return MySql.Data.MySqlClient.MySqlHelper.EscapeString(t);
-		}
-
 		private uint GetOrderedId(Order order)
 		{
 			return order.AddressId.HasValue ? order.AddressId.Value : order.ClientCode;
@@ -318,15 +307,11 @@ namespace PrgData.Common
 		public static void InitializeIoC()
 		{
 			With.DefaultConnectionStringName = ConnectionHelper.GetConnectionName();
-			var sessionFactoryHolder = new SessionFactoryHolder(ConnectionHelper.GetConnectionName());
-			sessionFactoryHolder
-				.Configuration
-				.AddInputStream(HbmSerializer.Default.Serialize(typeof(Client).Assembly))
-				.AddInputStream(HbmSerializer.Default.Serialize(typeof(SmartOrderRule).Assembly))
-				.AddInputStream(HbmSerializer.Default.Serialize(typeof(AnalitFVersionRule).Assembly));
+			var init = new Config.Initializers.NHibernate();
+			init.Init();
 			IoC.Initialize(new WindsorContainer()
 				.Register(
-					Component.For<ISessionFactoryHolder>().Instance(sessionFactoryHolder),
+					Component.For<ISessionFactoryHolder>().Instance(init.Holder),
 					Component.For<RepositoryInterceptor>(),
 					Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)),
 					Component.For<IOrderFactoryRepository>().ImplementedBy<OrderFactoryRepository>(),

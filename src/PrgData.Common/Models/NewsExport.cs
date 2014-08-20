@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Common.MySql;
@@ -9,7 +10,7 @@ namespace PrgData.Common.Models
 {
 	public class NewsExport : BaseExport
 	{
-		public NewsExport(UpdateData updateData, MySqlConnection connection, Queue<FileForArchive> files)
+		public NewsExport(UpdateData updateData, MySqlConnection connection, ConcurrentQueue<string> files)
 			: base(updateData, connection, files)
 		{
 		}

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Common.MySql;
 using Common.Tools;
 using System.Linq;
 using System.Data;
@@ -13,7 +14,6 @@ namespace PrgData.Common
 	public class DebugReplicationHelper
 	{
 		private MySqlConnection _connection;
-		private MySqlCommand _command;
 		private DataSet _dataSet;
 		private UpdateData _updateData;
 		private List<string> _reasons;
@@ -22,7 +22,7 @@ namespace PrgData.Common
 
 		public int ExportCoreCount;
 
-		public DebugReplicationHelper(UpdateData updateData, MySqlConnection connection, MySqlCommand command)
+		public DebugReplicationHelper(UpdateData updateData, MySqlConnection connection)
 		{
 			ThreadContext.Properties["user"] = updateData.UserName;
 			ExportCoreCount = 0;
@@ -30,37 +30,29 @@ namespace PrgData.Common
 			_updateData = updateData;
 			_dataSet = new DataSet();
 			_connection = connection;
-			_command = command;
 		}
 
 		public void CopyActivePrices()
 		{
 			if (!_updateData.EnableImpersonalPrice) {
-				_command.CommandText =
-					@"
+				_connection.Execute(@"
 drop temporary table if exists CopyActivePrices;
 create temporary table CopyActivePrices engine=MEMORY
 as
-select * from ActivePrices;
-";
-				_command.ExecuteNonQuery();
+select * from ActivePrices;");
 			}
 		}
 
 		public void FillTable(string tableName, string sql)
 		{
 			if (!_updateData.EnableImpersonalPrice) {
-				var dataAdapter = new MySqlDataAdapter(_command);
-				_command.CommandText = sql;
-				var table = new DataTable(tableName);
-				dataAdapter.Fill(table);
-				_dataSet.Tables.Add(table);
+				_dataSet.Tables.Add(_connection.Fill(sql));
 			}
 		}
 
 		public bool NeedDebugInfo()
 		{
-			_command.CommandText = @"
+			var cmd = new MySqlCommand(@"
 select
   *
 from
@@ -69,9 +61,8 @@ from
 where
 	CopyActivePrices.PriceCode = ActivePrices.PriceCode
 and CopyActivePrices.RegionCode = ActivePrices.RegionCode
-and CopyActivePrices.Fresh != ActivePrices.Fresh
-";
-			var countDistictActivePrices = Convert.ToInt32(_command.ExecuteScalar());
+and CopyActivePrices.Fresh != ActivePrices.Fresh", _connection);
+			var countDistictActivePrices = Convert.ToInt32(cmd.ExecuteScalar());
 			if (countDistictActivePrices > 0) {
 				_reasons.Add("ActivePrices после получения предложений была изменена");
 				FillTable(
@@ -99,16 +90,15 @@ from
 			}
 
 			if (ExportCoreCount > 0) {
-				_command.CommandText = @"
+				cmd = new MySqlCommand(@"
 select
   count(*)
 from
   Core c
   left join farm.Core0 c0 on c0.id = c.Id
 where
-  c0.Id is null
-";
-				var countNotExistsCore = Convert.ToInt32(_command.ExecuteScalar());
+  c0.Id is null", _connection);
+				var countNotExistsCore = Convert.ToInt32(cmd.ExecuteScalar());
 				if (countNotExistsCore > 0) {
 					_reasons.Add("во временной таблице Core существуют позиции, которых нет в Core0");
 					FillTable(
@@ -126,7 +116,8 @@ group by c.PriceCode, c.RegionCode
 				}
 			}
 
-			Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
+			if (_reasons.Count > 0)
+				Logger.DebugFormat("Обнаружены следующие проблемы:\r\n{0}", _reasons.Implode("\r\n"));
 
 			return _reasons.Count > 0;
 		}

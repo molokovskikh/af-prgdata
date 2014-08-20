@@ -275,7 +275,7 @@ update farm.Core0 set ProducerCost = ?ProducerCost, NDS = ?NDS where Id = ?Id;
 			states.ForEach(item => {
 				var filledCore = MySqlHelper.ExecuteDataset(
 					connection,
-					helper.GetCoreCommand(false, true, false, false),
+					helper.GetCoreCommand(false, true, false),
 					new MySqlParameter("?Cumulative", 0));
 
 				filledCore.Tables[0].DefaultView.RowFilter = "CoreId = '" + item.CoreID.ToString().RightSlice(9) + "'";
@@ -653,7 +653,7 @@ and a.Enabled = 1",
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, false, false);
+			var coreSql = helper.GetCoreCommand(false, true, false);
 			var lastIndex = coreSql.LastIndexOf("group by", StringComparison.OrdinalIgnoreCase);
 			var withoutGroupCoreSql = coreSql.Slice(lastIndex);
 
@@ -719,16 +719,9 @@ drop temporary table if exists usersettings.GroupByCore, usersettings.PureCore;"
 		public void CheckActivePricesFreshAfterCreate()
 		{
 			helper.MaintainReplicationInfo();
-
-			var SelProc = new MySqlCommand();
-			SelProc.Connection = connection;
-
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
-
 			helper.Cleanup();
-
 			helper.SelectPrices();
-			helper.PreparePricesData(SelProc);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
@@ -758,8 +751,8 @@ where
 
 			Assert.That(notActualCount, Is.EqualTo(0), "Неактуальный прайс-лист был добавлен в ActivePrices");
 
-			SelProc.CommandText = helper.GetPricesDataCommand();
-			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var dataAdapter = new MySqlDataAdapter(helper.GetPricesDataCommand(), connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 			var prices = new DataTable();
 			dataAdapter.Fill(prices);
 
@@ -784,15 +777,10 @@ UserId = ?UserId
 and ForceReplication > 0;",
 				new MySqlParameter("?UserId", _user.Id));
 
-			var SelProc = new MySqlCommand();
-			SelProc.Connection = connection;
-
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
-
 			helper.Cleanup();
 
 			helper.SelectPrices();
-			helper.PreparePricesData(SelProc);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
@@ -818,8 +806,8 @@ from
 Prices 
 where
 Prices.Actual = 0"));
-			SelProc.CommandText = helper.GetPricesDataCommand();
-			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var dataAdapter = new MySqlDataAdapter(helper.GetPricesDataCommand(), connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 			var prices = new DataTable();
 			dataAdapter.Fill(prices);
 
@@ -865,15 +853,10 @@ and UserId = ?UserId;",
 				new MySqlParameter("?RegionId", disabledPrice["RegionCode"]));
 
 
-			var SelProc = new MySqlCommand();
-			SelProc.Connection = connection;
-
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
-
 			helper.Cleanup();
 
 			helper.SelectPrices();
-			helper.PreparePricesData(SelProc);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
@@ -889,8 +872,8 @@ Prices.Actual = 0
 and FirmCode not in ({0})"
 					.Format(disabledPrice["FirmCode"])));
 
-			SelProc.CommandText = helper.GetPricesDataCommand();
-			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var dataAdapter = new MySqlDataAdapter(helper.GetPricesDataCommand(), connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 			var prices = new DataTable();
 			dataAdapter.Fill(prices);
 
@@ -959,20 +942,15 @@ and FormRules.Id = PriceItems.FormRuleId;
 				new MySqlParameter("?CostId", nonActualPrice["CostCode"]));
 
 
-			var SelProc = new MySqlCommand();
-			SelProc.Connection = connection;
-
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
-
 			helper.Cleanup();
 
 			helper.SelectPrices();
-			helper.PreparePricesData(SelProc);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
-			SelProc.CommandText = helper.GetPricesDataCommand();
-			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var dataAdapter = new MySqlDataAdapter(helper.GetPricesDataCommand(), connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 			var prices = new DataTable();
 			dataAdapter.Fill(prices);
 
@@ -1020,21 +998,15 @@ UserId = ?UserId
 and ForceReplication > 0;",
 				new MySqlParameter("?UserId", _user.Id));
 
-			var SelProc = new MySqlCommand();
-			SelProc.Connection = connection;
-
 			updateData.Cumulative = true;
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
-
 			helper.Cleanup();
-
 			helper.SelectPrices();
-			helper.PreparePricesData(SelProc);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
-			SelProc.CommandText = helper.GetPricesDataCommand();
-			var dataAdapter = new MySqlDataAdapter(SelProc);
+			var dataAdapter = new MySqlDataAdapter(helper.GetPricesDataCommand(), connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 			var prices = new DataTable();
 			dataAdapter.Fill(prices);
 
@@ -1107,7 +1079,7 @@ and ForceReplication > 0;",
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, false, false);
+			var coreSql = helper.GetCoreCommand(false, true, false);
 
 			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
@@ -1128,7 +1100,7 @@ and ForceReplication > 0;",
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
@@ -1151,7 +1123,7 @@ and ForceReplication > 0;",
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
@@ -1199,7 +1171,7 @@ bm.Id is null
 limit 1",
 				new MySqlParameter("?PriceId", 4957));
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix"));
 			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
@@ -1231,7 +1203,7 @@ limit 1",
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			Assert.That(coreSql, Is.StringContaining("left join farm.BuyingMatrix"));
 			Assert.That(coreSql, Is.StringContaining("oms on oms.SupplierId = at.FirmCode and oms.ClientId ="));
@@ -1626,16 +1598,13 @@ limit 1;
 
 			helper.MaintainReplicationInfo();
 
-			var dataAdapter = new MySqlDataAdapter("select now()", connection);
-
-			var command = dataAdapter.SelectCommand;
-
-			helper.SetUpdateParameters(command, DateTime.Now);
+			var dataAdapter = new MySqlDataAdapter("", connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 
 			helper.Cleanup();
 
 			helper.SelectPrices();
-			helper.PreparePricesData(command);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
@@ -1663,16 +1632,11 @@ limit 1;
 
 			helper.MaintainReplicationInfo();
 
-			var dataAdapter = new MySqlDataAdapter("select now()", connection);
-
-			var command = dataAdapter.SelectCommand;
-
-			helper.SetUpdateParameters(command, DateTime.Now);
-
+			var dataAdapter = new MySqlDataAdapter("", connection);
+			helper.SetUpdateParameters(dataAdapter.SelectCommand);
 			helper.Cleanup();
-
 			helper.SelectPrices();
-			helper.PreparePricesData(command);
+			helper.PreparePricesData();
 			helper.SelectReplicationInfo();
 			helper.SelectActivePrices();
 
@@ -1780,7 +1744,7 @@ TechOperatingModeEnd=?TechOperatingModeEnd;",
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);
@@ -1829,7 +1793,7 @@ TechOperatingModeEnd=?TechOperatingModeEnd;",
 			SelProc.Connection = connection;
 
 			updateData.ParseMissingProductIds(null);
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
+			helper.SetUpdateParameters(SelProc);
 			var updateTime = SelProc.Parameters["?UpdateTime"].Value;
 			var catalogUpdateTime = SelProc.Parameters["?CatalogUpdateTime"].Value;
 
@@ -1840,7 +1804,7 @@ TechOperatingModeEnd=?TechOperatingModeEnd;",
 			SelProc = new MySqlCommand();
 			SelProc.Connection = connection;
 			updateData.ParseMissingProductIds(new uint[] { productId });
-			helper.SetUpdateParameters(SelProc, DateTime.Now);
+			helper.SetUpdateParameters(SelProc);
 			updateTime = SelProc.Parameters["?UpdateTime"].Value;
 			catalogUpdateTime = SelProc.Parameters["?CatalogUpdateTime"].Value;
 
@@ -1874,7 +1838,7 @@ FROM usersettings.defaults a, farm.regions r;", selector),
 			helper.SelectActivePricesFull();
 			helper.SelectOffers();
 
-			var coreSql = helper.GetCoreCommand(false, true, true, false);
+			var coreSql = helper.GetCoreCommand(false, true, true);
 
 			var dataAdapter = new MySqlDataAdapter(coreSql + " limit 10", connection);
 			dataAdapter.SelectCommand.Parameters.AddWithValue("?Cumulative", 0);

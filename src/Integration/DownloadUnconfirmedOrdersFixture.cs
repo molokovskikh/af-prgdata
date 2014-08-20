@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -269,7 +270,7 @@ namespace Integration
 			var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 			var helper = new UpdateHelper(updateData, connection);
 
-			var fileForArchives = new Queue<FileForArchive>();
+			var fileForArchives = new ConcurrentQueue<string>();
 			var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
 			exporter.Helper.MaintainReplicationInfo();
 			exporter.Helper.SelectActivePricesFull();
@@ -432,7 +433,7 @@ namespace Integration
 			var updateData = UpdateHelper.GetUpdateData(connection, _officeUser.Login);
 			var helper = new UpdateHelper(updateData, connection);
 
-			var fileForArchives = new Queue<FileForArchive>();
+			var fileForArchives = new ConcurrentQueue<string>();
 			var exporter = new UnconfirmedOrdersExporter(updateData, helper, "results\\", fileForArchives);
 
 			exporter.Helper.MaintainReplicationInfo();
