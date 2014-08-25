@@ -62,9 +62,13 @@ namespace Unit
 				},
 			};
 
-			CostOptimizer.MonopolisticsOptimize(offers, config);
+			var logs = CostOptimizer.MonopolisticsOptimize(offers, config);
 			Assert.AreEqual(150, offers[0].Cost);
 			Assert.AreEqual(55.20, offers[3].Cost);
+			Assert.AreEqual(1, logs.Count);
+			var log = logs[0];
+			Assert.AreEqual(log.SelfCost, 51.20);
+			Assert.AreEqual(log.ResultCost, 150);
 		}
 
 		[Test]

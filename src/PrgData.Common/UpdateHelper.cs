@@ -96,6 +96,21 @@ namespace PrgData.Common
 			maxProducerCostsCostId = 8148;
 			_updateData = updateData;
 			_readWriteConnection = readWriteConnection;
+
+			if (_updateData.MissingProductIds.Count > 0) {
+				var cmd = new MySqlCommand(String.Format(@"
+select
+	cast(min(least(p.UpdateTime, c.UpdateTime, CN.UpdateTime)) as datetime)
+from
+	catalogs.Products p
+	inner join catalogs.Catalog c on c.Id = p.CatalogId
+	inner join Catalogs.CatalogNames CN on CN.Id = c.NameId
+where
+	p.Id in ({0})
+and p.Hidden = 0", _updateData.MissingProductIds.Implode()), _readWriteConnection);
+				var catalogUpdateTime = cmd.ExecuteScalar();
+				_updateData.CatalogUpdateTime = Convert.ToDateTime(catalogUpdateTime).AddDays(-7);
+			}
 		}
 
 		public static ISessionFactory SessionFactory
@@ -2422,26 +2437,7 @@ WHERE
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceId", _updateData.ImpersonalPriceId);
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceDate", DateTime.Now);
 			selectComand.Parameters.AddWithValue("?ImpersonalPriceFresh", _updateData.ImpersonalPriceFresh);
-
-			if (_updateData.MissingProductIds.Count > 0) {
-				selectComand.CommandText = String.Format(@"
-select
-	cast(min(least(p.UpdateTime, c.UpdateTime, CN.UpdateTime)) as datetime)
-from
-	catalogs.Products p
-	inner join catalogs.Catalog c on c.Id = p.CatalogId
-	inner join Catalogs.CatalogNames CN on CN.Id = c.NameId
-where
-	p.Id in ({0})
-and p.Hidden = 0",
-					_updateData.MissingProductIds.Implode());
-				var catalogUpdateTime = selectComand.ExecuteScalar();
-				if (catalogUpdateTime != null && catalogUpdateTime is DateTime)
-					selectComand.Parameters.AddWithValue("?CatalogUpdateTime", Convert.ToDateTime(catalogUpdateTime).AddDays(-7));
-			}
-
-			if (!selectComand.Parameters.Contains("?CatalogUpdateTime"))
-				selectComand.Parameters.AddWithValue("?CatalogUpdateTime", _updateData.OldUpdateTime);
+			selectComand.Parameters.AddWithValue("?CatalogUpdateTime", _updateData.CatalogUpdateTime ?? _updateData.OldUpdateTime);
 		}
 
 		public void PrepareImpersonalOffres()
@@ -3139,8 +3135,8 @@ where
 							Nds = reader.GetNullableUInt32(25),
 							RetailVitallyImportan = reader.GetBoolean(26),
 							BuyingMatrixType = reader.GetUInt32(27),
-							CodeOKP = reader.SafeGetString(28),
-							EAN13 = reader.SafeGetString(29),
+							EAN13 = reader.SafeGetString(28),
+							CodeOKP = reader.SafeGetString(29),
 							Series = reader.SafeGetString(30),
 							Exp = reader.GetNullableDateTime(31),
 							//поля для оптимизации цен
@@ -3175,7 +3171,6 @@ where
 					//добавили Exp
 					columnCount -= 1;
 				}
-				//todo - ошибка экспорт определяется для PriceCode + RegionCode!
 				var filename = ServiceContext.GetFileByShared("Core" + _updateData.UserId + ".txt");
 				using (var file = new StreamWriter(filename, false, Encoding.GetEncoding(1251))) {
 					var toexport = offers
@@ -3204,16 +3199,13 @@ where
 							o.ClientOfferId,
 							o.OrderCost,
 							o.MinOrderCount,
-							//дальше идут поля которые могут быть не экспортированны в зависимости от версии
 							o.SupplierPriceMarkup,
 							o.ProducerCost,
 							o.Nds,
-							//это безумее но судя по коду это так с 1403 добавляется RetailVitallyImportan но вместо того что бы
-							//добавиться в конец где уже есть BuyingMatrixType оно добавляется перед BuyingMatrixType
-							!_updateData.AllowDelayByPrice() && exportBuyingMatrix ? o.BuyingMatrixType : (object)o.RetailVitallyImportan,
+							o.RetailVitallyImportan,
 							o.BuyingMatrixType,
-							o.CodeOKP,
 							o.EAN13,
+							o.CodeOKP,
 							o.Series,
 							o.Exp
 						});

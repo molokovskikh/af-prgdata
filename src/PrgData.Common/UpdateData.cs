@@ -92,6 +92,7 @@ namespace PrgData.Common
 		public string Message;
 		public DateTime OldUpdateTime;
 		public DateTime UncommitedUpdateTime;
+		public DateTime? CatalogUpdateTime;
 
 		public DateTime? BuyingMatrixUpdateTime;
 		public DateTime? OfferMatrixUpdateTime;
@@ -280,7 +281,6 @@ namespace PrgData.Common
 					UpdateExeVersionInfo = GetUpdateVersionInfo();
 					NeedUpdateToBuyingMatrix = CheckNeedUpdateToBuyingMatrix();
 					NeedUpdateToNewMNN = CheckNeedUpdateToNewMNN();
-					//NeedUpdateToCryptCost = CheckNeedUpdateToCryptCost();
 					NeedUpdateToNewClientsWithLegalEntity = CheckNeedUpdateToNewClientsWithLegalEntity();
 					NeedUpdateToSupplierPromotions = CheckNeedUpdateToSupplierPromotions();
 					return;
@@ -656,11 +656,7 @@ namespace PrgData.Common
 
 		public void ParseMissingProductIds(uint[] missingProductIds)
 		{
-			MissingProductIds.Clear();
-			if (missingProductIds != null && missingProductIds.Length > 0 && missingProductIds[0] != 0)
-				foreach (var missingProductId in missingProductIds)
-					if (!MissingProductIds.Contains(missingProductId))
-						MissingProductIds.Add(missingProductId);
+			MissingProductIds = missingProductIds.Distinct().Where(i => i > 0).ToList();
 		}
 	}
 }
