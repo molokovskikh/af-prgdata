@@ -1513,7 +1513,7 @@ endprocNew:
 
 				'Архивирование данных, или рекламы
 				Try
-					Dim FileForArchive As string
+					Dim FileForArchive As string = Nothing
 					If Not Documents AndAlso Not Me.RequestAttachments Then
 
 StartZipping:

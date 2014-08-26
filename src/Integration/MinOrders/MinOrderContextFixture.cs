@@ -38,7 +38,7 @@ namespace Integration.MinOrders
 			_connection.Open();
 			_unitOfWork = new UnitOfWork();
 
-			_user = CreateUserWithMinimumPrices();
+			_user = CreateUser();
 
 			using (new SessionScope()) {
 				Assert.That(_user.AvaliableAddresses.Count, Is.GreaterThan(0));
@@ -336,7 +336,7 @@ and rd.RegionCode = :regionCode")
 		[Test(Description = "проверка работы метода OrderExists")]
 		public void CheckOrderExistsByClient()
 		{
-			var otherUser = CreateUserWithMinimumPrices();
+			var otherUser = CreateUser();
 			var prices = otherUser.GetActivePricesList();
 			Assert.IsNotNull(prices.First(p => p.Id.Equals(_price.Id)));
 

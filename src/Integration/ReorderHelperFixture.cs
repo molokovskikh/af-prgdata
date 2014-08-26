@@ -158,7 +158,7 @@ namespace Integration
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 
-			user = UserFixture.CreateUserWithMinimumPrices();
+			user = UserFixture.CreateUser();
 			client = user.Client;
 			using (var transaction = new TransactionScope()) {
 				NHibernateUtil.Initialize(user.AvaliableAddresses);

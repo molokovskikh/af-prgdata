@@ -36,7 +36,7 @@ namespace Integration
 		[SetUp]
 		public void Setup()
 		{
-			_user = CreateUserWithMinimumPrices();
+			_user = CreateUser();
 
 			SetCurrentUser(_user.Login);
 		}
