@@ -3065,6 +3065,10 @@ where
 		private bool TryExportAndOptimizeCosts(bool exportSupplierPriceMarkup, bool exportBuyingMatrix, out int count)
 		{
 			count = 0;
+
+			if (!_updateData.SupportExportExp())
+				return false;
+
 			using (var session = SessionFactory.OpenSession(_readWriteConnection)) {
 				var client = session.Load<Client>(_updateData.ClientId);
 				var activePrices = session.Query<AFActivePrice>().ToList();

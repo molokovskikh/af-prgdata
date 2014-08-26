@@ -10,7 +10,7 @@ Global(
 	humanReadableName : "Служба подготовки данных",
 	deployTo : """\\adc.analit.net\Inforoom\WebApps\PrgDataService\PrgData\""",
 	Platform : "x64",
-	Profile: @PrgData,
+	Profile: @catalog,
 	AdditionalAssemblies: ("PrgData.Common", )
 )
 

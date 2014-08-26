@@ -48,8 +48,6 @@ namespace Integration
 
 			CreateResultsDir();
 
-			CheckLocalDB();
-
 			Test.Support.Setup.BuildConfiguration();
 			var holder = ActiveRecordMediator.GetSessionFactoryHolder();
 			var cfg = holder.GetConfiguration(typeof(ActiveRecordBase));
@@ -69,27 +67,6 @@ namespace Integration
 		private void PrepareMySqlPaths()
 		{
 			ServiceContext.SetupMySqlPath();
-		}
-
-		private void CheckLocalDB()
-		{
-			using (var connection = ConnectionHelper.GetConnection()) {
-				connection.Open();
-				var coreCount = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					"select count(*) from farm.Core0"));
-
-				Assert.That(coreCount, Is.GreaterThan(30000), "Локальная база данных не готова к тестам. Выполните в корне проекта: bake PrepareLocal");
-
-				var distinctSuppliers = MySqlHelper.ExecuteDataset(
-					connection,
-					"select distinct pd.FirmCode as DistinctSupplier from farm.Core0 c join usersettings.PricesData pd on " +
-						"pd.PriceCode = c.PriceCode");
-
-				foreach (DataRow row in distinctSuppliers.Tables[0].Rows) {
-					FilledSuppliers.Add(Convert.ToUInt32(row["DistinctSupplier"]));
-				}
-			}
 		}
 
 		private void CreateResultsDir()
