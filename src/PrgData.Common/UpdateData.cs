@@ -656,7 +656,7 @@ namespace PrgData.Common
 
 		public void ParseMissingProductIds(uint[] missingProductIds)
 		{
-			MissingProductIds = missingProductIds.Distinct().Where(i => i > 0).ToList();
+			MissingProductIds = (missingProductIds ?? new uint[0]).Distinct().Where(i => i > 0).ToList();
 		}
 	}
 }

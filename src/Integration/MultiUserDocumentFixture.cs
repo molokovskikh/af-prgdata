@@ -26,7 +26,7 @@ using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 namespace Integration
 {
 	[TestFixture]
-	public class MultiUserDocumentFixture
+	public class MultiUserDocumentFixture : IntegrationFixture
 	{
 		private uint lastUpdateId;
 		private string responce;
@@ -44,52 +44,49 @@ namespace Integration
 			ServiceContext.GetResultPath = () => "results\\";
 			ConfigurationManager.AppSettings["DocumentsPath"] = "FtpRoot\\";
 
-			client = TestClient.Create();
+			var supplier = TestSupplier.CreateNaked(session);
+			session.Save(supplier);
+			client = TestClient.CreateNaked(session);
+			var user = client.Users[0];
+			client.Users.Each(u => {
+				u.SendRejects = true;
+				u.SendWaybills = true;
+			});
+			user.Update();
 
-			using (new TransactionScope()) {
-				var user = client.Users[0];
-				client.Users.Each(u => {
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
+			if (Directory.Exists("FtpRoot"))
+				FileHelper.DeleteDir("FtpRoot");
 
-				if (Directory.Exists("FtpRoot"))
-					FileHelper.DeleteDir("FtpRoot");
+			Directory.CreateDirectory("FtpRoot");
+			waybills = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
+			Directory.CreateDirectory(waybills);
 
-				Directory.CreateDirectory("FtpRoot");
-				waybills = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
-				Directory.CreateDirectory(waybills);
+			document = CreateDocument(user);
 
-				document = CreateDocument(user);
+			fakeDocument = CreateFakeDocument(user);
 
-				fakeDocument = CreateFakeDocument(user);
-
-				SetCurrentUser(user.Login);
-			}
+			SetCurrentUser(user.Login);
+			session.Flush();
+			session.Transaction.Commit();
 		}
 
 		private TestDocumentLog CreateDocument(TestUser user)
 		{
-			TestDocumentLog doc;
-			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
-				var supplier = user.GetActivePrices()[0].Supplier;
-				doc = new TestDocumentLog {
-					LogTime = DateTime.Now,
-					Supplier = supplier,
-					DocumentType = DocumentType.Waybill,
-					Client = client,
-					Address = client.Addresses[0],
-					FileName = "test.data",
-					Ready = true
-				};
-				doc.Save();
-				new TestDocumentSendLog {
-					ForUser = user,
-					Document = doc
-				}.Save();
-				transaction.VoteCommit();
-			}
+			var supplier = user.GetActivePrices(session)[0].Supplier;
+			var doc = new TestDocumentLog {
+				LogTime = DateTime.Now,
+				Supplier = supplier,
+				DocumentType = DocumentType.Waybill,
+				Client = client,
+				Address = client.Addresses[0],
+				FileName = "test.data",
+				Ready = true
+			};
+			doc.Save();
+			new TestDocumentSendLog {
+				ForUser = user,
+				Document = doc
+			}.Save();
 			File.WriteAllText(Path.Combine(waybills, String.Format("{0}_test.data", doc.Id)), "");
 			var waybillsPath = Path.Combine("FtpRoot", client.Addresses[0].Id.ToString(), "Waybills");
 			doc.LocalFile = Path.Combine(waybillsPath, String.Format("{0}_test.data", doc.Id));
@@ -99,23 +96,19 @@ namespace Integration
 
 		private TestDocumentLog CreateFakeDocument(TestUser user)
 		{
-			TestDocumentLog doc;
-			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
-				var supplier = user.GetActivePrices()[0].Supplier;
-				doc = new TestDocumentLog(supplier, client) {
-					LogTime = DateTime.Now,
-					DocumentType = DocumentType.Waybill,
-					Client = client,
-					Ready = true,
-					IsFake = true
-				};
-				doc.Save();
-				new TestDocumentSendLog {
-					ForUser = user,
-					Document = doc
-				}.Save();
-				transaction.VoteCommit();
-			}
+			var supplier = user.GetActivePrices(session)[0].Supplier;
+			var doc = new TestDocumentLog(supplier, client) {
+				LogTime = DateTime.Now,
+				DocumentType = DocumentType.Waybill,
+				Client = client,
+				Ready = true,
+				IsFake = true
+			};
+			doc.Save();
+			new TestDocumentSendLog {
+				ForUser = user,
+				Document = doc
+			}.Save();
 
 			return doc;
 		}
@@ -401,47 +394,37 @@ namespace Integration
 		{
 			var updateTime = DateTime.Now.AddMinutes(-1);
 
-			TestDocumentSendLog log;
-			TestDocumentSendLog fakelog;
-			using (new SessionScope()) {
-				log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
-				Assert.That(log.Committed, Is.False);
-				fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
-				Assert.That(fakelog.Committed, Is.False);
-			}
+			var log = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+			Assert.That(log.Committed, Is.False);
+			var fakelog = TestDocumentSendLog.Queryable.First(t => t.Document == fakeDocument);
+			Assert.That(fakelog.Committed, Is.False);
 
 			GetUserData(updateTime);
 			ShouldBeSuccessfull();
 			ConfirmData();
 
-			using (new SessionScope()) {
-				log.Refresh();
-				Assert.That(log.Committed, Is.True);
-				fakelog.Refresh();
-				Assert.That(fakelog.Committed, Is.True);
-			}
+			log.Refresh();
+			Assert.That(log.Committed, Is.True);
+			fakelog.Refresh();
+			Assert.That(fakelog.Committed, Is.True);
 
 			GetUserData(updateTime);
 			ShouldBeSuccessfull();
 
-			using (new SessionScope()) {
-				log.Refresh();
-				Assert.That(log.Committed, Is.False);
-				fakelog.Refresh();
-				Assert.That(fakelog.Committed, Is.False);
-			}
+			log.Refresh();
+			Assert.That(log.Committed, Is.False);
+			fakelog.Refresh();
+			Assert.That(fakelog.Committed, Is.False);
 
 			ConfirmData();
 
-			using (new SessionScope()) {
-				log.Refresh();
-				Assert.That(log.Committed, Is.True);
-				CheckDelivered(log, true, false);
+			log.Refresh();
+			Assert.That(log.Committed, Is.True);
+			CheckDelivered(log, true, false);
 
-				fakelog.Refresh();
-				Assert.That(fakelog.Committed, Is.True);
-				CheckDelivered(fakelog, false, false);
-			}
+			fakelog.Refresh();
+			Assert.That(fakelog.Committed, Is.True);
+			CheckDelivered(fakelog, false, false);
 		}
 
 		[Test(Description = "Документы, отправленные пользователем для разбора, не возвращаются в архиве")]
@@ -491,12 +474,10 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope()) {
-				var documentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == document);
-				Assert.That(documentSendLog.Committed, Is.True);
-				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
-				Assert.That(brokenDocumentSendLog.Committed, Is.False);
-			}
+			var documentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == document);
+			Assert.That(documentSendLog.Committed, Is.True);
+			var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+			Assert.That(brokenDocumentSendLog.Committed, Is.False);
 
 			var log = TestAnalitFUpdateLog.Find(lastUpdateId);
 			Assert.That(log.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
@@ -507,11 +488,9 @@ namespace Integration
 			ShouldBeSuccessfull();
 			Confirm();
 
-			using (new SessionScope()) {
-				var brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
-				Assert.That(brokenDocumentSendLog.Committed, Is.True);
-				CheckDelivered(brokenDocumentSendLog, true, false);
-			}
+			brokenDocumentSendLog = TestDocumentSendLog.Queryable.First(t => t.Document == brokenDoc);
+			Assert.That(brokenDocumentSendLog.Committed, Is.True);
+			CheckDelivered(brokenDocumentSendLog, true, false);
 
 			var logAfterCreateFile = TestAnalitFUpdateLog.Find(lastUpdateId);
 			Assert.That(logAfterCreateFile.Addition, Is.Not.StringContaining("не найден документ № ".Format(brokenDoc.Id)));
