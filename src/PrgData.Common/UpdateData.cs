@@ -172,6 +172,10 @@ namespace PrgData.Common
 		public List<uint> MissingProductIds = new List<uint>();
 
 		public OrderRules Settings;
+		public ConcurrentQueue<string> FilesForArchive = new ConcurrentQueue<string>();
+		public DateTime CurrentUpdateTime;
+		public bool ImpersonalPriceFresh;
+
 
 		//для тестов
 		public UpdateData()
@@ -533,10 +537,6 @@ namespace PrgData.Common
 		{
 			get { return CheckVersion(_versionBeforeHistoryDocs); }
 		}
-
-		public DateTime CurrentUpdateTime;
-		public ConcurrentQueue<string> FilesForArchive;
-		public bool ImpersonalPriceFresh;
 
 		public bool CheckVersion(int requiredVersion)
 		{

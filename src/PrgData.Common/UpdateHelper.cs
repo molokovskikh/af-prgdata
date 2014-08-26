@@ -1266,13 +1266,12 @@ and (DescriptionLogs.Operation = 2)
 			string archiveFileName,
 			ref string addition,
 			ref string updateLog,
-			uint updateId,
-			ConcurrentQueue<string> filesForArchive)
+			uint updateId)
 		{
 			try {
 				log.Debug("Будем выгружать сертификаты");
 
-				ExportCertificates(archiveFileName, connection, filesForArchive);
+				ExportCertificates(archiveFileName, connection, _updateData.FilesForArchive);
 				updateLog = ArchiveCertificatesFiles(archiveFileName, connection);
 			}
 			catch (Exception exception) {
@@ -2889,10 +2888,10 @@ and OrdersHead.RowId = sendlogs.OrderId;
 			});
 		}
 
-		public void UnconfirmedOrdersExport(string exportFolder, ConcurrentQueue<string> filesForArchive)
+		public void UnconfirmedOrdersExport(string exportFolder)
 		{
 			if (_updateData.NeedDownloadUnconfirmedOrders) {
-				var exporter = new UnconfirmedOrdersExporter(_updateData, this, exportFolder, filesForArchive);
+				var exporter = new UnconfirmedOrdersExporter(_updateData, this, exportFolder, _updateData.FilesForArchive);
 				exporter.Export();
 			}
 		}

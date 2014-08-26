@@ -33,7 +33,6 @@ namespace PrgData
 		protected MySqlCommand Cm;
 
 		protected Thread ProtocolUpdatesThread;
-		protected ConcurrentQueue<string> FilesForArchive = new ConcurrentQueue<string>();
 
 		protected bool DBConnect()
 		{
@@ -71,8 +70,6 @@ namespace PrgData
 			UpdateAFTime(UserName);
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
 			UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName);
-			UpdateData.FilesForArchive = FilesForArchive;
-
 			if (UpdateData == null || UpdateData.Disabled()) {
 				if (UpdateData == null) {
 					throw new UpdateException(

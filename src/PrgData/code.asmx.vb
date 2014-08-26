@@ -1407,10 +1407,10 @@ endprocNew:
 
 					'здесь будем выгружать сертификаты
 					If Documents AndAlso UpdateData.NeedExportCertificates Then
-						helper.ArchiveCertificates(connection, SevenZipTmpArchive, Addition, ClientLog, GUpdateId, FilesForArchive)
+						helper.ArchiveCertificates(connection, SevenZipTmpArchive, Addition, ClientLog, GUpdateId)
 					End If
 
-					Dim processor = New ExportProcessor(UpdateData, connection, FilesForArchive)
+					Dim processor = New ExportProcessor(UpdateData, connection)
 					processor.Archive(UpdateType, SevenZipTmpArchive)
 
 					If Documents Then
@@ -1519,7 +1519,7 @@ endprocNew:
 StartZipping:
 						If ErrorFlag Then Exit Sub
 
-						if Not FilesForArchive.TryDequeue(FileForArchive) Then
+						if Not UpdateData.FilesForArchive.TryDequeue(FileForArchive) Then
 							Thread.Sleep(500)
 							GoTo StartZipping
 						end if
@@ -2613,14 +2613,14 @@ StartZipping:
 				helper.ProcessBatchFile()
 
 
-				FilesForArchive.Enqueue(helper.BatchReportFileName)
+				UpdateData.FilesForArchive.Enqueue(helper.BatchReportFileName)
 
-				FilesForArchive.Enqueue(helper.BatchOrderFileName)
+				UpdateData.FilesForArchive.Enqueue(helper.BatchOrderFileName)
 
-				FilesForArchive.Enqueue(helper.BatchOrderItemsFileName)
+				UpdateData.FilesForArchive.Enqueue(helper.BatchOrderItemsFileName)
 				If (UpdateData.BuildNumber > 1271) Then
 
-					FilesForArchive.Enqueue(helper.BatchReportServiceFieldsFileName)
+					UpdateData.FilesForArchive.Enqueue(helper.BatchReportServiceFieldsFileName)
 				End If
 
 				ResStr = InternalGetUserData(AccessTime, GetEtalonData, EXEVersion, MDBVersion, UniqueID, WINVersion, WINDesc, False, Nothing, PriceCodes, True, 0, 0, False, Nothing, Nothing, False, Nothing)
@@ -3161,7 +3161,7 @@ RestartTrans2:
 					helper.GetMySQLFileWithDefault("UpdateValues", readWriteConnection, helper.GetUpdateValuesCommand())
 				End If
 
-				Dim processor = New ExportProcessor(UpdateData, readWriteConnection, FilesForArchive)
+				Dim processor = New ExportProcessor(UpdateData, readWriteConnection)
 				processor.Process()
 
 				helper.GetMySQLFileWithDefault("User", readWriteConnection, helper.GetUserCommand())
@@ -3278,7 +3278,7 @@ RestartTrans2:
 				helper.FillParentCodes()
 
 				If UpdateType <> RequestType.PostOrderBatch Then
-					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath(), FilesForArchive)
+					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath())
 				End If
 
 				If Not UpdateData.EnableImpersonalPrice Then
@@ -3344,7 +3344,9 @@ RestartTrans2:
 							End If
 						Else
 							helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
+#if not DEBUG
 							Log.WarnFormat("Невозможно определить базовую цены для прайс-листа с максимальными ценами производителей. Код прайс-листа: {0}", helper.MaxProducerCostsPriceId)
+#endif
 						End If
 					Else
 						helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
@@ -3705,7 +3707,7 @@ RestartTrans2:
 					If CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
 						If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
 						FileCount += 1
-						FilesForArchive.Enqueue(FileInfo.FullName)
+						UpdateData.FilesForArchive.Enqueue(FileInfo.FullName)
 						If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
 					Else
 						Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", FileName)
@@ -3843,7 +3845,7 @@ RestartTrans2:
 	End Sub
 
 	Private Sub AddEndOfFiles()
-		FilesForArchive.Enqueue("EndOfFiles.txt")
+		UpdateData.FilesForArchive.Enqueue("EndOfFiles.txt")
 	End Sub
 
 	<WebMethod()> _

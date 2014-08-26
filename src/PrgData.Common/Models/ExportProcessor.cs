@@ -11,7 +11,7 @@ namespace PrgData.Common.Models
 	{
 		private List<BaseExport> exporters;
 
-		public ExportProcessor(UpdateData updateData, MySqlConnection connection, ConcurrentQueue<string> files)
+		public ExportProcessor(UpdateData updateData, MySqlConnection connection)
 		{
 			var rootType = typeof(BaseExport);
 			var types = rootType.Assembly.GetTypes().Where(t =>
@@ -20,7 +20,7 @@ namespace PrgData.Common.Models
 					&& !t.IsAbstract
 					&& rootType.IsAssignableFrom(t));
 			exporters = types
-				.Select(t => Activator.CreateInstance(t, updateData, connection, files))
+				.Select(t => Activator.CreateInstance(t, updateData, connection, updateData.FilesForArchive))
 				.Cast<BaseExport>()
 				.Where(e => updateData.CheckVersion(e.RequiredVersion))
 				.ToList();

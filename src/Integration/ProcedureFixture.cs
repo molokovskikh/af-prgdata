@@ -140,14 +140,6 @@ DROP TEMPORARY TABLE IF EXISTS usersettings.ActivePrices;
 call usersettings.GetOffers(1349, 2);");
 		}
 
-		[Test, Ignore("Используется для получения ситуации с lock wait")]
-		public void Get_deadlock()
-		{
-			for (int i = 0; i < 10; i++) {
-				CallGetOffers();
-			}
-		}
-
 		private void InteralFindAllReducedForSmartOrder(User user, Address address)
 		{
 			var reducedOffers = repository.FindAllReducedForSmartOrder(user, address, new SmartOrderRule(), new OrderRules()).ToList();
@@ -157,14 +149,6 @@ call usersettings.GetOffers(1349, 2);");
 		public void FutureFindAllReducedForSmartOrder()
 		{
 			InteralFindAllReducedForSmartOrder(futureUser, futureAddress);
-		}
-
-		[Test, Ignore("Используется для получения ситуации с lock wait")]
-		public void Get_deadlock_with_offersrepository()
-		{
-			for (int i = 0; i < 10; i++) {
-				FutureFindAllReducedForSmartOrder();
-			}
 		}
 
 		public static void DoWork(object clientId)
@@ -191,112 +175,6 @@ call usersettings.GetOffers({0}, 0);", clientId));
 			}
 
 			Console.WriteLine("Остановлена нитка: {0}", clientId);
-		}
-
-		public static void DoWorkFactory(object userId)
-		{
-			Console.WriteLine("Запущена нитка с factory: {0}", userId);
-			var repository = IoC.Resolve<ISmartOfferRepository>();
-			long elapsedMili = 0;
-			long count = 0;
-
-			try {
-				while (!StopThreads) {
-					var loadWithHiber = Stopwatch.StartNew();
-					User user;
-					Address address;
-					using (var unit = new UnitOfWork()) {
-						user = unit.CurrentSession.Get<User>(userId);
-						if (user.AvaliableAddresses.Count == 0)
-							return;
-						address = user.AvaliableAddresses.First();
-					}
-					var reducedOffers = repository.FindAllReducedForSmartOrder(user, address, new SmartOrderRule(), new OrderRules()).ToList();
-					loadWithHiber.Stop();
-					elapsedMili += loadWithHiber.ElapsedMilliseconds;
-					count++;
-
-					Thread.Sleep(5 * 1000);
-				}
-			}
-			catch (Exception exception) {
-				Console.WriteLine("Error for client {0} с factory: {1}", userId, exception);
-				if (count > 0)
-					Console.WriteLine("Статистика для клиента {0} : {1}", userId, elapsedMili / count);
-			}
-
-			Console.WriteLine("Остановлена нитка с factory: {0}", userId);
-			if (count > 0)
-				Console.WriteLine("Статистика для клиента {0} : {1}", userId, elapsedMili / count);
-		}
-
-		public static void DoWorkLogLockWaits()
-		{
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
-				try {
-					while (!StopThreads) {
-						var lockCount = Convert.ToInt32(MySqlHelper.ExecuteScalar(connection, "select count(*) from information_schema.INNODB_LOCK_WAITS"));
-						if (lockCount > 0) {
-							var dataDump = MySqlHelper.ExecuteDataset(connection, @"
-SELECT * FROM information_schema.INNODB_TRX;
-SELECT * FROM information_schema.INNODB_LOCKS;
-SELECT * FROM information_schema.INNODB_LOCK_WAITS;
-show full processlist;
-");
-							var writer = new StringWriter();
-							dataDump.WriteXml(writer);
-							Console.WriteLine("InnoDB dump:\r\n{0}", writer);
-						}
-
-						Thread.Sleep(5 * 1000);
-					}
-				}
-				catch (Exception exception) {
-					Console.WriteLine("Error on log thread", exception);
-				}
-			}
-		}
-
-		[Test, Ignore("Используется для получения ситуации с lock wait")]
-		public void Get_deadlock_with_threads()
-		{
-			StopThreads = false;
-			Console.WriteLine("Запуск теста");
-
-			uint[] userIds;
-			using (new SessionScope()) {
-				userIds = TestUser.Queryable.Where(u => u.Enabled && !u.RootService.Disabled
-					&& u.RootService.Type == ServiceType.Drugstore
-					&& u.Client.Settings.ServiceClient
-					&& u.Payer.Id == 921u)
-					.Select(u => u.Id)
-					.ToArray();
-			}
-
-			var threadList = new List<Thread>();
-
-			foreach (var id in userIds) {
-				threadList.Add(new Thread(DoWork));
-				threadList[threadList.Count - 1].Start(id);
-			}
-			foreach (var id in userIds) {
-				threadList.Add(new Thread(DoWorkFactory));
-				threadList[threadList.Count - 1].Start(id);
-			}
-
-			//Нитка с дампом
-			threadList.Add(new Thread(DoWorkLogLockWaits));
-			threadList[threadList.Count - 1].Start();
-
-			Console.WriteLine("Запуск ожидания теста");
-			Thread.Sleep(5 * 60 * 1000);
-
-			StopThreads = true;
-			Console.WriteLine("Попытка останова ниток");
-			threadList.ForEach(item => item.Join());
-
-			Console.WriteLine("Останов теста");
 		}
 
 		private TestClient CreateClient()
