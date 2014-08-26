@@ -17,3 +17,4 @@ _resharper.*
 packages/
 build/
 *.gen.*
+WaybillExtract

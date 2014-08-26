@@ -79,6 +79,7 @@ from
   ActivePrices 
 where 
   (select Count(*) from Core where Core.PriceCode = ActivePrices.PriceCode and Core.RegionCode = ActivePrices.RegionCode) > 3000 limit 1");
+					Assert.IsNotNull(activePrice);
 
 					var firstProductId = MySqlHelper.ExecuteScalar(
 						connection,
