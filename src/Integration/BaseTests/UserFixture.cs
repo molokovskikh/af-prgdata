@@ -26,37 +26,5 @@ namespace Integration.BaseTests
 
 			return user;
 		}
-
-		public static TestUser CreateUserWithMinimumPrices()
-		{
-			var user = CreateUser();
-
-			SessionHelper.WithSession(
-				s => {
-					var prices = user.GetActivePricesList()
-						.Where(p => FixtureSetup.FilledSuppliers.Contains(p.Supplier.Id)).OrderBy(p => p.PositionCount);
-					var newPrices = new List<uint>();
-					var distinctSuppliers = new List<uint>();
-					foreach (var testActivePrice in prices) {
-						if (testActivePrice.CoreCount() > 0) {
-							newPrices.Add(testActivePrice.Id.PriceId);
-							if (!distinctSuppliers.Contains(testActivePrice.Supplier.Id))
-								distinctSuppliers.Add(testActivePrice.Supplier.Id);
-						}
-						if (distinctSuppliers.Count == 4)
-							break;
-					}
-
-					Assert.That(newPrices.Count, Is.GreaterThanOrEqualTo(4), "Не нашли достаточное кол-во прайс-листов для тестов");
-
-					s.CreateSQLQuery(
-						"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
-						.SetParameter("userId", user.Id)
-						.SetParameterList("priceIds", newPrices.ToArray())
-						.ExecuteUpdate();
-				});
-
-			return user;
-		}
 	}
 }

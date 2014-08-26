@@ -85,25 +85,6 @@ namespace Integration
 				transaction.VoteCommit();
 			}
 
-			SessionHelper.WithSession(s => {
-				var prices = _officeUser.GetActivePricesList().Where(p => p.PositionCount > 800).OrderBy(p => p.PositionCount);
-				var newPrices = new List<uint>();
-				foreach (var testActivePrice in prices) {
-					if (testActivePrice.CoreCount() > 0)
-						newPrices.Add(testActivePrice.Id.PriceId);
-					if (newPrices.Count == 4)
-						break;
-				}
-
-				Assert.That(newPrices.Count, Is.EqualTo(4), "Не нашли достаточное кол-во прайс-листов для тестов");
-
-				s.CreateSQLQuery(
-					"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:priceIds);")
-					.SetParameter("userId", _officeUser.Id)
-					.SetParameterList("priceIds", newPrices.ToArray())
-					.ExecuteUpdate();
-			});
-
 			_lastUpdateTime = GetLastUpdateTime(_officeUser);
 			SetCurrentUser(_officeUser.Login);
 			TestDataManager.DeleteAllOrdersForClient(_client.Id);
