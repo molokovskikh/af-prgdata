@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using Castle.ActiveRecord;
+using Common.Models;
 using Common.MySql;
 using Common.Tools;
 using Common.Tools.Calendar;
@@ -370,6 +371,7 @@ limit 1
 
 		private string PostOrder(ushort quantity = 1, bool useCorrectOrders = false)
 		{
+			FlushAndCommit();
 			bool forceSend = !useCorrectOrders;
 			string serverResponse;
 			using (var prgData = new PrgDataEx()) {
@@ -426,6 +428,21 @@ limit 1
 		public void Post_optimaized_cost_with_offer_check()
 		{
 			CostOptimizaerConf.MakeUserOptimazible(_user, Convert.ToUInt32(activePrice["FirmCode"]));
+			firstOffer["Cost"] = Math.Round(Convert.ToDecimal(firstOffer["Cost"]) * 1.13m, 2);
+			var response = PostOrder(useCorrectOrders: true);
+
+			var error = GetError(response);
+			var id = GetFirstOrderId(response);
+			Assert.That(error, Is.Empty, response);
+			Assert.That(id, Is.GreaterThan(0), response);
+		}
+
+		[Test]
+		public void Accept_order_for_monopolistics_optimization()
+		{
+			var supplier = session.Load<Supplier>(Convert.ToUInt32(activePrice["FirmCode"]));
+			session.Save(new CostOptimizationRule(supplier, RuleType.MaxCost));
+
 			firstOffer["Cost"] = Math.Round(Convert.ToDecimal(firstOffer["Cost"]) * 1.13m, 2);
 			var response = PostOrder(useCorrectOrders: true);
 
