@@ -109,7 +109,8 @@ where
 	p.Id in ({0})
 and p.Hidden = 0", _updateData.MissingProductIds.Implode()), _readWriteConnection);
 				var catalogUpdateTime = cmd.ExecuteScalar();
-				_updateData.CatalogUpdateTime = Convert.ToDateTime(catalogUpdateTime).AddDays(-7);
+				if (!(catalogUpdateTime is DBNull))
+					_updateData.CatalogUpdateTime = Convert.ToDateTime(catalogUpdateTime).AddDays(-7);
 			}
 		}
 
