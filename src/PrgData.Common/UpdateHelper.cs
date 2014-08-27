@@ -3179,7 +3179,7 @@ where
 				var filename = ServiceContext.GetFileByShared("Core" + _updateData.UserId + ".txt");
 				using (var file = new StreamWriter(filename, false, Encoding.GetEncoding(1251))) {
 					var toexport = offers
-						.Where(o => Array.BinarySearch(exportable, o.PriceId) >= 0)
+						.Where(o => _updateData.Cumulative || Array.BinarySearch(exportable, o.PriceId) >= 0)
 						.Select(o => new object[] {
 							o.PriceId,
 							o.RegionId,
