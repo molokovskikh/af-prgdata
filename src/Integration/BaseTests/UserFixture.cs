@@ -8,7 +8,7 @@ using Test.Support.Helpers;
 
 namespace Integration.BaseTests
 {
-	public class UserFixture
+	public class UserFixture : IntegrationFixture
 	{
 		public static TestUser CreateUser()
 		{

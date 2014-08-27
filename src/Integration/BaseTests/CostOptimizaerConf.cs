@@ -9,15 +9,14 @@ namespace Integration.BaseTests
 {
 	public class CostOptimizaerConf
 	{
-		public uint OptimizationSupplierId = 5;
-		public uint ConcurentSupplierId = 14;
+		public uint OptimizationSupplierId;
+		public uint ConcurentSupplierId;
 		public uint OptimizationPriceId;
 
-		public static CostOptimizaerConf MakeUserOptimazible(TestUser user, uint supplierId = 0)
+		public static CostOptimizaerConf MakeUserOptimazible(TestUser user, uint supplierId)
 		{
 			var conf = new CostOptimizaerConf();
-			if (supplierId != 0)
-				conf.OptimizationSupplierId = supplierId;
+			conf.OptimizationSupplierId = supplierId;
 
 			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
@@ -39,6 +38,14 @@ where
 	Prices.FirmCode = ?OptimizationSupplierId
 group by Prices.PriceCode
 order by 2 desc",
+					new MySqlParameter("?OptimizationSupplierId", conf.OptimizationSupplierId)));
+
+				conf.ConcurentSupplierId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
+					connection,
+					@"
+select Prices.FirmCode
+from Prices
+where Prices.FirmCode <> ?OptimizationSupplierId",
 					new MySqlParameter("?OptimizationSupplierId", conf.OptimizationSupplierId)));
 
 				MySqlHelper.ExecuteScalar(

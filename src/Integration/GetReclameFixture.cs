@@ -163,15 +163,9 @@ namespace Integration
 
 		private void GetReclameForErrorUser(string login)
 		{
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				var helper = new UpdateHelper(updateData, connection);
-
-				SetCurrentUser(login);
-				var response = GetReclame();
-				Assert.IsNullOrEmpty(response, "Ответ от сервера должен быть пустым");
-			}
+			SetCurrentUser(login);
+			var response = GetReclame();
+			Assert.IsNullOrEmpty(response, "Ответ от сервера должен быть пустым");
 		}
 
 		[Test]

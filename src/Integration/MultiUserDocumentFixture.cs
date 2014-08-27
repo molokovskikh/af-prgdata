@@ -892,9 +892,9 @@ and afu.UpdateType = ?UpdateType",
 
 		private void SendWaybill()
 		{
+			var supplierId = client.Users[0].GetActivePrices(session)[0].Supplier.Id;
 			FlushAndCommit();
 			var service = new PrgDataEx();
-			var supplierId = client.Users[0].GetActivePrices(session)[0].Supplier.Id;
 
 			service.SendWaybills(client.Addresses[0].Id,
 				new ulong[] { supplierId },
@@ -904,9 +904,9 @@ and afu.UpdateType = ?UpdateType",
 
 		private string SendWaybillEx(string uin)
 		{
+			var supplierId = client.Users[0].GetActivePrices(session)[0].Supplier.Id;
 			FlushAndCommit();
 			var service = new PrgDataEx();
-			var supplierId = client.Users[0].GetActivePrices(session)[0].Supplier.Id;
 
 			return service.SendWaybillsEx(client.Addresses[0].Id,
 				new ulong[] { supplierId },

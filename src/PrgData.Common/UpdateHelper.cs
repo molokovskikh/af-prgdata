@@ -1471,6 +1471,7 @@ and (DescriptionLogs.Operation = 2)
 ";
 
 			var dataAdapter = new MySqlDataAdapter(sql, connection);
+			dataAdapter.SelectCommand.Parameters.Add("?bodyId", MySqlDbType.UInt32);
 
 			foreach (var certificateRequest in _updateData.CertificateRequests) {
 				dataAdapter.SelectCommand.Parameters["?bodyId"].Value = certificateRequest.DocumentBodyId;
