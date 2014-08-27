@@ -1107,8 +1107,6 @@ endprocNew:
 											If String.IsNullOrEmpty(table.TableName) Then
 												table.TableName = Path.GetFileNameWithoutExtension(Path.GetRandomFileName())
 											End If
-											Log.DebugFormat("Содержимое таблицы {0}: {1}", table.TableName, DebugReplicationHelper.TableToString(exportDosc, table.TableName))
-
 											If table.Columns.Contains("DownloadId") Then
 												For Each documentProcessedRow As DataRow In DS.Tables("ProcessingDocuments").Rows
 													Dim finded = table.Select("DownloadId = " & documentProcessedRow("DocumentId").ToString())
@@ -3139,8 +3137,6 @@ RestartTrans2:
 					ThreadZipStream.Abort()
 				End If
 
-				Dim debugHelper = New DebugReplicationHelper(UpdateData, readWriteConnection)
-
 				transaction = readWriteConnection.BeginTransaction(IsolationLevel.RepeatableRead)
 
 				readWriteConnection.Execute("drop temporary table IF EXISTS MaxCodesSynFirmCr, MinCosts, ActivePrices, Prices, Core, PriceCounts, MaxCodesSyn, ParentCodes, CurrentReplicationInfo;")
@@ -3281,10 +3277,6 @@ RestartTrans2:
 					helper.UnconfirmedOrdersExport(ServiceContext.MySqlSharedExportPath())
 				End If
 
-				If Not UpdateData.EnableImpersonalPrice Then
-					debugHelper.CopyActivePrices()
-				End If
-
 				Try
 					'Подготовка временной таблицы с контактами
 					helper.PrepareProviderContacts(readWriteConnection)
@@ -3321,10 +3313,7 @@ RestartTrans2:
 					"SELECT IFNULL(SUM(fresh), 0) " & _
 					"FROM   ActivePrices", readWriteConnection)
 					If CType(cmd.ExecuteScalar, Integer) > 0 Or UpdateData.Cumulative Then
-						debugHelper.CopyActivePrices()
-						debugHelper.Logger.DebugFormat("Before Core GED = {0}", UpdateData.Cumulative)
-						debugHelper.ExportCoreCount = helper.ExportOffers()
-						debugHelper.Logger.DebugFormat("ExportCoreCount = {0}", debugHelper.ExportCoreCount)
+						helper.ExportOffers()
 					Else
 						'Выгружаем пустую таблицу Core
 						'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
@@ -3367,17 +3356,6 @@ RestartTrans2:
 				End If
 
 				helper.GetMySQLFileWithDefault("PricesData", readWriteConnection, helper.GetPricesDataCommand())
-
-				If Not UpdateData.EnableImpersonalPrice Then
-					If debugHelper.NeedDebugInfo() Then
-						debugHelper.FillTable("PricesData", helper.GetPricesDataCommand())
-						debugHelper.FillTable("ActivePrices", "select * from ActivePrices")
-						debugHelper.FillTable("AnalitFReplicationInfo", "select * from AnalitFReplicationInfo where UserId = ?UserId")
-						debugHelper.FillTable("CurrentReplicationInfo", "select * from CurrentReplicationInfo")
-						debugHelper.SendMail()
-					End If
-				End If
-
 				AddEndOfFiles()
 
 				helper.UpdateReplicationInfo()

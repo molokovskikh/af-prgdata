@@ -293,10 +293,23 @@ values
 			if (productIds.Count > 0) {
 				var optimizer = new CostOptimizer(_readWriteConnection, _user.Client.Id, _user.Id);
 				var offers = GetOffers(productIds);
-
 				var orderWithPosibleOptimizedCosts = _orders.Where(o => o.ActivePrice.Id.Price.Supplier.Id == optimizer.SupplierId);
 				foreach (var position in orderWithPosibleOptimizedCosts.SelectMany(o => o.Positions)) {
 					position.IgnoreCostReducing = true;
+				}
+
+				using (var session = UpdateHelper.SessionFactory.OpenSession(_readWriteConnection)) {
+					var supplierIds = _orders.Select(o => o.ActivePrice.Id.Price.Supplier.Id);
+					var rules = session.Query<CostOptimizationRule>()
+						.Where(r => r.RuleType == RuleType.MaxCost
+							&& (r.Clients.Count == 0 || r.Clients.Contains(_user.Client))
+							&& supplierIds.Contains(r.Supplier.Id))
+						.ToArray()
+						.Select(r => r.Supplier.Id)
+						.ToArray();
+					_orders.Where(o => rules.Contains(o.ActivePrice.Id.Price.Supplier.Id))
+						.SelectMany(o => o.Positions)
+						.Each(l => l.IgnoreCostReducing = true);
 				}
 
 				foreach (var order in _orders) {

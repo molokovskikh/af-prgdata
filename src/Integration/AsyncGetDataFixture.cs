@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using Castle.ActiveRecord;
 using Common.MySql;
@@ -12,8 +11,6 @@ using PrgData;
 using PrgData.Common;
 using Test.Support;
 using Test.Support.Logs;
-using log4net.Core;
-using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
@@ -260,80 +257,6 @@ namespace Integration
 			finally {
 				ServiceContext.MySqlSharedExportPath = () => oldSharedExportPath;
 			}
-		}
-
-		private void checkConnectionList()
-		{
-			var processSql = "show full processlist";
-			var connections = MySqlHelper.ExecuteDataset(ConnectionHelper.GetConnectionString(), processSql);
-
-			var dump = DebugReplicationHelper.TableToString(connections, connections.Tables[0].TableName);
-			Assert.That(connections.Tables[0].Rows.Count == 1 && connections.Tables[0].Rows[0]["Info"].ToString().Trim() == processSql, "В списке процессов содержаться неожидаемые соединения:\r\n{0}", dump);
-		}
-
-		[Test(Description = "пытаемся воспроизвести ошибки, когда connection не закрывается после подготовки данных: при возникновении ошибки доступа"), Ignore("Это тест имеет смысл запускать только вручную")]
-		public void CheckConnectionCountAfterDisableUser()
-		{
-			checkConnectionList();
-
-			//выключаем пользователя, чтобы получить ошибку доступа
-			using (new TransactionScope()) {
-				_user.Enabled = false;
-				_user.Save();
-			}
-
-			var cumulativeResponse = LoadDataAttachmentsAsync(true, DateTime.Now, "1.1.1.1413", null);
-
-			Assert.That(cumulativeResponse, Is.StringStarting("Error="));
-
-			//после ответа надо немного подождать, т.к. освобожденный connection не сразу возвращается в пул
-			Thread.Sleep(100);
-
-			//Удаляем события, чтобы не возникало ошибки при завершении теста в TearDown()
-			MemoryAppender.Clear();
-
-			//очищаем все пулы и соединений там быть не должно
-			MySqlConnection.ClearAllPools();
-
-			checkConnectionList();
-		}
-
-		[Test(Description = "пытаемся воспроизвести ошибки, когда connection не закрывается после подготовки данных: при докачке"), Ignore("Это тест имеет смысл запускать только вручную")]
-		public void CheckConnectionCountOnResume()
-		{
-			checkConnectionList();
-			var updateDate = DateTime.Now;
-
-			//Производим подготовку данных КО
-			var cumulativeResponse = LoadDataAttachmentsAsync(true, updateDate, "1.1.1.1413", null);
-
-			var cumulativeUpdateId = ShouldBeSuccessfull(cumulativeResponse);
-
-			WaitAsyncResponse(cumulativeUpdateId);
-
-			//после ответа надо немного подождать, т.к. освобожденный connection не сразу возвращается в пул
-			Thread.Sleep(100);
-
-			//очищаем все пулы и соединений там быть не должно
-			MySqlConnection.ClearAllPools();
-
-			checkConnectionList();
-
-			var nextCumulativeResponse = LoadDataAttachmentsAsync(true, updateDate, "1.1.1.1413", null);
-
-			var nextCumulativeUpdateId = ShouldBeSuccessfull(nextCumulativeResponse);
-
-			WaitAsyncResponse(nextCumulativeUpdateId);
-
-			Assert.That(nextCumulativeUpdateId, Is.EqualTo(cumulativeUpdateId), "При повторном запросе должен быть отдан подготовленное обновление");
-
-			//после ответа надо немного подождать, т.к. освобожденный connection не сразу возвращается в пул
-			Thread.Sleep(100);
-
-			//очищаем все пулы и соединений там быть не должно
-			MySqlConnection.ClearAllPools();
-
-			checkConnectionList();
 		}
 	}
 }

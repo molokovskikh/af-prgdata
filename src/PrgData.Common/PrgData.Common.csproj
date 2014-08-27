@@ -148,7 +148,6 @@
     <Compile Include="Context.cs" />
     <Compile Include="Counters\Counter.cs" />
     <Compile Include="Counters\Utils.cs" />
-    <Compile Include="DebugReplicationHelper.cs" />
     <Compile Include="HostsFileHelper.cs" />
     <Compile Include="LogRequestHelper.cs" />
     <Compile Include="MailHelper.cs" />
