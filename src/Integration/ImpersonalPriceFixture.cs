@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Castle.ActiveRecord;
@@ -31,12 +32,13 @@ using MySql.Data.MySqlClient;
 using System.Data;
 using NHibernate.Criterion;
 using LumiSoft.Net.IMAP.Client;
+using Test.Support.Suppliers;
 using MySqlHelper = MySql.Data.MySqlClient.MySqlHelper;
 
 namespace Integration
 {
 	[TestFixture]
-	public class ImpersonalPriceFixture
+	public class ImpersonalPriceFixture : IntegrationFixture
 	{
 		private TestClient client;
 		private TestUser user;
@@ -51,6 +53,7 @@ namespace Integration
 		private string responce;
 
 		private string UniqueId;
+		private TestPrice impersonalPrice;
 
 		[SetUp]
 		public void Setup()
@@ -65,36 +68,33 @@ namespace Integration
 			var offersRegion = TestRegion.FindFirst(Expression.Like("Name", "Петербург", MatchMode.Anywhere));
 			Assert.That(offersRegion, Is.Not.Null, "Не нашли регион 'Санкт-Петербург' для offersClient");
 
-			offersFutureClient = TestClient.Create(offersRegion.Id, offersRegion.Id);
+			var supplier = TestSupplier.CreateNaked(session, offersRegion.Id);
+			impersonalPrice = supplier.Prices.First();
+			offersFutureClient = TestClient.CreateNaked(session, offersRegion.Id, offersRegion.Id);
+			client = TestClient.CreateNaked(session, offersRegion.Id, offersRegion.Id);
 
-			client = TestClient.Create(offersRegion.Id, offersRegion.Id);
+			offersFutureUser = offersFutureClient.Users[0];
+			offersFutureClient.Users.Each(u => {
+				u.SendRejects = true;
+				u.SendWaybills = true;
+			});
+			offersFutureUser.Update();
 
-			using (var transaction = new TransactionScope()) {
-				offersFutureUser = offersFutureClient.Users[0];
-				offersFutureClient.Users.Each(u => {
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				offersFutureUser.Update();
+			user = client.Users[0];
+			client.Users.Each(u => {
+				u.SendRejects = true;
+				u.SendWaybills = true;
+			});
+			user.Update();
 
-				user = client.Users[0];
-				client.Users.Each(u => {
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				user.Update();
+			smartRuleFuture = new TestSmartOrderRule();
+			smartRuleFuture.OffersClientCode = offersFutureUser.Id;
+			smartRuleFuture.SaveAndFlush();
 
-				smartRuleFuture = new TestSmartOrderRule();
-				smartRuleFuture.OffersClientCode = offersFutureUser.Id;
-				smartRuleFuture.SaveAndFlush();
-			}
-
-			using (var transaction = new TransactionScope()) {
-				orderRuleFuture = TestDrugstoreSettings.Find(client.Id);
-				orderRuleFuture.SmartOrderRule = smartRuleFuture;
-				orderRuleFuture.EnableImpersonalPrice = true;
-				orderRuleFuture.UpdateAndFlush();
-			}
+			orderRuleFuture = TestDrugstoreSettings.Find(client.Id);
+			orderRuleFuture.SmartOrderRule = smartRuleFuture;
+			orderRuleFuture.EnableImpersonalPrice = true;
+			orderRuleFuture.UpdateAndFlush();
 
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
@@ -116,27 +116,24 @@ namespace Integration
 
 		public void CheckUpdateHelper(string login, uint offersClientId, ulong offersRegionId, uint? buildNumber = null)
 		{
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
+			var updateData = UpdateHelper.GetUpdateData((MySqlConnection)session.Connection, login);
+			updateData.BuildNumber = buildNumber;
+			var helper = new UpdateHelper(updateData, (MySqlConnection)session.Connection);
 
-				var updateData = UpdateHelper.GetUpdateData(connection, login);
-				updateData.BuildNumber = buildNumber;
-				var helper = new UpdateHelper(updateData, connection);
+			Assert.That(updateData.EnableImpersonalPrice, Is.True, "Не включен механизм 'Обезличенный прайс'");
+			Assert.That(updateData.OffersClientCode, Is.EqualTo(offersClientId), "Не совпадает ид OffersClientCode");
+			Assert.That(updateData.OffersRegionCode, Is.EqualTo(offersRegionId), "Не совпадает код региона у OffersClientCode");
 
-				Assert.That(updateData.EnableImpersonalPrice, Is.True, "Не включен механизм 'Обезличенный прайс'");
-				Assert.That(updateData.OffersClientCode, Is.EqualTo(offersClientId), "Не совпадает ид OffersClientCode");
-				Assert.That(updateData.OffersRegionCode, Is.EqualTo(offersRegionId), "Не совпадает код региона у OffersClientCode");
+			CheckSQL(false, (MySqlConnection)session.Connection, updateData, helper);
 
-				CheckSQL(false, connection, updateData, helper);
-
-				CheckSQL(true, connection, updateData, helper);
-			}
+			CheckSQL(true, (MySqlConnection)session.Connection, updateData, helper);
 		}
 
 		private void CheckSQL(bool cumulative, MySqlConnection connection, UpdateData updateData, UpdateHelper helper)
 		{
 			updateData.Cumulative = cumulative;
 			updateData.OldUpdateTime = DateTime.Now.AddDays(-10);
+			updateData.ImpersonalPriceId = impersonalPrice.Id;
 
 			var selectCommand = new MySqlCommand() { Connection = connection };
 			helper.SetUpdateParameters(selectCommand);
@@ -184,106 +181,97 @@ namespace Integration
 		[Test]
 		public void Check_AnalitFReplicationInfo_after_GetUserData()
 		{
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
-				var ExistsFirms = MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var ExistsFirms = MySqlHelper.ExecuteScalar(
+				(MySqlConnection)session.Connection,
+				@"
 call Customers.GetPrices(?OffersClientCode);
 select
-  count(*)
+count(*)
 from
-  Prices
-  left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
+Prices
+left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
-  afi.UserId is null;",
-					new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
-					new MySqlParameter("?UserId", user.Id));
+afi.UserId is null;",
+				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
+				new MySqlParameter("?UserId", user.Id));
 
-				Assert.That(
-					ExistsFirms,
-					Is.GreaterThan(0),
-					"Хотя клиент {0} создан в другом регионе {1} у него в AnalitFReplicationInfo добавлены все фирмы из региона {2}",
-					client.Id,
-					client.RegionCode,
-					offersFutureClient.RegionCode);
-			}
+			Assert.That(
+				ExistsFirms,
+				Is.GreaterThan(0),
+				"Хотя клиент {0} создан в другом регионе {1} у него в AnalitFReplicationInfo добавлены все фирмы из региона {2}",
+				client.Id,
+				client.RegionCode,
+				offersFutureClient.RegionCode);
 
 			CheckGetUserData(user.Login);
 
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
-				MySqlHelper.ExecuteNonQuery(
-					connection,
-					"call Customers.GetPrices(?OffersClientCode)",
-					new MySqlParameter("?OffersClientCode", offersFutureUser.Id));
+			MySqlHelper.ExecuteNonQuery(
+				(MySqlConnection)session.Connection,
+				"call Customers.GetPrices(?OffersClientCode)",
+				new MySqlParameter("?OffersClientCode", offersFutureUser.Id));
 
-				var nonExistsFirms = MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonExistsFirms = MySqlHelper.ExecuteScalar(
+				(MySqlConnection)session.Connection,
+				@"
 select
-  count(*)
+count(*)
 from
-  Prices
-  left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
+Prices
+left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
-  afi.UserId is null",
-					new MySqlParameter("?UserId", user.Id));
+afi.UserId is null",
+				new MySqlParameter("?UserId", user.Id));
 
-				Assert.That(
-					nonExistsFirms,
-					Is.EqualTo(0),
-					"У клиента {0} в AnalitFReplicationInfo должны быть все фирмы из региона {1}",
-					client.Id,
-					offersFutureClient.RegionCode);
+			Assert.That(
+				nonExistsFirms,
+				Is.EqualTo(0),
+				"У клиента {0} в AnalitFReplicationInfo должны быть все фирмы из региона {1}",
+				client.Id,
+				offersFutureClient.RegionCode);
 
-				var nonExistsForce = MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonExistsForce = MySqlHelper.ExecuteScalar(
+				(MySqlConnection)session.Connection,
+				@"
 select
-  count(*)
+count(*)
 from
-  Prices
-  left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
+Prices
+left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
-	afi.UserId is not null
+afi.UserId is not null
 and afi.ForceReplication = 0",
-					new MySqlParameter("?UserId", user.Id));
+				new MySqlParameter("?UserId", user.Id));
 
-				Assert.That(
-					nonExistsForce,
-					Is.EqualTo(0),
-					"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication в 0 для фирм из региона {1}",
-					client.Id,
-					offersFutureClient.RegionCode);
-			}
+			Assert.That(
+				nonExistsForce,
+				Is.EqualTo(0),
+				"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication в 0 для фирм из региона {1}",
+				client.Id,
+				offersFutureClient.RegionCode);
 
 			CommitExchange();
 
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
-				var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
-					connection,
-					@"
+			var nonExistsForceGt0 = MySqlHelper.ExecuteScalar(
+				(MySqlConnection)session.Connection,
+				@"
 call Customers.GetPrices(?OffersClientCode);
 select
-  count(*)
+count(*)
 from
-  Prices
-  left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
+Prices
+left join usersettings.AnalitFReplicationInfo afi on afi.FirmCode = Prices.FirmCode and afi.UserId = ?UserId
 where
-	afi.UserId is not null
+afi.UserId is not null
 and afi.ForceReplication > 0",
-					new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
-					new MySqlParameter("?UserId", user.Id));
+				new MySqlParameter("?OffersClientCode", offersFutureUser.Id),
+				new MySqlParameter("?UserId", user.Id));
 
-				Assert.That(
-					nonExistsForceGt0,
-					Is.EqualTo(0),
-					"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication > 0 для фирм из региона {1}",
-					client.Id,
-					offersFutureClient.RegionCode);
-			}
+			Assert.That(
+				nonExistsForceGt0,
+				Is.EqualTo(0),
+				"У клиента {0} в AnalitFReplicationInfo не должно быть строк с ForceReplication > 0 для фирм из региона {1}",
+				client.Id,
+				offersFutureClient.RegionCode);
 		}
 
 		[Test(Description = "Проверка на используемую версию программы AnalitF")]
@@ -312,7 +300,7 @@ and afi.ForceReplication > 0",
 
 					SetCurrentUser(login);
 					lastUpdateId = 0;
-					SimpleLoadData();
+					LoadData(false, DateTime.Now, "6.0.7.1183");
 
 					Assert.That(responce, Is.Not.StringContaining("Error=").IgnoreCase, "Ответ от сервера указывает, что имеется ошибка.\r\nLog:\r\n:{0}", writer);
 					Assert.That(lastUpdateId, Is.GreaterThan(0), "UpdateId не установлен.\r\nLog:\r\n:{0}", writer);
@@ -328,13 +316,10 @@ and afi.ForceReplication > 0",
 			ServiceContext.GetUserName = () => login;
 		}
 
-		private string SimpleLoadData()
-		{
-			return LoadData(false, DateTime.Now, "6.0.7.1183");
-		}
-
 		private string LoadData(bool getEtalonData, DateTime accessTime, string appVersion)
 		{
+			FlushAndCommit();
+
 			var service = new PrgDataEx();
 			responce = service.GetUserDataWithPriceCodes(accessTime, getEtalonData, appVersion, 50, UniqueId, "", "", false, null, null);
 
@@ -395,6 +380,7 @@ where
 					imapClient.Expunge();
 
 					SetCurrentUser(user.Login);
+					FlushAndCommit();
 					var service = new PrgDataEx();
 					var letterResponse = service.SendLetter("Test subject", "test body", null);
 					Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
@@ -460,15 +446,6 @@ where
 			}
 		}
 
-
-		private void SendLetterToGroup(byte emailGroup)
-		{
-			SetCurrentUser(user.Login);
-			var service = new PrgDataEx();
-			var letterResponse = service.SendLetterEx("Test subject to " + emailGroup, "test body to " + emailGroup, null, emailGroup);
-			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
-		}
-
 		[Test]
 		public void CheckSendLetterToBilling()
 		{
@@ -484,10 +461,8 @@ where
 		[Test(Description = "Отправляем письмо для отключенного пользователя")]
 		public void SendLetterOnDisabledUser()
 		{
-			using (var transaction = new TransactionScope()) {
-				user.Enabled = false;
-				user.Update();
-			}
+			user.Enabled = false;
+			user.Update();
 			SendLetterToGroup(0);
 			SendLetterToGroup(1);
 			SendLetterToGroup(2);
@@ -497,10 +472,20 @@ where
 		public void CheckGetHistoryOrders()
 		{
 			SetCurrentUser(user.Login);
+			FlushAndCommit();
 			var service = new PrgDataEx();
 			var historyResponse = service.GetHistoryOrders("6.0.7.1183", UniqueId, new ulong[0], 1, 1);
 			Assert.That(historyResponse, Is.StringContaining("Error=Для копии с обезличенным прайс-листом недоступна загрузка истории заказов.").IgnoreCase);
 			Assert.That(historyResponse, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
+		}
+
+		private void SendLetterToGroup(byte emailGroup)
+		{
+			SetCurrentUser(user.Login);
+			FlushAndCommit();
+			var service = new PrgDataEx();
+			var letterResponse = service.SendLetterEx("Test subject to " + emailGroup, "test body to " + emailGroup, null, emailGroup);
+			Assert.That(letterResponse, Is.EqualTo("Res=OK").IgnoreCase, "Неожидаемый ответ сервера при отправке письма");
 		}
 	}
 }

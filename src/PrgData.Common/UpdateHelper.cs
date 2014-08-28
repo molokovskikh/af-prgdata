@@ -2478,7 +2478,7 @@ SELECT   ProductId
 FROM     CoreAssortment
 GROUP BY ProductId;
 						
-SET @RowId :=1;");
+SET @RowId :=1;", _readWriteConnection);
 			SetUpdateParameters(cmd);
 			cmd.ExecuteNonQuery();
 		}
