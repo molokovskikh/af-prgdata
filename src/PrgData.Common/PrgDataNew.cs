@@ -189,7 +189,7 @@ WHERE u.Login = ?username";
 				return ProcessUpdateException(updateException);
 			}
 			catch (Exception ex) {
-				LogRequestHelper.MailWithRequest(Log, "Ошибка при проверке статуста асинхронного обновления", ex);
+				LogRequestHelper.MailWithRequest(Log, "Ошибка при проверке статуса асинхронного обновления", ex);
 				return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут.";
 			}
 			finally {
