@@ -3518,7 +3518,6 @@ RestartTrans2:
 
 	<WebMethod()> _
 	Public Function GetPasswordsEx(ByVal UniqueID As String, ByVal EXEVersion As String) As String
-		Dim ErrorFlag As Boolean = False
 		Dim BasecostPassword As String
 
 		Try
@@ -3530,15 +3529,12 @@ RestartTrans2:
 				UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 			End If
 
-			Dim needSessionKey = False
-
-			If needSessionKey Then
-				Cm.CommandText = "select CostSessionKey from UserUpdateInfo where UserId = " & UpdateData.UserId
-				BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
-			Else
-				Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
-				BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
-			End If
+#if DEBUG
+			BasecostPassword = "a8509748"
+#else
+			Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
+			BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
+#endif
 
 			'Получаем маску разрешенных для сохранения гридов
 			Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
@@ -3549,15 +3545,10 @@ RestartTrans2:
 			Dim SaveGridMask As UInt64 = Convert.ToUInt64(Cm.ExecuteScalar())
 
 			If (BasecostPassword <> Nothing) Then
-				Dim S As String = "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
-				If needSessionKey Then
-					S = "SessionKey=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
-				End If
-				Return S
+				Return "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
 			Else
 				Log.Error("Ошибка при получении паролей" & vbCrLf & "У клиента не заданы пароли для шифрации данных")
 				Addition = "Не заданы пароли для шифрации данных"
-				ErrorFlag = True
 				Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
 			End If
 		Catch updateException As UpdateException
@@ -3582,9 +3573,6 @@ RestartTrans2:
 	End Function
 
 	<WebMethod()> Public Function PostPriceDataSettingsEx(ByVal UniqueID As String, ByVal EXEVersion As String, ByVal PriceCodes As Int32(), ByVal RegionCodes As Int64(), ByVal INJobs As Boolean()) As String
-		Dim ErrorFlag As Boolean = False
-		Dim transaction As MySqlTransaction = Nothing
-
 		Try
 			UpdateType = RequestType.PostPriceDataSettings
 			DBConnect()
@@ -3603,7 +3591,6 @@ RestartTrans2:
 			Return ProcessUpdateException(updateException)
 		Catch ex As Exception
 			LogRequestHelper.MailWithRequest(Log, "Ошибка при применении обновлений настроек прайс-листов", ex)
-			ErrorFlag = True
 			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
 		Finally
 			DBDisconnect()

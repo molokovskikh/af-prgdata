@@ -39,49 +39,34 @@ namespace PrgData.Common
 		public static bool raiseException = false;
 		public static bool raiseExceptionOnEmpty = false;
 #endif
-
-		private UpdateData _updateData;
-
-		public uint OrderedClientCode { get; private set; }
-		public User User { get; private set; }
-		public Address Address { get; private set; }
-
-		private string _tmpBatchFolder;
-		private string _tmpBatchArchive;
-
-		public string TmpBatchArchiveFileName
-		{
-			get { return _tmpBatchArchive; }
-		}
-
-		private string _tmpBatchFileName;
-
-		public string ExtractBatchFileName
-		{
-			get { return Path.GetFileName(_tmpBatchFileName); }
-		}
-
-		public string BatchReportFileName;
-		public string BatchOrderFileName;
-		public string BatchOrderItemsFileName;
-		public string BatchReportServiceFieldsFileName;
-
-		private SmartOrderBatchHandler _handler;
-
-		private SmartOrderRule _smartOrderRule;
-		private OrderRules _orderRule;
-
 		private readonly ILog _log = LogManager.GetLogger(typeof(SmartOrderHelper));
 
 		private uint _maxOrderId;
 		private uint _maxOrderListId;
 		private uint _maxBatchId;
 
+		private SmartOrderBatchHandler _handler;
 
-		public SmartOrderHelper(UpdateData updateData, uint orderedClientCode, uint maxOrderId, uint maxOrderListId, uint maxBatchId)
+		private SmartOrderRule _smartOrderRule;
+		private OrderRules _orderRule;
+
+		private UpdateData _updateData;
+		private User _user;
+		private Address _address;
+
+		private string _tmpBatchFolder;
+		private string _tmpBatchArchive;
+
+		private string _tmpBatchFileName;
+
+		public string BatchReportFileName;
+		public string BatchOrderFileName;
+		public string BatchOrderItemsFileName;
+		public string BatchReportServiceFieldsFileName;
+
+		public SmartOrderHelper(UpdateData updateData, uint addressId, uint maxOrderId, uint maxOrderListId, uint maxBatchId)
 		{
 			_updateData = updateData;
-			OrderedClientCode = orderedClientCode;
 			_maxOrderId = maxOrderId;
 			_maxOrderListId = maxOrderListId;
 			_maxBatchId = maxBatchId;
@@ -96,15 +81,15 @@ namespace PrgData.Common
 				if (_smartOrderRule == null)
 					throw new UpdateException("Не настроены правила для автоматического формирования заказа", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Не настроены правила для автоматического формирования заказа; ", RequestType.Forbidden);
 
-				User = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
-				NHibernateUtil.Initialize(User.AvaliableAddresses);
-				if (User.AvaliableAddresses.Count == 0)
+				_user = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
+				NHibernateUtil.Initialize(_user.AvaliableAddresses);
+				if (_user.AvaliableAddresses.Count == 0)
 					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "У пользователя нет доступных адресов доставки; ", RequestType.Forbidden);
 
-				Address = User.AvaliableAddresses.FirstOrDefault(a => a.Id == orderedClientCode);
-				if (Address == null)
-					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Пользователю не доступен адрес с кодом {0}; ".Format(orderedClientCode), RequestType.Forbidden);
-				NHibernateUtil.Initialize(Address.Users);
+				_address = _user.AvaliableAddresses.FirstOrDefault(a => a.Id == addressId);
+				if (_address == null)
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Пользователю не доступен адрес с кодом {0}; ".Format(addressId), RequestType.Forbidden);
+				NHibernateUtil.Initialize(_address.Users);
 			}
 
 			_tmpBatchFolder = Path.GetTempPath() + Path.GetRandomFileName();
@@ -114,6 +99,16 @@ namespace PrgData.Common
 			BatchOrderItemsFileName = _tmpBatchFolder + @"\BatchOrderItems.txt";
 			BatchReportServiceFieldsFileName = _tmpBatchFolder + @"\BatchReportServiceFields.txt";
 			Directory.CreateDirectory(_tmpBatchFolder);
+		}
+
+		public string TmpBatchArchiveFileName
+		{
+			get { return _tmpBatchArchive; }
+		}
+
+		public string ExtractBatchFileName
+		{
+			get { return Path.GetFileName(_tmpBatchFileName); }
 		}
 
 		public void PrepareBatchFile(string batchFile)
@@ -142,7 +137,7 @@ namespace PrgData.Common
 		{
 			using (var stream = new FileStream(_tmpBatchFileName, FileMode.Open)) {
 				try {
-					_handler = new SmartOrderBatchHandler(User, Address, stream);
+					_handler = new SmartOrderBatchHandler(_user, _address, stream);
 				}
 				catch (EmptyDefectureException) {
 					throw;
@@ -251,7 +246,7 @@ namespace PrgData.Common
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
 							_maxBatchId,
-							report.Item.OrderItem != null ? GetOrderedId(report.Item.OrderItem.Order) : OrderedClientCode,
+							report.Item.OrderItem != null ? GetOrderedId(report.Item.OrderItem.Order) : _address.Id,
 							report.ProductName.ToMySqlExportString(),
 							report.ProducerName.ToMySqlExportString(),
 							report.Quantity,
@@ -266,7 +261,7 @@ namespace PrgData.Common
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N{6}\n",
 							_maxBatchId,
-							OrderedClientCode,
+							_address.Id,
 							report.ProductName.ToMySqlExportString(),
 							report.ProducerName.ToMySqlExportString(),
 							report.Quantity,
