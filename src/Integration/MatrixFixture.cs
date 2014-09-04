@@ -11,6 +11,7 @@ using NUnit.Framework;
 using PrgData.Common;
 using Test.Support;
 using Test.Support.Helpers;
+using Test.Support.Suppliers;
 
 namespace Integration
 {
@@ -38,7 +39,8 @@ namespace Integration
 
 		private long _buyingCoreCount;
 		private long _offerCoreCount;
-		private IList<TestActivePrice> _list;
+		private IList<TestActivePrice> _activePrices;
+		private TestDrugstoreSettings settings;
 
 		private MySqlConnection Connection
 		{
@@ -48,63 +50,68 @@ namespace Integration
 		[TestFixtureSetUp]
 		public void FixtureSetUp()
 		{
-			using (var transaction = new TransactionScope(OnDispose.Rollback)) {
-				_client = TestClient.CreateNaked();
-				_user = _client.Users[0];
+			Reopen();
+			var supplier1 = TestSupplier.CreateNaked(session);
+			var producers1 = TestProducer.RandomProducers(session).Take(1)
+				.Concat(new TestProducer[] { null })
+				.Concat(TestProducer.RandomProducers(session).Take(2))
+				.ToArray();
+			supplier1.CreateSampleCore(session,
+				TestProduct.RandomProducts(session).Take(4).ToArray(),
+				producers1);
 
-				_client.Users.Each(u => {
-					u.SendRejects = true;
-					u.SendWaybills = true;
-				});
-				session.SaveOrUpdate(_user);
+			var supplier2 = TestSupplier.CreateNaked(session);
+			var offers = supplier1.Prices.SelectMany(p => p.Core);
+			var products = offers.Select(c => c.Product)
+				.Distinct()
+				.Take(3)
+				.Concat(TestProduct.RandomProducts(session).Take(1))
+				.ToArray();
+			supplier2.CreateSampleCore(session, products, offers.Select(o => o.Producer).Take(1).ToArray());
 
-				_list = _user.GetActivePricesNaked(session);
-				_buyingPrice = _list.OrderByDescending(i => i.PositionCount).First(i => i.CoreCount() > 0);
-				_buyingCoreCount = _buyingPrice.CoreCount();
+			_client = TestClient.CreateNaked(session);
+			_user = _client.Users[0];
 
-				var otherList =
-					_list.Where(item => item.Supplier != _buyingPrice.Supplier)
-						.OrderByDescending(item => item.PositionCount);
+			_client.Users.Each(u => {
+				u.SendRejects = true;
+				u.SendWaybills = true;
+			});
+			session.Save(_user);
 
-				_offerPrice = GetOfferPrice(otherList);
+			_activePrices = _user.GetActivePricesNaked(session);
+			_buyingPrice = _activePrices.First(p => p.Supplier == supplier1);
+			_buyingCoreCount = _buyingPrice.CoreCount();
 
-				if (_buyingPrice.Price.Matrix == null) {
-					_buyingPrice.Price.Matrix = new TestMatrix();
-					session.Save(_buyingPrice.Price);
-				}
-				if (_offerPrice.Price.Matrix == null) {
-					_offerPrice.Price.Matrix = new TestMatrix();
-					session.Save(_offerPrice.Price);
-				}
+			_offerPrice = _activePrices.First(p => p.Supplier == supplier2);
+			AssertPrice(_offerPrice);
+			Assert.That(_offerPrice,
+				Is.Not.Null,
+				"Не нашли прайс-лист, удовлетворяющий условию теста: должны быть пересечения и уникальные продукты с прайс-листом {0}",
+				_buyingPrice.Id.PriceId);
 
-				Assert.That(_offerPrice,
-					Is.Not.Null,
-					"Не нашли прайс-лист, удовлетворяющий условию теста: должны быть пересечения и уникальные продукты с прайс-листом {0}",
-					_buyingPrice.Id.PriceId);
-				_offerCoreCount = _offerPrice.CoreCount();
-
-				session.CreateSQLQuery(
-					"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
-					.SetParameter("userId", _user.Id)
-					.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
-					.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
-					.ExecuteUpdate();
-				transaction.VoteCommit();
-
-				Close();
+			if (_buyingPrice.Price.Matrix == null) {
+				_buyingPrice.Price.Matrix = new TestMatrix();
+				session.Save(_buyingPrice.Price);
 			}
+			if (_offerPrice.Price.Matrix == null) {
+				_offerPrice.Price.Matrix = new TestMatrix();
+				session.Save(_offerPrice.Price);
+			}
+
+			_offerCoreCount = _offerPrice.CoreCount();
+
+			session.CreateSQLQuery(
+				"delete from Customers.UserPrices where UserId = :userId and PriceId not in (:buyingPriceId, :offerPriceId);")
+				.SetParameter("userId", _user.Id)
+				.SetParameter("buyingPriceId", _buyingPrice.Id.PriceId)
+				.SetParameter("offerPriceId", _offerPrice.Id.PriceId)
+				.ExecuteUpdate();
+			Close();
 		}
 
-		private TestActivePrice GetOfferPrice(IOrderedEnumerable<TestActivePrice> otherList)
+		private void AssertPrice(TestActivePrice testActivePrice)
 		{
-			TestActivePrice result = null;
-
-			foreach (var testActivePrice in otherList) {
-				if (testActivePrice.CoreCount() == 0)
-					continue;
-
-				_intersectionProductId =
-					session.CreateSQLQuery(@"
+			_intersectionProductId = session.CreateSQLQuery(@"
 select 
 	c.ProductId
 from
@@ -116,13 +123,13 @@ where
   c.PriceCode = :priceId
 limit 1
 ")
-						.SetParameter("priceId", _buyingPrice.Id.PriceId)
-						.SetParameter("costId", _buyingPrice.CostId)
-						.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-						.SetParameter("otherCostId", testActivePrice.CostId)
-						.UniqueResult<uint>();
+				.SetParameter("priceId", _buyingPrice.Id.PriceId)
+				.SetParameter("costId", _buyingPrice.CostId)
+				.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+				.SetParameter("otherCostId", testActivePrice.CostId)
+				.UniqueResult<uint>();
 
-				_buyingProductId = session.CreateSQLQuery(@"
+			_buyingProductId = session.CreateSQLQuery(@"
 select 
 	c.ProductId
 from
@@ -135,13 +142,13 @@ where
 and nc.Core_Id is null
 limit 1
 ")
-					.SetParameter("priceId", _buyingPrice.Id.PriceId)
-					.SetParameter("costId", _buyingPrice.CostId)
-					.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-					.SetParameter("otherCostId", testActivePrice.CostId)
-					.UniqueResult<uint>();
+				.SetParameter("priceId", _buyingPrice.Id.PriceId)
+				.SetParameter("costId", _buyingPrice.CostId)
+				.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+				.SetParameter("otherCostId", testActivePrice.CostId)
+				.UniqueResult<uint>();
 
-				_offerProductId = session.CreateSQLQuery(@"
+			_offerProductId = session.CreateSQLQuery(@"
 select 
 	c.ProductId
 from
@@ -154,13 +161,13 @@ where
 and n.Id is null
 limit 1
 ")
-					.SetParameter("priceId", testActivePrice.Id.PriceId)
-					.SetParameter("costId", testActivePrice.CostId)
-					.SetParameter("otherPriceId", _buyingPrice.Id.PriceId)
-					.SetParameter("otherCostId", _buyingPrice.CostId)
-					.UniqueResult<uint>();
+				.SetParameter("priceId", testActivePrice.Id.PriceId)
+				.SetParameter("costId", testActivePrice.CostId)
+				.SetParameter("otherPriceId", _buyingPrice.Id.PriceId)
+				.SetParameter("otherCostId", _buyingPrice.CostId)
+				.UniqueResult<uint>();
 
-				_intersectionProductIdWithProducerId = session.CreateSQLQuery(@"
+			_intersectionProductIdWithProducerId = session.CreateSQLQuery(@"
 select 
 	c.ProductId
 from
@@ -174,14 +181,14 @@ and c.CodeFirmCr is null
 and c.ProductId <> :intersectionProductId
 limit 1
 ")
-					.SetParameter("priceId", _buyingPrice.Id.PriceId)
-					.SetParameter("costId", _buyingPrice.CostId)
-					.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-					.SetParameter("otherCostId", testActivePrice.CostId)
-					.SetParameter("intersectionProductId", _intersectionProductId)
-					.UniqueResult<uint>();
+				.SetParameter("priceId", _buyingPrice.Id.PriceId)
+				.SetParameter("costId", _buyingPrice.CostId)
+				.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+				.SetParameter("otherCostId", testActivePrice.CostId)
+				.SetParameter("intersectionProductId", _intersectionProductId)
+				.UniqueResult<uint>();
 
-				_intersectionProductIdWithDistinctProducerId = session.CreateSQLQuery(@"
+			_intersectionProductIdWithDistinctProducerId = session.CreateSQLQuery(@"
 select 
 	c.ProductId
 from
@@ -196,27 +203,25 @@ and c.ProductId <> :intersectionProductId
 and c.ProductId <> :intersectionProductIdWithProducerId
 limit 1
 ")
-					.SetParameter("priceId", _buyingPrice.Id.PriceId)
-					.SetParameter("costId", _buyingPrice.CostId)
-					.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
-					.SetParameter("otherCostId", testActivePrice.CostId)
-					.SetParameter("intersectionProductId", _intersectionProductId)
-					.SetParameter("intersectionProductIdWithProducerId", _intersectionProductIdWithProducerId)
-					.UniqueResult<uint>();
+				.SetParameter("priceId", _buyingPrice.Id.PriceId)
+				.SetParameter("costId", _buyingPrice.CostId)
+				.SetParameter("otherPriceId", testActivePrice.Id.PriceId)
+				.SetParameter("otherCostId", testActivePrice.CostId)
+				.SetParameter("intersectionProductId", _intersectionProductId)
+				.SetParameter("intersectionProductIdWithProducerId", _intersectionProductIdWithProducerId)
+				.UniqueResult<uint>();
 
-				if (_intersectionProductId > 0 && _buyingProductId > 0 && _offerProductId > 0 && _intersectionProductIdWithProducerId > 0 && _intersectionProductIdWithDistinctProducerId > 0) {
-					result = testActivePrice;
-					break;
-				}
-			}
-
-			return result;
+			Assert.That(_intersectionProductId, Is.GreaterThan(0), "прайс 1 {0} прайс 2 {1}", _buyingPrice.Id, testActivePrice.Id);
+			Assert.That(_buyingProductId, Is.GreaterThan(0), "прайс 1 {0} прайс 2 {1}", _buyingPrice.Id, testActivePrice.Id);
+			Assert.That(_offerProductId, Is.GreaterThan(0), "прайс 1 {0} прайс 2 {1}", _buyingPrice.Id, testActivePrice.Id);
+			Assert.That(_intersectionProductIdWithProducerId, Is.GreaterThan(0), "прайс 1 {0} прайс 2 {1}", _buyingPrice.Id, testActivePrice.Id);
+			Assert.That(_intersectionProductIdWithDistinctProducerId, Is.GreaterThan(0), "прайс 1 {0} прайс 2 {1}", _buyingPrice.Id, testActivePrice.Id);
 		}
 
 		[SetUp]
 		public void SetUp()
 		{
-			var settings = session.Get<TestDrugstoreSettings>(_client.Id);
+			settings = session.Load<TestDrugstoreSettings>(_client.Id);
 			settings.BuyingMatrixPriceId = null;
 			settings.BuyingMatrix = null;
 			settings.BuyingMatrixAction = TestMatrixAction.Block;
@@ -238,7 +243,7 @@ limit 1
 				.ExecuteUpdate();
 		}
 
-		private void InsertMatrix(TestActivePrice price, bool closeSession = true)
+		private void InsertMatrix(TestActivePrice price)
 		{
 			//здесь сделано без учета производителей
 			session.CreateSQLQuery(
@@ -251,8 +256,6 @@ group by c0.ProductId;")
 				.SetParameter("priceId", price.Id.PriceId)
 				.SetParameter("matrixId", price.Price.Matrix.Id)
 				.ExecuteUpdate();
-			if (closeSession)
-				Close();
 		}
 
 		private void InsertMatrixByProductWithProducer(TestActivePrice price,
@@ -295,6 +298,7 @@ limit 1;")
 
 		private void CheckOffers(Action<UpdateHelper, DataTable> action)
 		{
+			Flush();
 			var updateData = UpdateHelper.GetUpdateData(Connection, _user.Login);
 			var helper = new UpdateHelper(updateData, Connection);
 
@@ -330,12 +334,9 @@ limit 1;")
 		[Test(Description = "проверяем работу белой матрицы закупок")]
 		public void WhiteBuyingMatrix()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.BuyingMatrixPriceId = _buyingPrice.Id.PriceId;
 			settings.BuyingMatrix = _buyingPrice.Price.Matrix;
 			settings.BuyingMatrixType = 0;
-			settings.UpdateAndFlush();
-
 			InsertMatrix(_buyingPrice);
 
 			CheckOffers(
@@ -354,12 +355,9 @@ limit 1;")
 		[Test(Description = "проверяем работу черной матрицы закупок")]
 		public void BlackBuyingMatrix()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.BuyingMatrixPriceId = _buyingPrice.Id.PriceId;
 			settings.BuyingMatrix = _buyingPrice.Price.Matrix;
 			settings.BuyingMatrixType = TestMatrixType.BlackList;
-			session.Save(settings);
-
 			InsertMatrix(_buyingPrice);
 
 			CheckOffers(
@@ -378,17 +376,12 @@ limit 1;")
 		[Test(Description = "Проверяет работу черной матрицы закупок, с учетом поставщика")]
 		public void BlackMatrixWithSupplierCriteria()
 		{
-			var settings = session.Get<TestDrugstoreSettings>(_client.Id);
 			settings.BuyingMatrix = _buyingPrice.Price.Matrix;
 			settings.BuyingMatrixType = TestMatrixType.BlackList;
 			settings.BuyingMatrixAction = TestMatrixAction.Block;
-			session.SaveOrUpdate(settings);
-
-			InsertMatrix(_offerPrice, false);
+			InsertMatrix(_offerPrice);
 
 			var supplierProduct = PrepareSupplierCoreDataForMatrix();
-
-			Close();
 
 			CheckOffers((helper, coreTable) => {
 				var offers = coreTable.Select("ProductId = {0}".Format(supplierProduct));
@@ -464,12 +457,9 @@ limit 1;")
 		[Test(Description = "проверяем работу белой матрицы предложений")]
 		public void WhiteOfferMatrix()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
 			settings.OfferMatrixType = 0;
-			settings.UpdateAndFlush();
-
 			InsertMatrix(_offerPrice);
 
 			CheckOffers(
@@ -493,12 +483,9 @@ limit 1;")
 		[Test(Description = "проверяем работу черной матрицы предложений")]
 		public void BlackOfferMatrix()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
 			settings.OfferMatrixType = TestMatrixType.BlackList;
-			settings.UpdateAndFlush();
-
 			InsertMatrix(_offerPrice);
 
 			CheckOffers(
@@ -522,12 +509,9 @@ limit 1;")
 		[Test(Description = "проверяем работу черной матрицы предложений с заполнением списка поставщиков, для которых не будет применяться матрица предложений")]
 		public void BlackOfferMatrixWithOfferSuppliers()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
 			settings.OfferMatrixType = TestMatrixType.BlackList;
-			settings.UpdateAndFlush();
-
 			InsertMatrix(_offerPrice);
 			InserOfferMatrixSuppliers(_offerPrice);
 
@@ -552,12 +536,9 @@ limit 1;")
 		[Test(Description = "проверяем работу черной матрицы предложений с учетом изготовителя с заполнением списка поставщиков, для которых не будет применяться матрица предложений")]
 		public void BlackOfferMatrixWithOfferSuppliersWithProducer()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
 			settings.OfferMatrixType = TestMatrixType.BlackList;
-			settings.UpdateAndFlush();
-
 			InsertMatrix(_offerPrice);
 			InsertMatrixByProductWithProducer(_offerPrice, _intersectionProductIdWithProducerId);
 			InsertMatrixByProductWithProducer(_offerPrice, _intersectionProductIdWithDistinctProducerId);
@@ -624,13 +605,10 @@ limit 1;")
 		[Test]
 		public void Remove_offers()
 		{
-			var settings = TestDrugstoreSettings.Find(_client.Id);
 			settings.OfferMatrixPriceId = _offerPrice.Id.PriceId;
 			settings.OfferMatrix = _offerPrice.Price.Matrix;
 			settings.OfferMatrixAction = TestMatrixAction.Delete;
 			settings.OfferMatrixType = TestMatrixType.BlackList;
-			settings.UpdateAndFlush();
-
 			InsertMatrix(_offerPrice);
 
 			CheckOffers(
