@@ -182,7 +182,7 @@ namespace PrgData.Common
 			return order.AddressId.HasValue ? order.AddressId.Value : order.ClientCode;
 		}
 
-		private void SaveToFile(List<OrderBatchItem> list, List<Order> orders)
+		public void SaveToFile(List<OrderBatchItem> list, List<Order> orders)
 		{
 			ServiceFieldsToFile();
 
@@ -206,11 +206,11 @@ namespace PrgData.Common
 						item.RowId = _maxOrderListId;
 						_maxOrderListId++;
 
-						var report = list.Find(reportItem => { return reportItem.Item != null && reportItem.Item.OrderItem == item; });
+						//var report = list.Find(reportItem => { return reportItem.Item != null && reportItem.Item.OrderItem == item; });
 
-						var cryptCostWithoutDelayOfPayment =
-							report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat);
-						var cryptCost = report.Item.Offer.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat);
+						//var cryptCostWithoutDelayOfPayment =
+//							report.Item.Offer.CostWithoutDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat);
+						//var cryptCost = report.Item.Offer.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat);
 
 						buildItems.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}\t{10}\t{11}\t{12}\t{13}\t{14}\t{15}\t{16}\t{17}\t{18}\t{19}\n",
@@ -224,8 +224,8 @@ namespace PrgData.Common
 							item.SynonymFirmCrCode.HasValue ? item.SynonymFirmCrCode.Value.ToString() : "\\N",
 							item.Code,
 							item.CodeCr,
-							cryptCostWithoutDelayOfPayment,
-							cryptCost,
+							item.CostWithDelayOfPayment.ToString(CultureInfo.InvariantCulture.NumberFormat),
+							item.Cost.ToString(CultureInfo.InvariantCulture.NumberFormat),
 							item.Await ? "1" : "0",
 							item.Junk ? "1" : "0",
 							item.Quantity,
@@ -243,21 +243,24 @@ namespace PrgData.Common
 						serviceValues = report.ServiceValuesToExport();
 
 					if (report.Item != null) {
-						buildReport.AppendFormat(
-							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
-							_maxBatchId,
-							report.Item.OrderItem != null ? GetOrderedId(report.Item.OrderItem.Order) : _address.Id,
-							report.ProductName.ToMySqlExportString(),
-							report.ProducerName.ToMySqlExportString(),
-							report.Quantity,
-							report.CommentToExport(),
-							report.Item.OrderItem != null ? report.Item.OrderItem.RowId.ToString() : "\\N",
-							(int)report.Item.Status,
-							report.Item.ProductId,
-							report.Item.CodeFirmCr.HasValue ? report.Item.CodeFirmCr.Value.ToString() : "\\N",
-							serviceValues);
+						foreach (var orderItem in report.Item.OrderItems.DefaultIfEmpty()) {
+							buildReport.AppendFormat(
+								"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}\t{9}{10}\n",
+								_maxBatchId,
+								orderItem != null ? GetOrderedId(orderItem.Order) : _address.Id,
+								report.ProductName.ToMySqlExportString(),
+								report.ProducerName.ToMySqlExportString(),
+								report.Quantity,
+								report.CommentToExport(),
+								orderItem != null ? orderItem.RowId.ToString() : "\\N",
+								(int)report.Item.Status,
+								report.Item.ProductId,
+								report.Item.CodeFirmCr.HasValue ? report.Item.CodeFirmCr.Value.ToString() : "\\N",
+								serviceValues);
+							_maxBatchId++;
+						}
 					}
-					else
+					else {
 						buildReport.AppendFormat(
 							"{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t\\N\t\\N\t\\N\t\\N{6}\n",
 							_maxBatchId,
@@ -267,7 +270,8 @@ namespace PrgData.Common
 							report.Quantity,
 							report.CommentToExport(),
 							serviceValues);
-					_maxBatchId++;
+						_maxBatchId++;
+					}
 				}
 			}
 

@@ -29,13 +29,6 @@ namespace Integration
 	[SetUpFixture]
 	public class FixtureSetup
 	{
-		/// <summary>
-		/// Список поставщиков, для которых существуют предложения в farm.Core0
-		/// Команда bake PrepareLocal для PrgData загружает в Core0 только данные избранных прайс-листов
-		/// Список этих поставщиков используется в методе UserFixture.CreateUserWithMinimumPrices
-		/// </summary>
-		public static List<uint> FilledSuppliers = new List<uint>();
-
 		[SetUp]
 		public void Setup()
 		{
@@ -52,6 +45,8 @@ namespace Integration
 			var holder = ActiveRecordMediator.GetSessionFactoryHolder();
 			var cfg = holder.GetConfiguration(typeof(ActiveRecordBase));
 			cfg.AddInputStream(HbmSerializer.Default.Serialize(Assembly.Load("Common.Models")));
+			cfg.AddInputStream(HbmSerializer.Default.Serialize(Assembly.Load("PrgData.Common")));
+
 			var factory = holder.GetSessionFactory(typeof(ActiveRecordBase));
 			Test.Support.Setup.SessionFactory = factory;
 
