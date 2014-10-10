@@ -140,5 +140,82 @@ namespace Unit
 			CostOptimizer.MonopolisticsOptimize(offers, config);
 			Assert.AreEqual(61.44, offers[0].Cost);
 		}
+
+		[Test]
+		public void Optimize_cost_for_all_suppliers()
+		{
+			var config = new[] {
+				new CostOptimizationRule {
+					IsAllConcurrents = true,
+					Supplier = new Supplier { Id = 1 },
+					Diapasons = new[] { new CostOptimizationDiapason(0, 1000, 20),  }
+				},
+			};
+
+			var offers = new[] {
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 51.20m,
+					MaxBoundCost = 150,
+				},
+				new Offer2 {
+					SupplierId = 4,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 70.34m,
+				},
+				new Offer2 {
+					SupplierId = 4,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 67.34m,
+				},
+			};
+			CostOptimizer.MonopolisticsOptimize(offers, config);
+			Assert.AreEqual(51.20, offers[0].Cost);
+		}
+
+		[Test]
+		public void Ignore_exceptions()
+		{
+			var supplier = new Supplier { Id = 1 };
+			var exceptions = new[] {
+				new CostOptimizationException(supplier, new Client())
+			};
+			var config = new[] {
+				new CostOptimizationRule {
+					Supplier = supplier,
+					Concurrents = new[] { new Supplier { Id = 2u },  new Supplier { Id = 3u } },
+					Diapasons = new[] { new CostOptimizationDiapason(0, 1000, 20),  }
+				},
+			};
+
+			var offers = new[] {
+				//монопольное предложение по продукту 10
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 51.20m,
+					MaxBoundCost = 150,
+				},
+				new Offer2 {
+					SupplierId = 4,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 70.34m,
+				},
+				new Offer2 {
+					SupplierId = 4,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 67.34m,
+				},
+			};
+			CostOptimizer.MonopolisticsOptimize(offers, config, exceptions);
+			Assert.AreEqual(51.20m, offers[0].Cost);
+		}
 	}
 }
