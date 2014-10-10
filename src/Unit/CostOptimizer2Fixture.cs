@@ -146,7 +146,6 @@ namespace Unit
 		{
 			var config = new[] {
 				new CostOptimizationRule {
-					IsAllConcurrents = true,
 					Supplier = new Supplier { Id = 1 },
 					Diapasons = new[] { new CostOptimizationDiapason(0, 1000, 20),  }
 				},
