@@ -3217,6 +3217,7 @@ where
 					count = global::Common.MySql.MySqlHelper.Export(toexport, file, 0, columnCount);
 				}
 				_updateData.FilesForArchive.Enqueue(filename);
+				session.Flush();
 			}
 			return true;
 		}
