@@ -216,5 +216,41 @@ namespace Unit
 			CostOptimizer.MonopolisticsOptimize(offers, config, exceptions);
 			Assert.AreEqual(51.20m, offers[0].Cost);
 		}
+
+		[Test]
+		public void Optimize_cost_for_all_supplier_with_many_offers()
+		{
+			var supplier = new Supplier { Id = 1 };
+			var config = new[] {
+				new CostOptimizationRule {
+					Supplier = supplier,
+					Diapasons = new[] { new CostOptimizationDiapason(0, 1000, 20),  }
+				},
+			};
+
+			var offers = new[] {
+				//монопольное предложение по продукту 10
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 51.20m,
+				},
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 70.34m,
+				},
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 67.34m,
+				},
+			};
+			CostOptimizer.MonopolisticsOptimize(offers, config);
+			Assert.AreEqual(61.44m, offers[0].Cost);
+		}
 	}
 }
