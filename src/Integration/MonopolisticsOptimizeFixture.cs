@@ -68,6 +68,21 @@ update Usersettings.ActivePrices set Fresh = 1 where FirmCode = :concurrentId;")
 			Assert.IsTrue(price.Fresh);
 		}
 
+		[Test]
+		public void Exept_client_from_optimization()
+		{
+			var concurrent = TestSupplier.CreateNaked(session);
+			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
+			session.Save(new CostOptimizationException(session.Load<Supplier>(supplier.Id), session.Load<Client>(client.Id)));
+			Export(user);
+			var logCount = session
+				.CreateSQLQuery("select count(*) from Logs.CostOptimizationLogs where UserId = :userId and SupplierId = :supplierId")
+				.SetParameter("userId", user.Id)
+				.SetParameter("supplierId", supplier.Id)
+				.UniqueResult<long>();
+			Assert.AreEqual(0, logCount);
+		}
+
 		private ConcurrentQueue<string> Export(TestUser user)
 		{
 			var files = new ConcurrentQueue<string>();

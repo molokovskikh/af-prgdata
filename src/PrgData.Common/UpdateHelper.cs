@@ -3151,7 +3151,8 @@ where
 					}
 				}
 				log.Debug("Загрузка завершена, начинаю оптимизацию");
-				var logs = CostOptimizer.MonopolisticsOptimize(offers, rules);
+				var exceptions = session.Query<CostOptimizationException>().Where(e => e.Client == client).ToArray();
+				var logs = CostOptimizer.MonopolisticsOptimize(offers, rules, exceptions);
 				CostOptimizer.SaveLogs(_readWriteConnection, logs, _updateData.UserId, _updateData.ClientId);
 				log.Debug("Оптимизация завершена, начинаю выгрузку");
 

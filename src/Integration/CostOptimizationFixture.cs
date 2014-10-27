@@ -55,8 +55,8 @@ namespace Integration
 			connection.Close();
 		}
 
-		[Test(Description = "проверяем создание записей в логах оптимизации для клиента из новой реальности")]
-		public void CostOptimizerShouldCreateLogsWithSupplierForFuture()
+		[Test(Description = "проверяем создание записей в логах оптимизации")]
+		public void CostOptimizerShouldCreateLogsWithSupplier()
 		{
 			var begin = DateTime.Now;
 			var costSql = @"select cs.Id, min(ccc.Cost) Cost
