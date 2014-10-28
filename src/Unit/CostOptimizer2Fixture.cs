@@ -224,7 +224,7 @@ namespace Unit
 			var config = new[] {
 				new CostOptimizationRule {
 					Supplier = supplier,
-					Diapasons = new[] { new CostOptimizationDiapason(0, 1000, 20),  }
+					Diapasons = new[] { new CostOptimizationDiapason(0, 1000, 20), }
 				},
 			};
 
@@ -251,6 +251,32 @@ namespace Unit
 			};
 			CostOptimizer.MonopolisticsOptimize(offers, config);
 			Assert.AreEqual(61.44m, offers[0].Cost);
+		}
+
+		[Test]
+		public void Exclude_diapason_end()
+		{
+			var supplier = new Supplier { Id = 1 };
+			var config = new[] {
+				new CostOptimizationRule {
+					Supplier = supplier,
+					Diapasons = new[] {
+						new CostOptimizationDiapason(0, 50, 5),
+						new CostOptimizationDiapason(50, 10000, 20),
+					}
+				},
+			};
+
+			var offers = new[] {
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 50m,
+				},
+			};
+			CostOptimizer.MonopolisticsOptimize(offers, config);
+			Assert.AreEqual(52.5m, offers[0].Cost);
 		}
 	}
 }
