@@ -3072,22 +3072,11 @@ where
 				return false;
 
 			using (var session = SessionFactory.OpenSession(_readWriteConnection)) {
-				var client = session.Load<Client>(_updateData.ClientId);
+				var user = session.Load<User>(_updateData.UserId);
 				var activePrices = session.Query<AFActivePrice>().ToList();
 				var supplierIds = activePrices.Select(p => p.Id.Price.Supplier.Id).Distinct().ToArray();
-				var rules = session.Query<CostOptimizationRule>()
-					.Where(r => supplierIds.Contains(r.Supplier.Id) && r.RuleType == RuleType.MaxCost
-						&& (r.Clients.Count == 0 || r.Clients.Contains(client)))
-					.ToArray();
-				//в запросе мы выбираем правила как имеющее в своем списке текущего клиента так и общие
-				//общими считаются правила без клиентов, ниже для каждого поставщика берем одно правила
-				//предпочитая правила которые были определены для этого клиента
-				rules = rules.GroupBy(r => r.Supplier)
-					.Select(g => g.OrderByDescending(r => r.Clients.Count).First())
-					.ToArray();
-				if (!rules.Any())
-					return false;
-
+				var optimizer = MonopolisticsOptimizer.Load(session, user, supplierIds);
+				var rules = optimizer.Rules;
 				//отметить те прайс-листы которые мы будем передавать из-за того что обновился кто-то из конкурентов
 				var fresh = activePrices.Where(p => p.Fresh).Select(p => p.Id.Price.Supplier).ToArray();
 				var topatch = rules
@@ -3152,8 +3141,7 @@ where
 					}
 				}
 				log.Debug("Загрузка завершена, начинаю оптимизацию");
-				var exceptions = session.Query<CostOptimizationException>().Where(e => e.Client == client).ToArray();
-				var logs = CostOptimizer.MonopolisticsOptimize(offers, rules, exceptions);
+				var logs = optimizer.Optimize(offers);
 				CostOptimizer.SaveLogs(_readWriteConnection, logs, _updateData.UserId, _updateData.ClientId);
 				log.Debug("Оптимизация завершена, начинаю выгрузку");
 
