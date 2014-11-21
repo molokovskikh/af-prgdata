@@ -762,6 +762,7 @@ Public Class PrgDataEx
 						Try
 							DeletePreviousFiles()
 						Catch ex As Exception
+							Log.Error("Не удалось удалить предыдущие данные", ex)
 							Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
 							UpdateType = RequestType.Forbidden
 							ErrorFlag = True

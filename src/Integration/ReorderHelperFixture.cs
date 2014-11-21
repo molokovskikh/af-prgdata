@@ -152,7 +152,7 @@ namespace Integration
 			if (Directory.Exists("FtpRoot"))
 				FileHelper.DeleteDir("FtpRoot");
 
-			user = UserFixture.CreateUser();
+			user = CreateUser();
 			client = user.Client;
 			using (var transaction = new TransactionScope()) {
 				NHibernateUtil.Initialize(user.AvaliableAddresses);
@@ -169,7 +169,7 @@ namespace Integration
 			orderHelper.ParseOrders(
 				1,
 				new ulong[] { 1L },
-				new ulong[] { Convert.ToUInt64(activePrice["PriceCode"]) },
+				new[] { Convert.ToUInt64(activePrice["PriceCode"]) },
 				new ulong[] { Convert.ToUInt64(activePrice["RegionCode"]) },
 				new DateTime[] { DateTime.Now }, //pricedate
 				new string[] { "" }, //clientaddition
@@ -319,7 +319,7 @@ namespace Integration
 			orderHelper.ParseOrders(
 				1,
 				new ulong[] { 1L },
-				new ulong[] { 1L },
+				new[] { Convert.ToUInt64(activePrice["PriceCode"]) },
 				new ulong[] { 1L },
 				new DateTime[] { DateTime.Now },
 				new string[] { "" },
@@ -369,7 +369,7 @@ namespace Integration
 			orderHelper.ParseOrders(
 				1,
 				new ulong[] { 1L },
-				new ulong[] { 1L },
+				new[] { Convert.ToUInt64(activePrice["PriceCode"]) },
 				new ulong[] { 1L },
 				new DateTime[] { DateTime.Now },
 				new string[] { "" },
@@ -523,11 +523,13 @@ namespace Integration
 					new MySqlParameter("?OrderId", orderId)));
 		}
 
-		public void Check_simple_double_order(string userName, uint orderedClientId)
+		[Test]
+		public void Check_double_order_for_client()
 		{
+			uint orderedClientId = address.Id;
 			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
@@ -556,11 +558,13 @@ namespace Integration
 			}
 		}
 
-		public void Check_simple_double_orderWithNewCoreId(string userName, uint orderedClientId)
+		[Test]
+		public void Check_double_order_for_clientWithNewCoreId()
 		{
+			uint orderedClientId = address.Id;
 			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseSimpleOrder(orderHelper);
@@ -590,22 +594,12 @@ namespace Integration
 		}
 
 		[Test]
-		public void Check_double_order_for_future_client()
+		public void Check_double_order_without_FullDuplicated_for_future_client()
 		{
-			Check_simple_double_order(user.Login, address.Id);
-		}
-
-		[Test]
-		public void Check_double_order_for_future_clientWithNewCoreId()
-		{
-			Check_simple_double_orderWithNewCoreId(user.Login, address.Id);
-		}
-
-		public void Check_double_order_without_FullDuplicated(string userName, uint orderedClientId)
-		{
+			uint orderedClientId = address.Id;
 			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, userName);
+				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
 				var orderHelper = new ReorderHelper(updateData, connection, true, orderedClientId, false);
 
 				ParseFirstOrder(orderHelper);
@@ -632,12 +626,6 @@ namespace Integration
 
 				Assert.That(GetOrderCount(connection, secondServerOrderId), Is.EqualTo(1), "Не совпадает кол-во позиций в заказе");
 			}
-		}
-
-		[Test]
-		public void Check_double_order_without_FullDuplicated_for_future_client()
-		{
-			Check_double_order_without_FullDuplicated(user.Login, address.Id);
 		}
 
 		public void Check_simple_double_order_with_correctorders(string userName, uint orderedClientId)
@@ -1369,55 +1357,6 @@ limit 1
 			}
 		}
 
-		[Test(Description = "Создание тестовой счет-фактуры под специальным пользователем 10081")]
-		public void GenerateInvoiceForSpecialUser()
-		{
-			TestUser specialUser;
-			TestAddress specialAddress;
-
-			using (new SessionScope()) {
-				specialUser = TestUser.Find(10081u);
-				Assert.That(specialUser.AvaliableAddresses.Count, Is.GreaterThan(0));
-				specialAddress = specialUser.AvaliableAddresses[0];
-			}
-
-			TestDataManager.DeleteAllOrdersForClient(specialUser.Client.Id);
-
-			CreateFolders(specialAddress.Id.ToString());
-
-			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
-				connection.Open();
-
-				var updateData = UpdateHelper.GetUpdateData(connection, specialUser.Login);
-
-				var orderHelper = new ReorderHelper(updateData, connection, true, specialAddress.Id, false);
-
-				ParseSimpleOrder(orderHelper);
-
-				var result = orderHelper.PostSomeOrders();
-
-				var firstServerOrderId = CheckServiceResponse(result);
-
-				Assert.That(firstServerOrderId, Is.Not.Null);
-				Assert.That(firstServerOrderId, Is.Not.Empty);
-
-				var documentId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					"select Id from Documents.DocumentHeaders where OrderId = ?OrderId and DocumentType = 1",
-					new MySqlParameter("?OrderId", firstServerOrderId)));
-
-				Assert.That(documentId, Is.Not.Null);
-				Assert.That(documentId, Is.GreaterThan(0));
-
-				var invoiceId = Convert.ToUInt32(MySqlHelper.ExecuteScalar(
-					connection,
-					"select Id from Documents.InvoiceHeaders where Id = ?DocumentId",
-					new MySqlParameter("?DocumentId", documentId)));
-				Assert.That(invoiceId, Is.Not.Null);
-				Assert.That(invoiceId, Is.GreaterThan(0));
-			}
-		}
-
 		[Test(Description = "Отправляем несколько раз заказ, который дублируется полностью: заказ не должен дублироваться и должен возвращаться один и тот же ServerOrderId")]
 		public void RepeatedlySendDoubleOrder()
 		{
@@ -1744,6 +1683,7 @@ and (i.PriceId = :PriceId)
 			address.CheckDailyOrdersSum = true;
 			address.MaxDailyOrdersSum = 1;
 			address.Update();
+			session.Transaction.Commit();
 			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
 				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
@@ -1753,7 +1693,7 @@ and (i.PriceId = :PriceId)
 			}
 		}
 
-		[Test(Description = "Проверяет срабатывание проверки для суммы дневного заказа, если также установлен и недельный")]
+		[Test(Description = "Проверяет недельный лимит тк 0 является проверяемым значением")]
 		public void MaxDailyOrdersSumWithWeeklyTest()
 		{
 			client.Settings.CheckWeeklyOrdersSum = true;
@@ -1762,14 +1702,15 @@ and (i.PriceId = :PriceId)
 			address.CheckDailyOrdersSum = true;
 			address.MaxDailyOrdersSum = 0;
 			address.Update();
-			CheckOrdersSum("Превышен дневной лимит заказа");
+			CheckOrdersSum("Превышен недельный лимит");
 		}
 
 		private void CheckOrdersSum(string message)
 		{
+			session.Transaction.Commit();
 			using (var connection = new MySqlConnection(ConnectionHelper.GetConnectionString())) {
 				connection.Open();
-				var updateData = UpdateHelper.GetUpdateData(connection, user.Login);
+				var updateData = UpdateHelper.GetUpdateData((MySqlConnection)session.Connection, user.Login);
 				TestDataManager.GenerateOrder(3, user.Id, address.Id);
 				var e = Assert.Catch<UpdateException>(() => new ReorderHelper(updateData, connection, true, address.Id, false));
 				Assert.That(e.Message, Is.StringContaining(message));
@@ -2127,6 +2068,23 @@ and (i.PriceId = :PriceId)
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы дозаказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}
+		}
+
+		[Test]
+		public void Skip_pre_order_check_on_disabled_price()
+		{
+			session.Transaction.Begin();
+			user.UseAdjustmentOrders = true;
+			var priceId = Convert.ToUInt32(activePrice["PriceCode"]);
+			var price = session.Load<TestPrice>(priceId);
+			price.Enabled = false;
+			session.Transaction.Commit();
+
+			var updateData = UpdateHelper.GetUpdateData((MySqlConnection)session.Connection, user.Login);
+			updateData.BuildNumber = 1272;
+			var helper = new ReorderHelper(updateData, (MySqlConnection)session.Connection, false, address.Id, true);
+			ParseSimpleOrder(helper);
+			var result = ConvertServiceResponse(helper.PostSomeOrders());
 		}
 	}
 }

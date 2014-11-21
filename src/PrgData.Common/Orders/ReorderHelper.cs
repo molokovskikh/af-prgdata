@@ -298,6 +298,7 @@ values
 					position.IgnoreCostReducing = true;
 				}
 
+				System.Tuple<uint, ulong>[] activePrices;
 				using (var session = UpdateHelper.SessionFactory.OpenSession(_readWriteConnection)) {
 					var supplierIds = _orders.Select(o => o.ActivePrice.Id.Price.Supplier.Id).ToArray();
 					var rules = session.Query<CostOptimizationRule>()
@@ -310,9 +311,16 @@ values
 					_orders.Where(o => rules.Contains(o.ActivePrice.Id.Price.Supplier.Id))
 						.SelectMany(o => o.Positions)
 						.Each(l => l.IgnoreCostReducing = true);
+					using(OfferRepository.InvokeGetActivePrices(session, _user))
+						activePrices = session.Query<ActivePrice>()
+							.Select(p => Tuple.Create(p.Id.Price.PriceCode, p.Id.RegionCode))
+							.ToArray();
 				}
 
 				foreach (var order in _orders) {
+					var key = Tuple.Create(order.ActivePrice.Id.Price.PriceCode, order.ActivePrice.Id.RegionCode);
+					if (!activePrices.Contains(key))
+						continue;
 					foreach (var position in order.Positions) {
 						if (!position.Duplicated) {
 							var offer = GetDataRowByPosition(offers, order, position);
