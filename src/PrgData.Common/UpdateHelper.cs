@@ -3088,7 +3088,7 @@ where
 				var exportable = activePrices.Where(p => p.Fresh).Select(p => p.Id.Price.PriceCode).OrderBy(i => i).ToArray();
 
 				var query = GetOfferQuery(true, true, true);
-				query.Select("at.FirmCode", "core.MaxBoundCost");
+				query.Select("at.FirmCode", "core.MaxBoundCost", "core.OptimizationSkip");
 				if (log.IsDebugEnabled)
 					log.Debug(query.ToSql());
 				var cmd = new MySqlCommand(query.ToSql(), _readWriteConnection);
@@ -3136,7 +3136,8 @@ where
 							Exp = reader.GetNullableDateTime(31),
 							//поля для оптимизации цен
 							SupplierId = reader.GetUInt32(32),
-							MaxBoundCost = reader.GetNullableFloat(33)
+							MaxBoundCost = reader.GetNullableFloat(33),
+							OptimizationSkip = reader.GetBoolean(34)
 						});
 					}
 				}

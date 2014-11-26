@@ -1,0 +1,1 @@
+ALTER TABLE `farm`.`Core0`	ADD COLUMN `OptimizationSkip` TINYINT(1) NOT NULL DEFAULT 0;

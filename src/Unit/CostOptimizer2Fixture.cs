@@ -45,6 +45,7 @@ namespace Unit
 					ProductId = 10,
 					ProducerId = 3,
 					Cost = 67.34m,
+
 				},
 				//не монопольное предложение по продукту 10 производителю 4
 				new Offer2 {
@@ -69,6 +70,44 @@ namespace Unit
 			var log = logs[0];
 			Assert.AreEqual(log.SelfCost, 51.20);
 			Assert.AreEqual(log.ResultCost, 150);
+		}
+
+		[Test]
+		public void OptimizationSkip_flag()
+		{
+			var config = new[] {
+				new CostOptimizationRule {
+					Supplier = new Supplier { Id = 1 },
+					Concurrents = new [] { new Supplier { Id = 2u },  new Supplier { Id = 3u } }
+				},
+				new CostOptimizationRule {
+					Supplier = new Supplier { Id = 3 },
+					Concurrents = new [] { new Supplier { Id = 4u }, new Supplier { Id = 5u } }
+				}
+			};
+
+			var offers = new[] {
+				//монопольное предложение по продукту 10 производителю 2
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 51.20m,
+					MaxBoundCost = 150,
+				},
+				new Offer2 {
+					SupplierId = 1,
+					ProductId = 10,
+					ProducerId = 2,
+					Cost = 51.20m,
+					MaxBoundCost = 150,
+					OptimizationSkip = true,
+				}
+			};
+
+			var logs = CostOptimizer.MonopolisticsOptimize(offers, config);
+			Assert.AreEqual(150, offers[0].Cost);
+			Assert.AreEqual(51.20m, offers[1].Cost);
 		}
 
 		[Test]
