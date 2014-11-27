@@ -68,12 +68,40 @@ update Usersettings.ActivePrices set Fresh = 1 where FirmCode = :concurrentId;")
 			Assert.IsTrue(price.Fresh);
 		}
 
-		[Test]
+
+		[Test(Description = "Проверка того, что оптимизация не произойдет, если задано исключение в правилах")]
 		public void Exept_client_from_optimization()
 		{
 			var concurrent = TestSupplier.CreateNaked(session);
+			//Добавляем конкурентов, чтобы начался процесс оптимизации
+			var price = supplier.Prices[0];
 			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
+			//Без этого запроса оптимизация так и так не начнется
+			session.CreateSQLQuery("UPDATE farm.core0 SET MaxBoundCost = 250 WHERE pricecode=" + price.Id)
+				.ExecuteUpdate();
+
+			//Добавляем правило, чтобы не оптимизирвоать цены - тест проверяет именно его работу
 			session.Save(new CostOptimizationException(session.Load<Supplier>(supplier.Id), session.Load<Client>(client.Id)));
+
+			Export(user);
+			var logCount = session
+				.CreateSQLQuery("select count(*) from Logs.CostOptimizationLogs where UserId = :userId and SupplierId = :supplierId")
+				.SetParameter("userId", user.Id)
+				.SetParameter("supplierId", supplier.Id)
+				.UniqueResult<long>();
+			Assert.AreEqual(0, logCount);
+		}
+
+		[Test(Description = "Проверка пропуска оптимизации при наличии флага OptimizationSkip в таблице core0")]
+		public void Core_optimizationSkipFlag()
+		{
+			var price = supplier.Prices[0];
+			var concurrent = TestSupplier.CreateNaked(session);
+			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
+			//Добавляем максимальную цену, чтобы процесс оптимизации мог начаться
+			//Но также добавляем флаг, который пропускает оптимизацию - тест проверяет именно его работу
+			session.CreateSQLQuery("UPDATE farm.core0 SET MaxBoundCost = 250, OptimizationSkip=1 WHERE pricecode=" + price.Id)
+				.ExecuteUpdate();
 			Export(user);
 			var logCount = session
 				.CreateSQLQuery("select count(*) from Logs.CostOptimizationLogs where UserId = :userId and SupplierId = :supplierId")
