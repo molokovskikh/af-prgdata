@@ -1105,7 +1105,7 @@ where
 			}
 
 			using (new SessionScope()) {
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && (uint)updateLog.UpdateType == (uint)RequestType.SendOrders).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы заказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}
@@ -1591,7 +1591,7 @@ and (i.PriceId = :PriceId)
 			}
 
 			using (new SessionScope()) {
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == TestRequestType.SendOrders).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.Null, "В поле Addition должна быть запись об заказах с ошибками");
 			}
@@ -1626,7 +1626,7 @@ and (i.PriceId = :PriceId)
 			}
 
 			using (new SessionScope()) {
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == TestRequestType.SendOrders).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.Null, "В поле Addition не должно ничего быть, т.к. ошибок не возникло");
 			}
@@ -1662,7 +1662,7 @@ and (i.PriceId = :PriceId)
 			}
 
 			using (new SessionScope()) {
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == TestRequestType.SendOrders).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.Null, "В поле Addition не должно ничего быть, т.к. ошибок не возникло");
 			}
@@ -1911,7 +1911,7 @@ and (i.PriceId = :PriceId)
 			}
 
 			using (new SessionScope()) {
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == TestRequestType.SendOrders).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы заказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}
@@ -2064,7 +2064,7 @@ and (i.PriceId = :PriceId)
 			}
 
 			using (new SessionScope()) {
-				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == Convert.ToUInt32(RequestType.SendOrders)).ToList();
+				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == user.Id && updateLog.UpdateType == TestRequestType.SendOrders).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1));
 				Assert.That(logs[0].Addition, Is.StringContaining("был отклонен из-за нарушения минимальной суммы дозаказа").IgnoreCase, "В поле Addition должна быть запись об заказах с ошибками");
 			}

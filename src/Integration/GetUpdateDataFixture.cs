@@ -268,21 +268,21 @@ namespace Integration
 			var log = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now.AddDays(-2),
-				UpdateType = (uint)RequestType.GetData,
+				UpdateType = (TestRequestType)RequestType.GetData,
 				Commit = false
 			};
 			log.Save();
 			log = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now.AddDays(-2),
-				UpdateType = (uint)RequestType.GetCumulative,
+				UpdateType = (TestRequestType)RequestType.GetCumulative,
 				Commit = true
 			};
 			log.Save();
 			log = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now,
-				UpdateType = (uint)RequestType.SendWaybills,
+				UpdateType = (TestRequestType)RequestType.SendWaybills,
 				Commit = true
 			};
 			log.Save();
@@ -306,28 +306,28 @@ namespace Integration
 			log = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now.AddDays(-2),
-				UpdateType = (uint)RequestType.GetData,
+				UpdateType = (TestRequestType)RequestType.GetData,
 				Commit = false
 			};
 			log.Save();
 			log = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now.AddDays(-2),
-				UpdateType = (uint)RequestType.GetCumulative,
+				UpdateType = (TestRequestType)RequestType.GetCumulative,
 				Commit = true
 			};
 			log.Save();
 			log = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now,
-				UpdateType = (uint)RequestType.GetCumulative,
+				UpdateType = (TestRequestType)RequestType.GetCumulative,
 				Commit = true
 			};
 			log.Save();
 			var last = new TestAnalitFUpdateLog {
 				UserId = userId,
 				RequestTime = DateTime.Now,
-				UpdateType = (uint)RequestType.GetDocs,
+				UpdateType = (TestRequestType)RequestType.GetDocs,
 				Commit = true
 			};
 			last.Save();

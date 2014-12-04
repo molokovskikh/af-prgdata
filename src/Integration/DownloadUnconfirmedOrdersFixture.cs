@@ -183,7 +183,7 @@ namespace Integration
 			using (new TransactionScope()) {
 				updateLog = new TestAnalitFUpdateLog();
 				updateLog.RequestTime = DateTime.Now;
-				updateLog.UpdateType = (uint)RequestType.GetData;
+				updateLog.UpdateType = (TestRequestType)RequestType.GetData;
 				updateLog.UserId = _officeUser.Id;
 				updateLog.Create();
 

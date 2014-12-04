@@ -430,16 +430,7 @@ values
 
 		private void CheckOrders(ISession session)
 		{
-			if (_address.CheckDailyOrdersSum) {
-				var acceptedSum = session.Query<OrderItem>()
-					.Where(i => i.Order.ClientCode == _address.Client.Id && i.Order.AddressId == _address.Id && i.Order.WriteTime > DateTime.Today)
-					.Sum(i => (decimal?)(i.Quantity * i.Cost))
-					.GetValueOrDefault();
-				var sum = acceptedSum + (decimal)_orders.Sum(o => o.Order.CalculateSum());
-				if (sum > _address.MaxDailyOrdersSum)
-					throw new global::Common.Models.OrderException(
-						String.Format("Превышен дневной лимит заказа (уже заказано на {0:C}).", acceptedSum));
-			}
+			PreorderChecker.CheckDailyOrdersSum(session, _address, _orders.Select(o => o.Order));
 
 			if (!_user.IgnoreCheckMinOrder) {
 				foreach (var order in _orders) {

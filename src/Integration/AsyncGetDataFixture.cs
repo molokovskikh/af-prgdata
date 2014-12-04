@@ -125,7 +125,7 @@ namespace Integration
 					RequestTime = DateTime.Now,
 					Commit = false,
 					UserId = _user.Id,
-					UpdateType = Convert.ToUInt32(asyncRequest)
+					UpdateType = (TestRequestType)Convert.ToUInt32(asyncRequest)
 				};
 				log.Save();
 			}
