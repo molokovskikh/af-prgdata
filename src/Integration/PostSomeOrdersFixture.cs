@@ -499,7 +499,7 @@ limit 1
 			using (new SessionScope()) {
 				var orderCount = TestOrder.Queryable.Count(o => o.Address == _address);
 				Assert.That(orderCount, Is.EqualTo(0));
-				var lastLog = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == _user.Id && (int)l.UpdateType == (int)RequestType.SendOrders).OrderByDescending(l => l.Id).FirstOrDefault();
+				var lastLog = TestAnalitFUpdateLog.Queryable.Where(l => l.UserId == _user.Id && l.UpdateType == TestRequestType.SendOrders).OrderByDescending(l => l.Id).FirstOrDefault();
 				Assert.That(lastLog, Is.Not.Null);
 				//В Addition лога должен быть корректный текст причины отказа
 				Assert.That(lastLog.Addition, Is.StringContaining(

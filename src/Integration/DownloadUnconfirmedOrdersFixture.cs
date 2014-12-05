@@ -559,7 +559,7 @@ namespace Integration
 
 			log.Refresh();
 			Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDocs)), "Не совпадает тип обновления");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.GetDocs), "Не совпадает тип обновления");
 
 
 			var message = String.Format(@"Отправлены сертификаты:

@@ -253,7 +253,7 @@ namespace Integration
 
 			var exception = new IndexOutOfRangeException();
 			var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
-			Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
+			Assert.That(lastUpdate.UpdateType, Is.EqualTo(TestRequestType.Error), "Не совпадает тип обновления");
 			Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при разборе дефектуры: " + exception.Message));
 		}
 
@@ -302,7 +302,7 @@ namespace Integration
 			}
 
 			var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
-			Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.Error), "Не совпадает тип обновления");
+			Assert.That(lastUpdate.UpdateType, Is.EqualTo(TestRequestType.Error), "Не совпадает тип обновления");
 			Assert.That(lastUpdate.Addition, Is.StringContaining("Ошибка при обработке дефектуры\r\nSystem.Exception: Тестовое исключение при обработке дефектуры"));
 		}
 
@@ -342,7 +342,7 @@ namespace Integration
 			}
 
 			var lastUpdate = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == _user.Id).OrderByDescending(l => l.Id).First();
-			Assert.That(lastUpdate.UpdateType, Is.EqualTo((int)RequestType.PostOrderBatch), "Не совпадает тип обновления");
+			Assert.That(lastUpdate.UpdateType, Is.EqualTo(TestRequestType.PostOrderBatch), "Не совпадает тип обновления");
 		}
 
 		private string PostOrderBatch(bool getEtalonData, DateTime accessTime, string appVersion, uint adresssId, string batchFileName)

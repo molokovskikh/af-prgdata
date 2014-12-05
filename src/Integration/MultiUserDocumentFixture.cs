@@ -241,7 +241,7 @@ namespace Integration
 
 			var log = LastLog(client.Users[0]);
 			Assert.That(log.Commit, Is.True);
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.SendWaybills), "Не совпадает UpdateType");
 			var info = TestUserUpdateInfo.Find(client.Users[0].Id);
 			Assert.IsNullOrEmpty(info.AFCopyId, "AFCopyId не корректен");
 		}
@@ -257,7 +257,7 @@ namespace Integration
 			var user = client.Users[0];
 			var log = LastLog(user);
 			Assert.That(log.Commit, Is.True);
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.SendWaybills)), "Не совпадает UpdateType");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.SendWaybills), "Не совпадает UpdateType");
 
 			session.Refresh(user.UpdateInfo);
 			Assert.That(user.UpdateInfo.AFCopyId, Is.EqualTo(uin), "Не совпадает AFCopyId");
@@ -278,7 +278,7 @@ namespace Integration
 			var log = LastLog(client.Users[0]);
 			Assert.That(log.Commit, Is.False);
 			Assert.That(log.Addition, Is.StringContaining("Несоответствие UIN").IgnoreCase);
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.Forbidden)), "Не совпадает UpdateType");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.Forbidden), "Не совпадает UpdateType");
 			session.Refresh(info);
 			Assert.That(info.AFCopyId, Is.Not.EqualTo(uin), "Совпадает AFCopyId");
 		}

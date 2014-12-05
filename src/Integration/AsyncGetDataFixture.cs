@@ -63,12 +63,12 @@ namespace Integration
 			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
 			Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
 			Assert.That(log.UserId, Is.EqualTo(_user.Id));
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.GetDataAsync).Or.EqualTo(TestRequestType.GetCumulativeAsync), "Не совпадает тип обновления");
 
 			WaitAsyncResponse(simpleUpdateId);
 
 			log.Refresh();
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.GetData).Or.EqualTo(TestRequestType.GetCumulative), "Не совпадает тип обновления");
 
 			var afterAsyncRequestFiles = Directory.GetFiles(ServiceContext.GetResultPath(), "{0}_{1}.zip".Format(_user.Id, simpleUpdateId));
 			Assert.That(afterAsyncRequestFiles.Length, Is.EqualTo(1), "Неожидаемый список файлов после подготовки обновления: {0}", afterAsyncRequestFiles.Implode());
@@ -81,7 +81,7 @@ namespace Integration
 
 			log.Refresh();
 			Assert.That(log.Commit, Is.True, "Запрос не подтвержден");
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.GetData).Or.EqualTo(TestRequestType.GetCumulative), "Не совпадает тип обновления");
 		}
 
 		[Test(Description = "Попытка воспроизвести ошибку по требованию Ошибка #8627 Обновление на подготовке данных висит неограниченное время (версия 1723)")]
@@ -101,12 +101,12 @@ namespace Integration
 			var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(simpleUpdateId));
 			Assert.That(log.Commit, Is.False, "Запрос не должен быть подтвержден");
 			Assert.That(log.UserId, Is.EqualTo(_user.Id));
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetDataAsync)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulativeAsync)), "Не совпадает тип обновления");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.GetDataAsync).Or.EqualTo(TestRequestType.GetCumulativeAsync), "Не совпадает тип обновления");
 
 			WaitAsyncResponse(simpleUpdateId);
 
 			log.Refresh();
-			Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(RequestType.GetData)).Or.EqualTo(Convert.ToUInt32(RequestType.GetCumulative)), "Не совпадает тип обновления");
+			Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.GetData).Or.EqualTo(TestRequestType.GetCumulative), "Не совпадает тип обновления");
 
 			CommitExchange(simpleUpdateId, RequestType.GetData);
 
@@ -140,7 +140,7 @@ namespace Integration
 
 			using (new SessionScope()) {
 				log.Refresh();
-				Assert.That(log.UpdateType, Is.EqualTo(Convert.ToUInt32(finalRequest)));
+				Assert.That((uint)log.UpdateType, Is.EqualTo(Convert.ToUInt32(finalRequest)));
 				Assert.That(log.ResultSize, Is.EqualTo(1));
 			}
 		}
@@ -248,7 +248,7 @@ namespace Integration
 					var log = TestAnalitFUpdateLog.Find(Convert.ToUInt32(cumulativeUpdateId));
 					Assert.That(log.Commit, Is.False);
 					Assert.IsNullOrEmpty(log.Log);
-					Assert.That(log.UpdateType, Is.EqualTo((int)RequestType.Error));
+					Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.Error));
 				}
 
 				//Удаляем события, чтобы не возникало ошибки при завершении теста в TearDown()
