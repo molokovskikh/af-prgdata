@@ -1141,7 +1141,7 @@ insert into Customers.UserPrices (UserId, PriceId, RegionId) values (:parentUser
 				var logs = TestAnalitFUpdateLog.Queryable.Where(updateLog => updateLog.UserId == testUser.Id).ToList();
 				Assert.That(logs.Count, Is.EqualTo(1), "Не найдена запись в логах для пользователя {0}", testUser.Id);
 				var log = logs[0];
-				Assert.That(log.UpdateType, Is.EqualTo((uint)RequestType.Error));
+				Assert.That(log.UpdateType, Is.EqualTo(TestRequestType.Error));
 				Assert.That(log.Addition, Is.StringContaining("Ошибка при разборе номера версии '';"));
 			}
 		}
