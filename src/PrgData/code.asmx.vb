@@ -4134,6 +4134,9 @@ endproc:
     End Function
 
     Private Sub DeletePreviousFiles()
+        If Not Directory.Exists(ResultFileName) Then
+            Exit Sub
+        End If
         Dim deleteFiles = Directory.GetFiles(ResultFileName, UpdateData.GetOldFileMask())
 
         For Each deleteFile In deleteFiles

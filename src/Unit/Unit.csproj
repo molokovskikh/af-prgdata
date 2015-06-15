@@ -46,7 +46,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CostOptimizer2Fixture.cs" />
     <Compile Include="MinOrders\MinReqControllerFixture.cs" />
     <Compile Include="MinOrders\ReorderingPeriodFixture.cs" />
     <Compile Include="UpdateDataFixture.cs" />

@@ -23,6 +23,7 @@ namespace Integration
 		private FileCleaner cleaner;
 		private TestClient client;
 		private CostOptimizationRule rule;
+		private TestSupplier concurrent;
 
 		[SetUp]
 		public void Setup()
@@ -33,6 +34,8 @@ namespace Integration
 			user = client.Users[0];
 			rule = new CostOptimizationRule(session.Load<Supplier>(supplier.Id), RuleType.MaxCost);
 			session.Save(rule);
+			concurrent = TestSupplier.CreateNaked(session);
+			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
 			cleaner = new FileCleaner();
 		}
 
@@ -53,8 +56,6 @@ namespace Integration
 		[Test]
 		public void Mark_as_changed_if_concurrent_changed()
 		{
-			var concurrent = TestSupplier.CreateNaked(session);
-			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
 			client.MaintainIntersection(session);
 			session.CreateSQLQuery(@"call Customers.GetActivePrices(:userId);
 update Usersettings.ActivePrices set Fresh = 0 where FirmCode = :supplierId;
@@ -66,17 +67,20 @@ update Usersettings.ActivePrices set Fresh = 1 where FirmCode = :concurrentId;")
 			Export(user);
 			var price = session.Query<AFActivePrice>().First(p => p.Id.Price.Supplier.Id == supplier.Id);
 			Assert.IsTrue(price.Fresh);
+			var cacheCount = session
+				.CreateSQLQuery(@"select count(*)
+from Farm.CachedCostKeys k
+	join Farm.CachedCosts c on c.KeyId = k.Id
+where k.ClientId = :clientId")
+				.SetParameter("clientId", user.Client.Id)
+				.UniqueResult<long>();
+			Assert.That(cacheCount, Is.GreaterThan(0), "Не кеша оптимизации для клиента {0}", user.Client.Id);
 		}
-
 
 		[Test(Description = "Проверка того, что оптимизация не произойдет, если задано исключение в правилах")]
 		public void Exept_client_from_optimization()
 		{
-			var concurrent = TestSupplier.CreateNaked(session);
-			//Добавляем конкурентов, чтобы начался процесс оптимизации
 			var price = supplier.Prices[0];
-			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
-			//Без этого запроса оптимизация так и так не начнется
 			session.CreateSQLQuery("UPDATE farm.core0 SET MaxBoundCost = 250 WHERE pricecode=" + price.Id)
 				.ExecuteUpdate();
 
@@ -96,8 +100,6 @@ update Usersettings.ActivePrices set Fresh = 1 where FirmCode = :concurrentId;")
 		public void Core_optimizationSkipFlag()
 		{
 			var price = supplier.Prices[0];
-			var concurrent = TestSupplier.CreateNaked(session);
-			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
 			//Добавляем максимальную цену, чтобы процесс оптимизации мог начаться
 			//Но также добавляем флаг, который пропускает оптимизацию - тест проверяет именно его работу
 			session.CreateSQLQuery("UPDATE farm.core0 SET MaxBoundCost = 250, OptimizationSkip=1 WHERE pricecode=" + price.Id)

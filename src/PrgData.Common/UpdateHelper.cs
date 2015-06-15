@@ -1933,13 +1933,18 @@ group by  @RowId
 			return sql;
 		}
 
-		private Query GetOfferQuery(bool exportSupplierPriceMarkup, bool exportBuyingMatrix, bool ignoreVersionRules = false)
+		private Query GetOfferQuery(bool exportSupplierPriceMarkup, bool exportBuyingMatrix,
+			bool ignoreVersionRules = false,
+			bool costOptimization = false)
 		{
 			var matrixParts = new SqlParts();
 			if (ignoreVersionRules || (exportBuyingMatrix && exportSupplierPriceMarkup))
 				matrixParts = new MatrixHelper(_updateData.Settings).BuyingMatrixCondition(false);
 
-			var query = new Query();
+			var costPart = "CT.Cost as Cost";
+			if (costOptimization)
+				costPart = "if(k.Id is null or k.Date < at.PriceDate, ct.Cost, ifnull(ca.Cost, ct.Cost)) as Cost";
+			var query = SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true);
 			var select = String.Format(@"
 	CT.PriceCode               ,
 	CT.regioncode              ,
@@ -1960,7 +1965,7 @@ group by  @RowId
 	Core.RegistryCost          ,
 	Core.VitallyImportant      ,
 	ifnull(cc.RequestRatio, Core.RequestRatio) as RequestRatio,
-	CT.Cost as Cost,
+	{5},
 	RIGHT(CT.ID, 9) as CoreID,
 	ifnull(cc.MinOrderSum, core.OrderCost) as OrderCost,
 	ifnull(cc.MinOrderCount, core.MinOrderCount) as MinOrderCount
@@ -1987,9 +1992,9 @@ Core.NDS " : "",
 					matrixParts.Select,
 					ignoreVersionRules || (exportSupplierPriceMarkup && _updateData.AllowDelayByPrice()) ? ", (Core.VitallyImportant or ifnull(catalog.VitallyImportant,0)) as RetailVitallyImportant " : "",
 					ignoreVersionRules || _updateData.AllowEAN13() ? ", Core.EAN13, Core.CodeOKP, Core.Series " : "",
-					ignoreVersionRules || _updateData.SupportExportExp() ? ", Core.Exp " : "");
+					ignoreVersionRules || _updateData.SupportExportExp() ? ", Core.Exp " : "",
+					costPart);
 			query.Select(select);
-			query.From(string.Format(SqlQueryBuilderHelper.GetFromPartForCoreTable(matrixParts, true), string.Empty).Replace("FROM ", ""));
 			return query;
 		}
 
@@ -3087,8 +3092,12 @@ where
 					.Each(p => p.Fresh = true);
 				var exportable = activePrices.Where(p => p.Fresh).Select(p => p.Id.Price.PriceCode).OrderBy(i => i).ToArray();
 
-				var query = GetOfferQuery(true, true, true);
-				query.Select("at.FirmCode", "core.MaxBoundCost", "core.OptimizationSkip");
+				var query = GetOfferQuery(true, true, true, true);
+				query.Select("ct.Id", "at.FirmCode", "core.MaxBoundCost",
+					"if(k.Id is null or k.Date < at.PriceDate, core.OptimizationSkip, 1) as OptimizationSkip");
+				query.Join("left join farm.CachedCostKeys k on k.PriceId = ct.PriceCode " +
+					"and k.RegionId = ct.RegionCode and k.ClientId = ?clientCode");
+				query.Join("left join farm.CachedCosts ca on ca.CoreId = core.Id and ca.KeyId = k.Id");
 				if (log.IsDebugEnabled)
 					log.Debug(query.ToSql());
 				var cmd = new MySqlCommand(query.ToSql(), _readWriteConnection);
@@ -3135,14 +3144,16 @@ where
 							Series = reader.SafeGetString(30),
 							Exp = reader.GetNullableDateTime(31),
 							//поля для оптимизации цен
-							SupplierId = reader.GetUInt32(32),
-							MaxBoundCost = reader.GetNullableFloat(33),
-							OptimizationSkip = reader.GetBoolean(34)
+							OfferId = reader.GetUInt64(32),
+							SupplierId = reader.GetUInt32(33),
+							MaxBoundCost = reader.GetNullableFloat(34),
+							OptimizationSkip = reader.GetBoolean(35)
 						});
 					}
 				}
 				log.Debug("Загрузка завершена, начинаю оптимизацию");
 				var logs = optimizer.Optimize(offers);
+				optimizer.UpdateCostCache(session, activePrices.Select(x => new ActivePrice { Id = x.Id }), logs);
 				CostOptimizer.SaveLogs(_readWriteConnection, logs, _updateData.UserId, _updateData.ClientId);
 				log.Debug("Оптимизация завершена, начинаю выгрузку");
 
