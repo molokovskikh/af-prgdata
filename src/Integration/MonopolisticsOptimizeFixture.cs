@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using Common.Models;
 using Common.Tools;
 using MySql.Data.MySqlClient;
@@ -30,12 +31,12 @@ namespace Integration
 		{
 			supplier = TestSupplier.CreateNaked(session);
 			supplier.CreateSampleCore(session);
-			client = TestClient.CreateNaked(session);
-			user = client.Users[0];
 			rule = new CostOptimizationRule(session.Load<Supplier>(supplier.Id), RuleType.MaxCost);
 			session.Save(rule);
 			concurrent = TestSupplier.CreateNaked(session);
 			rule.Concurrents.Add(session.Load<Supplier>(concurrent.Id));
+			client = TestClient.CreateNaked(session);
+			user = client.Users[0];
 			cleaner = new FileCleaner();
 		}
 
@@ -115,6 +116,33 @@ where k.ClientId = :clientId")
 				.SetParameter("supplierId", supplier.Id)
 				.UniqueResult<long>();
 			Assert.AreEqual(0, logCount);
+		}
+
+		[Test]
+		public void Remove_obsolete_cached_kyes()
+		{
+			var region = session.Load<TestRegion>(2ul);
+			supplier.AddRegion(region);
+			concurrent.AddRegion(region);
+			client.AddRegion(region);
+			session.Flush();
+			client.MaintainIntersection(session);
+			user.CleanPrices(session, supplier, concurrent);
+
+			session.CreateSQLQuery("drop temporary table activeprices;").ExecuteUpdate();
+			Export(user);
+			var kyes = session.Query<CachedCostKey>().Where(k => k.Client.Id == client.Id).ToArray();
+			Assert.IsNotNull(kyes.FirstOrDefault(k => k.RegionId == region.Id),
+				"Не удалоь найти ключ в регионе Белгород для {0}", client.Id);
+
+			client.RemoveRegion(region);
+			session.Flush();
+			session.Clear();
+			session.CreateSQLQuery("drop temporary table activeprices;").ExecuteUpdate();
+			Export(user);
+			kyes = session.Query<CachedCostKey>().Where(k => k.Client.Id == client.Id).ToArray();
+			Assert.IsNull(kyes.FirstOrDefault(k => k.RegionId == region.Id),
+				"Ключ в регионе Белгород для {0} должен быть удален", client.Id);
 		}
 
 		private ConcurrentQueue<string> Export(TestUser user)
