@@ -67,6 +67,10 @@ update Usersettings.ActivePrices set Fresh = 1 where FirmCode = :concurrentId;")
 			Export(user);
 			var price = session.Query<AFActivePrice>().First(p => p.Id.Price.Supplier.Id == supplier.Id);
 			Assert.IsTrue(price.Fresh);
+
+			var keys = session.Query<CachedCostKey>().Where(k => k.User.Id == user.Id).ToArray();
+			Assert.That(keys.Length, Is.GreaterThan(0));
+			Assert.That(keys[0].Date, Is.GreaterThan(DateTime.MinValue));
 			var cacheCount = session
 				.CreateSQLQuery(@"select count(*)
 from Farm.CachedCostKeys k

@@ -1,23 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Text;
-using System.Threading;
 using Castle.ActiveRecord;
-using Common.Models;
 using Common.Models.Helpers;
-using Common.Models.Tests.Repositories;
 using Common.MySql;
 using Common.Tools;
 using Integration.BaseTests;
-using log4net;
-using log4net.Config;
-using NUnit.Framework;
 using MySql.Data.MySqlClient;
-using PrgData.Common;
-using System.Data.Common;
-using System.Data;
+using NUnit.Framework;
 using Test.Support;
 
 namespace Integration

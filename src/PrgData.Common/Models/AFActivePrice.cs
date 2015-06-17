@@ -1,4 +1,5 @@
-﻿using Common.Models;
+﻿using System;
+using Common.Models;
 using NHibernate.Mapping.Attributes;
 
 namespace PrgData.Common.Models
@@ -13,5 +14,8 @@ namespace PrgData.Common.Models
 
 		[Property]
 		public virtual bool Fresh { get; set; }
+
+		[Property]
+		public virtual DateTime PriceDate { get; set; }
 	}
 }

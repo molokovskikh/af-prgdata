@@ -3153,7 +3153,8 @@ where
 				}
 				log.Debug("Загрузка завершена, начинаю оптимизацию");
 				var logs = optimizer.Optimize(offers);
-				optimizer.UpdateCostCache(session, activePrices.Select(x => new ActivePrice { Id = x.Id }), logs);
+				optimizer.UpdateCostCache(session, activePrices
+					.Select(x => new ActivePrice { Id = x.Id, PriceDate = x.PriceDate }), logs);
 				CostOptimizer.SaveLogs(_readWriteConnection, logs, _updateData.UserId, _updateData.ClientId);
 				log.Debug("Оптимизация завершена, начинаю выгрузку");
 
