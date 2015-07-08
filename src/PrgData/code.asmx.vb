@@ -3131,6 +3131,7 @@ RestartTrans2:
 				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("Products" & UserId & ".txt"))
 				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("Catalog" & UserId & ".txt"))
 				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("UpdateInfo" & UserId & ".txt"))
+				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("net" & UserId & ".txt"))
 
 				helper.MaintainReplicationInfo()
 
@@ -3162,6 +3163,11 @@ RestartTrans2:
 				processor.Process()
 
 				helper.GetMySQLFileWithDefault("User", readWriteConnection, helper.GetUserCommand())
+				If UpdateData.InstallNet Then
+					Dim file = ServiceContext.GetFileByShared(String.Format("net{0}.txt", UpdateData.UserId))
+					System.IO.File.WriteAllText(file, "")
+					UpdateData.FilesForArchive.Enqueue(file)
+				End If
 				helper.GetMySQLFileWithDefault("Client", readWriteConnection, helper.GetClientCommand())
 
 				If UpdateData.SupportAnalitFSchedule Then

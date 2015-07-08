@@ -175,7 +175,7 @@ namespace PrgData.Common
 		public ConcurrentQueue<string> FilesForArchive = new ConcurrentQueue<string>();
 		public DateTime CurrentUpdateTime;
 		public bool ImpersonalPriceFresh;
-
+		public bool InstallNet;
 
 		//для тестов
 		public UpdateData()
@@ -233,6 +233,7 @@ namespace PrgData.Common
 
 			SendWaybills = Convert.ToBoolean(row["SendWaybills"]);
 			SendRejects = Convert.ToBoolean(row["SendRejects"]);
+			InstallNet = Convert.ToBoolean(row["InstallNet"]);
 			Settings = settings;
 		}
 

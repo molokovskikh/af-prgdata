@@ -325,7 +325,8 @@ SELECT
 	u.WorkRegionMask as RegionMask,
 	ap.UserId is not null as AFPermissionExists,
 	buyingMat.MatrixUpdateTime as BuyingMatrixUpdateTime,
-	offerMat.MatrixUpdateTime as OfferMatrixUpdateTime
+	offerMat.MatrixUpdateTime as OfferMatrixUpdateTime,
+	rui.InstallNet
 FROM  
   Customers.users u
   join Customers.Clients c                         on c.Id = u.ClientId
@@ -2334,8 +2335,8 @@ WHERE  UserId           = {0}
 AND    ForceReplication =2;
 
 UPDATE UserUpdateInfo
-SET    UpdateDate      =UncommitedUpdateDate
-#CostSessionKey = null,
+SET UpdateDate = UncommitedUpdateDate,
+	InstallNet = 0
 	   {1}
 WHERE  UserId          = {0};
 
