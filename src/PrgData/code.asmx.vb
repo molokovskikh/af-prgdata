@@ -3342,7 +3342,7 @@ RestartTrans2:
 							helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 #if not DEBUG
 							Log.WarnFormat("Невозможно определить базовую цены для прайс-листа с максимальными ценами производителей. Код прайс-листа: {0}", helper.MaxProducerCostsPriceId)
-#endif
+#end if
 						End If
 					Else
 						helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
@@ -3541,7 +3541,7 @@ RestartTrans2:
 #else
 			Cm.CommandText = "select BaseCostPassword from retclientsset where clientcode=" & CCode
 			BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
-#endif
+#end if
 
 			'Получаем маску разрешенных для сохранения гридов
 			Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _

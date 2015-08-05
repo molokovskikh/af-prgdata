@@ -10,7 +10,13 @@ namespace PrgData.Common
 	{
 		public static Func<string> GetUserName = () => HttpContext.Current.User.Identity.Name;
 		public static Func<string> GetUserHost = () => HttpContext.Current.Request.UserHostAddress;
-		public static Func<String> GetResultPath = () => HttpContext.Current.Server.MapPath(@"/Results") + @"\";
+		public static Func<String> GetResultPath = () => {
+			var path = ConfigurationManager.AppSettings["ResultsPath"];
+			if (String.IsNullOrEmpty(path))
+				return HttpContext.Current.Server.MapPath(@"/Results") + @"\";
+			else
+				return path;
+		};
 		public static Func<String> GetDocumentsPath = () => ConfigurationManager.AppSettings["DocumentsPath"];
 
 		public static Func<String> MySqlSharedExportPath = () =>
