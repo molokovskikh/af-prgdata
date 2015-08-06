@@ -46,7 +46,7 @@ Public Class PrgDataEx
             ArchiveHelper.SevenZipExePath = SevenZipExe
             ResultFileName = ServiceContext.GetResultPath()
         Catch ex As Exception
-            Log.Error("Ошибка при инициализации приложения", ex)
+            Log.Error("РћС€РёР±РєР° РїСЂРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё РїСЂРёР»РѕР¶РµРЅРёСЏ", ex)
         End Try
 
     End Sub
@@ -68,7 +68,7 @@ Public Class PrgDataEx
 	Private Const IsoLevel As System.Data.IsolationLevel = IsolationLevel.ReadCommitted
     Private FileInfo As System.IO.FileInfo
     Private MessageD As String
-    'Строка с кодами прайс-листов, у которых отсутствуют синонимы на клиенте
+    'РЎС‚СЂРѕРєР° СЃ РєРѕРґР°РјРё РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ, Сѓ РєРѕС‚РѕСЂС‹С… РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ СЃРёРЅРѕРЅРёРјС‹ РЅР° РєР»РёРµРЅС‚Рµ
     Private AbsentPriceCodes As String
     Private MessageH As String
     Private Documents, RequestAttachments As Boolean
@@ -78,7 +78,7 @@ Public Class PrgDataEx
     Public ResultFileName As String
     Dim ArhiveStartTime As DateTime
 
-    'Потоки
+    'РџРѕС‚РѕРєРё
     Private ThreadZipStream As New Thread(AddressOf ZipStream)
     Private BaseThread As Thread 'New Thread(AddressOf BaseProc)
 
@@ -89,13 +89,13 @@ Public Class PrgDataEx
     Private NewZip As Boolean = True
     Private WithEvents DS As System.Data.DataSet
 
-    'Получает письмо и отправляет его
+    'РџРѕР»СѓС‡Р°РµС‚ РїРёСЃСЊРјРѕ Рё РѕС‚РїСЂР°РІР»СЏРµС‚ РµРіРѕ
     <WebMethod()> _
     Public Function SendLetter(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte) As String
         Return SendLetterEx(subject, body, attachment, 0)
     End Function
 
-    'Получает письмо и отправляет его
+    'РџРѕР»СѓС‡Р°РµС‚ РїРёСЃСЊРјРѕ Рё РѕС‚РїСЂР°РІР»СЏРµС‚ РµРіРѕ
     <WebMethod()> _
     Public Function SendLetterEx(ByVal subject As String, ByVal body As String, ByVal attachment() As Byte, ByVal emailGroup As Byte) As String
         Try
@@ -109,7 +109,7 @@ Public Class PrgDataEx
                 updateData = UpdateHelper.GetUpdateData(connection, letterUserName)
 
                 If updateData Is Nothing Then
-                    Throw New Exception(String.Format("Не удалось найти клиента для указанных учетных данных: {0}", ServiceContext.GetUserName()))
+                    Throw New Exception(String.Format("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РєР»РёРµРЅС‚Р° РґР»СЏ СѓРєР°Р·Р°РЅРЅС‹С… СѓС‡РµС‚РЅС‹С… РґР°РЅРЅС‹С…: {0}", ServiceContext.GetUserName()))
                 End If
 
                 updateData.ClientHost = ServiceContext.GetUserHost()
@@ -143,12 +143,12 @@ Public Class PrgDataEx
 
             Return "Res=OK"
         Catch ex As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке письма", ex)
-            Return "Error=Не удалось отправить письмо. Попробуйте позднее."
+            LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РѕС‚РїСЂР°РІРєРµ РїРёСЃСЊРјР°", ex)
+            Return "Error=РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ РїРёСЃСЊРјРѕ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·РґРЅРµРµ."
         End Try
     End Function
 
-    'Принимает накладные
+    'РџСЂРёРЅРёРјР°РµС‚ РЅР°РєР»Р°РґРЅС‹Рµ
     <WebMethod()> _
     Public Function SendWaybills( _
  ByVal ClientId As UInt32, _
@@ -204,7 +204,7 @@ Public Class PrgDataEx
                 End Using
 
                 If Not ArchiveHelper.TestArchive(tmpWaybillArchive) Then
-                    Throw New Exception("Полученный архив поврежден.")
+                    Throw New Exception("РџРѕР»СѓС‡РµРЅРЅС‹Р№ Р°СЂС…РёРІ РїРѕРІСЂРµР¶РґРµРЅ.")
                 End If
 
                 If GenerateDocsHelper.ParseWaybils(readWriteConnection, UpdateData, ClientId, ProviderIds, FileNames, tmpWaybillArchive) Then
@@ -219,7 +219,7 @@ Public Class PrgDataEx
                     Try
                         Directory.Delete(tmpWaybillFolder, True)
                     Catch ex As Exception
-                        Log.Error("Ошибка при удалении временнной директории при обработке накладных", ex)
+                        Log.Error("РћС€РёР±РєР° РїСЂРё СѓРґР°Р»РµРЅРёРё РІСЂРµРјРµРЅРЅРЅРѕР№ РґРёСЂРµРєС‚РѕСЂРёРё РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РЅР°РєР»Р°РґРЅС‹С…", ex)
                     End Try
                 End If
             End Try
@@ -228,7 +228,7 @@ Public Class PrgDataEx
             ProcessUpdateException(updateException)
             Return "Status=1"
         Catch ex As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при загрузке накладных", ex)
+            LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё Р·Р°РіСЂСѓР·РєРµ РЅР°РєР»Р°РґРЅС‹С…", ex)
             Return "Status=1"
         Finally
             DBDisconnect()
@@ -261,16 +261,16 @@ Public Class PrgDataEx
         '        If DS.Tables("ALH").Select("LibraryName='" & LibraryNameWOPath & "'").Length > 0 Then
 
         '            'If DS.Tables("ALH").Select("LibraryName='" & LibraryName(i) & "'")(0).Item("libraryhash") <> LibraryHash(i) Then
-        '            '    MailMessage &= "Hash библиотеки не совпал: " & LibraryName(i) & ", у клиента: Hash: " & LibraryHash(i) & ", версия: " & LibraryVersion(i) & "; "
+        '            '    MailMessage &= "Hash Р±РёР±Р»РёРѕС‚РµРєРё РЅРµ СЃРѕРІРїР°Р»: " & LibraryName(i) & ", Сѓ РєР»РёРµРЅС‚Р°: Hash: " & LibraryHash(i) & ", РІРµСЂСЃРёСЏ: " & LibraryVersion(i) & "; "
         '            'End If
         '        Else
-        '            'MailMessage &= "Не описанная на сервере библиотека: " & LibraryName(i) & ", версия: " & LibraryVersion(i) & ", hash: " & LibraryHash(i) & "; "
+        '            'MailMessage &= "РќРµ РѕРїРёСЃР°РЅРЅР°СЏ РЅР° СЃРµСЂРІРµСЂРµ Р±РёР±Р»РёРѕС‚РµРєР°: " & LibraryName(i) & ", РІРµСЂСЃРёСЏ: " & LibraryVersion(i) & ", hash: " & LibraryHash(i) & "; "
         '        End If
 
         '    Next
         '    If MailMessage.Length > 0 Then
         '        'Addition &= MailMessage
-        '        'MailHelper.MailErr(CCode, "Ошибка проверки версий библиотек", MailMessage)
+        '        'MailHelper.MailErr(CCode, "РћС€РёР±РєР° РїСЂРѕРІРµСЂРєРё РІРµСЂСЃРёР№ Р±РёР±Р»РёРѕС‚РµРє", MailMessage)
         '        MailMessage = ""
         '    End If
         '    DBDisconnect()
@@ -613,25 +613,25 @@ Public Class PrgDataEx
         Dim ResStr As String = String.Empty
 
         If (Not ProcessBatch) Then
-            Addition = " ОС: " & WINVersion & " " & WINDesc & "; "
+            Addition = " РћРЎ: " & WINVersion & " " & WINDesc & "; "
         Else
-            Addition &= " ОС: " & WINVersion & " " & WINDesc & "; "
+            Addition &= " РћРЎ: " & WINVersion & " " & WINDesc & "; "
         End If
 
         Try
 
-            'Начинаем обычное обновление
+            'РќР°С‡РёРЅР°РµРј РѕР±С‹С‡РЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ
             If (Not ProcessBatch) Then UpdateType = RequestType.GetData
             LimitedCumulative = False
 
-            'Нет критических ошибок
+            'РќРµС‚ РєСЂРёС‚РёС‡РµСЃРєРёС… РѕС€РёР±РѕРє
             ErrorFlag = False
 
-            'Только накладные
+            'РўРѕР»СЊРєРѕ РЅР°РєР»Р°РґРЅС‹Рµ
 			Documents = WayBillsOnly
 			Me.RequestAttachments = RequestAttachments
 
-			'Получаем код и параметры клиента клиента
+			'РџРѕР»СѓС‡Р°РµРј РєРѕРґ Рё РїР°СЂР°РјРµС‚СЂС‹ РєР»РёРµРЅС‚Р° РєР»РёРµРЅС‚Р°
             If (Not ProcessBatch) Then
                 CCode = 0
                 DBConnect()
@@ -639,9 +639,9 @@ Public Class PrgDataEx
                 UpdateData.LastLockId = Counter.TryLock(UserId, "GetUserData")
                 UpdateHelper.CheckUniqueId(readWriteConnection, UpdateData, UniqueID)
 				UpdateData.AsyncRequest = Async
-				'От клиента пришел запрос на КО
+				'РћС‚ РєР»РёРµРЅС‚Р° РїСЂРёС€РµР» Р·Р°РїСЂРѕСЃ РЅР° РљРћ
 				UpdateData.Cumulative = GetEtalonData
-				'Присваиваем версии приложения и базы
+				'РџСЂРёСЃРІР°РёРІР°РµРј РІРµСЂСЃРёРё РїСЂРёР»РѕР¶РµРЅРёСЏ Рё Р±Р°Р·С‹
 				UpdateData.ParseBuildNumber(EXEVersion)
 				UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 				If MaxOrderId > 0 AndAlso MaxOrderListId > 0 Then
@@ -653,20 +653,20 @@ Public Class PrgDataEx
 
 			Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
 
-			'Если с момента последнего обновления менее установленного времени
+			'Р•СЃР»Рё СЃ РјРѕРјРµРЅС‚Р° РїРѕСЃР»РµРґРЅРµРіРѕ РѕР±РЅРѕРІР»РµРЅРёСЏ РјРµРЅРµРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅРѕРіРѕ РІСЂРµРјРµРЅРё
 			If Not Documents AndAlso Not Me.RequestAttachments Then
 
-				'Если несовпадает время последнего обновления на клиете и сервере
+				'Р•СЃР»Рё РЅРµСЃРѕРІРїР°РґР°РµС‚ РІСЂРµРјСЏ РїРѕСЃР»РµРґРЅРµРіРѕ РѕР±РЅРѕРІР»РµРЅРёСЏ РЅР° РєР»РёРµС‚Рµ Рё СЃРµСЂРІРµСЂРµ
 				If Not UpdateData.Cumulative AndAlso (UpdateData.OldUpdateTime <> AccessTime.ToLocalTime) Then
 					If (UpdateData.BuildNumber > 1079) And (Now.AddDays(-Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings("AccessTimeHistoryDepth"))) < AccessTime.ToLocalTime) And (AccessTime.ToLocalTime < UpdateData.OldUpdateTime) Then
 						Try
-							Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим частичное КО; Последнее обновление сервер {0}, клиент {1}", UpdateData.OldUpdateTime, AccessTime.ToLocalTime)
+							Addition &= String.Format("Р’СЂРµРјСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ РЅРµ СЃРѕРІРїР°Р»Рѕ РЅР° РєР»РёРµРЅС‚Рµ Рё СЃРµСЂРІРµСЂРµ, РіРѕС‚РѕРІРёРј С‡Р°СЃС‚РёС‡РЅРѕРµ РљРћ; РџРѕСЃР»РµРґРЅРµРµ РѕР±РЅРѕРІР»РµРЅРёРµ СЃРµСЂРІРµСЂ {0}, РєР»РёРµРЅС‚ {1}", UpdateData.OldUpdateTime, AccessTime.ToLocalTime)
 							LimitedCumulative = True
 							UpdateType = RequestType.GetLimitedCumulative
 							UpdateData.OldUpdateTime = AccessTime.ToLocalTime()
 							helper.PrepareLimitedCumulative(UpdateData.OldUpdateTime)
 						Catch err As Exception
-							Log.Error("Подготовка к частичному КО", err)
+							Log.Error("РџРѕРґРіРѕС‚РѕРІРєР° Рє С‡Р°СЃС‚РёС‡РЅРѕРјСѓ РљРћ", err)
 							Addition = err.Message
 							UpdateType = RequestType.Error
 							ErrorFlag = True
@@ -674,19 +674,19 @@ Public Class PrgDataEx
 						End Try
 					Else
 						UpdateData.Cumulative = True
-						Addition &= String.Format("Время обновления не совпало на клиенте и сервере, готовим КО; Последнее обновление сервер {0}, клиент {1}", UpdateData.OldUpdateTime, AccessTime.ToLocalTime)
+						Addition &= String.Format("Р’СЂРµРјСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ РЅРµ СЃРѕРІРїР°Р»Рѕ РЅР° РєР»РёРµРЅС‚Рµ Рё СЃРµСЂРІРµСЂРµ, РіРѕС‚РѕРІРёРј РљРћ; РџРѕСЃР»РµРґРЅРµРµ РѕР±РЅРѕРІР»РµРЅРёРµ СЃРµСЂРІРµСЂ {0}, РєР»РёРµРЅС‚ {1}", UpdateData.OldUpdateTime, AccessTime.ToLocalTime)
 					End If
 				End If
 
 
-				'В зависимости от версии используем одну из процедур подготовки данных: для сервера Firebird и для сервера MySql
-				'для Firebird поддержка удалена, но если версия все таки придет, то вызовем исключение
+				'Р’ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ РІРµСЂСЃРёРё РёСЃРїРѕР»СЊР·СѓРµРј РѕРґРЅСѓ РёР· РїСЂРѕС†РµРґСѓСЂ РїРѕРґРіРѕС‚РѕРІРєРё РґР°РЅРЅС‹С…: РґР»СЏ СЃРµСЂРІРµСЂР° Firebird Рё РґР»СЏ СЃРµСЂРІРµСЂР° MySql
+				'РґР»СЏ Firebird РїРѕРґРґРµСЂР¶РєР° СѓРґР°Р»РµРЅР°, РЅРѕ РµСЃР»Рё РІРµСЂСЃРёСЏ РІСЃРµ С‚Р°РєРё РїСЂРёРґРµС‚, С‚Рѕ РІС‹Р·РѕРІРµРј РёСЃРєР»СЋС‡РµРЅРёРµ
 				If UpdateData.BuildNumber > 716 Then
-					'Если производим обновление 945 версии на новую с поддержкой МНН или версия уже с поддержкой МНН, то добавляем еще два файла: мнн и описания
+					'Р•СЃР»Рё РїСЂРѕРёР·РІРѕРґРёРј РѕР±РЅРѕРІР»РµРЅРёРµ 945 РІРµСЂСЃРёРё РЅР° РЅРѕРІСѓСЋ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ РњРќРќ РёР»Рё РІРµСЂСЃРёСЏ СѓР¶Рµ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ РњРќРќ, С‚Рѕ РґРѕР±Р°РІР»СЏРµРј РµС‰Рµ РґРІР° С„Р°Р№Р»Р°: РјРЅРЅ Рё РѕРїРёСЃР°РЅРёСЏ
 					If ((UpdateData.BuildNumber = 945) And UpdateData.EnableUpdate()) Or (UpdateData.BuildNumber > 945) Then
 					Else
 						If (UpdateData.BuildNumber >= 829) And (UpdateData.BuildNumber <= 837) And UpdateData.EnableUpdate() Then
-							Addition &= "Производится обновление программы с 800-х версий на MySql; "
+							Addition &= "РџСЂРѕРёР·РІРѕРґРёС‚СЃСЏ РѕР±РЅРѕРІР»РµРЅРёРµ РїСЂРѕРіСЂР°РјРјС‹ СЃ 800-С… РІРµСЂСЃРёР№ РЅР° MySql; "
 						Else
 							'FileCount = 16
 						End If
@@ -694,13 +694,13 @@ Public Class PrgDataEx
 					BaseThread = New Thread(AddressOf MySqlProc)
 				Else
 			        Throw New UpdateException( _
-			            "Доступ закрыт.", _
-			            "Пожалуйста, обратитесь в АК ""Инфорум"".[1]", _
-						"Попытка обновиться с неподдерживаемой версии: " & UpdateData.BuildNumber.ToString() & "; ", _
+			            "Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚.", _
+			            "РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РѕР±СЂР°С‚РёС‚РµСЃСЊ РІ РђРљ ""РРЅС„РѕСЂСѓРј"".[1]", _
+						"РџРѕРїС‹С‚РєР° РѕР±РЅРѕРІРёС‚СЊСЃСЏ СЃ РЅРµРїРѕРґРґРµСЂР¶РёРІР°РµРјРѕР№ РІРµСЂСЃРёРё: " & UpdateData.BuildNumber.ToString() & "; ", _
 			            RequestType.Forbidden)
 				End If
 
-				'Готовим кумулятивное
+				'Р“РѕС‚РѕРІРёРј РєСѓРјСѓР»СЏС‚РёРІРЅРѕРµ
 				If UpdateData.Cumulative Then
 
 					If (Not ProcessBatch) Then UpdateType = RequestType.GetCumulative
@@ -712,7 +712,7 @@ Public Class PrgDataEx
 
 					If LimitedCumulative Then helper.ResetReclameDate()
 
-					'Сбрасываем коды прайс-листов, у которых нехватает синонимов
+					'РЎР±СЂР°СЃС‹РІР°РµРј РєРѕРґС‹ РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ, Сѓ РєРѕС‚РѕСЂС‹С… РЅРµС…РІР°С‚Р°РµС‚ СЃРёРЅРѕРЅРёРјРѕРІ
 					AbsentPriceCodes = String.Empty
 					If (PriceCodes IsNot Nothing) AndAlso (PriceCodes.Length > 0) AndAlso (PriceCodes(0) <> 0) Then
 						AbsentPriceCodes = PriceCodes(0).ToString
@@ -737,7 +737,7 @@ Public Class PrgDataEx
 
 				UpdateType = RequestType.GetDocs
 			Else
-				'Здесь должен помещать запрос на почтовые вложения
+				'Р—РґРµСЃСЊ РґРѕР»Р¶РµРЅ РїРѕРјРµС‰Р°С‚СЊ Р·Р°РїСЂРѕСЃ РЅР° РїРѕС‡С‚РѕРІС‹Рµ РІР»РѕР¶РµРЅРёСЏ
 				UpdateData.FillAttachmentIds(AttachmentIds)
 
 				If Me.RequestAttachments Then
@@ -751,10 +751,10 @@ Public Class PrgDataEx
 
 						UpdateType = RequestType.ResumeData
 						Dim fileInfo = New FileInfo(UpdateData.GetPreviousFile())
-						Addition &= "Отдаем предыдущие подготовленные данные: " & fileInfo.LastWriteTime.ToString() & "; "
+						Addition &= "РћС‚РґР°РµРј РїСЂРµРґС‹РґСѓС‰РёРµ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ: " & fileInfo.LastWriteTime.ToString() & "; "
 						NewZip = False
 						PackFinished = True
-						Log.DebugFormat("Файл будет докачиваться: {0}", UpdateData.GetPreviousFile())
+						Log.DebugFormat("Р¤Р°Р№Р» Р±СѓРґРµС‚ РґРѕРєР°С‡РёРІР°С‚СЊСЃСЏ: {0}", UpdateData.GetPreviousFile())
 						GoTo endproc
 
 					Else
@@ -762,14 +762,14 @@ Public Class PrgDataEx
 						Try
 							DeletePreviousFiles()
 						Catch ex As Exception
-							Log.Error("Не удалось удалить предыдущие данные", ex)
-							Addition &= "Не удалось удалить предыдущие данные: " & ex.Message & "; "
+							Log.Error("РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РїСЂРµРґС‹РґСѓС‰РёРµ РґР°РЅРЅС‹Рµ", ex)
+							Addition &= "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ РїСЂРµРґС‹РґСѓС‰РёРµ РґР°РЅРЅС‹Рµ: " & ex.Message & "; "
 							UpdateType = RequestType.Forbidden
 							ErrorFlag = True
 							GoTo endproc
 						End Try
 
-						Log.DebugFormat("Файл будет архивироваться заново: {0}", UpdateData.GetCurrentTempFile())
+						Log.DebugFormat("Р¤Р°Р№Р» Р±СѓРґРµС‚ Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊСЃСЏ Р·Р°РЅРѕРІРѕ: {0}", UpdateData.GetCurrentTempFile())
 
 						UpdateData.CurrentUpdateTime = helper.GetCurrentUpdateDate(UpdateType)
 
@@ -779,12 +779,12 @@ Public Class PrgDataEx
 
 			If Documents Or Me.RequestAttachments Then
 
-				'Начинаем архивирование
+				'РќР°С‡РёРЅР°РµРј Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ
 				ThreadZipStream.Start()
 
 			Else
 
-				'Начинаем готовить данные
+				'РќР°С‡РёРЅР°РµРј РіРѕС‚РѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ
 				BaseThread.Start()
 				Thread.Sleep(500)
 
@@ -797,7 +797,7 @@ endproc:
 endprocNew:
 				If Not PackFinished And (((BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive) Or ThreadZipStream.IsAlive) And Not ErrorFlag Then
 
-					'Если есть ошибка, прекращаем подготовку данных
+					'Р•СЃР»Рё РµСЃС‚СЊ РѕС€РёР±РєР°, РїСЂРµРєСЂР°С‰Р°РµРј РїРѕРґРіРѕС‚РѕРІРєСѓ РґР°РЅРЅС‹С…
 					If ErrorFlag Then
 
 						If (BaseThread IsNot Nothing) AndAlso BaseThread.IsAlive Then BaseThread.Abort()
@@ -812,7 +812,7 @@ endprocNew:
 
 				ElseIf Not PackFinished And Not ErrorFlag And (UpdateType <> RequestType.Forbidden) And Not WayBillsOnly Then
 
-					Addition &= "; Нет работающих потоков, данные не готовы."
+					Addition &= "; РќРµС‚ СЂР°Р±РѕС‚Р°СЋС‰РёС… РїРѕС‚РѕРєРѕРІ, РґР°РЅРЅС‹Рµ РЅРµ РіРѕС‚РѕРІС‹."
 					UpdateType = RequestType.Forbidden
 
 					ErrorFlag = True
@@ -826,7 +826,7 @@ endprocNew:
 
 					If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
 
-						Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+						Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
 
 					End If
 
@@ -839,7 +839,7 @@ endprocNew:
 			If ErrorFlag Then
 
 				If Len(MessageH) = 0 Then
-					ResStr = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+					ResStr = "Error=РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РѕР±РЅРѕРІР»РµРЅРёСЏ РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С… С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 				Else
 					ResStr = "Error=" & MessageH & ";Desc=" & MessageD
 				End If
@@ -853,7 +853,7 @@ endprocNew:
 
 					If UpdateType <> RequestType.ResumeData Then
 						If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
-							Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
+							Me.Log.DebugFormat("РџСЂРѕРёР·РІРѕРґРёРј РїРѕРїС‹С‚РєСѓ СѓРґР°Р»РµРЅРёСЏ С„Р°Р№Р»Р°: {0}", UpdateData.GetCurrentFile(GUpdateId))
 							File.Delete(UpdateData.GetCurrentFile(GUpdateId))
 						End If
 						File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
@@ -864,17 +864,17 @@ endprocNew:
 
 				If Not String.IsNullOrEmpty(UpdateData.Message) Then ResStr &= ";Addition=" & UpdateData.Message
 
-				'Если параметр ClientHFile имеет значение Nothing, то произошел вызов метода GetUserData и в этом случае работать с файлом hosts не надо
-				'производим подмену DNS, если версия программы старше 960
+				'Р•СЃР»Рё РїР°СЂР°РјРµС‚СЂ ClientHFile РёРјРµРµС‚ Р·РЅР°С‡РµРЅРёРµ Nothing, С‚Рѕ РїСЂРѕРёР·РѕС€РµР» РІС‹Р·РѕРІ РјРµС‚РѕРґР° GetUserData Рё РІ СЌС‚РѕРј СЃР»СѓС‡Р°Рµ СЂР°Р±РѕС‚Р°С‚СЊ СЃ С„Р°Р№Р»РѕРј hosts РЅРµ РЅР°РґРѕ
+				'РїСЂРѕРёР·РІРѕРґРёРј РїРѕРґРјРµРЅСѓ DNS, РµСЃР»Рё РІРµСЂСЃРёСЏ РїСЂРѕРіСЂР°РјРјС‹ СЃС‚Р°СЂС€Рµ 960
 				If (ClientHFile IsNot Nothing) And (UpdateData.BuildNumber > 960) Then
 					Try
 						ResStr &= HostsFileHelper.ProcessDNS(SpyHostsFile)
 					Catch HostsException As Exception
-						Log.Error("Ошибка во время обработки DNS", HostsException)
+						Log.Error("РћС€РёР±РєР° РІРѕ РІСЂРµРјСЏ РѕР±СЂР°Р±РѕС‚РєРё DNS", HostsException)
 					End Try
 				End If
 
-				'Если поднят флаг SpyAccount, то надо отправлять данные с логином и паролем
+				'Р•СЃР»Рё РїРѕРґРЅСЏС‚ С„Р»Р°Рі SpyAccount, С‚Рѕ РЅР°РґРѕ РѕС‚РїСЂР°РІР»СЏС‚СЊ РґР°РЅРЅС‹Рµ СЃ Р»РѕРіРёРЅРѕРј Рё РїР°СЂРѕР»РµРј
 				If SpyAccount Then ResStr &= ";SendUData=True"
 
 			End If
@@ -885,9 +885,9 @@ endprocNew:
 			InternalGetUserData = ProcessUpdateException(updateException)
 		Catch ex As Exception
 			If LogRequestHelper.NeedLogged() Then
-				LogRequestHelper.MailWithRequest(Log, "Ошибка при подготовке данных", ex)
+				LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґР°РЅРЅС‹С…", ex)
 			Else
-				Log.Error("Параметры " & _
+				Log.Error("РџР°СЂР°РјРµС‚СЂС‹ " & _
 				 String.Format("AccessTime = {0}, ", AccessTime) & _
 				 String.Format("GetEtalonData = {0}, ", GetEtalonData) & _
 				 String.Format("EXEVersion = {0}, ", EXEVersion) & _
@@ -897,10 +897,10 @@ endprocNew:
 				 String.Format("WINDesc = {0}, ", WINDesc) & _
 				 String.Format("WayBillsOnly = {0}", WayBillsOnly), ex)
 			End If
-			InternalGetUserData = "Error=При подготовке обновления произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+			InternalGetUserData = "Error=РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РѕР±РЅРѕРІР»РµРЅРёСЏ РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С… С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Finally
 			If (Not ProcessBatch) Then
-				'если не асинхронный запрос или не содержится в списке сервисов, производящих асинхронную подготовку, то освобождаем соединение
+				'РµСЃР»Рё РЅРµ Р°СЃРёРЅС…СЂРѕРЅРЅС‹Р№ Р·Р°РїСЂРѕСЃ РёР»Рё РЅРµ СЃРѕРґРµСЂР¶РёС‚СЃСЏ РІ СЃРїРёСЃРєРµ СЃРµСЂРІРёСЃРѕРІ, РїСЂРѕРёР·РІРѕРґСЏС‰РёС… Р°СЃРёРЅС…СЂРѕРЅРЅСѓСЋ РїРѕРґРіРѕС‚РѕРІРєСѓ, С‚Рѕ РѕСЃРІРѕР±РѕР¶РґР°РµРј СЃРѕРµРґРёРЅРµРЅРёРµ
 				If Not Async Or Not AsyncPrgDatas.Contains(Me) Then DBDisconnect()
 				Counter.ReleaseLock(UserId, "GetUserData", UpdateData)
 			End If
@@ -910,7 +910,7 @@ endprocNew:
 	End Function
 
 
-	Enum ТипДокумента As Integer
+	Enum РўРёРїР”РѕРєСѓРјРµРЅС‚Р° As Integer
 		WayBills = 1
 		Rejects = 2
 		Docs = 3
@@ -918,7 +918,7 @@ endprocNew:
 
 
 
-	Public Sub ZipStream() ' В потоке ThreadZipStream
+	Public Sub ZipStream() ' Р’ РїРѕС‚РѕРєРµ ThreadZipStream
 
 		Dim ArchCmd As MySqlCommand = New MySqlCommand()
 		Dim ArchDA As MySqlDataAdapter = New MySqlDataAdapter()
@@ -930,7 +930,7 @@ endprocNew:
 			Dim SevenZipParam As String = " -mx7 -bd -slp -mmt=6 -w" & Path.GetTempPath
 			Dim SevenZipTmpArchive As String
 			Dim xRow As DataRow
-			Dim Вывод7Z, Ошибка7Z As String
+			Dim Р’С‹РІРѕРґ7Z, РћС€РёР±РєР°7Z As String
 			Dim ArchTrans As MySqlTransaction
 			Dim ef(), ListOfDocs() As String
 
@@ -953,7 +953,7 @@ endprocNew:
 					SevenZipTmpArchive = Path.GetTempPath() & UserId
 					If File.Exists(UpdateData.GetCurrentTempFile()) Then
 						ShareFileHelper.MySQLFileDelete(UpdateData.GetCurrentTempFile())
-						Log.DebugFormat("Удалили предыдущие подготовленные данные при начале архивирования: {0}", UpdateData.GetCurrentTempFile())
+						Log.DebugFormat("РЈРґР°Р»РёР»Рё РїСЂРµРґС‹РґСѓС‰РёРµ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРё РЅР°С‡Р°Р»Рµ Р°СЂС…РёРІРёСЂРѕРІР°РЅРёСЏ: {0}", UpdateData.GetCurrentTempFile())
 					End If
 				End If
 
@@ -961,7 +961,7 @@ endprocNew:
 				ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
 
-				'Если не реклама
+				'Р•СЃР»Рё РЅРµ СЂРµРєР»Р°РјР°
 				Dim helper = New UpdateHelper(UpdateData, connection)
 				If Not Reclame AndAlso (UpdateData.AllowHistoryDocs() Or Not GetHistory) Then
 
@@ -983,8 +983,8 @@ endprocNew:
 							ArchDA.FillSchema(DS, SchemaType.Source, "ProcessingDocuments")
 							For Each Row As DataRow In DS.Tables("DocumentsToClient").Rows
 
-								'даже если нет документа мы должны подтвердить его, что бы не пытаться его отдавать затем всегда
-								'или если документ фиктивный
+								'РґР°Р¶Рµ РµСЃР»Рё РЅРµС‚ РґРѕРєСѓРјРµРЅС‚Р° РјС‹ РґРѕР»Р¶РЅС‹ РїРѕРґС‚РІРµСЂРґРёС‚СЊ РµРіРѕ, С‡С‚Рѕ Р±С‹ РЅРµ РїС‹С‚Р°С‚СЊСЃСЏ РµРіРѕ РѕС‚РґР°РІР°С‚СЊ Р·Р°С‚РµРј РІСЃРµРіРґР°
+								'РёР»Рё РµСЃР»Рё РґРѕРєСѓРјРµРЅС‚ С„РёРєС‚РёРІРЅС‹Р№
 								xRow = DS.Tables("ProcessingDocuments").NewRow
 								xRow("Committed") = False
 								xRow("FileDelivered") = False
@@ -998,7 +998,7 @@ endprocNew:
 									ListOfDocs = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
 									 Row.Item("ClientCode").ToString & _
 									 "\" & _
-									 CType(Row.Item("DocumentType"), ТипДокумента).ToString, _
+									 CType(Row.Item("DocumentType"), РўРёРїР”РѕРєСѓРјРµРЅС‚Р°).ToString, _
 									 Row.Item("RowId").ToString & "_*")
 
 									If ListOfDocs.Length = 1 Then
@@ -1013,7 +1013,7 @@ endprocNew:
 										startInfo.Arguments = "a """ & _
 										   SevenZipTmpArchive & """ " & _
 										   " -i!""" & _
-										   CType(Row.Item("DocumentType"), ТипДокумента).ToString & "\" & _
+										   CType(Row.Item("DocumentType"), РўРёРїР”РѕРєСѓРјРµРЅС‚Р°).ToString & "\" & _
 										   Path.GetFileName(ListOfDocs(0)) & _
 										   """ " & _
 										   SevenZipParam
@@ -1026,44 +1026,44 @@ endprocNew:
 										Pr = Process.Start(startInfo)
 										Pr.WaitForExit()
 
-										Вывод7Z = Pr.StandardOutput.ReadToEnd
-										Ошибка7Z = Pr.StandardError.ReadToEnd
+										Р’С‹РІРѕРґ7Z = Pr.StandardOutput.ReadToEnd
+										РћС€РёР±РєР°7Z = Pr.StandardError.ReadToEnd
 
 										If Pr.ExitCode <> 0 Then
 
 											ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-											Addition &= "Архивирование документов, Вышли из 7Z с ошибкой: " & _
-											   Вывод7Z & _
+											Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РґРѕРєСѓРјРµРЅС‚РѕРІ, Р’С‹С€Р»Рё РёР· 7Z СЃ РѕС€РёР±РєРѕР№: " & _
+											   Р’С‹РІРѕРґ7Z & _
 											   "-" & _
-											   Ошибка7Z & _
+											   РћС€РёР±РєР°7Z & _
 											   "; "
 
 											If Documents Then
 
-												Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
+												Throw New Exception(String.Format("SevenZip error: {0}", Р’С‹РІРѕРґ7Z & _
 												 "-" & _
-												 Ошибка7Z))
+												 РћС€РёР±РєР°7Z))
 
 											Else
 												Log.Error( _
-													"Архивирование документов" & vbCrLf & _
-													"Вышли из 7Z с ошибкой: " & Вывод7Z & "-" & Ошибка7Z)
+													"РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РґРѕРєСѓРјРµРЅС‚РѕРІ" & vbCrLf & _
+													"Р’С‹С€Р»Рё РёР· 7Z СЃ РѕС€РёР±РєРѕР№: " & Р’С‹РІРѕРґ7Z & "-" & РћС€РёР±РєР°7Z)
 											End If
 										Else
 											xRow("FileDelivered") = True
 										End If
 									ElseIf ListOfDocs.Length = 0 Then
 										If DateTime.Now.Subtract(Convert.ToDateTime(Row.Item("LogTime"))).TotalHours < 1 Then
-											'Если документ моложе часа, то попытаемся его отдать позже и не будем формировать уведомление
+											'Р•СЃР»Рё РґРѕРєСѓРјРµРЅС‚ РјРѕР»РѕР¶Рµ С‡Р°СЃР°, С‚Рѕ РїРѕРїС‹С‚Р°РµРјСЃСЏ РµРіРѕ РѕС‚РґР°С‚СЊ РїРѕР·Р¶Рµ Рё РЅРµ Р±СѓРґРµРј С„РѕСЂРјРёСЂРѕРІР°С‚СЊ СѓРІРµРґРѕРјР»РµРЅРёРµ
 											DS.Tables("ProcessingDocuments").Rows.Remove(xRow)
-											Log.DebugFormat("Не найден файл документа: {0}", Row.Item("RowId"))
+											Log.DebugFormat("РќРµ РЅР°Р№РґРµРЅ С„Р°Р№Р» РґРѕРєСѓРјРµРЅС‚Р°: {0}", Row.Item("RowId"))
 										Else
-											Addition &= "При подготовке документов в папке: " & _
+											Addition &= "РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РґРѕРєСѓРјРµРЅС‚РѕРІ РІ РїР°РїРєРµ: " & _
 											 ServiceContext.GetDocumentsPath() & _
 											   Row.Item("ClientCode").ToString & _
 											   "\" & _
-											   CType(Row.Item("DocumentType"), ТипДокумента).ToString & _
-											   " не найден документ № " & _
+											   CType(Row.Item("DocumentType"), РўРёРїР”РѕРєСѓРјРµРЅС‚Р°).ToString & _
+											   " РЅРµ РЅР°Р№РґРµРЅ РґРѕРєСѓРјРµРЅС‚ в„– " & _
 											   Row.Item("RowId").ToString & _
 											   " ; "
 										End If
@@ -1078,13 +1078,13 @@ endprocNew:
 								ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("InvoiceHeaders" & UserId & ".txt"))
                                 ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("WaybillOrders" & UserId & ".txt"))
 
-								'Необходима задержка после удаления файлов накладных, т.к. файлы удаляются не сразу
+								'РќРµРѕР±С…РѕРґРёРјР° Р·Р°РґРµСЂР¶РєР° РїРѕСЃР»Рµ СѓРґР°Р»РµРЅРёСЏ С„Р°Р№Р»РѕРІ РЅР°РєР»Р°РґРЅС‹С…, С‚.Рє. С„Р°Р№Р»С‹ СѓРґР°Р»СЏСЋС‚СЃСЏ РЅРµ СЃСЂР°Р·Сѓ
 								ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("DocumentHeaders" & UserId & ".txt"))
 								ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("DocumentBodies" & UserId & ".txt"))
 								ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("InvoiceHeaders" & UserId & ".txt"))
                                 ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("WaybillOrders" & UserId & ".txt"))
 
-								'Данный метод должен работать только в релизе, чтобы время тестов не увеличивалось
+								'Р”Р°РЅРЅС‹Р№ РјРµС‚РѕРґ РґРѕР»Р¶РµРЅ СЂР°Р±РѕС‚Р°С‚СЊ С‚РѕР»СЊРєРѕ РІ СЂРµР»РёР·Рµ, С‡С‚РѕР±С‹ РІСЂРµРјСЏ С‚РµСЃС‚РѕРІ РЅРµ СѓРІРµР»РёС‡РёРІР°Р»РѕСЃСЊ
 #If Not Debug Then
 								helper.WaitParsedDocs()
 #End If
@@ -1100,10 +1100,10 @@ endprocNew:
 
 								helper.GetMySQLFileWithDefaultEx("DocumentHeaders", connection, helper.GetDocumentHeadersCommand(ids), False, False)
 								If Not String.IsNullOrEmpty(ids) Then
-									Log.DebugFormat("Список запрашиваемых Id документов: {0}", ids)
+									Log.DebugFormat("РЎРїРёСЃРѕРє Р·Р°РїСЂР°С€РёРІР°РµРјС‹С… Id РґРѕРєСѓРјРµРЅС‚РѕРІ: {0}", ids)
 									Try
 										Dim exportDosc = MySql.Data.MySqlClient.MySqlHelper.ExecuteDataset(ArchCmd.Connection, helper.GetDocumentHeadersCommand(ids))
-										Log.DebugFormat("Кол-во таблиц в датасет: {0}", exportDosc.Tables.Count)
+										Log.DebugFormat("РљРѕР»-РІРѕ С‚Р°Р±Р»РёС† РІ РґР°С‚Р°СЃРµС‚: {0}", exportDosc.Tables.Count)
 										For Each table As DataTable In exportDosc.Tables
 											If String.IsNullOrEmpty(table.TableName) Then
 												table.TableName = Path.GetFileNameWithoutExtension(Path.GetRandomFileName())
@@ -1124,10 +1124,10 @@ endprocNew:
 
 										Next
 									Catch ex As Exception
-										Log.DebugFormat("Ошибка при экпорте таблиц: {0}", ex)
+										Log.DebugFormat("РћС€РёР±РєР° РїСЂРё СЌРєРїРѕСЂС‚Рµ С‚Р°Р±Р»РёС†: {0}", ex)
 									End Try
 								Else
-									Log.DebugFormat("Список запрашиваемых Id документов пуст")
+									Log.DebugFormat("РЎРїРёСЃРѕРє Р·Р°РїСЂР°С€РёРІР°РµРјС‹С… Id РґРѕРєСѓРјРµРЅС‚РѕРІ РїСѓСЃС‚")
 								End If
 								helper.GetMySQLFileWithDefaultEx("DocumentBodies", connection, helper.GetDocumentBodiesCommand(ids), False, False)
 								If UpdateData.AllowInvoiceHeaders() Then
@@ -1163,15 +1163,15 @@ endprocNew:
 
 								Pr.Start()
 
-								Вывод7Z = Pr.StandardOutput.ReadToEnd
-								Ошибка7Z = Pr.StandardError.ReadToEnd
+								Р’С‹РІРѕРґ7Z = Pr.StandardOutput.ReadToEnd
+								РћС€РёР±РєР°7Z = Pr.StandardError.ReadToEnd
 
 								Pr.WaitForExit()
 
 								If Pr.ExitCode <> 0 Then
 									Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
 									ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-									Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+									Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Р’С‹РІРѕРґ7Z, РћС€РёР±РєР°7Z))
 								End If
 								Pr = Nothing
 
@@ -1191,15 +1191,15 @@ endprocNew:
 
 									Pr.Start()
 
-									Вывод7Z = Pr.StandardOutput.ReadToEnd
-									Ошибка7Z = Pr.StandardError.ReadToEnd
+									Р’С‹РІРѕРґ7Z = Pr.StandardOutput.ReadToEnd
+									РћС€РёР±РєР°7Z = Pr.StandardError.ReadToEnd
 
 									Pr.WaitForExit()
 
 									If Pr.ExitCode <> 0 Then
 										Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
 										ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-										Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+										Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Р’С‹РІРѕРґ7Z, РћС€РёР±РєР°7Z))
 									End If
 									Pr = Nothing
 								End If
@@ -1220,15 +1220,15 @@ endprocNew:
 
                                     Pr.Start()
 
-                                    Вывод7Z = Pr.StandardOutput.ReadToEnd
-                                    Ошибка7Z = Pr.StandardError.ReadToEnd
+                                    Р’С‹РІРѕРґ7Z = Pr.StandardOutput.ReadToEnd
+                                    РћС€РёР±РєР°7Z = Pr.StandardError.ReadToEnd
 
                                     Pr.WaitForExit()
 
                                     If Pr.ExitCode <> 0 Then
                                         Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
                                         ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-                                        Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+                                        Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Р’С‹РІРѕРґ7Z, РћС€РёР±РєР°7Z))
                                     End If
                                     Pr = Nothing
                                 End If
@@ -1254,7 +1254,7 @@ endprocNew:
 
 						End If
 
-						'если версия с поддержкой AllowHistoryDocs() и пользователю отдается реклама, то архивируем рекламу
+						'РµСЃР»Рё РІРµСЂСЃРёСЏ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ AllowHistoryDocs() Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РѕС‚РґР°РµС‚СЃСЏ СЂРµРєР»Р°РјР°, С‚Рѕ Р°СЂС…РёРІРёСЂСѓРµРј СЂРµРєР»Р°РјСѓ
 						If UpdateData.ShowAdvertising AndAlso UpdateData.AllowHistoryDocs() Then
 							Dim MaxReclameFileDate As Date
 							Dim CurrentFilesSize As Long = 0
@@ -1265,7 +1265,7 @@ endprocNew:
 							Dim reclameData = helper.GetReclame()
 
 							MaxReclameFileDate = reclameData.ReclameDate
-							If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
+							If Log.IsDebugEnabled Then Log.DebugFormat("РџСЂРѕС‡РёС‚Р°Р»Рё РёР· Р±Р°Р·С‹ reclameData.ReclameDate {0}", reclameData.ReclameDate)
 
 							RelamePathTemp = ResultFileName & "Reclame\" & reclameData.Region & "\"
 
@@ -1279,7 +1279,7 @@ endprocNew:
 								Try
 									Directory.CreateDirectory(RelamePathTemp)
 								Catch ex As Exception
-									Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", RelamePathTemp, ex)
+									Log.ErrorFormat("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РґРёСЂРµРєС‚РѕСЂРёРё '{0}': {1}", RelamePathTemp, ex)
 								End Try
 							End If
 
@@ -1298,7 +1298,7 @@ endprocNew:
 							Dim reclamePreffix = "Reclame\" & reclameData.Region & "\"
 							reclamePreffix = "Reclame\" & dirInfo.Name & "\"
 
-							If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", RelamePathTemp)
+							If Log.IsDebugEnabled Then Log.DebugFormat("РџСѓС‚СЊ Рє СЂРµРєР»Р°РјРµ {0}", RelamePathTemp)
 
 
 							Dim FileList As String() = New String() {}
@@ -1309,13 +1309,13 @@ endprocNew:
 									Directory.CreateDirectory(RelamePathTemp)
 									FileList = reclameData.GetReclameFiles(RelamePathTemp)
 								Catch ex As Exception
-									Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", RelamePathTemp, ex)
+									Log.ErrorFormat("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РґРёСЂРµРєС‚РѕСЂРёРё '{0}': {1}", RelamePathTemp, ex)
 								End Try
 							Else
 								FileList = reclameData.GetReclameFiles(RelamePathTemp)
 							End If
 
-							If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
+							If Log.IsDebugEnabled Then Log.DebugFormat("РљРѕР»-РІРѕ С„Р°Р№Р»РѕРІ РІ РєР°С‚Р°Р»РѕРіРµ СЃ СЂРµРєР»Р°РјРѕР№ {0}", FileList.Length)
 
 							For Each ReclameFileName In FileList
 
@@ -1324,7 +1324,7 @@ endprocNew:
 								If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
 									If CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
-										If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
+										If Log.IsDebugEnabled Then Log.DebugFormat("Р”РѕР±Р°РІРёР»Рё С„Р°Р№Р» РІ Р°СЂС…РёРІ {0}", FileInfo.Name)
 										FileCount += 1
 
 
@@ -1350,34 +1350,34 @@ endprocNew:
 										Pr = Process.Start(startInfo)
 										Pr.WaitForExit()
 
-										Вывод7Z = Pr.StandardOutput.ReadToEnd
-										Ошибка7Z = Pr.StandardError.ReadToEnd
+										Р’С‹РІРѕРґ7Z = Pr.StandardOutput.ReadToEnd
+										РћС€РёР±РєР°7Z = Pr.StandardError.ReadToEnd
 
 										If Pr.ExitCode <> 0 Then
 
 											ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-											Addition &= "Архивирование рекламы, Вышли из 7Z с ошибкой: " & _
-											   Вывод7Z & _
+											Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ СЂРµРєР»Р°РјС‹, Р’С‹С€Р»Рё РёР· 7Z СЃ РѕС€РёР±РєРѕР№: " & _
+											   Р’С‹РІРѕРґ7Z & _
 											   "-" & _
-											   Ошибка7Z & _
+											   РћС€РёР±РєР°7Z & _
 											   "; "
 
 											If Documents Then
 
-												Throw New Exception(String.Format("SevenZip error: {0}", Вывод7Z & _
+												Throw New Exception(String.Format("SevenZip error: {0}", Р’С‹РІРѕРґ7Z & _
 												 "-" & _
-												 Ошибка7Z))
+												 РћС€РёР±РєР°7Z))
 
 											Else
 												Log.Error( _
-													"Архивирование рекламы" & vbCrLf & _
-													"Вышли из 7Z с ошибкой: " & Вывод7Z & "-" & Ошибка7Z)
+													"РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ СЂРµРєР»Р°РјС‹" & vbCrLf & _
+													"Р’С‹С€Р»Рё РёР· 7Z СЃ РѕС€РёР±РєРѕР№: " & Р’С‹РІРѕРґ7Z & "-" & РћС€РёР±РєР°7Z)
 											End If
 										End If
 
 										If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
 									Else
-										Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", ReclameFileName)
+										Log.ErrorFormat("Р¤Р°Р№Р» {0} РїСЂРµРІС‹С€Р°РµС‚ РґРѕРїСѓСЃС‚РёРјС‹Р№ СЂР°Р·РјРµСЂ СЂРµРєР»Р°РјС‹ РІ 1 РњР±", ReclameFileName)
 										Exit For
 									End If
 
@@ -1387,7 +1387,7 @@ endprocNew:
 
 							If MaxReclameFileDate > Now() Then MaxReclameFileDate = Now()
 
-							If Log.IsDebugEnabled Then Log.DebugFormat("После обработки файлов MaxReclameFileDate {0}", MaxReclameFileDate)
+							If Log.IsDebugEnabled Then Log.DebugFormat("РџРѕСЃР»Рµ РѕР±СЂР°Р±РѕС‚РєРё С„Р°Р№Р»РѕРІ MaxReclameFileDate {0}", MaxReclameFileDate)
 
 							reclameData.SetUncommitedReclameDate(connection, MaxReclameFileDate)
 
@@ -1395,8 +1395,8 @@ endprocNew:
 
 
 					Catch ex As Exception
-						Log.Error("Ошибка при архивировании документов", ex)
-						Addition &= "Архивирование документов" & ": " & ex.Message & "; "
+						Log.Error("РћС€РёР±РєР° РїСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё РґРѕРєСѓРјРµРЅС‚РѕРІ", ex)
+						Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РґРѕРєСѓРјРµРЅС‚РѕРІ" & ": " & ex.Message & "; "
 
 						If Documents Then ErrorFlag = True
 
@@ -1404,7 +1404,7 @@ endprocNew:
 
 					End Try
 
-					'здесь будем выгружать сертификаты
+					'Р·РґРµСЃСЊ Р±СѓРґРµРј РІС‹РіСЂСѓР¶Р°С‚СЊ СЃРµСЂС‚РёС„РёРєР°С‚С‹
 					If Documents AndAlso UpdateData.NeedExportCertificates Then
 						helper.ArchiveCertificates(connection, SevenZipTmpArchive, Addition, ClientLog, GUpdateId)
 					End If
@@ -1424,8 +1424,8 @@ endprocNew:
 
 						Else
 
-							MessageH = "Новых файлов документов нет."
-							Addition &= " Нет новых документов"
+							MessageH = "РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚."
+							Addition &= " РќРµС‚ РЅРѕРІС‹С… РґРѕРєСѓРјРµРЅС‚РѕРІ"
 							ErrorFlag = True
 							PackFinished = True
 							PackProtocols()
@@ -1447,7 +1447,7 @@ endprocNew:
 
 						Else
 
-							MessageH = "Запрошенные вложения не найдены."
+							MessageH = "Р—Р°РїСЂРѕС€РµРЅРЅС‹Рµ РІР»РѕР¶РµРЅРёСЏ РЅРµ РЅР°Р№РґРµРЅС‹."
 							Addition &= UpdateData.AttachmentFailMessage()
 							ErrorFlag = True
 							PackFinished = True
@@ -1460,10 +1460,10 @@ endprocNew:
 
 
 
-					'Если не документы
+					'Р•СЃР»Рё РЅРµ РґРѕРєСѓРјРµРЅС‚С‹
 					If Not Documents AndAlso Not GetHistory AndAlso Not Me.RequestAttachments Then
 
-						'Архивирование обновления программы
+						'РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРёСЏ РїСЂРѕРіСЂР°РјРјС‹
 						Try
 							If UpdateData.EnableUpdate() Then
 
@@ -1474,12 +1474,12 @@ endprocNew:
 									Pr.WaitForExit()
 
 									If Pr.ExitCode <> 0 Then
-										Log.ErrorFormat("Архивирование EXE" & vbCrLf & "Вышли из 7Z с кодом : {0}", Pr.ExitCode)
-										Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
+										Log.ErrorFormat("РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ EXE" & vbCrLf & "Р’С‹С€Р»Рё РёР· 7Z СЃ РєРѕРґРѕРј : {0}", Pr.ExitCode)
+										Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРёСЏ РІРµСЂСЃРёРё, Р’С‹С€Р»Рё РёР· 7Z СЃ РєРѕРґРѕРј " & ": " & Pr.ExitCode & "; "
 										ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 									Else
 
-										Addition &= "Обновление включает в себя новую версию программы; "
+										Addition &= "РћР±РЅРѕРІР»РµРЅРёРµ РІРєР»СЋС‡Р°РµС‚ РІ СЃРµР±СЏ РЅРѕРІСѓСЋ РІРµСЂСЃРёСЋ РїСЂРѕРіСЂР°РјРјС‹; "
 									End If
 
 								End If
@@ -1487,15 +1487,15 @@ endprocNew:
 							End If
 
 						Catch ex As ThreadAbortException
-							Log.Debug("Ошибка ThreadAbortException при архивировании обновления программы")
+							Log.Debug("РћС€РёР±РєР° ThreadAbortException РїСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё РѕР±РЅРѕРІР»РµРЅРёСЏ РїСЂРѕРіСЂР°РјРјС‹")
 							If Not Pr Is Nothing Then
 								If Not Pr.HasExited Then Pr.Kill()
 								Pr.WaitForExit()
 							End If
 							ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 						Catch ex As Exception
-							Log.Error("Архивирование Exe", ex)
-							Addition &= " Архивирование обновления " & ": " & ex.Message & "; "
+							Log.Error("РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ Exe", ex)
+							Addition &= " РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРёСЏ " & ": " & ex.Message & "; "
 							If Not Pr Is Nothing Then
 								If Not Pr.HasExited Then Pr.Kill()
 								Pr.WaitForExit()
@@ -1510,7 +1510,7 @@ endprocNew:
 				End If
 
 
-				'Архивирование данных, или рекламы
+				'РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…, РёР»Рё СЂРµРєР»Р°РјС‹
 				Try
 					Dim FileForArchive As string = Nothing
 					If Not Documents AndAlso Not Me.RequestAttachments Then
@@ -1535,9 +1535,9 @@ StartZipping:
 							File.Move(SevenZipTmpArchive, target)
 							FileInfo = New FileInfo(target)
 							ResultLenght = Convert.ToUInt32(FileInfo.Length)
-							Log.DebugFormat("Закончено архивирование файла {0} размер {1}", target, ResultLenght)
+							Log.DebugFormat("Р—Р°РєРѕРЅС‡РµРЅРѕ Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ С„Р°Р№Р»Р° {0} СЂР°Р·РјРµСЂ {1}", target, ResultLenght)
 							PackFinished = True
-							Log.Debug("Будет вызывать PackProtocols()")
+							Log.Debug("Р‘СѓРґРµС‚ РІС‹Р·С‹РІР°С‚СЊ PackProtocols()")
 							PackProtocols()
 							Exit Sub
 						End If
@@ -1561,22 +1561,22 @@ StartZipping:
 
 						Pr.Start()
 
-						Вывод7Z = Pr.StandardOutput.ReadToEnd
-						Ошибка7Z = Pr.StandardError.ReadToEnd
+						Р’С‹РІРѕРґ7Z = Pr.StandardOutput.ReadToEnd
+						РћС€РёР±РєР°7Z = Pr.StandardError.ReadToEnd
 
 						Pr.WaitForExit()
 
 						If Pr.ExitCode <> 0 Then
 							Addition &= String.Format(" SevenZip exit code : {0}, :" & Pr.StandardError.ReadToEnd, Pr.ExitCode)
 							ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-							Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Вывод7Z, Ошибка7Z))
+							Throw New Exception(String.Format("SevenZip exit code : {0}, {1}, {2}, {3}; ", Pr.ExitCode, startInfo.Arguments, Р’С‹РІРѕРґ7Z, РћС€РёР±РєР°7Z))
 						End If
 						If Not Reclame Then ShareFileHelper.MySQLFileDelete(FileForArchive)
 
 						GoTo StartZipping
 					End If
 				Catch ex As ThreadAbortException
-					Log.Debug("Ошибка ThreadAbortException при архивировании данных")
+					Log.Debug("РћС€РёР±РєР° ThreadAbortException РїСЂРё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРё РґР°РЅРЅС‹С…")
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 					Try
 						Pr.Kill()
@@ -1590,13 +1590,13 @@ StartZipping:
 					End If
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
 
-					Log.Error("Архивирование", ex)
+					Log.Error("РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ", ex)
 					If Not TypeOf ex.InnerException Is ThreadAbortException Then
 						ErrorFlag = True
 						UpdateType = RequestType.Error
 						if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
 					End If
-					Addition &= " Архивирование: " & ex.ToString() & "; "
+					Addition &= " РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ: " & ex.ToString() & "; "
 				Catch Unhandled As Exception
 					ErrorFlag = True
 					UpdateType = RequestType.Error
@@ -1605,18 +1605,18 @@ StartZipping:
 						If Not Pr.HasExited Then Pr.Kill()
 						Pr.WaitForExit()
 					End If
-					Addition &= " Архивирование: " & Unhandled.ToString()
+					Addition &= " РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ: " & Unhandled.ToString()
 					ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-					Log.Error("Архивирование", Unhandled)
-					Addition &= " Архивирование: " & Unhandled.ToString() & "; "
+					Log.Error("РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ", Unhandled)
+					Addition &= " РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ: " & Unhandled.ToString() & "; "
 				End Try
 			End Using
 
 		Catch tae As ThreadAbortException
-			Log.Debug("Ошибка ThreadAbortException глобальное в ZipStream")
+			Log.Debug("РћС€РёР±РєР° ThreadAbortException РіР»РѕР±Р°Р»СЊРЅРѕРµ РІ ZipStream")
 
 		Catch Unhandled As Exception
-			Log.Error("Архивирование general", Unhandled)
+			Log.Error("РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ general", Unhandled)
 			ErrorFlag = True
 			if UpdateData.AsyncRequest Then AnalitFUpdate.SetErrorUpdateType(GUpdateId)
 		End Try
@@ -1657,7 +1657,7 @@ StartZipping:
 				ProcessOldCommit(AbsentPriceCodes)
 			Else
 				If Not WayBillsOnly Then
-					Me.Log.DebugFormat("Не смогли обработать подтверждение, т.к. не совпал UpdateId: ClientUpdateId:{0}; ServerUpdateId:{1}", UpdateId, UpdateData.PreviousRequest.UpdateId)
+					Me.Log.DebugFormat("РќРµ СЃРјРѕРіР»Рё РѕР±СЂР°Р±РѕС‚Р°С‚СЊ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ, С‚.Рє. РЅРµ СЃРѕРІРїР°Р» UpdateId: ClientUpdateId:{0}; ServerUpdateId:{1}", UpdateId, UpdateData.PreviousRequest.UpdateId)
 				End If
 			End If
 
@@ -1675,12 +1675,12 @@ StartZipping:
 					Me.Log.DebugFormat("MaxSynonymCode: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
 					If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
 						UpdateTime = CType(masterUpdateTime, DateTime)
-						Me.Log.Debug("MaxSynonymCode: дата, выбранная из мастера, больше, чем дата из slave")
+						Me.Log.Debug("MaxSynonymCode: РґР°С‚Р°, РІС‹Р±СЂР°РЅРЅР°СЏ РёР· РјР°СЃС‚РµСЂР°, Р±РѕР»СЊС€Рµ, С‡РµРј РґР°С‚Р° РёР· slave")
 					End If
 				End If
 
 			Catch ex As Exception
-				Me.Log.Error("Выборка даты обновления", ex)
+				Me.Log.Error("Р’С‹Р±РѕСЂРєР° РґР°С‚С‹ РѕР±РЅРѕРІР»РµРЅРёСЏ", ex)
 				UpdateTime = Now().ToUniversalTime
 			End Try
 
@@ -1693,14 +1693,14 @@ StartZipping:
 				End If
 
 				ShareFileHelper.MySQLFileDelete(UpdateData.GetCurrentFile(UpdateId))
-				Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", UpdateData.GetCurrentFile(UpdateId))
+				Me.Log.DebugFormat("РЈРґР°Р»РёР»Рё РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ РїРѕСЃР»Рµ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ: {0}", UpdateData.GetCurrentFile(UpdateId))
 			Catch ex As Exception
-				Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
+				Me.Log.Error("РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹С… РґР°РЅРЅС‹С…", ex)
 			End Try
 
 			ProtocolUpdatesThread.Start()
 		Catch e As Exception
-			LogRequestHelper.MailWithRequest(Me.Log, String.Format("Ошибка при подтверждении обновления, вернул {0}, дальше КО", Now().ToUniversalTime), e)
+			LogRequestHelper.MailWithRequest(Me.Log, String.Format("РћС€РёР±РєР° РїСЂРё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРё РѕР±РЅРѕРІР»РµРЅРёСЏ, РІРµСЂРЅСѓР» {0}, РґР°Р»СЊС€Рµ РљРћ", Now().ToUniversalTime), e)
 			Return Now().ToUniversalTime
 		Finally
 			Counter.ReleaseLock(UserId, "MaxSynonymCode", UpdateData)
@@ -1731,14 +1731,14 @@ StartZipping:
 				Then
 					Dim exportList = UnconfirmedOrdersExporter.DeleteUnconfirmedOrders(UpdateData, readWriteConnection, UpdateId)
 					If Not String.IsNullOrEmpty(exportList) Then
-						Addition &= "Экспортированные неподтвержденные заказы: " & exportList & "; "
+						Addition &= "Р­РєСЃРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рµ Р·Р°РєР°Р·С‹: " & exportList & "; "
 					End If
 				End If
-				' Здесь сбрасывались коды прайс-листов
+				' Р—РґРµСЃСЊ СЃР±СЂР°СЃС‹РІР°Р»РёСЃСЊ РєРѕРґС‹ РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ
 				ProcessCommitExchange()
 			Else
 				If Not WayBillsOnly Then
-					Me.Log.DebugFormat("Не смогли обработать подтверждение, т.к. не совпал UpdateId: ClientUpdateId:{0}; ServerUpdateId:{1}", UpdateId, UpdateData.PreviousRequest.UpdateId)
+					Me.Log.DebugFormat("РќРµ СЃРјРѕРіР»Рё РѕР±СЂР°Р±РѕС‚Р°С‚СЊ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ, С‚.Рє. РЅРµ СЃРѕРІРїР°Р» UpdateId: ClientUpdateId:{0}; ServerUpdateId:{1}", UpdateId, UpdateData.PreviousRequest.UpdateId)
 				End If
 			End If
 
@@ -1751,7 +1751,7 @@ StartZipping:
 						Dim transaction = readWriteConnection.BeginTransaction(IsoLevel)
 						Cm.CommandText = "update UserUpdateInfo set ReclameDate=UncommitedReclameDate where UserId=" & UserId
 						Cm.Connection = readWriteConnection
-						If Log.IsDebugEnabled Then Log.DebugFormat("Обновляем дату рекламы из UncommitedReclameDate")
+						If Log.IsDebugEnabled Then Log.DebugFormat("РћР±РЅРѕРІР»СЏРµРј РґР°С‚Сѓ СЂРµРєР»Р°РјС‹ РёР· UncommitedReclameDate")
 						Cm.ExecuteNonQuery()
 						transaction.Commit()
 					End If
@@ -1768,12 +1768,12 @@ StartZipping:
 					Me.Log.DebugFormat("CommitExchange: slave UncommitedUpdateDate {0}  master UncommitedUpdateDate {1}", UpdateTime, masterUpdateTime)
 					If IsDate(masterUpdateTime) And (CType(masterUpdateTime, DateTime) > UpdateTime) Then
 						UpdateTime = CType(masterUpdateTime, DateTime)
-						Me.Log.Debug("CommitExchange: дата, выбранная из мастера, больше, чем дата из slave")
+						Me.Log.Debug("CommitExchange: РґР°С‚Р°, РІС‹Р±СЂР°РЅРЅР°СЏ РёР· РјР°СЃС‚РµСЂР°, Р±РѕР»СЊС€Рµ, С‡РµРј РґР°С‚Р° РёР· slave")
 					End If
 				End If
 
 			Catch ex As Exception
-				Me.Log.Error("Выборка даты обновления", ex)
+				Me.Log.Error("Р’С‹Р±РѕСЂРєР° РґР°С‚С‹ РѕР±РЅРѕРІР»РµРЅРёСЏ", ex)
 				UpdateTime = Now().ToUniversalTime
 			End Try
 
@@ -1786,14 +1786,14 @@ StartZipping:
 				End If
 
 				ShareFileHelper.MySQLFileDelete(UpdateData.GetCurrentFile(UpdateId))
-				Me.Log.DebugFormat("Удалили подготовленные данные после подтверждения: {0}", UpdateData.GetCurrentFile(UpdateId))
+				Me.Log.DebugFormat("РЈРґР°Р»РёР»Рё РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ РїРѕСЃР»Рµ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ: {0}", UpdateData.GetCurrentFile(UpdateId))
 			Catch ex As Exception
-				Me.Log.Error("Ошибка при сохранении подготовленных данных", ex)
+				Me.Log.Error("РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹С… РґР°РЅРЅС‹С…", ex)
 			End Try
 
 			ProtocolUpdatesThread.Start()
 		Catch e As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении обновления", e)
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРё РѕР±РЅРѕРІР»РµРЅРёСЏ", e)
 			CommitExchange = Now().ToUniversalTime
 		Finally
 			DBDisconnect()
@@ -1813,11 +1813,11 @@ StartZipping:
 			Try
 				AnalitFUpdate.UpdateLog(readWriteConnection, UpdateId, Log)
 			Catch ex As Exception
-				Me.Log.Error("Ошибка при сохранении лога клиента", ex)
+				Me.Log.Error("РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё Р»РѕРіР° РєР»РёРµРЅС‚Р°", ex)
 			End Try
 			SendClientLog = "OK"
 		Catch e As Exception
-			LogRequestHelper.MailWithRequest(Me.Log, "Ошибка при сохранении лога клиента", e)
+			LogRequestHelper.MailWithRequest(Me.Log, "РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё Р»РѕРіР° РєР»РёРµРЅС‚Р°", e)
 			SendClientLog = "Error"
 		Finally
 			DBDisconnect()
@@ -1846,18 +1846,18 @@ StartZipping:
 
 					AnalitFUpdate.UpdateLog(readWriteConnection, UpdateId, logContent)
 
-					Me.Log.DebugFormat("Размер лога от клиента: {0}, полученный размера лога: {1}", logContent.Length, LogSize)
+					Me.Log.DebugFormat("Р Р°Р·РјРµСЂ Р»РѕРіР° РѕС‚ РєР»РёРµРЅС‚Р°: {0}, РїРѕР»СѓС‡РµРЅРЅС‹Р№ СЂР°Р·РјРµСЂР° Р»РѕРіР°: {1}", logContent.Length, LogSize)
 
 				Finally
 					helper.DeleteTemporaryFiles()
 				End Try
 
 			Catch ex As Exception
-				Me.Log.Error("Ошибка при сохранении лога клиента", ex)
+				Me.Log.Error("РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё Р»РѕРіР° РєР»РёРµРЅС‚Р°", ex)
 			End Try
 			SendClientArchivedLog = "OK"
 		Catch e As Exception
-			LogRequestHelper.MailWithRequest(Me.Log, "Ошибка при сохранении лога клиента", e)
+			LogRequestHelper.MailWithRequest(Me.Log, "РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё Р»РѕРіР° РєР»РёРµРЅС‚Р°", e)
 			SendClientArchivedLog = "Error"
 		Finally
 			DBDisconnect()
@@ -1868,11 +1868,11 @@ StartZipping:
 	<WebMethod()> Public Function GetArchivedOrdersList() As String
 		'If DBConnect("GetArchivedOrdersList") Then
 
-		'    'TODO: Встроить логирование в prgdataex
+		'    'TODO: Р’СЃС‚СЂРѕРёС‚СЊ Р»РѕРіРёСЂРѕРІР°РЅРёРµ РІ prgdataex
 		'    Try
 		'        GetClientCode()
 
-		'        'Если смогли получить код клиента
+		'        'Р•СЃР»Рё СЃРјРѕРіР»Рё РїРѕР»СѓС‡РёС‚СЊ РєРѕРґ РєР»РёРµРЅС‚Р°
 		'        If CCode > 0 Then
 		'            Dim dsOrderList As DataSet = MySqlHelper.ExecuteDataset(Cm.Connection, "SELECT o.ClientOrderId FROM orders.ordershead o LEFT JOIN orders.orderslist ol ON ol.OrderID=o.RowID where ol.OrderID is null and o.WriteTime between '2007-09-16 20:34:02' and '2007-09-24 11:02:44' and o.ClientCode = ?ClientCode limit 50", New MySqlParameter("?ClientCode", CCode))
 		'            Dim list As List(Of String) = New List(Of String)
@@ -1881,14 +1881,14 @@ StartZipping:
 		'            For Each drOrderId In dsOrderList.Tables(0).Rows
 		'                list.Add(drOrderId.Item("ClientOrderId").ToString())
 		'            Next
-		'            'MailHelper.MailErr(CCode, "Запросили у клиента архивные заказы", list.Count & " шт.")
+		'            'MailHelper.MailErr(CCode, "Р—Р°РїСЂРѕСЃРёР»Рё Сѓ РєР»РёРµРЅС‚Р° Р°СЂС…РёРІРЅС‹Рµ Р·Р°РєР°Р·С‹", list.Count & " С€С‚.")
 		'            Return String.Join(";", list.ToArray())
 		'        Else
 		'            Return String.Empty
 		'        End If
 
 		'    Catch Exp As Exception
-		'        MailHelper.MailErr(CCode, "Ошибка при получении списка архивных заказов", Exp.Message & ": " & Exp.StackTrace)
+		'        MailHelper.MailErr(CCode, "РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° Р°СЂС…РёРІРЅС‹С… Р·Р°РєР°Р·РѕРІ", Exp.Message & ": " & Exp.StackTrace)
 		'        Addition = Exp.Message
 		'        ErrorFlag = True
 		'        UpdateType = 5
@@ -1902,7 +1902,7 @@ StartZipping:
 		Return String.Empty
 	End Function
 
-	'Отправляем несколько заказов скопом и по ним все формируем ответ
+	'РћС‚РїСЂР°РІР»СЏРµРј РЅРµСЃРєРѕР»СЊРєРѕ Р·Р°РєР°Р·РѕРІ СЃРєРѕРїРѕРј Рё РїРѕ РЅРёРј РІСЃРµ С„РѕСЂРјРёСЂСѓРµРј РѕС‚РІРµС‚
 	<WebMethod()> _
 	Public Function PostSomeOrdersFull( _
   ByVal UniqueID As String, _
@@ -2106,7 +2106,7 @@ StartZipping:
 		  )
 	End Function
 
-	'Отправляем несколько заказов скопом и по ним все формируем ответ
+	'РћС‚РїСЂР°РІР»СЏРµРј РЅРµСЃРєРѕР»СЊРєРѕ Р·Р°РєР°Р·РѕРІ СЃРєРѕРїРѕРј Рё РїРѕ РЅРёРј РІСЃРµ С„РѕСЂРјРёСЂСѓРµРј РѕС‚РІРµС‚
 	<WebMethod()> _
 	Public Function PostSomeOrdersFullExtend( _
   ByVal UniqueID As String, _
@@ -2216,7 +2216,7 @@ StartZipping:
 		  )
 	End Function
 
-	'Отправляем несколько заказов скопом и по ним все формируем ответ
+	'РћС‚РїСЂР°РІР»СЏРµРј РЅРµСЃРєРѕР»СЊРєРѕ Р·Р°РєР°Р·РѕРІ СЃРєРѕРїРѕРј Рё РїРѕ РЅРёРј РІСЃРµ С„РѕСЂРјРёСЂСѓРµРј РѕС‚РІРµС‚
 	<WebMethod()> _
 	Public Function PostSomeOrdersWithDelays( _
   ByVal UniqueID As String, _
@@ -2326,7 +2326,7 @@ StartZipping:
 		  )
 	End Function
 
-	'Отправляем несколько заказов скопом и по ним все формируем ответ
+	'РћС‚РїСЂР°РІР»СЏРµРј РЅРµСЃРєРѕР»СЊРєРѕ Р·Р°РєР°Р·РѕРІ СЃРєРѕРїРѕРј Рё РїРѕ РЅРёРј РІСЃРµ С„РѕСЂРјРёСЂСѓРµРј РѕС‚РІРµС‚
 	<WebMethod()> _
 	Public Function PostSomeOrdersWithSeries( _
   ByVal UniqueID As String, _
@@ -2553,12 +2553,12 @@ StartZipping:
 		Catch updateException As UpdateException
 			Return ProcessUpdateException(updateException)
 		Catch ex As NotEnoughElementsException
-			Log.Warn("Ошибка при отправке заказа", ex)
-			Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			Log.Warn("РћС€РёР±РєР° РїСЂРё РѕС‚РїСЂР°РІРєРµ Р·Р°РєР°Р·Р°", ex)
+			Return "Error=РћС‚РїСЂР°РІРєР° Р·Р°РєР°Р·РѕРІ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РЅРµСѓРґР°С‡РЅРѕ.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Catch ex As Exception
 			Console.WriteLine(ex)
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при отправке заказов", ex)
-			Return "Error=Отправка заказов завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РѕС‚РїСЂР°РІРєРµ Р·Р°РєР°Р·РѕРІ", ex)
+			Return "Error=РћС‚РїСЂР°РІРєР° Р·Р°РєР°Р·РѕРІ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РЅРµСѓРґР°С‡РЅРѕ.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Finally
 			Counter.ReleaseLock(UserId, "PostOrder", UpdateData)
 			DBDisconnect()
@@ -2600,7 +2600,7 @@ StartZipping:
 			Try
 				helper.PrepareBatchFile(BatchFile)
 
-				Addition &= "Файл-дефектура: " & helper.ExtractBatchFileName & "; "
+				Addition &= "Р¤Р°Р№Р»-РґРµС„РµРєС‚СѓСЂР°: " & helper.ExtractBatchFileName & "; "
 				If UpdateData.SaveAFDataFiles Then
 					If Not Directory.Exists(ResultFileName & "\Archive\" & UserId) Then Directory.CreateDirectory(ResultFileName & "\Archive\" & UserId)
 					currentBatchFile = ResultFileName & "\Archive\" & UserId & "\" & DateTime.Now.ToString("yyyyMMddHHmmssfff") & ".7z"
@@ -2636,16 +2636,16 @@ StartZipping:
 			currentUpdateId = GUpdateId
 			Return updateExceptionMessage
 		Catch OnParse As ParseDefectureException
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при разборе дефектуры", OnParse.InnerException)
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё СЂР°Р·Р±РѕСЂРµ РґРµС„РµРєС‚СѓСЂС‹", OnParse.InnerException)
 			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & OnParse.Message & ": " & OnParse.InnerException.Message)
-			Return "Error=Не удалось разобрать дефектуру.;Desc=Проверьте корректность формата файла дефектуры."
+			Return "Error=РќРµ СѓРґР°Р»РѕСЃСЊ СЂР°Р·РѕР±СЂР°С‚СЊ РґРµС„РµРєС‚СѓСЂСѓ.;Desc=РџСЂРѕРІРµСЂСЊС‚Рµ РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ С„РѕСЂРјР°С‚Р° С„Р°Р№Р»Р° РґРµС„РµРєС‚СѓСЂС‹."
 		Catch OnEmpty As EmptyDefectureException
-			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "Представленная дефектура не содержит данных.")
-			Return "Error=Представленная дефектура не содержит данных.;Desc=Пожалуйста, выберите другой файл."
+			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "РџСЂРµРґСЃС‚Р°РІР»РµРЅРЅР°СЏ РґРµС„РµРєС‚СѓСЂР° РЅРµ СЃРѕРґРµСЂР¶РёС‚ РґР°РЅРЅС‹С….")
+			Return "Error=РџСЂРµРґСЃС‚Р°РІР»РµРЅРЅР°СЏ РґРµС„РµРєС‚СѓСЂР° РЅРµ СЃРѕРґРµСЂР¶РёС‚ РґР°РЅРЅС‹С….;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РІС‹Р±РµСЂРёС‚Рµ РґСЂСѓРіРѕР№ С„Р°Р№Р»."
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при обработке дефектуры", ex)
-			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "Ошибка при обработке дефектуры" & vbCrLf & ex.ToString())
-			Return "Error=Отправка дефектуры завершилась неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РґРµС„РµРєС‚СѓСЂС‹", ex)
+			currentUpdateId = AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, RequestType.Error, Addition & "РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РґРµС„РµРєС‚СѓСЂС‹" & vbCrLf & ex.ToString())
+			Return "Error=РћС‚РїСЂР°РІРєР° РґРµС„РµРєС‚СѓСЂС‹ Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РЅРµСѓРґР°С‡РЅРѕ.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Finally
 
 			Try
@@ -2653,11 +2653,11 @@ StartZipping:
 					If currentUpdateId IsNot Nothing Then
 						File.Move(currentBatchFile, ResultFileName & "\Archive\" & UserId & "\" & currentUpdateId & "_Batch.7z")
 					Else
-						Log.DebugFormat("При разборе дефектуры не был установлен UpdateId: {0}  FileName: {1}", currentUpdateId, currentBatchFile)
+						Log.DebugFormat("РџСЂРё СЂР°Р·Р±РѕСЂРµ РґРµС„РµРєС‚СѓСЂС‹ РЅРµ Р±С‹Р» СѓСЃС‚Р°РЅРѕРІР»РµРЅ UpdateId: {0}  FileName: {1}", currentUpdateId, currentBatchFile)
 					End If
 				End If
 			Catch onSaveBatch As Exception
-				Log.Error("Ошибка при сохранении файла-дефектуры", onSaveBatch)
+				Log.Error("РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё С„Р°Р№Р»Р°-РґРµС„РµРєС‚СѓСЂС‹", onSaveBatch)
 			End Try
 
 			Counter.ReleaseLock(UserId, "PostOrderBatch", UpdateData)
@@ -2698,11 +2698,11 @@ StartZipping:
 
 				If UpdateData.CurrentUpdateTime < Now().AddDays(-1) Then UpdateData.CurrentUpdateTime = Now()
 
-				'если нет новых документов то и подтверждения не будет
-				'а в интерейсе неподтвержденное обновление это тревога
-				'что бы не было тревог
+				'РµСЃР»Рё РЅРµС‚ РЅРѕРІС‹С… РґРѕРєСѓРјРµРЅС‚РѕРІ С‚Рѕ Рё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РЅРµ Р±СѓРґРµС‚
+				'Р° РІ РёРЅС‚РµСЂРµР№СЃРµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ СЌС‚Рѕ С‚СЂРµРІРѕРіР°
+				'С‡С‚Рѕ Р±С‹ РЅРµ Р±С‹Р»Рѕ С‚СЂРµРІРѕРі
 				Dim commit = False
-				If MessageH = "Новых файлов документов нет." Then
+				If MessageH = "РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚." Then
 					commit = True
 				End If
 
@@ -2740,7 +2740,7 @@ StartZipping:
 			End If
 		End Using
 
-		Log.ErrorFormat("Неожидаемый тип обновления при получении UpdateId: {0}", UpdateType)
+		Log.ErrorFormat("РќРµРѕР¶РёРґР°РµРјС‹Р№ С‚РёРї РѕР±РЅРѕРІР»РµРЅРёСЏ РїСЂРё РїРѕР»СѓС‡РµРЅРёРё UpdateId: {0}", UpdateType)
 		Return 0
 
 	End Function
@@ -2754,24 +2754,24 @@ StartZipping:
 
 				If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
 
-					Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+					Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
 
 				End If
 
 			End If
 
-			Log.Debug("Попытка запустить ProtocolUpdatesThread.Start()")
+			Log.Debug("РџРѕРїС‹С‚РєР° Р·Р°РїСѓСЃС‚РёС‚СЊ ProtocolUpdatesThread.Start()")
 			ProtocolUpdatesThread.Start()
 
 			If Not ErrorFlag AndAlso UpdateType <> RequestType.ResumeData Then
 				If File.Exists(UpdateData.GetCurrentFile(GUpdateId)) Then
-					Me.Log.DebugFormat("Производим попытку удаления файла: {0}", UpdateData.GetCurrentFile(GUpdateId))
+					Me.Log.DebugFormat("РџСЂРѕРёР·РІРѕРґРёРј РїРѕРїС‹С‚РєСѓ СѓРґР°Р»РµРЅРёСЏ С„Р°Р№Р»Р°: {0}", UpdateData.GetCurrentFile(GUpdateId))
 					File.Delete(UpdateData.GetCurrentFile(GUpdateId))
 				End If
 				File.Move(UpdateData.GetCurrentTempFile(), UpdateData.GetCurrentFile(GUpdateId))
 			End If
 
-			Log.Debug("Попытка обновить тип обновления")
+			Log.Debug("РџРѕРїС‹С‚РєР° РѕР±РЅРѕРІРёС‚СЊ С‚РёРї РѕР±РЅРѕРІР»РµРЅРёСЏ")
 			Using connection = New MySqlConnection
 				connection.ConnectionString = ConnectionHelper.GetConnectionString()
 				connection.Open()
@@ -2828,11 +2828,11 @@ PostLog:
 
 							If UpdateData.CurrentUpdateTime < Now().AddDays(-1) Then UpdateData.CurrentUpdateTime = Now()
 
-							'если нет новых документов то и подтверждения не будет
-							'а в интерейсе неподтвержденное обновление это тревога
-							'что бы не было тревог
+							'РµСЃР»Рё РЅРµС‚ РЅРѕРІС‹С… РґРѕРєСѓРјРµРЅС‚РѕРІ С‚Рѕ Рё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РЅРµ Р±СѓРґРµС‚
+							'Р° РІ РёРЅС‚РµСЂРµР№СЃРµ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ СЌС‚Рѕ С‚СЂРµРІРѕРіР°
+							'С‡С‚Рѕ Р±С‹ РЅРµ Р±С‹Р»Рѕ С‚СЂРµРІРѕРі
 							Dim commit = False
-							If MessageH = "Новых файлов документов нет." Then
+							If MessageH = "РќРѕРІС‹С… С„Р°Р№Р»РѕРІ РґРѕРєСѓРјРµРЅС‚РѕРІ РЅРµС‚." Then
 								commit = True
 							End If
 
@@ -2912,7 +2912,7 @@ PostLog:
 					If Not NoNeedProcessDocuments Then
 
 						If (UpdateType = RequestType.CommitExchange) Then
-							Dim СписокФайлов() As String
+							Dim РЎРїРёСЃРѕРєР¤Р°Р№Р»РѕРІ() As String
 
 							transaction = connection.BeginTransaction(IsoLevel)
 							LogCm.CommandText = "update `logs`.`AnalitFUpdates` set Commit=1, Log = if(?Log is null, Log, concat(ifnull(Log, ''), ifnull(?Log, ''))) , Addition=concat(Addition, ifnull(?Addition, ''))  where UpdateId=" & GUpdateId
@@ -2934,13 +2934,13 @@ PostLog:
 
 							For Each DocumentsIdRow As DataRow In processedDocuments.Rows
 
-								СписокФайлов = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
+								РЎРїРёСЃРѕРєР¤Р°Р№Р»РѕРІ = Directory.GetFiles(ServiceContext.GetDocumentsPath() & _
 								   DocumentsIdRow.Item("ClientCode").ToString & _
 								   "\" & _
-								   CType(DocumentsIdRow.Item("DocumentType"), ТипДокумента).ToString, _
+								   CType(DocumentsIdRow.Item("DocumentType"), РўРёРїР”РѕРєСѓРјРµРЅС‚Р°).ToString, _
 								   DocumentsIdRow.Item("DocumentId").ToString & "_*")
 
-								If СписокФайлов.Length > 0 Then MySQLResultFile.Delete(СписокФайлов(0))
+								If РЎРїРёСЃРѕРєР¤Р°Р№Р»РѕРІ.Length > 0 Then MySQLResultFile.Delete(РЎРїРёСЃРѕРєР¤Р°Р№Р»РѕРІ(0))
 
 							Next
 							LogCm.CommandText = UpdateHelper.GetConfirmDocumentsCommnad(GUpdateId)
@@ -2960,12 +2960,12 @@ PostLog:
 						Thread.Sleep(500)
 						GoTo PostLog
 					End If
-					Log.Error("Запись лога", ex)
+					Log.Error("Р—Р°РїРёСЃСЊ Р»РѕРіР°", ex)
 				End Try
 			End Using
 
 		Catch unhandled As Exception
-			Log.Error("Ошибка при завершении подготовки данных", unhandled)
+			Log.Error("РћС€РёР±РєР° РїСЂРё Р·Р°РІРµСЂС€РµРЅРёРё РїРѕРґРіРѕС‚РѕРІРєРё РґР°РЅРЅС‹С…", unhandled)
 		End Try
 
 	End Sub
@@ -3008,7 +3008,7 @@ PostLog:
 
 		If Not UpdateData.PreviousRequest.UpdateId.HasValue Or UpdateData.PreviousRequest.Commit Then
 			Log.DebugFormat( _
-			 "Не найден предыдущий неподтвержденный запрос данных: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+			 "РќРµ РЅР°Р№РґРµРЅ РїСЂРµРґС‹РґСѓС‰РёР№ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С…: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
 			 UserId, _
 			 UpdateData.PreviousRequest.UpdateId, _
 			 UpdateData.PreviousRequest.Commit, _
@@ -3018,7 +3018,7 @@ PostLog:
 		Else
 			If UpdateData.PreviousRequest.UpdateId.HasValue AndAlso Not UpdateData.PreviousRequest.Commit AndAlso UpdateData.PreviousRequest.RequestType = RequestType.PostOrderBatch Then
 				Log.DebugFormat( _
-				 "Предыдущим неподтвержденным запрос данных является автозаказ, поэтому заново будем готовить данные: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+				 "РџСЂРµРґС‹РґСѓС‰РёРј РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Рј Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С… СЏРІР»СЏРµС‚СЃСЏ Р°РІС‚РѕР·Р°РєР°Р·, РїРѕСЌС‚РѕРјСѓ Р·Р°РЅРѕРІРѕ Р±СѓРґРµРј РіРѕС‚РѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
 				 UserId, _
 				 UpdateData.PreviousRequest.UpdateId, _
 				 UpdateData.PreviousRequest.Commit, _
@@ -3027,7 +3027,7 @@ PostLog:
 				Return False
 			Else
 				Log.DebugFormat( _
-				 "Найден предыдущий неподтвержденный запрос данных: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
+				 "РќР°Р№РґРµРЅ РїСЂРµРґС‹РґСѓС‰РёР№ РЅРµРїРѕРґС‚РІРµСЂР¶РґРµРЅРЅС‹Р№ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С…: UserId:{0}; UpdateId: {1}; Commit: {2}; RequestTime: {3}; RequestType: {4}", _
 				 UserId, _
 				 UpdateData.PreviousRequest.UpdateId, _
 				 UpdateData.PreviousRequest.Commit, _
@@ -3039,18 +3039,18 @@ PostLog:
 		FileInfo = New FileInfo(UpdateData.GetPreviousFile())
 
 		If FileInfo.Exists Then
-			Log.DebugFormat("Файл с подготовленными данными существует: {0}", UpdateData.GetPreviousFile())
+			Log.DebugFormat("Р¤Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё СЃСѓС‰РµСЃС‚РІСѓРµС‚: {0}", UpdateData.GetPreviousFile())
 			CheckZipTimeAndExist = _
 			 (Date.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 1 And Not GetEtalonData And (UpdateType <> RequestType.GetLimitedCumulative)) _
 			 Or (UpdateData.OldUpdateTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8) _
 			 Or (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData) _
 			 Or (UpdateData.PreviousRequest.RequestType = RequestType.GetLimitedCumulative _
 			  And UpdateType = RequestType.GetLimitedCumulative _
-			  And UpdateData.PreviousRequest.Addition.Contains(String.Format(", клиент {0}", UpdateData.OldUpdateTime)))
+			  And UpdateData.PreviousRequest.Addition.Contains(String.Format(", РєР»РёРµРЅС‚ {0}", UpdateData.OldUpdateTime)))
 
 			Log.DebugFormat( _
-			 "Результат проверки CheckZipTimeAndExist: {0}  " & vbCrLf & _
-			 "Параметры " & vbCrLf & _
+			 "Р РµР·СѓР»СЊС‚Р°С‚ РїСЂРѕРІРµСЂРєРё CheckZipTimeAndExist: {0}  " & vbCrLf & _
+			 "РџР°СЂР°РјРµС‚СЂС‹ " & vbCrLf & _
 			 "GetEtalonData  : {1}" & vbCrLf & _
 			 "UncDT          : {2}" & vbCrLf & _
 			 "OldUpTime      : {3}" & vbCrLf & _
@@ -3074,9 +3074,9 @@ PostLog:
 			 (UpdateData.OldUpdateTime.Year = 2003 And DateTime.UtcNow.Subtract(UncDT.ToUniversalTime).TotalHours < 8), _
 			 (UpdateData.PreviousRequest.RequestType = RequestType.GetCumulative And GetEtalonData), _
 			 UpdateData.PreviousRequest.RequestType = RequestType.GetLimitedCumulative And UpdateType = RequestType.GetLimitedCumulative, _
-			 Addition.Contains(String.Format(", клиент {0}", UpdateData.OldUpdateTime)))
+			 Addition.Contains(String.Format(", РєР»РёРµРЅС‚ {0}", UpdateData.OldUpdateTime)))
 		Else
-			Log.DebugFormat("Файл с подготовленными данными не существует: {0}", UpdateData.GetPreviousFile())
+			Log.DebugFormat("Р¤Р°Р№Р» СЃ РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚: {0}", UpdateData.GetPreviousFile())
 			CheckZipTimeAndExist = False
 		End If
 
@@ -3183,7 +3183,7 @@ RestartTrans2:
 				Then
 
 					If (UpdateData.BuildNumber >= 1150) Or (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
-						'Подготовка данных для версии программы >= 1150 или обновление на нее
+						'РџРѕРґРіРѕС‚РѕРІРєР° РґР°РЅРЅС‹С… РґР»СЏ РІРµСЂСЃРёРё РїСЂРѕРіСЂР°РјРјС‹ >= 1150 РёР»Рё РѕР±РЅРѕРІР»РµРЅРёРµ РЅР° РЅРµРµ
 						helper.GetMySQLFileWithDefaultEx( _
 						 "Catalogs", _
 						 readWriteConnection, _
@@ -3191,7 +3191,7 @@ RestartTrans2:
 						 UpdateData.NeedUpdateTo945(), _
 						 True)
 
-						'Обновляем на новую структуру MNN без RussianMNN = (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN)
+						'РћР±РЅРѕРІР»СЏРµРј РЅР° РЅРѕРІСѓСЋ СЃС‚СЂСѓРєС‚СѓСЂСѓ MNN Р±РµР· RussianMNN = (UpdateData.BuildNumber > 1263) Or UpdateData.NeedUpdateToNewMNN)
 						helper.GetMySQLFileWithDefaultEx( _
 						 "MNN", _
 						 readWriteConnection, _
@@ -3209,7 +3209,7 @@ RestartTrans2:
 						 True)
 
 						If (UpdateData.EnableUpdate() And ((UpdateData.BuildNumber >= 1079) And (UpdateData.BuildNumber < 1150))) Then
-							'Если производим обновление на версию 1159 и выше, то надо полностью отдать каталог производителей
+							'Р•СЃР»Рё РїСЂРѕРёР·РІРѕРґРёРј РѕР±РЅРѕРІР»РµРЅРёРµ РЅР° РІРµСЂСЃРёСЋ 1159 Рё РІС‹С€Рµ, С‚Рѕ РЅР°РґРѕ РїРѕР»РЅРѕСЃС‚СЊСЋ РѕС‚РґР°С‚СЊ РєР°С‚Р°Р»РѕРі РїСЂРѕРёР·РІРѕРґРёС‚РµР»РµР№
 							helper.GetMySQLFileWithDefaultEx( _
 							 "Producers", _
 							 readWriteConnection, _
@@ -3285,7 +3285,7 @@ RestartTrans2:
 				End If
 
 				Try
-					'Подготовка временной таблицы с контактами
+					'РџРѕРґРіРѕС‚РѕРІРєР° РІСЂРµРјРµРЅРЅРѕР№ С‚Р°Р±Р»РёС†С‹ СЃ РєРѕРЅС‚Р°РєС‚Р°РјРё
 					helper.PrepareProviderContacts(readWriteConnection)
 
 					helper.GetMySQLFileWithDefault("Providers", readWriteConnection, helper.GetProvidersCommand())
@@ -3322,8 +3322,8 @@ RestartTrans2:
 					If CType(cmd.ExecuteScalar, Integer) > 0 Or UpdateData.Cumulative Then
 						helper.ExportOffers()
 					Else
-						'Выгружаем пустую таблицу Core
-						'Делаем запрос из любой таблице (в данном случае из ActivePrices), чтобы получить 0 записей
+						'Р’С‹РіСЂСѓР¶Р°РµРј РїСѓСЃС‚СѓСЋ С‚Р°Р±Р»РёС†Сѓ Core
+						'Р”РµР»Р°РµРј Р·Р°РїСЂРѕСЃ РёР· Р»СЋР±РѕР№ С‚Р°Р±Р»РёС†Рµ (РІ РґР°РЅРЅРѕРј СЃР»СѓС‡Р°Рµ РёР· ActivePrices), С‡С‚РѕР±С‹ РїРѕР»СѓС‡РёС‚СЊ 0 Р·Р°РїРёСЃРµР№
 						helper.GetMySQLFileWithDefault("Core", readWriteConnection, "SELECT * from ActivePrices limit 0")
 					End If
 
@@ -3335,13 +3335,13 @@ RestartTrans2:
 							Then
 								helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand())
 							Else
-								'Если прайс-лист не обновлен, то отдаем пустой файл
+								'Р•СЃР»Рё РїСЂР°Р№СЃ-Р»РёСЃС‚ РЅРµ РѕР±РЅРѕРІР»РµРЅ, С‚Рѕ РѕС‚РґР°РµРј РїСѓСЃС‚РѕР№ С„Р°Р№Р»
 								helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 							End If
 						Else
 							helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 #if not DEBUG
-							Log.WarnFormat("Невозможно определить базовую цены для прайс-листа с максимальными ценами производителей. Код прайс-листа: {0}", helper.MaxProducerCostsPriceId)
+							Log.WarnFormat("РќРµРІРѕР·РјРѕР¶РЅРѕ РѕРїСЂРµРґРµР»РёС‚СЊ Р±Р°Р·РѕРІСѓСЋ С†РµРЅС‹ РґР»СЏ РїСЂР°Р№СЃ-Р»РёСЃС‚Р° СЃ РјР°РєСЃРёРјР°Р»СЊРЅС‹РјРё С†РµРЅР°РјРё РїСЂРѕРёР·РІРѕРґРёС‚РµР»РµР№. РљРѕРґ РїСЂР°Р№СЃ-Р»РёСЃС‚Р°: {0}", helper.MaxProducerCostsPriceId)
 #end if
 						End If
 					Else
@@ -3352,13 +3352,13 @@ RestartTrans2:
 					If UpdateData.ImpersonalPriceFresh Then
 						helper.PrepareImpersonalOffres()
 
-						'Выгрузка данных для обезличенного прайс-листа
+						'Р’С‹РіСЂСѓР·РєР° РґР°РЅРЅС‹С… РґР»СЏ РѕР±РµР·Р»РёС‡РµРЅРЅРѕРіРѕ РїСЂР°Р№СЃ-Р»РёСЃС‚Р°
 						helper.GetMySQLFileWithDefault("Core", readWriteConnection, helper.GetCoreCommand(True, True, (UpdateData.BuildNumber >= 1249) Or UpdateData.NeedUpdateToBuyingMatrix))
 					Else
-						'выгружаем пустую таблицу Core
+						'РІС‹РіСЂСѓР¶Р°РµРј РїСѓСЃС‚СѓСЋ С‚Р°Р±Р»РёС†Сѓ Core
 						helper.GetMySQLFileWithDefault("Core", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 					End If
-					'выгружаем пустую таблицу MaxProducerCosts
+					'РІС‹РіСЂСѓР¶Р°РµРј РїСѓСЃС‚СѓСЋ С‚Р°Р±Р»РёС†Сѓ MaxProducerCosts
 					helper.GetMySQLFileWithDefault("MaxProducerCosts", readWriteConnection, helper.GetMaxProducerCostsCommand() & " limit 0")
 				End If
 
@@ -3377,7 +3377,7 @@ RestartTrans2:
 			Catch ex As Exception
 				Global.Common.MySql.With.SafeRollback(transaction)
 				If Global.Common.MySql.ExceptionHelper.IsDeadLockOrSimilarExceptionInChain(ex) Then
-					Log.DebugFormat("Перезапускаем транзакцию из-за deadlock")
+					Log.DebugFormat("РџРµСЂРµР·Р°РїСѓСЃРєР°РµРј С‚СЂР°РЅР·Р°РєС†РёСЋ РёР·-Р·Р° deadlock")
 					Thread.Sleep(2500)
 					GoTo RestartTrans2
 				End If
@@ -3385,7 +3385,7 @@ RestartTrans2:
 			End Try
 
 		Catch ex As Exception
-			Me.Log.Error("Основной поток подготовки данных, Код клиента " & CCode, ex)
+			Me.Log.Error("РћСЃРЅРѕРІРЅРѕР№ РїРѕС‚РѕРє РїРѕРґРіРѕС‚РѕРІРєРё РґР°РЅРЅС‹С…, РљРѕРґ РєР»РёРµРЅС‚Р° " & CCode, ex)
 			If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
 			ErrorFlag = True
 			UpdateType = RequestType.Error
@@ -3396,7 +3396,7 @@ RestartTrans2:
 		End Try
 	End Sub
 
-	'Исходная строка преобразуется в набор символов Hex-кодов
+	'РСЃС…РѕРґРЅР°СЏ СЃС‚СЂРѕРєР° РїСЂРµРѕР±СЂР°Р·СѓРµС‚СЃСЏ РІ РЅР°Р±РѕСЂ СЃРёРјРІРѕР»РѕРІ Hex-РєРѕРґРѕРІ
 	Private Function ToHex(ByVal Src As String) As String
 		Dim sb As System.Text.StringBuilder = New System.Text.StringBuilder
 		Dim t As Char
@@ -3455,7 +3455,7 @@ RestartTrans2:
 					ResStrRSTUIN &= Chr(Convert.ToInt16(Left(Mid(RSTUIN, localI), 3)))
 				Next
 			Catch err As Exception
-				Log.ErrorFormat("Ошибка в SendUData при формировании RSTUIN : {0}\n{1}", RSTUIN, err)
+				Log.ErrorFormat("РћС€РёР±РєР° РІ SendUData РїСЂРё С„РѕСЂРјРёСЂРѕРІР°РЅРёРё RSTUIN : {0}\n{1}", RSTUIN, err)
 			End Try
 
 			Dim accountMessage As String = String.Format( _
@@ -3512,7 +3512,7 @@ RestartTrans2:
 
 			command.ExecuteNonQuery()
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка в SendUData", ex)
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РІ SendUData", ex)
 		Finally
 			DBDisconnect()
 		End Try
@@ -3543,7 +3543,7 @@ RestartTrans2:
 			BasecostPassword = Convert.ToString(Cm.ExecuteScalar())
 #end if
 
-			'Получаем маску разрешенных для сохранения гридов
+			'РџРѕР»СѓС‡Р°РµРј РјР°СЃРєСѓ СЂР°Р·СЂРµС€РµРЅРЅС‹С… РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ РіСЂРёРґРѕРІ
 			Cm.CommandText = "select IFNULL(sum(up.SecurityMask), 0) " & _
 	"from usersettings.AssignedPermissions ap " & _
 	"join usersettings.UserPermissions up on up.Id = ap.PermissionId " & _
@@ -3554,9 +3554,9 @@ RestartTrans2:
 			If (BasecostPassword <> Nothing) Then
 				Return "Basecost=" & ToHex(BasecostPassword) & ";SaveGridMask=" & SaveGridMask.ToString("X7") & ";"
 			Else
-				Log.Error("Ошибка при получении паролей" & vbCrLf & "У клиента не заданы пароли для шифрации данных")
-				Addition = "Не заданы пароли для шифрации данных"
-				Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+				Log.Error("РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїР°СЂРѕР»РµР№" & vbCrLf & "РЈ РєР»РёРµРЅС‚Р° РЅРµ Р·Р°РґР°РЅС‹ РїР°СЂРѕР»Рё РґР»СЏ С€РёС„СЂР°С†РёРё РґР°РЅРЅС‹С…")
+				Addition = "РќРµ Р·Р°РґР°РЅС‹ РїР°СЂРѕР»Рё РґР»СЏ С€РёС„СЂР°С†РёРё РґР°РЅРЅС‹С…"
+				Return "Error=РџСЂРё РІС‹РїРѕР»РЅРµРЅРёРё Р’Р°С€РµРіРѕ Р·Р°РїСЂРѕСЃР° РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 			End If
 		Catch updateException As UpdateException
 			If UpdateData IsNot Nothing Then
@@ -3564,10 +3564,10 @@ RestartTrans2:
 			Else
 				Log.Error(updateException)
 			End If
-			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			Return "Error=РџСЂРё РІС‹РїРѕР»РЅРµРЅРёРё Р’Р°С€РµРіРѕ Р·Р°РїСЂРѕСЃР° РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при получении паролей", ex)
-			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РїР°СЂРѕР»РµР№", ex)
+			Return "Error=РџСЂРё РІС‹РїРѕР»РЅРµРЅРёРё Р’Р°С€РµРіРѕ Р·Р°РїСЂРѕСЃР° РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Finally
 			DBDisconnect()
 		End Try
@@ -3597,8 +3597,8 @@ RestartTrans2:
 		Catch updateException As UpdateException
 			Return ProcessUpdateException(updateException)
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при применении обновлений настроек прайс-листов", ex)
-			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РїСЂРёРјРµРЅРµРЅРёРё РѕР±РЅРѕРІР»РµРЅРёР№ РЅР°СЃС‚СЂРѕРµРє РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРІ", ex)
+			Return "Error=РџСЂРё РІС‹РїРѕР»РЅРµРЅРёРё Р’Р°С€РµРіРѕ Р·Р°РїСЂРѕСЃР° РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Finally
 			DBDisconnect()
 		End Try
@@ -3610,7 +3610,7 @@ RestartTrans2:
 		Dim CurrentFilesSize As Long = 0
 		Dim MaxFilesSize As Long = 1024*1024
 
-		If Log.IsDebugEnabled Then Log.Debug("Вызвали GetReclame")
+		If Log.IsDebugEnabled Then Log.Debug("Р’С‹Р·РІР°Р»Рё GetReclame")
 
 		Dim FileCount = 0
 		Try
@@ -3623,12 +3623,12 @@ RestartTrans2:
 
 			If Not reclameData.ShowAdvertising Then
 				GetReclame = ""
-				If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (Not reclameData.ShowAdvertising)")
+				If Log.IsDebugEnabled Then Log.Debug("Р—Р°РєРѕРЅС‡РёР»Рё GetReclame СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј (Not reclameData.ShowAdvertising)")
 				Exit Function
 			End If
 
 			MaxReclameFileDate = reclameData.ReclameDate
-			If Log.IsDebugEnabled Then Log.DebugFormat("Прочитали из базы reclameData.ReclameDate {0}", reclameData.ReclameDate)
+			If Log.IsDebugEnabled Then Log.DebugFormat("РџСЂРѕС‡РёС‚Р°Р»Рё РёР· Р±Р°Р·С‹ reclameData.ReclameDate {0}", reclameData.ReclameDate)
 			Dim ReclamePathFiter As String
 			Reclame = True
 			ReclamePath = ResultFileName & "Reclame\" & reclameData.Region & "\"
@@ -3641,7 +3641,7 @@ RestartTrans2:
 				Try
 					Directory.CreateDirectory(ReclamePath)
 				Catch ex As Exception
-					Log.ErrorFormat("Ошибка при создании директории '{0}': {1}", ReclamePath, ex)
+					Log.ErrorFormat("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РґРёСЂРµРєС‚РѕСЂРёРё '{0}': {1}", ReclamePath, ex)
 				End Try
 			End If
 
@@ -3653,7 +3653,7 @@ RestartTrans2:
 				ReclamePath = ResultFileName & "Reclame\" & reclameData.DefaultReclameFolder & "\"
 			End If
 
-			If Log.IsDebugEnabled Then Log.DebugFormat("Путь к рекламе {0}", ReclamePath)
+			If Log.IsDebugEnabled Then Log.DebugFormat("РџСѓС‚СЊ Рє СЂРµРєР»Р°РјРµ {0}", ReclamePath)
 
 			ShareFileHelper.MySQLFileDelete(UpdateData.GetReclameFile())
 
@@ -3664,12 +3664,12 @@ RestartTrans2:
 				Try
 					Directory.CreateDirectory(ReclamePath)
 				Catch ex As Exception
-					Throw New Exception(String.Format("Ошибка при создании директории '{0}'", ReclamePath), ex)
+					Throw New Exception(String.Format("РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РґРёСЂРµРєС‚РѕСЂРёРё '{0}'", ReclamePath), ex)
 				End Try
 			End If
 
 			FileList = reclameData.GetReclameFiles(ReclamePath)
-			If Log.IsDebugEnabled Then Log.DebugFormat("Кол-во файлов в каталоге с рекламой {0}", FileList.Length)
+			If Log.IsDebugEnabled Then Log.DebugFormat("РљРѕР»-РІРѕ С„Р°Р№Р»РѕРІ РІ РєР°С‚Р°Р»РѕРіРµ СЃ СЂРµРєР»Р°РјРѕР№ {0}", FileList.Length)
 			For Each FileName In FileList
 
 				FileInfo = New FileInfo(FileName)
@@ -3677,12 +3677,12 @@ RestartTrans2:
 				If FileInfo.LastWriteTime.Subtract(reclameData.ReclameDate).TotalSeconds > 1 Then
 
 					If CurrentFilesSize + FileInfo.Length < MaxFilesSize Then
-						If Log.IsDebugEnabled Then Log.DebugFormat("Добавили файл в архив {0}", FileInfo.Name)
+						If Log.IsDebugEnabled Then Log.DebugFormat("Р”РѕР±Р°РІРёР»Рё С„Р°Р№Р» РІ Р°СЂС…РёРІ {0}", FileInfo.Name)
 						FileCount += 1
 						UpdateData.FilesForArchive.Enqueue(FileInfo.FullName)
 						If FileInfo.LastWriteTime > MaxReclameFileDate Then MaxReclameFileDate = FileInfo.LastWriteTime
 					Else
-						Log.ErrorFormat("Файл {0} превышает допустимый размер рекламы в 1 Мб", FileName)
+						Log.ErrorFormat("Р¤Р°Р№Р» {0} РїСЂРµРІС‹С€Р°РµС‚ РґРѕРїСѓСЃС‚РёРјС‹Р№ СЂР°Р·РјРµСЂ СЂРµРєР»Р°РјС‹ РІ 1 РњР±", FileName)
 						Exit For
 					End If
 
@@ -3692,7 +3692,7 @@ RestartTrans2:
 
 			If MaxReclameFileDate > Now() Then MaxReclameFileDate = Now()
 
-			If Log.IsDebugEnabled Then Log.DebugFormat("После обработки файлов MaxReclameFileDate {0}", MaxReclameFileDate)
+			If Log.IsDebugEnabled Then Log.DebugFormat("РџРѕСЃР»Рµ РѕР±СЂР°Р±РѕС‚РєРё С„Р°Р№Р»РѕРІ MaxReclameFileDate {0}", MaxReclameFileDate)
 
 			If FileCount > 0 Then
 
@@ -3700,12 +3700,12 @@ RestartTrans2:
 
 				ZipStream()
 
-				If Log.IsDebugEnabled Then Log.Debug("Успешно завершили архивирование")
+				If Log.IsDebugEnabled Then Log.Debug("РЈСЃРїРµС€РЅРѕ Р·Р°РІРµСЂС€РёР»Рё Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ")
 
 				FileInfo = New FileInfo(UpdateData.GetReclameFile())
 				FileInfo.CreationTime = MaxReclameFileDate
 
-				If Log.IsDebugEnabled Then Log.Debug("Установили дату создания файла-архива")
+				If Log.IsDebugEnabled Then Log.Debug("РЈСЃС‚Р°РЅРѕРІРёР»Рё РґР°С‚Сѓ СЃРѕР·РґР°РЅРёСЏ С„Р°Р№Р»Р°-Р°СЂС…РёРІР°")
 			End If
 
 		Catch updateException As UpdateException
@@ -3717,7 +3717,7 @@ RestartTrans2:
 			End If
 			Return ""
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при загрузке рекламы", ex)
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё Р·Р°РіСЂСѓР·РєРµ СЂРµРєР»Р°РјС‹", ex)
 			ErrorFlag = True
 			Return ""
 		Finally
@@ -3726,23 +3726,23 @@ RestartTrans2:
 
 		If ErrorFlag Then
 			GetReclame = ""
-			If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (ErrorFlag)")
+			If Log.IsDebugEnabled Then Log.Debug("Р—Р°РєРѕРЅС‡РёР»Рё GetReclame СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј (ErrorFlag)")
 		Else
 			If FileCount > 0 Then
 
 				GetReclame = "URL=" & UpdateHelper.GetFullUrl("GetFileReclameHandler.ashx") & ";New=" & True
-				If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (URL)")
+				If Log.IsDebugEnabled Then Log.Debug("Р—Р°РєРѕРЅС‡РёР»Рё GetReclame СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј (URL)")
 
 			Else
 				GetReclame = ""
-				If Log.IsDebugEnabled Then Log.Debug("Закончили GetReclame с результатом (FileCount <= 0)")
+				If Log.IsDebugEnabled Then Log.Debug("Р—Р°РєРѕРЅС‡РёР»Рё GetReclame СЃ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј (FileCount <= 0)")
 			End If
 		End If
 	End Function
 
 	<WebMethod()> Public Function ReclameComplete() As Boolean
 		Dim transaction As MySqlTransaction = Nothing
-		If Log.IsDebugEnabled Then Log.Debug("Вызвали ReclameComplete")
+		If Log.IsDebugEnabled Then Log.Debug("Р’С‹Р·РІР°Р»Рё ReclameComplete")
 		Try
 			DBConnect()
 			GetClientCode()
@@ -3751,7 +3751,7 @@ RestartTrans2:
 
 			If FileInfo.Exists Then
 
-				If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
+				If Log.IsDebugEnabled Then Log.DebugFormat("РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј РґР°С‚Сѓ СЂРµРєР»Р°РјС‹ FileInfo.CreationTime {0}", FileInfo.CreationTime)
 
 				transaction = readWriteConnection.BeginTransaction(IsoLevel)
 				Cm.CommandText = "update UserUpdateInfo set ReclameDate=?ReclameDate where UserId=" & UserId
@@ -3760,18 +3760,18 @@ RestartTrans2:
 				Cm.ExecuteNonQuery()
 				transaction.Commit()
 
-				If Log.IsDebugEnabled Then Log.Debug("Дата рекламы успешно установлена")
+				If Log.IsDebugEnabled Then Log.Debug("Р”Р°С‚Р° СЂРµРєР»Р°РјС‹ СѓСЃРїРµС€РЅРѕ СѓСЃС‚Р°РЅРѕРІР»РµРЅР°")
 			Else
-				If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с рекламой не существует {0}", UpdateData.GetReclameFile())
+				If Log.IsDebugEnabled Then Log.DebugFormat("Р¤Р°Р№Р»-Р°СЂС…РёРІ СЃ СЂРµРєР»Р°РјРѕР№ РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ {0}", UpdateData.GetReclameFile())
 			End If
 
 			Reclame = True
 			ShareFileHelper.MySQLFileDelete(UpdateData.GetReclameFile())
 			ReclameComplete = True
-			If Log.IsDebugEnabled Then Log.Debug("Успешно завершили ReclameComplete")
+			If Log.IsDebugEnabled Then Log.Debug("РЈСЃРїРµС€РЅРѕ Р·Р°РІРµСЂС€РёР»Рё ReclameComplete")
 		Catch ex As Exception
 			Global.Common.MySql.With.SafeRollback(transaction)
-			LogRequestHelper.MailWithRequest(Log, "Подтверждение рекламы", ex)
+			LogRequestHelper.MailWithRequest(Log, "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ СЂРµРєР»Р°РјС‹", ex)
 			ReclameComplete = False
 		Finally
 			DBDisconnect()
@@ -3783,7 +3783,7 @@ RestartTrans2:
 			Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
 			helper.CommitExchange()
 		Catch err As Exception
-			Log.Error("Присвоение значений максимальных синонимов", err)
+			Log.Error("РџСЂРёСЃРІРѕРµРЅРёРµ Р·РЅР°С‡РµРЅРёР№ РјР°РєСЃРёРјР°Р»СЊРЅС‹С… СЃРёРЅРѕРЅРёРјРѕРІ", err)
 			Addition = err.Message
 			UpdateType = RequestType.Error
 			ErrorFlag = True
@@ -3796,7 +3796,7 @@ RestartTrans2:
 			helper.OldCommit(AbsentPriceCodes)
 			Addition &= "!!! " & AbsentPriceCodes
 		Catch err As Exception
-			Log.Error("Присвоение значений максимальных синонимов", err)
+			Log.Error("РџСЂРёСЃРІРѕРµРЅРёРµ Р·РЅР°С‡РµРЅРёР№ РјР°РєСЃРёРјР°Р»СЊРЅС‹С… СЃРёРЅРѕРЅРёРјРѕРІ", err)
 			Addition = err.Message
 			UpdateType = RequestType.Error
 			ErrorFlag = True
@@ -3809,7 +3809,7 @@ RestartTrans2:
 			helper.ResetAbsentPriceCodes(AbsentPriceCodes)
 			Addition &= "!!! " & AbsentPriceCodes
 		Catch err As Exception
-			Log.Error("Сброс информации по прайс-листам с недостающими синонимами", err)
+			Log.Error("РЎР±СЂРѕСЃ РёРЅС„РѕСЂРјР°С†РёРё РїРѕ РїСЂР°Р№СЃ-Р»РёСЃС‚Р°Рј СЃ РЅРµРґРѕСЃС‚Р°СЋС‰РёРјРё СЃРёРЅРѕРЅРёРјР°РјРё", err)
 			Addition = err.Message
 			UpdateType = RequestType.Error
 			ErrorFlag = True
@@ -3859,9 +3859,9 @@ RestartTrans2:
 
 			If UpdateData.EnableImpersonalPrice Then
 				Throw New UpdateException( _
-					"Доступ закрыт.", _
-					"Для копии с обезличенным прайс-листом недоступна загрузка истории заказов.", _
-					"Логин " & UserName & " с обезличенным прайс-листом недоступна загрузка истории заказов; ", _
+					"Р”РѕСЃС‚СѓРї Р·Р°РєСЂС‹С‚.", _
+					"Р”Р»СЏ РєРѕРїРёРё СЃ РѕР±РµР·Р»РёС‡РµРЅРЅС‹Рј РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРј РЅРµРґРѕСЃС‚СѓРїРЅР° Р·Р°РіСЂСѓР·РєР° РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ.", _
+					"Р›РѕРіРёРЅ " & UserName & " СЃ РѕР±РµР·Р»РёС‡РµРЅРЅС‹Рј РїСЂР°Р№СЃ-Р»РёСЃС‚РѕРј РЅРµРґРѕСЃС‚СѓРїРЅР° Р·Р°РіСЂСѓР·РєР° РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ; ", _
 					RequestType.Forbidden)
 			End If
 
@@ -3940,12 +3940,12 @@ RestartTrans2:
 
 				if historyDocIds Is Nothing then
 					If historyOrdersCount = 0 Then
-						AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "С сервера загружена вся история заказов")
+						AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "РЎ СЃРµСЂРІРµСЂР° Р·Р°РіСЂСѓР¶РµРЅР° РІСЃСЏ РёСЃС‚РѕСЂРёСЏ Р·Р°РєР°Р·РѕРІ")
 						Return "FullHistory=True"
 					End If
 				Else 
 					If historyOrdersCount = 0 AndAlso historyDocsCount = 0 Then
-						AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "С сервера загружена вся история заказов/документов")
+						AnalitFUpdate.InsertAnalitFUpdatesLog(readWriteConnection, UpdateData, UpdateType, "РЎ СЃРµСЂРІРµСЂР° Р·Р°РіСЂСѓР¶РµРЅР° РІСЃСЏ РёСЃС‚РѕСЂРёСЏ Р·Р°РєР°Р·РѕРІ/РґРѕРєСѓРјРµРЅС‚РѕРІ")
 						Return "FullHistory=True"
 					End If
 				End If
@@ -4010,14 +4010,14 @@ RestartTrans2:
 
 				transaction.Commit()
 
-				'Начинаем архивирование
+				'РќР°С‡РёРЅР°РµРј Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ
 				ThreadZipStream.Start()
 
 				AddEndOfFiles()
 
 			Catch ex As Exception
 				Global.Common.MySql.With.SafeRollback(transaction)
-				Me.Log.Error("Подготовка истории заказов, Код клиента " & CCode, ex)
+				Me.Log.Error("РџРѕРґРіРѕС‚РѕРІРєР° РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ, РљРѕРґ РєР»РёРµРЅС‚Р° " & CCode, ex)
 				If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
 				ErrorFlag = True
 				UpdateType = RequestType.Error
@@ -4028,7 +4028,7 @@ RestartTrans2:
 endproc:
 			If Not PackFinished And ThreadZipStream.IsAlive And Not ErrorFlag Then
 
-				'Если есть ошибка, прекращаем подготовку данных
+				'Р•СЃР»Рё РµСЃС‚СЊ РѕС€РёР±РєР°, РїСЂРµРєСЂР°С‰Р°РµРј РїРѕРґРіРѕС‚РѕРІРєСѓ РґР°РЅРЅС‹С…
 				If ErrorFlag Then
 
 					If ThreadZipStream.IsAlive Then ThreadZipStream.Abort()
@@ -4042,7 +4042,7 @@ endproc:
 
 			ElseIf Not PackFinished And Not ErrorFlag And (UpdateType <> RequestType.Forbidden) Then
 
-				Addition &= "; Нет работающих потоков, данные c историей заказов не готовы."
+				Addition &= "; РќРµС‚ СЂР°Р±РѕС‚Р°СЋС‰РёС… РїРѕС‚РѕРєРѕРІ, РґР°РЅРЅС‹Рµ c РёСЃС‚РѕСЂРёРµР№ Р·Р°РєР°Р·РѕРІ РЅРµ РіРѕС‚РѕРІС‹."
 				UpdateType = RequestType.Forbidden
 
 				ErrorFlag = True
@@ -4055,7 +4055,7 @@ endproc:
 				Dim ArhiveTS = Now().Subtract(ArhiveStartTime)
 
 				If Math.Round(ArhiveTS.TotalSeconds, 0) > 30 Then
-					Addition &= "Архивирование: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
+					Addition &= "РђСЂС…РёРІРёСЂРѕРІР°РЅРёРµ: " & Math.Round(ArhiveTS.TotalSeconds, 0) & "; "
 				End If
 			End If
 
@@ -4065,7 +4065,7 @@ endproc:
 			If ErrorFlag Then
 
 				If Len(MessageH) = 0 Then
-					ResStr = "Error=При подготовке истории заказов произошла ошибка.;Desc=Пожалуйста, повторите запрос данных через несколько минут."
+					ResStr = "Error=РџСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ Р·Р°РїСЂРѕСЃ РґР°РЅРЅС‹С… С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 				Else
 					ResStr = "Error=" & MessageH & ";Desc=" & MessageD
 				End If
@@ -4084,8 +4084,8 @@ endproc:
 		Catch updateException As UpdateException
 			Return ProcessUpdateException(updateException)
 		Catch ex As Exception
-			LogRequestHelper.MailWithRequest(Log, "Ошибка при запросе истории заказов", ex)
-			Return "Error=Запрос истории заказов завершился неудачно.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё Р·Р°РїСЂРѕСЃРµ РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ", ex)
+			Return "Error=Р—Р°РїСЂРѕСЃ РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ Р·Р°РІРµСЂС€РёР»СЃСЏ РЅРµСѓРґР°С‡РЅРѕ.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
 		Finally
 			Counter.ReleaseLock(UserId, "GetHistoryOrders", UpdateData)
 			DBDisconnect()
@@ -4098,7 +4098,7 @@ endproc:
         ByVal UpdateId As UInt64) As Boolean
 
         Dim transaction As MySqlTransaction = Nothing
-        If Log.IsDebugEnabled Then Log.Debug("Вызвали CommitHistoryOrders")
+        If Log.IsDebugEnabled Then Log.Debug("Р’С‹Р·РІР°Р»Рё CommitHistoryOrders")
         Try
             DBConnect()
             GetClientCode()
@@ -4107,7 +4107,7 @@ endproc:
 
             If FileInfo.Exists Then
 
-                If Log.IsDebugEnabled Then Log.DebugFormat("Устанавливаем дату рекламы FileInfo.CreationTime {0}", FileInfo.CreationTime)
+                If Log.IsDebugEnabled Then Log.DebugFormat("РЈСЃС‚Р°РЅР°РІР»РёРІР°РµРј РґР°С‚Сѓ СЂРµРєР»Р°РјС‹ FileInfo.CreationTime {0}", FileInfo.CreationTime)
 
                 transaction = readWriteConnection.BeginTransaction(IsoLevel)
 
@@ -4121,18 +4121,18 @@ endproc:
 
                 transaction.Commit()
 
-                If Log.IsDebugEnabled Then Log.Debug("Архив с заказами успешно подтвержден")
+                If Log.IsDebugEnabled Then Log.Debug("РђСЂС…РёРІ СЃ Р·Р°РєР°Р·Р°РјРё СѓСЃРїРµС€РЅРѕ РїРѕРґС‚РІРµСЂР¶РґРµРЅ")
             Else
-                If Log.IsDebugEnabled Then Log.DebugFormat("Файл-архив с историей заказов не существует {0}", UpdateData.GetOrdersFile())
+                If Log.IsDebugEnabled Then Log.DebugFormat("Р¤Р°Р№Р»-Р°СЂС…РёРІ СЃ РёСЃС‚РѕСЂРёРµР№ Р·Р°РєР°Р·РѕРІ РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ {0}", UpdateData.GetOrdersFile())
             End If
 
             GetHistory = True
             ShareFileHelper.MySQLFileDelete(UpdateData.GetOrdersFile())
             CommitHistoryOrders = True
-            If Log.IsDebugEnabled Then Log.Debug("Успешно завершили CommitHistoryOrders")
+            If Log.IsDebugEnabled Then Log.Debug("РЈСЃРїРµС€РЅРѕ Р·Р°РІРµСЂС€РёР»Рё CommitHistoryOrders")
         Catch ex As Exception
             Global.Common.MySql.With.SafeRollback(transaction)
-            LogRequestHelper.MailWithRequest(Log, "Подтверждение истории заказов", ex)
+            LogRequestHelper.MailWithRequest(Log, "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РёСЃС‚РѕСЂРёРё Р·Р°РєР°Р·РѕРІ", ex)
             CommitHistoryOrders = False
         Finally
             DBDisconnect()
@@ -4148,7 +4148,7 @@ endproc:
         For Each deleteFile In deleteFiles
             If File.Exists(deleteFile) Then
                 ShareFileHelper.MySQLFileDelete(deleteFile)
-                Log.DebugFormat("Удалили файл с предыдущими подготовленными данными: {0}", deleteFile)
+                Log.DebugFormat("РЈРґР°Р»РёР»Рё С„Р°Р№Р» СЃ РїСЂРµРґС‹РґСѓС‰РёРјРё РїРѕРґРіРѕС‚РѕРІР»РµРЅРЅС‹РјРё РґР°РЅРЅС‹РјРё: {0}", deleteFile)
             End If
         Next
     End Sub
@@ -4169,7 +4169,7 @@ endproc:
             UpdateHelper.UpdateBuildNumber(readWriteConnection, UpdateData)
 
             If Not UpdateData.Message.Equals(ConfirmedMessage.Trim(), StringComparison.OrdinalIgnoreCase) Then
-                Me.Log.DebugFormat("Пользовательское сообщение уже подтверждено или изменено: ConfirmedMessage:{0};  Message:{1};", ConfirmedMessage, UpdateData.Message)
+                Me.Log.DebugFormat("РџРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ СѓР¶Рµ РїРѕРґС‚РІРµСЂР¶РґРµРЅРѕ РёР»Рё РёР·РјРµРЅРµРЅРѕ: ConfirmedMessage:{0};  Message:{1};", ConfirmedMessage, UpdateData.Message)
             End If
 
             Dim helper = New UpdateHelper(UpdateData, readWriteConnection)
@@ -4181,9 +4181,9 @@ endproc:
         Catch updateException As UpdateException
             Return ProcessUpdateException(updateException)
         Catch ex As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при подтверждении пользовательского сообщения", ex)
+            LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРѕРіРѕ СЃРѕРѕР±С‰РµРЅРёСЏ", ex)
             ErrorFlag = True
-			Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+			Return "Error=РџСЂРё РІС‹РїРѕР»РЅРµРЅРёРё Р’Р°С€РµРіРѕ Р·Р°РїСЂРѕСЃР° РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
         Finally
             DBDisconnect()
         End Try
@@ -4210,7 +4210,7 @@ endproc:
 
                 Dim importCount = helper.ImportLogFile()
 
-                Log.DebugFormat("Количество импортированных записей статистики пользователя: {0}", importCount)
+                Log.DebugFormat("РљРѕР»РёС‡РµСЃС‚РІРѕ РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹С… Р·Р°РїРёСЃРµР№ СЃС‚Р°С‚РёСЃС‚РёРєРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ: {0}", importCount)
 
             Finally
                 helper.DeleteTemporaryFiles()
@@ -4221,9 +4221,9 @@ endproc:
         Catch updateException As UpdateException
             Return ProcessUpdateException(updateException)
         Catch ex As Exception
-            LogRequestHelper.MailWithRequest(Log, "Ошибка при обработки пользовательской статистики", ex)
+            LogRequestHelper.MailWithRequest(Log, "РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРѕР№ СЃС‚Р°С‚РёСЃС‚РёРєРё", ex)
             ErrorFlag = True
-            Return "Error=При выполнении Вашего запроса произошла ошибка.;Desc=Пожалуйста, повторите попытку через несколько минут."
+            Return "Error=РџСЂРё РІС‹РїРѕР»РЅРµРЅРёРё Р’Р°С€РµРіРѕ Р·Р°РїСЂРѕСЃР° РїСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°.;Desc=РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїРѕРІС‚РѕСЂРёС‚Рµ РїРѕРїС‹С‚РєСѓ С‡РµСЂРµР· РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚."
         Finally
             DBDisconnect()
         End Try
