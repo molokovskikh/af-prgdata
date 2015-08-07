@@ -3125,13 +3125,11 @@ RestartTrans2:
 				ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("Mails" & UserId & ".txt"))
 				ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("Attachments" & UserId & ".txt"))
 				ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("UpdateValues" & UserId & ".txt"))
-
-				'ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("CoreTest" & UserId & ".txt"))
+                ShareFileHelper.MySQLFileDelete(ServiceContext.GetFileByLocal("net" & UserId & ".txt"))
 
 				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("Products" & UserId & ".txt"))
 				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("Catalog" & UserId & ".txt"))
 				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("UpdateInfo" & UserId & ".txt"))
-				ShareFileHelper.WaitDeleteFile(ServiceContext.GetFileByLocal("net" & UserId & ".txt"))
 
 				helper.MaintainReplicationInfo()
 
