@@ -245,9 +245,14 @@ and AttachmentSendLogs.AttachmentId = ?AttachmentId";
 				command.Parameters["?AttachmentId"].Value = request.AttachmentId;
 				var extension = command.ExecuteScalar();
 				if (!String.IsNullOrEmpty((string)extension)) {
-					File.Copy(
-						Path.Combine(attachmentsPath, request.AttachmentId + (string)extension),
-						Path.Combine(docsPath, request.AttachmentId + (string)extension));
+					try {
+						File.Copy(
+							Path.Combine(attachmentsPath, request.AttachmentId + (string)extension),
+							Path.Combine(docsPath, request.AttachmentId + (string)extension));
+					}
+					catch (Exception e) {
+						log.Error("Ошика при копировании вложений", e);
+					}
 					request.Success = true;
 				}
 				else {
