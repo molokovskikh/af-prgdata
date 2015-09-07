@@ -1466,26 +1466,12 @@ endprocNew:
 						'Архивирование обновления программы
 						Try
 							If UpdateData.EnableUpdate() Then
-
 								ef = UpdateData.GetUpdateFiles()
 								If ef.Length > 0 Then
-									Pr = Process.Start(SevenZipExe, "a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
-
-									Pr.WaitForExit()
-
-									If Pr.ExitCode <> 0 Then
-										Log.ErrorFormat("Архивирование EXE" & vbCrLf & "Вышли из 7Z с кодом : {0}", Pr.ExitCode)
-										Addition &= "Архивирование обновления версии, Вышли из 7Z с кодом " & ": " & Pr.ExitCode & "; "
-										ShareFileHelper.MySQLFileDelete(SevenZipTmpArchive)
-									Else
-
-										Addition &= "Обновление включает в себя новую версию программы; "
-									End If
-
+									ProcessHelper.Cmd("""" & SevenZipExe & """" & " a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
+									Addition &= "Обновление включает в себя новую версию программы; "
 								End If
-
 							End If
-
 						Catch ex As ThreadAbortException
 							Log.Debug("Ошибка ThreadAbortException при архивировании обновления программы")
 							If Not Pr Is Nothing Then
@@ -3092,6 +3078,18 @@ PostLog:
 			If UpdateData.AsyncRequest Then AsyncPrgDatas.AddToList(Me)
 			Dim helper As UpdateHelper = New UpdateHelper(UpdateData, readWriteConnection)
 			Try
+				if UpdateData.IsUpdateToNet(UpdateType)
+					Dim result = UpdateData.LoadNetUpdate(UserName, Password)
+					Dim target = UpdateData.GetCurrentTempFile()
+					File.Move(result, target)
+					FileInfo = New FileInfo(target)
+					ResultLenght = Convert.ToUInt32(FileInfo.Length)
+					Log.DebugFormat("Закончено архивирование файла {0} размер {1}", target, ResultLenght)
+					PackFinished = True
+					Log.Debug("Будет вызывать PackProtocols()")
+					PackProtocols()
+					Exit Sub
+				End If
 
 RestartTrans2:
 				If ErrorFlag Then Exit Try

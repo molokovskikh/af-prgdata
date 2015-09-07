@@ -114,8 +114,6 @@ values
 				var info = new VersionInfo(releaseInfo.FullName);
 
 				Assert.That(info.VersionNumber, Is.GreaterThan(0));
-				Assert.That(info.ExeVersionInfo, Is.Not.Null);
-				Assert.That(info.ExeVersionNumber(), Is.GreaterThan(0));
 				Assert.That(info.Folder, Is.Not.Null.And.Not.Empty);
 				Assert.That(info.ExeFolder(), Is.Not.Null.And.Not.Empty);
 				Assert.That(info.ExeFolder(), Is.StringEnding("Exe").IgnoreCase);
@@ -175,7 +173,6 @@ values
 
 			var info = updater.VersionInfos[0];
 			Assert.That(info.VersionNumber, Is.EqualTo(1380));
-			Assert.That(info.ExeVersionNumber(), Is.EqualTo(1380));
 			Assert.That(info.Folder, Is.StringEnding("Release1380"));
 		}
 

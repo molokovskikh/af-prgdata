@@ -1,13 +1,20 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
+using System.Threading;
 using Common.Models;
 using Common.Tools;
+using Common.Tools.Calendar;
+using Common.Tools.Helpers;
+using ICSharpCode.SharpZipLib.Zip;
 using PrgData.Common.AnalitFVersions;
 using PrgData.Common.Orders;
 
@@ -235,6 +242,19 @@ namespace PrgData.Common
 			SendRejects = Convert.ToBoolean(row["SendRejects"]);
 			InstallNet = Convert.ToBoolean(row["InstallNet"]);
 			Settings = settings;
+		}
+
+		public bool IsUpdateToNet(RequestType type)
+		{
+			if (!(type == RequestType.GetCumulative || type == RequestType.GetCumulativeAsync
+				|| type == RequestType.GetData || type == RequestType.GetDataAsync
+				|| type == RequestType.GetLimitedCumulative || type == RequestType.GetLimitedCumulativeAsync))
+				return false;
+
+			if (!EnableUpdate())
+				return false;
+
+			return UpdateExeVersionInfo.IsNet;
 		}
 
 		public bool Disabled()
@@ -658,6 +678,45 @@ namespace PrgData.Common
 		public void ParseMissingProductIds(uint[] missingProductIds)
 		{
 			MissingProductIds = (missingProductIds ?? new uint[0]).Distinct().Where(i => i > 0).ToList();
+		}
+
+		public string LoadNetUpdate(string username, string password)
+		{
+			var url = ConfigurationManager.AppSettings["NetUpdateUrl"];
+			using (var cleaner = new FileCleaner())
+			using (var handler = new HttpClientHandler())
+			using (var client = new HttpClient(handler))
+			{
+				handler.PreAuthenticate = true;
+				handler.Credentials = new NetworkCredential(username, password);
+				var response = client.GetAsync(url).Result;
+				while (response.StatusCode == HttpStatusCode.Accepted)
+				{
+					Thread.Sleep(3.Second());
+					response = client.GetAsync(url).Result;
+				}
+
+				if (response.StatusCode != HttpStatusCode.OK)
+				{
+					throw new Exception(String.Format("Не удалось получить обновление {0}", response));
+				}
+
+				var stream = response.Content.ReadAsStreamAsync().Result;
+				var file = cleaner.TmpFile();
+				using (var tmpStream = File.OpenWrite(file))
+					stream.CopyTo(tmpStream);
+
+				var dir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), "update");
+				Directory.CreateDirectory(dir);
+				cleaner.WatchDir(dir);
+				new FastZip().ExtractZip(file, dir, null);
+
+				var binDir = Path.GetDirectoryName(GetUpdateFiles()[0]);
+				var tmpArchive = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+				ProcessHelper.Cmd("\"" + @"C:\Program Files\7-Zip\7z.exe" + "\"" + " a \"" + tmpArchive + "\"  \"" + binDir + "\" " + " -mx7 -bd -slp -mmt=6 -w" + Path.GetTempPath());
+				ProcessHelper.Cmd("\"" + @"C:\Program Files\7-Zip\7z.exe" + "\"" + " a \"" + tmpArchive + "\"  \"" + dir + "\" " + " -mx7 -bd -slp -mmt=6 -w" + Path.GetTempPath());
+				return tmpArchive;
+			}
 		}
 	}
 }

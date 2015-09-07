@@ -12,7 +12,6 @@ namespace PrgData.Common.AnalitFVersions
 	public static class VersionUpdaterFactory
 	{
 		private static ILog _logger = LogManager.GetLogger(typeof(VersionUpdaterFactory));
-		private static string _lastVersionErrorMessage;
 
 		public static ExeVersionUpdater GetUpdater()
 		{
@@ -29,7 +28,6 @@ namespace PrgData.Common.AnalitFVersions
 
 		public static List<VersionInfo> GetVersionInfos()
 		{
-			var stringBuilder = new StringBuilder();
 			var infos = new List<VersionInfo>();
 
 			var dirInfo = new DirectoryInfo(Path.Combine(ServiceContext.GetResultPath(), "Updates"));
@@ -42,18 +40,9 @@ namespace PrgData.Common.AnalitFVersions
 						var info = new VersionInfo(releaseInfo.FullName);
 						infos.Add(info);
 					}
-					catch (Exception exception) {
-						stringBuilder.AppendLine("Папка: " + releaseInfo.FullName + " => " + exception.ToString());
-						stringBuilder.AppendLine();
+					catch (Exception e) {
+						_logger.Error("При разборе версий возникли ошибки", e);
 					}
-				}
-
-				var currentErrorMessage = stringBuilder.ToString();
-				if (String.IsNullOrEmpty(currentErrorMessage))
-					_lastVersionErrorMessage = null;
-				else if (!currentErrorMessage.Equals(_lastVersionErrorMessage)) {
-					_logger.ErrorFormat("При разборе версий возникли ошибки:\r\n{0}", currentErrorMessage);
-					_lastVersionErrorMessage = currentErrorMessage;
 				}
 			}
 

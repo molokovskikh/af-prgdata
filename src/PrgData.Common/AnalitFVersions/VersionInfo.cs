@@ -8,10 +8,8 @@ namespace PrgData.Common.AnalitFVersions
 	public class VersionInfo
 	{
 		public uint VersionNumber { get; private set; }
-
 		public string Folder { get; private set; }
-
-		public FileVersionInfo ExeVersionInfo { get; private set; }
+		public bool IsNet;
 
 		public VersionInfo(uint versionNumber)
 		{
@@ -20,6 +18,7 @@ namespace PrgData.Common.AnalitFVersions
 
 		public VersionInfo(string folder)
 		{
+			IsNet = File.Exists(Path.Combine(folder, "Exe", "AnalitF.exe.config"));
 			if (!Directory.Exists(folder))
 				throw new ArgumentException(String.Format("Указанная директория не существует: {0}", folder), "folder");
 
@@ -50,23 +49,6 @@ namespace PrgData.Common.AnalitFVersions
 
 			if (exeFile.Length > 1)
 				throw new Exception(String.Format("Во вложенной директории Exe найдено более одного файла с расширением .exe: {0}", folder));
-
-			try {
-				ExeVersionInfo = FileVersionInfo.GetVersionInfo(exeFile[0].FullName);
-			}
-			catch (Exception exception) {
-				throw new Exception(String.Format("Невозможно получить информацию о версии для файла: {0}", exeFile[0].FullName), exception);
-			}
-
-			if (VersionNumber != ExeVersionNumber())
-				throw new Exception("Не совпадают номера версий в названии папки = {0} и файла {2} = {1}".Format(VersionNumber, ExeVersionNumber(), Path.GetFileName(exeFile[0].FullName)));
-		}
-
-		public uint ExeVersionNumber()
-		{
-			if (ExeVersionInfo != null)
-				return Convert.ToUInt32(ExeVersionInfo.FilePrivatePart);
-			return 0;
 		}
 
 		public string ExeFolder()

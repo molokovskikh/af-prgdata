@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Configuration;
+using System.Text;
 using System.Threading;
+using System.Web;
 using System.Web.Services;
 using Common.MySql;
 using MySql.Data.MySqlClient;
@@ -22,6 +24,7 @@ namespace PrgData
 		protected UpdateData UpdateData;
 		protected uint? GUpdateId = 0;
 		protected string UserName;
+		protected string Password;
 		protected uint CCode;
 		protected uint UserId;
 		protected bool SpyHostsFile;
@@ -67,6 +70,14 @@ namespace PrgData
 		protected void GetClientCode()
 		{
 			UserName = ServiceContext.GetShortUserName();
+			var request = HttpContext.Current.Request.Headers["Authorization"];
+			if (!String.IsNullOrWhiteSpace(request) && request.StartsWith("Basic ") && request.Length > 6) {
+				var userBasic = request.Substring(6);
+				var decodedAuthentification = Encoding.ASCII.GetString(Convert.FromBase64String(userBasic));
+				var parts = decodedAuthentification.Split(':');
+				if (parts.Length > 1)
+					Password = parts[1];
+			}
 			UpdateAFTime(UserName);
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
 			UpdateData = UpdateHelper.GetUpdateData(readWriteConnection, UserName);
