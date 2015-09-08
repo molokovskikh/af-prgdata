@@ -1468,7 +1468,7 @@ endprocNew:
 							If UpdateData.EnableUpdate() Then
 								ef = UpdateData.GetUpdateFiles()
 								If ef.Length > 0 Then
-									ProcessHelper.Cmd("""" & SevenZipExe & """" & " a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam)
+									ProcessHelper.CmdDir("""" & SevenZipExe & """" & " a """ & SevenZipTmpArchive & """  """ & Path.GetDirectoryName(ef(0)) & """ " & SevenZipParam, timeout := TimeSpan.FromMinutes(15))
 									Addition &= "Обновление включает в себя новую версию программы; "
 								End If
 							End If
