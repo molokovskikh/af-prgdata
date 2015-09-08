@@ -713,8 +713,10 @@ namespace PrgData.Common
 
 				var binDir = Path.GetDirectoryName(GetUpdateFiles()[0]);
 				var tmpArchive = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-				ProcessHelper.Cmd("\"" + @"C:\Program Files\7-Zip\7z.exe" + "\"" + " a \"" + tmpArchive + "\"  \"" + binDir + "\" " + " -mx7 -bd -slp -mmt=6 -w" + Path.GetTempPath());
-				ProcessHelper.Cmd("\"" + @"C:\Program Files\7-Zip\7z.exe" + "\"" + " a \"" + tmpArchive + "\"  \"" + dir + "\" " + " -mx7 -bd -slp -mmt=6 -w" + Path.GetTempPath());
+				ProcessHelper.CmdDir("\"" + @"C:\Program Files\7-Zip\7z.exe" + "\"" + " a \"" + tmpArchive + "\"  \"" + binDir + "\" " + " -mx7 -bd -slp -mmt=6 -w" + Path.GetTempPath(),
+					timeout: TimeSpan.FromMinutes(15));
+				ProcessHelper.CmdDir("\"" + @"C:\Program Files\7-Zip\7z.exe" + "\"" + " a \"" + tmpArchive + "\"  \"" + dir + "\" " + " -mx7 -bd -slp -mmt=6 -w" + Path.GetTempPath(),
+					timeout: TimeSpan.FromMinutes(15));
 				return tmpArchive;
 			}
 		}
