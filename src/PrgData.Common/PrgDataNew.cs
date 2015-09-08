@@ -70,13 +70,15 @@ namespace PrgData
 		protected void GetClientCode()
 		{
 			UserName = ServiceContext.GetShortUserName();
-			var request = HttpContext.Current.Request.Headers["Authorization"];
-			if (!String.IsNullOrWhiteSpace(request) && request.StartsWith("Basic ") && request.Length > 6) {
-				var userBasic = request.Substring(6);
-				var decodedAuthentification = Encoding.ASCII.GetString(Convert.FromBase64String(userBasic));
-				var parts = decodedAuthentification.Split(':');
-				if (parts.Length > 1)
-					Password = parts[1];
+			if (HttpContext.Current != null) {
+				var request = HttpContext.Current.Request.Headers["Authorization"];
+				if (!String.IsNullOrWhiteSpace(request) && request.StartsWith("Basic ") && request.Length > 6) {
+					var userBasic = request.Substring(6);
+					var decodedAuthentification = Encoding.ASCII.GetString(Convert.FromBase64String(userBasic));
+					var parts = decodedAuthentification.Split(':');
+					if (parts.Length > 1)
+						Password = parts[1];
+				}
 			}
 			UpdateAFTime(UserName);
 			ThreadContext.Properties["user"] = ServiceContext.GetUserName();
