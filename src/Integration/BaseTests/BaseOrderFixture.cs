@@ -130,7 +130,7 @@ limit 1
 					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
 					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
 					new MySqlParameter("?ProductId", firstProductId));
-				Assert.IsNotNull(firstOffer, "Не найдено предложение по прайсу {0} для пользователя {1} продукт {2}",
+				Assert.IsNotNull(firstOffer, "РќРµ РЅР°Р№РґРµРЅРѕ РїСЂРµРґР»РѕР¶РµРЅРёРµ РїРѕ РїСЂР°Р№СЃСѓ {0} РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ {1} РїСЂРѕРґСѓРєС‚ {2}",
 					activePrice["PriceCode"], user.Id, firstProductId);
 
 				secondOffer = ExecuteDataRow(
@@ -154,7 +154,7 @@ limit 1
 					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
 					new MySqlParameter("?ProductId", firstProductId),
 					new MySqlParameter("?SynonymCode", firstOffer["SynonymCode"]));
-				Assert.IsNotNull(secondOffer, "Не найдено предложение");
+				Assert.IsNotNull(secondOffer, "РќРµ РЅР°Р№РґРµРЅРѕ РїСЂРµРґР»РѕР¶РµРЅРёРµ");
 
 				thirdOffer = ExecuteDataRow(
 					connection,
@@ -175,7 +175,7 @@ limit 1
 					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
 					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
 					new MySqlParameter("?ProductId", secondProductId));
-				Assert.IsNotNull(thirdOffer, "Не найдено предложение");
+				Assert.IsNotNull(thirdOffer, "РќРµ РЅР°Р№РґРµРЅРѕ РїСЂРµРґР»РѕР¶РµРЅРёРµ");
 
 				fourOffer = ExecuteDataRow(
 					connection,
@@ -196,7 +196,7 @@ limit 1
 					new MySqlParameter("?PriceCode", activePrice["PriceCode"]),
 					new MySqlParameter("?RegionCode", activePrice["RegionCode"]),
 					new MySqlParameter("?ProductId", thirdProductId));
-				Assert.IsNotNull(fourOffer, "Не найдено предложение");
+				Assert.IsNotNull(fourOffer, "РќРµ РЅР°Р№РґРµРЅРѕ РїСЂРµРґР»РѕР¶РµРЅРёРµ");
 				getOffers = true;
 			}
 		}
