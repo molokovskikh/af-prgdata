@@ -377,18 +377,6 @@ where
 			});
 		}
 
-		[Test(Description = "получаем ошибку при нескольких файлов с exe в папке Exe")]
-		public void GetErrorOnSameExistsExeFile()
-		{
-			CheckExeFolder((testFolder, exeFolder) => {
-				File.WriteAllText(Path.Combine(exeFolder, "1.exe"), "1.exe");
-				File.WriteAllText(Path.Combine(exeFolder, "2.exe"), "2.exe");
-
-				var exception = Assert.Throws<Exception>(() => { var info = new VersionInfo(testFolder); });
-				Assert.That(exception.Message, Is.StringStarting("Во вложенной директории Exe найдено более одного файла с расширением .exe"));
-			});
-		}
-
 		[Test(Description = "получаем ошибку при чтении версии файла с exe в папке Exe")]
 		public void GetErrorOnReadVersionExeFile()
 		{
