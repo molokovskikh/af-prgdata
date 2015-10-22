@@ -695,7 +695,7 @@ Public Class PrgDataEx
 				Else
 			        Throw New UpdateException( _
 			            "Доступ закрыт.", _
-			            "Пожалуйста, обратитесь в АК ""Инфорум"".[1]", _
+			            "Пожалуйста, обратитесь в АналитФармация.[1]", _
 						"Попытка обновиться с неподдерживаемой версии: " & UpdateData.BuildNumber.ToString() & "; ", _
 			            RequestType.Forbidden)
 				End If

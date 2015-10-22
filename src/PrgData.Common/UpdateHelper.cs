@@ -2855,7 +2855,7 @@ and OrdersHead.RowId = sendlogs.OrderId;
 						}
 
 						throw new UpdateException(description,
-							"Пожалуйста, обратитесь в АК \"Инфорум\".[2]",
+							"Пожалуйста, обратитесь в АналитФармация.[2]",
 							"Несоответствие UIN.",
 							RequestType.Forbidden);
 					}

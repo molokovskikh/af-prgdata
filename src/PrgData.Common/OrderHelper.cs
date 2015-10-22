@@ -26,7 +26,7 @@ where u.Id = ?UserId", _readWriteConnection);
 			var canPostOrder = Convert.ToBoolean(command.ExecuteScalar());
 
 			if (!canPostOrder)
-				throw new UpdateException("Отправка заказов запрещена", "Пожалуйста, обратитесь в АК \"Инфорум\".", RequestType.Forbidden);
+				throw new UpdateException("Отправка заказов запрещена", "Пожалуйста, обратитесь в АналитФармация.", RequestType.Forbidden);
 		}
 	}
 }

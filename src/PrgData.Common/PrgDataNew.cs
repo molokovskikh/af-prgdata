@@ -87,21 +87,21 @@ namespace PrgData
 				if (UpdateData == null) {
 					throw new UpdateException(
 						"Доступ закрыт.",
-						"Пожалуйста, обратитесь в АК \"Инфорум\".[1]",
+						"Пожалуйста, обратитесь в АналитФармация.[1]",
 						"Для логина " + UserName + " услуга не предоставляется; ",
 						RequestType.Forbidden);
 				}
 				else if (UpdateData.BillingDisabled()) {
 					throw new UpdateException(
 						"В связи с неоплатой услуг доступ закрыт.",
-						"Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]",
+						"Пожалуйста, обратитесь в бухгалтерию АналитФармация.[1]",
 						"Для логина " + UserName + " услуга не предоставляется: " + UpdateData.DisabledMessage() + "; ",
 						RequestType.Forbidden);
 				}
 				else {
 					throw new UpdateException(
 						"Доступ закрыт.",
-						"Пожалуйста, обратитесь в АК \"Инфорум\".[1]",
+						"Пожалуйста, обратитесь в АналитФармация.[1]",
 						"Для логина " + UserName + " услуга не предоставляется: " + UpdateData.DisabledMessage() + "; ",
 						RequestType.Forbidden);
 				}

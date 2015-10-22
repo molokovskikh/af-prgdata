@@ -175,7 +175,6 @@
   <ItemGroup>
     <Compile Include="code.asmx.vb">
       <DependentUpon>code.asmx</DependentUpon>
-      <SubType>Component</SubType>
     </Compile>
     <Compile Include="Global.asax.vb">
       <DependentUpon>Global.asax</DependentUpon>

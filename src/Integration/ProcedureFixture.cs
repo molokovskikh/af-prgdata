@@ -925,7 +925,7 @@ select @postBatchId;",
 			var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
-			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
+			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АналитФармация.[1]").IgnoreCase);
 		}
 
 		[Test(Description = "Проверка подготовки данных для отключенного пользователя")]
@@ -945,7 +945,7 @@ select @postBatchId;",
 			var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 			Assert.That(responce, Is.StringContaining("Desc=В связи с неоплатой услуг доступ закрыт.").IgnoreCase);
-			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АК \"Инфорум\".[1]").IgnoreCase);
+			Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в бухгалтерию АналитФармация.[1]").IgnoreCase);
 		}
 
 		[Test(Description = "попытка получить данные для пользователя, который не привязан к системе")]
@@ -961,7 +961,7 @@ select @postBatchId;",
 				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				Assert.That(responce, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
-				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АК \"Инфорум\".[1]").IgnoreCase);
+				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АналитФармация.[1]").IgnoreCase);
 
 				var events = memoryAppender.GetEvents();
 
@@ -994,7 +994,7 @@ select @postBatchId;",
 				var responce = service.GetUserDataWithPriceCodes(DateTime.Now, true, appVersion, 50, UniqueId, "", "", false, null, null);
 
 				Assert.That(responce, Is.StringContaining("Desc=Доступ закрыт.").IgnoreCase);
-				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АК \"Инфорум\".[1]").IgnoreCase);
+				Assert.That(responce, Is.StringContaining("Error=Пожалуйста, обратитесь в АналитФармация.[1]").IgnoreCase);
 
 				var events = memoryAppender.GetEvents();
 

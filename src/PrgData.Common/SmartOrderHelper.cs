@@ -74,7 +74,7 @@ namespace PrgData.Common
 			using (var unitOfWork = new UnitOfWork()) {
 				_orderRule = IoC.Resolve<IOrderFactoryRepository>().GetOrderRule(updateData.ClientId);
 				if (!_orderRule.EnableSmartOrder)
-					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АналитФармация.", "Услуга 'АвтоЗаказ' не предоставляется; ", RequestType.Forbidden);
 
 				_smartOrderRule = IoC.Resolve<ISmartOrderFactoryRepository>().GetSmartOrderRule(updateData.ClientId);
 
@@ -84,11 +84,11 @@ namespace PrgData.Common
 				_user = IoC.Resolve<IRepository<User>>().Load(_updateData.UserId);
 				NHibernateUtil.Initialize(_user.AvaliableAddresses);
 				if (_user.AvaliableAddresses.Count == 0)
-					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "У пользователя нет доступных адресов доставки; ", RequestType.Forbidden);
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АналитФармация.", "У пользователя нет доступных адресов доставки; ", RequestType.Forbidden);
 
 				_address = _user.AvaliableAddresses.FirstOrDefault(a => a.Id == addressId);
 				if (_address == null)
-					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АК \"Инфорум\".", "Пользователю не доступен адрес с кодом {0}; ".Format(addressId), RequestType.Forbidden);
+					throw new UpdateException("Услуга 'АвтоЗаказ' не предоставляется", "Пожалуйста, обратитесь в АналитФармация.", "Пользователю не доступен адрес с кодом {0}; ".Format(addressId), RequestType.Forbidden);
 				NHibernateUtil.Initialize(_address.Users);
 			}
 
